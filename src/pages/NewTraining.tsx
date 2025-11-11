@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useState } from "react";
@@ -15,6 +15,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { FileUploader, UploadedFile } from "@/components/FileUploader";
+import { uploadTrainingDocument } from "@/lib/trainingDocuments";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -38,6 +40,8 @@ type FormValues = z.infer<typeof formSchema>;
 export default function NewTraining() {
   const [useCustomTrainer, setUseCustomTrainer] = useState(false);
   const [useCustomCompany, setUseCustomCompany] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -49,13 +53,61 @@ export default function NewTraining() {
     },
   });
 
-  const onSubmit = (data: FormValues) => {
-    console.log(data);
-    toast({
-      title: "Školení vytvořeno",
-      description: "Nové školení bylo úspěšně přidáno do systému.",
-    });
-    form.reset();
+  const onSubmit = async (data: FormValues) => {
+    setIsSubmitting(true);
+    
+    try {
+      // TODO: Zde by se mělo vytvořit školení v databázi a získat jeho ID
+      // Pro teď použijeme mock ID
+      const trainingId = `training-${Date.now()}`;
+      
+      console.log("Vytvářím školení:", data);
+      
+      // Nahrání všech souborů
+      if (uploadedFiles.length > 0) {
+        const uploadPromises = uploadedFiles.map((uploadedFile) =>
+          uploadTrainingDocument(
+            trainingId,
+            uploadedFile.file,
+            uploadedFile.documentType,
+            uploadedFile.description
+          )
+        );
+        
+        const results = await Promise.all(uploadPromises);
+        const errors = results.filter((r) => r.error);
+        
+        if (errors.length > 0) {
+          toast({
+            title: "Některé soubory se nepodařilo nahrát",
+            description: `${errors.length} z ${uploadedFiles.length} souborů selhalo.`,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Školení vytvořeno",
+            description: `Nové školení bylo úspěšně přidáno se ${uploadedFiles.length} dokumenty.`,
+          });
+        }
+      } else {
+        toast({
+          title: "Školení vytvořeno",
+          description: "Nové školení bylo úspěšně přidáno do systému.",
+        });
+      }
+      
+      form.reset();
+      setUploadedFiles([]);
+    } catch (error) {
+      console.error("Chyba při vytváření školení:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se vytvořit školení.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -252,6 +304,21 @@ export default function NewTraining() {
               </div>
             </div>
 
+            {/* Nahrávání dokumentů */}
+            <div className="space-y-2">
+              <Label>Dokumenty ke školení</Label>
+              <p className="text-sm text-muted-foreground">
+                Nahrajte certifikáty, prezenční listiny nebo jiné dokumenty související se školením
+              </p>
+              <FileUploader
+                files={uploadedFiles}
+                onFilesChange={setUploadedFiles}
+                maxFiles={10}
+                maxSize={20}
+                acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
+              />
+            </div>
+
             <FormField
               control={form.control}
               name="protocol"
@@ -340,8 +407,19 @@ export default function NewTraining() {
             />
 
             <div className="flex gap-4">
-              <Button type="submit">Vytvořit školení</Button>
-              <Button type="button" variant="outline" onClick={() => form.reset()}>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {isSubmitting ? "Vytváří se..." : "Vytvořit školení"}
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  form.reset();
+                  setUploadedFiles([]);
+                }}
+                disabled={isSubmitting}
+              >
                 Zrušit
               </Button>
             </div>
