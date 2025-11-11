@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Download, CheckCircle, XCircle, AlertCircle, FileText } from "lucide-react";
+import { Upload, Download, CheckCircle, XCircle, AlertCircle, FileText, FileDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -343,6 +343,53 @@ export function BulkImport() {
     }
   };
 
+  const exportErrors = () => {
+    if (!result || result.errors.length === 0) {
+      toast({
+        title: "Žádné chyby",
+        description: "Nejsou k dispozici žádné chybné záznamy k exportu.",
+      });
+      return;
+    }
+
+    const errorData = result.errors.map(error => ({
+      radek: error.row,
+      chyba: error.error,
+      osobni_cislo: error.data?.osobni_cislo || '',
+      jmeno: error.data?.jmeno || '',
+      prijmeni: error.data?.prijmeni || '',
+      email: error.data?.email || '',
+      pozice: error.data?.pozice || '',
+      stredisko_kod: error.data?.stredisko_kod || '',
+      stredisko_nazev: error.data?.stredisko_nazev || '',
+      typ_skoleni: error.data?.typ_skoleni || '',
+      provozovna: error.data?.provozovna || '',
+      datum_posledniho_skoleni: error.data?.datum_posledniho_skoleni || '',
+      perioda_dny: error.data?.perioda_dny || '',
+      skolitel: error.data?.skolitel || '',
+      firma: error.data?.firma || '',
+      poznamka: error.data?.poznamka || '',
+    }));
+
+    const csv = Papa.unparse(errorData);
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().split("T")[0];
+    link.setAttribute("href", url);
+    link.setAttribute("download", `chyby_import_skoleni_${timestamp}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export dokončen",
+      description: `Exportováno ${errorData.length} chybných záznamů.`,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-6">
@@ -405,10 +452,21 @@ export function BulkImport() {
                         {result.success} úspěšných
                       </Badge>
                       {result.errors.length > 0 && (
-                        <Badge variant="destructive">
-                          <XCircle className="w-3 h-3 mr-1" />
-                          {result.errors.length} chyb
-                        </Badge>
+                        <>
+                          <Badge variant="destructive">
+                            <XCircle className="w-3 h-3 mr-1" />
+                            {result.errors.length} chyb
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={exportErrors}
+                            className="ml-auto"
+                          >
+                            <FileDown className="w-4 h-4 mr-2" />
+                            Exportovat chyby
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>

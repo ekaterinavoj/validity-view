@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, AlertCircle, CheckCircle, X } from "lucide-react";
+import { Upload, AlertCircle, CheckCircle, X, FileDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { z } from 'zod';
@@ -126,6 +126,36 @@ export function BulkEmployeeImport() {
     setImportedData([]);
   };
 
+  const exportErrors = () => {
+    const errorData = importedData
+      .filter(d => !d.isValid)
+      .map(d => ({
+        ...d.data,
+        _chyby: d.errors.join('; '),
+        _radek: d.rowNumber,
+      }));
+
+    if (errorData.length === 0) {
+      toast({
+        title: "Žádné chyby",
+        description: "Nejsou k dispozici žádné chybné záznamy k exportu.",
+      });
+      return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(errorData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Chyby");
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `chyby_import_zamestnanci_${timestamp}.xlsx`);
+
+    toast({
+      title: "Export dokončen",
+      description: `Exportováno ${errorData.length} chybných záznamů.`,
+    });
+  };
+
   const validCount = importedData.filter(d => d.isValid).length;
   const invalidCount = importedData.length - validCount;
 
@@ -163,6 +193,17 @@ export function BulkEmployeeImport() {
                 <AlertCircle className="w-5 h-5 text-destructive" />
                 <span className="font-medium">{invalidCount} s chybami</span>
               </div>
+              {invalidCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportErrors}
+                  className="ml-auto"
+                >
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Exportovat chyby
+                </Button>
+              )}
             </div>
 
             <div className="border rounded-lg overflow-hidden">

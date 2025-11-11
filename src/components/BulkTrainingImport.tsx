@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, FileDown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -22,6 +22,7 @@ interface ImportResult {
   success: number;
   failed: number;
   errors: string[];
+  failedRows: Array<{ row: number; data: ImportRow; error: string }>;
 }
 
 export const BulkTrainingImport = () => {
@@ -175,6 +176,7 @@ export const BulkTrainingImport = () => {
 
   const processImport = async (data: ImportRow[]) => {
     const errors: string[] = [];
+    const failedRows: Array<{ row: number; data: ImportRow; error: string }> = [];
     let successCount = 0;
     let failedCount = 0;
 
@@ -191,7 +193,9 @@ export const BulkTrainingImport = () => {
         try {
           // Validace povinných polí
           if (!row.employee_number || !row.training_type_name || !row.facility || !row.last_training_date) {
-            errors.push(`Řádek ${rowNum}: Chybí povinné pole`);
+            const error = `Řádek ${rowNum}: Chybí povinné pole`;
+            errors.push(error);
+            failedRows.push({ row: rowNum, data: row, error });
             failedCount++;
             continue;
           }
@@ -205,7 +209,9 @@ export const BulkTrainingImport = () => {
 
           if (empError) throw empError;
           if (!employees || employees.length === 0) {
-            errors.push(`Řádek ${rowNum}: Zaměstnanec ${row.employee_number} nebyl nalezen`);
+            const error = `Řádek ${rowNum}: Zaměstnanec ${row.employee_number} nebyl nalezen`;
+            errors.push(error);
+            failedRows.push({ row: rowNum, data: row, error });
             failedCount++;
             continue;
           }
@@ -220,7 +226,9 @@ export const BulkTrainingImport = () => {
 
           if (typeError) throw typeError;
           if (!trainingTypes || trainingTypes.length === 0) {
-            errors.push(`Řádek ${rowNum}: Typ školení "${row.training_type_name}" pro ${row.facility} nebyl nalezen`);
+            const error = `Řádek ${rowNum}: Typ školení "${row.training_type_name}" pro ${row.facility} nebyl nalezen`;
+            errors.push(error);
+            failedRows.push({ row: rowNum, data: row, error });
             failedCount++;
             continue;
           }
@@ -250,7 +258,9 @@ export const BulkTrainingImport = () => {
           if (insertError) throw insertError;
           successCount++;
         } catch (error: any) {
-          errors.push(`Řádek ${rowNum}: ${error.message}`);
+          const errorMsg = `Řádek ${rowNum}: ${error.message}`;
+          errors.push(errorMsg);
+          failedRows.push({ row: rowNum, data: row, error: error.message });
           failedCount++;
         }
       }
@@ -259,6 +269,7 @@ export const BulkTrainingImport = () => {
         success: successCount,
         failed: failedCount,
         errors: errors.slice(0, 10), // Zobrazit max 10 chyb
+        failedRows,
       });
 
       if (successCount > 0) {
@@ -276,6 +287,40 @@ export const BulkTrainingImport = () => {
     } finally {
       setImporting(false);
     }
+  };
+
+  const exportErrors = () => {
+    if (!result || result.failedRows.length === 0) {
+      toast({
+        title: "Žádné chyby",
+        description: "Nejsou k dispozici žádné chybné záznamy k exportu.",
+      });
+      return;
+    }
+
+    const errorData = result.failedRows.map(item => ({
+      radek: item.row,
+      chyba: item.error,
+      employee_number: item.data.employee_number,
+      training_type_name: item.data.training_type_name,
+      facility: item.data.facility,
+      last_training_date: item.data.last_training_date,
+      trainer: item.data.trainer || '',
+      company: item.data.company || '',
+      note: item.data.note || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(errorData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Chyby");
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `chyby_import_skoleni_${timestamp}.xlsx`);
+
+    toast({
+      title: "Export dokončen",
+      description: `Exportováno ${errorData.length} chybných záznamů.`,
+    });
   };
 
   return (
@@ -348,11 +393,25 @@ export const BulkTrainingImport = () => {
               <CheckCircle2 className="h-4 w-4" />
               <AlertDescription>
                 <div className="space-y-2">
-                  <p className="font-semibold">Výsledek importu:</p>
-                  <ul className="text-sm space-y-1">
-                    <li>✅ Úspěšně importováno: {result.success}</li>
-                    <li>❌ Selhalo: {result.failed}</li>
-                  </ul>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">Výsledek importu:</p>
+                      <ul className="text-sm space-y-1 mt-1">
+                        <li>✅ Úspěšně importováno: {result.success}</li>
+                        <li>❌ Selhalo: {result.failed}</li>
+                      </ul>
+                    </div>
+                    {result.failed > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={exportErrors}
+                      >
+                        <FileDown className="w-4 h-4 mr-2" />
+                        Exportovat chyby
+                      </Button>
+                    )}
+                  </div>
                   {result.errors.length > 0 && (
                     <div className="mt-3">
                       <p className="font-semibold text-sm mb-1">Chyby:</p>
