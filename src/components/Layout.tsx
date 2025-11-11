@@ -1,6 +1,7 @@
 import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
+import { Link } from "react-router-dom";
 import { 
   Calendar, 
   History, 
@@ -49,7 +50,7 @@ export const Layout = ({ children }: LayoutProps) => {
             
             {profile && (
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3 text-sm">
+                <Link to="/profile" className="flex items-center gap-3 text-sm hover:bg-accent rounded-lg px-3 py-2 transition-colors">
                   <User className="w-4 h-4 text-muted-foreground" />
                   <div className="flex flex-col items-end">
                     <span className="font-medium text-foreground">
@@ -64,7 +65,7 @@ export const Layout = ({ children }: LayoutProps) => {
                       {getRoleBadge()}
                     </div>
                   </div>
-                </div>
+                </Link>
                 <Button
                   variant="outline"
                   size="sm"

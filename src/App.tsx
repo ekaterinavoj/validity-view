@@ -14,6 +14,7 @@ import Other from "./pages/Other";
 import Auth from "./pages/Auth";
 import UserManagement from "./pages/UserManagement";
 import AuditLog from "./pages/AuditLog";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -104,6 +105,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <AuditLog />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Profile />
                   </Layout>
                 </ProtectedRoute>
               }
