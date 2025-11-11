@@ -6,11 +6,16 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, KeyRound, Mail, Shield, Search, Settings as SettingsIcon, Bell, Clock, Download, Users, TrendingUp } from "lucide-react";
+import { User, Save, KeyRound, Mail, Shield, Search, Settings as SettingsIcon, Bell, Clock, Download, Users, TrendingUp, UserX } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Papa from "papaparse";
+import { format, subMonths } from "date-fns";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import BulkImportPage from "./BulkImportPage";
 import {
   Select,
   SelectContent,
@@ -26,16 +31,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface UserProfile {
   id: string;
@@ -44,6 +39,8 @@ interface UserProfile {
   email: string;
   position?: string;
   roles: string[];
+  created_at?: string;
+  last_sign_in_at?: string;
 }
 
 const Profile = () => {
@@ -59,13 +56,13 @@ const Profile = () => {
   
   // Změna hesla
   const [changePasswordDialog, setChangePasswordDialog] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   
   // Filtrování uživatelů
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   
   // Nastavení systému
   const loadSettings = () => {
@@ -119,14 +116,23 @@ const Profile = () => {
 
       if (rolesError) throw rolesError;
 
-      const usersWithRoles = profiles?.map((p) => ({
-        id: p.id,
-        first_name: p.first_name,
-        last_name: p.last_name,
-        email: p.email,
-        position: p.position,
-        roles: roles?.filter((r) => r.user_id === p.id).map((r) => r.role) || [],
-      })) || [];
+      // Získat poslední přihlášení z auth.users
+      const { data, error: authError } = await supabase.auth.admin.listUsers();
+      const authUsers = data?.users || [];
+
+      const usersWithRoles = profiles?.map((p) => {
+        const authUser = authUsers.find((au: any) => au.id === p.id);
+        return {
+          id: p.id,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          email: p.email,
+          position: p.position,
+          created_at: p.created_at,
+          last_sign_in_at: authUser?.last_sign_in_at,
+          roles: roles?.filter((r) => r.user_id === p.id).map((r) => r.role) || [],
+        };
+      }) || [];
 
       setAllUsers(usersWithRoles);
     } catch (error: any) {
@@ -240,7 +246,6 @@ const Profile = () => {
       });
       
       setChangePasswordDialog(false);
-      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
@@ -338,6 +343,8 @@ const Profile = () => {
       "Email": user.email,
       "Pozice": user.position || "",
       "Role": getRoleValue(user.roles),
+      "Poslední přihlášení": user.last_sign_in_at ? format(new Date(user.last_sign_in_at), "dd.MM.yyyy HH:mm") : "",
+      "Registrace": user.created_at ? format(new Date(user.created_at), "dd.MM.yyyy") : "",
     }));
 
     const csv = Papa.unparse(exportData);
@@ -364,6 +371,77 @@ const Profile = () => {
     const users = allUsers.filter(u => u.roles.includes("user")).length;
     
     return { total, admins, managers, users };
+  };
+
+  const getUserGrowthData = () => {
+    const months = [];
+    const now = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = subMonths(now, i);
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      
+      const count = allUsers.filter(u => {
+        if (!u.created_at) return false;
+        const createdDate = new Date(u.created_at);
+        return createdDate >= monthStart && createdDate <= monthEnd;
+      }).length;
+      
+      months.push({
+        month: format(date, "MMM yyyy"),
+        users: count,
+      });
+    }
+    
+    return months;
+  };
+
+  const handleBulkDeactivate = async () => {
+    if (selectedUsers.length === 0) return;
+
+    setLoading(true);
+    try {
+      // Změnit role na "user" a označit jako deaktivované
+      for (const userId of selectedUsers) {
+        await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", userId);
+      }
+
+      await loadAllUsers();
+      setSelectedUsers([]);
+      
+      toast({
+        title: "Uživatelé deaktivováni",
+        description: `${selectedUsers.length} uživatelů bylo deaktivováno.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Chyba při deaktivaci",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const toggleAllUsers = () => {
+    if (selectedUsers.length === filteredUsers.length) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(filteredUsers.map(u => u.id));
+    }
   };
 
   const getRoleBadge = (roles: string[]) => {
@@ -402,373 +480,502 @@ const Profile = () => {
         <h2 className="text-3xl font-bold text-foreground">Profil a nastavení</h2>
       </div>
 
-      {/* Vlastní profil */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Můj profil</CardTitle>
-          <CardDescription>Upravte své osobní údaje</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">Jméno</Label>
-              <Input
-                id="firstName"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Příjmení</Label>
-              <Input
-                id="lastName"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-              />
-            </div>
-          </div>
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="profile">Můj profil</TabsTrigger>
+          <TabsTrigger value="settings">Nastavení</TabsTrigger>
+          {isAdmin && <TabsTrigger value="import">Import</TabsTrigger>}
+        </TabsList>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="position">Pozice</Label>
-            <Input
-              id="position"
-              value={position}
-              onChange={(e) => setPosition(e.target.value)}
-            />
-          </div>
-
-          <Separator className="my-4" />
-          
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Změna hesla</h3>
-            <p className="text-sm text-muted-foreground">
-              Chcete-li změnit heslo, klikněte na tlačítko níže
-            </p>
-            <Button 
-              variant="outline" 
-              onClick={() => setChangePasswordDialog(true)}
-            >
-              <KeyRound className="w-4 h-4 mr-2" />
-              Změnit heslo
-            </Button>
-          </div>
-
-          <div className="flex justify-end mt-6">
-            <Button onClick={handleSaveOwnProfile} disabled={loading}>
-              <Save className="w-4 h-4 mr-2" />
-              Uložit změny
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Nastavení systému */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <SettingsIcon className="w-5 h-5 text-primary" />
-            <CardTitle>Nastavení systému</CardTitle>
-          </div>
-          <CardDescription>
-            Konfigurace výchozích hodnot a notifikací
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Emailové notifikace */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Mail className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Emailové notifikace</h3>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="email-enabled">Povolit emailové notifikace</Label>
-                <p className="text-sm text-muted-foreground">
-                  Zasílat automatické připomínky o končících školeních
-                </p>
-              </div>
-              <Switch
-                id="email-enabled"
-                checked={settings.emailNotificationsEnabled}
-                onCheckedChange={(checked) => updateSetting('emailNotificationsEnabled', checked)}
-              />
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <Label>Status RESEND API klíče</Label>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">
-                    Pro odesílání emailů je potřeba nastavit RESEND_API_KEY v tajných klíčích projektu.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {settings.emailNotificationsEnabled && (
-              <>
-                <Separator />
-                <div className="space-y-2">
-                  <Label htmlFor="check-interval">Interval kontroly (cron formát)</Label>
-                  <Input
-                    id="check-interval"
-                    value={settings.notificationCheckInterval}
-                    onChange={(e) => updateSetting('notificationCheckInterval', e.target.value)}
-                    placeholder="0 8 * * *"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Příklady: "0 8 * * *" = každý den v 8:00, "0 */6 * * *" = každých 6 hodin
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Výchozí intervaly */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Výchozí intervaly</h3>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="remind-days">Připomínka před vypršením (dny)</Label>
-              <Input
-                id="remind-days"
-                type="number"
-                min="1"
-                value={settings.defaultRemindDaysBefore}
-                onChange={(e) => updateSetting('defaultRemindDaysBefore', parseInt(e.target.value))}
-              />
-              <p className="text-xs text-muted-foreground">
-                Kolik dní před vypršením školení má být odeslána připomínka
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="repeat-days">Interval opakování školení (dny)</Label>
-              <Input
-                id="repeat-days"
-                type="number"
-                min="1"
-                value={settings.defaultRepeatDaysAfter}
-                onChange={(e) => updateSetting('defaultRepeatDaysAfter', parseInt(e.target.value))}
-              />
-              <p className="text-xs text-muted-foreground">
-                Výchozí počet dní po kterých má být školení opakováno (např. 365 pro roční školení)
-              </p>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Připomínky info */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Bell className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Šablona připomínek</h3>
-            </div>
-            
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                Systém automaticky kontroluje školení, kterým brzy vyprší platnost podle nastaveného
-                intervalu "Připomínka před vypršením".
-              </p>
-              <p>
-                Pro každé školení s končící platností bude zaslán email na adresu zaměstnance
-                s upozorněním na nutnost opakování školení.
-              </p>
-              <p className="font-medium text-foreground">
-                Pro aktivaci emailových notifikací je nutné:
-              </p>
-              <ul className="list-disc list-inside space-y-1 ml-2">
-                <li>Nastavit RESEND_API_KEY v tajných klíčích projektu</li>
-                <li>Povolit emailové notifikace výše</li>
-                <li>Ověřit doménu v Resend dashboard</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <Button onClick={handleSaveSettings} size="lg">
-              <Save className="w-4 h-4 mr-2" />
-              Uložit nastavení
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Admin - správa uživatelů */}
-      {isAdmin && (
-        <>
-          {/* Statistiky uživatelů */}
+        <TabsContent value="profile" className="space-y-6">
+          {/* Vlastní profil */}
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
-                <CardTitle>Statistiky uživatelů</CardTitle>
-              </div>
-              <CardDescription>
-                Přehled uživatelské základny
-              </CardDescription>
+              <CardTitle>Můj profil</CardTitle>
+              <CardDescription>Upravte své osobní údaje</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
-                  <Users className="w-8 h-8 text-primary mb-2" />
-                  <div className="text-2xl font-bold">{getUserStats().total}</div>
-                  <div className="text-sm text-muted-foreground">Celkem uživatelů</div>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Jméno</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                  />
                 </div>
-                <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-red-500/10">
-                  <Shield className="w-8 h-8 text-red-600 mb-2" />
-                  <div className="text-2xl font-bold text-red-600">{getUserStats().admins}</div>
-                  <div className="text-sm text-muted-foreground">Adminů</div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Příjmení</Label>
+                  <Input
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
                 </div>
-                <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-blue-500/10">
-                  <Shield className="w-8 h-8 text-blue-600 mb-2" />
-                  <div className="text-2xl font-bold text-blue-600">{getUserStats().managers}</div>
-                  <div className="text-sm text-muted-foreground">Manažerů</div>
-                </div>
-                <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-green-500/10">
-                  <User className="w-8 h-8 text-green-600 mb-2" />
-                  <div className="text-2xl font-bold text-green-600">{getUserStats().users}</div>
-                  <div className="text-sm text-muted-foreground">Uživatelů</div>
-                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="position">Pozice</Label>
+                <Input
+                  id="position"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                />
+              </div>
+
+              <Separator className="my-4" />
+              
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Změna hesla</h3>
+                <p className="text-sm text-muted-foreground">
+                  Chcete-li změnit heslo, klikněte na tlačítko níže
+                </p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setChangePasswordDialog(true)}
+                >
+                  <KeyRound className="w-4 h-4 mr-2" />
+                  Změnit heslo
+                </Button>
+              </div>
+
+              <div className="flex justify-end mt-6">
+                <Button onClick={handleSaveOwnProfile} disabled={loading}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Uložit změny
+                </Button>
               </div>
             </CardContent>
           </Card>
 
+          {/* Admin - statistiky a správa uživatelů */}
+          {isAdmin && (
+            <>
+              {/* Statistiky uživatelů */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    <CardTitle>Statistiky uživatelů</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Přehled uživatelské základny
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
+                      <Users className="w-8 h-8 text-primary mb-2" />
+                      <div className="text-2xl font-bold">{getUserStats().total}</div>
+                      <div className="text-sm text-muted-foreground">Celkem uživatelů</div>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-red-500/10">
+                      <Shield className="w-8 h-8 text-red-600 mb-2" />
+                      <div className="text-2xl font-bold text-red-600">{getUserStats().admins}</div>
+                      <div className="text-sm text-muted-foreground">Adminů</div>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-blue-500/10">
+                      <Shield className="w-8 h-8 text-blue-600 mb-2" />
+                      <div className="text-2xl font-bold text-blue-600">{getUserStats().managers}</div>
+                      <div className="text-sm text-muted-foreground">Manažerů</div>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-green-500/10">
+                      <User className="w-8 h-8 text-green-600 mb-2" />
+                      <div className="text-2xl font-bold text-green-600">{getUserStats().users}</div>
+                      <div className="text-sm text-muted-foreground">Uživatelů</div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h3 className="text-sm font-semibold mb-4">Růst uživatelské základny</h3>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart data={getUserGrowthData()}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="users" stroke="hsl(var(--primary))" strokeWidth={2} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Správa uživatelů */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-5 h-5 text-primary" />
+                      <CardTitle>Správa uživatelů</CardTitle>
+                    </div>
+                    <div className="flex gap-2">
+                      {selectedUsers.length > 0 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleBulkDeactivate}
+                          disabled={loading}
+                        >
+                          <UserX className="w-4 h-4 mr-2" />
+                          Deaktivovat ({selectedUsers.length})
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportUsers}
+                        disabled={filteredUsers.length === 0}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export do CSV
+                      </Button>
+                    </div>
+                  </div>
+                  <CardDescription>
+                    Jako admin můžete upravovat profily ostatních uživatelů a resetovat jejich hesla
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4 mb-4">
+                    <div className="flex gap-4">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Hledat podle jména nebo emailu..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                      <Select value={roleFilter} onValueChange={setRoleFilter}>
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Filtrovat podle role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Všechny role</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="user">Uživatel</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="select-all"
+                        checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                        onCheckedChange={toggleAllUsers}
+                      />
+                      <Label htmlFor="select-all" className="text-sm text-muted-foreground cursor-pointer">
+                        Vybrat všechny ({filteredUsers.length})
+                      </Label>
+                    </div>
+                  </div>
+                
+                  <div className="space-y-4">
+                    {filteredUsers.map((user) => (
+                      <Card key={user.id}>
+                        <CardContent className="pt-6">
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              checked={selectedUsers.includes(user.id)}
+                              onCheckedChange={() => toggleUserSelection(user.id)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-3 flex-1">
+                                  <div className="flex items-center gap-3">
+                                    <h3 className="text-lg font-semibold">
+                                      {user.first_name} {user.last_name}
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                      {getRoleBadge(user.roles)}
+                                      <Select
+                                        value={getRoleValue(user.roles)}
+                                        onValueChange={(value) => {
+                                          if (value === "admin" || value === "manager" || value === "user") {
+                                            handleRoleChange(user.id, value);
+                                          }
+                                        }}
+                                      >
+                                        <SelectTrigger className="w-[140px] h-8">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="admin">Admin</SelectItem>
+                                          <SelectItem value="manager">Manager</SelectItem>
+                                          <SelectItem value="user">Uživatel</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1 text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-2">
+                                      <Mail className="w-4 h-4" />
+                                      <span>{user.email}</span>
+                                    </div>
+                                    {user.position && (
+                                      <div>
+                                        <span className="font-medium">Pozice:</span> {user.position}
+                                      </div>
+                                    )}
+                                    {user.last_sign_in_at && (
+                                      <div>
+                                        <span className="font-medium">Poslední přihlášení:</span>{" "}
+                                        {format(new Date(user.last_sign_in_at), "dd.MM.yyyy HH:mm")}
+                                      </div>
+                                    )}
+                                    {user.created_at && (
+                                      <div>
+                                        <span className="font-medium">Registrace:</span>{" "}
+                                        {format(new Date(user.created_at), "dd.MM.yyyy")}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setEditingUser(user)}
+                                  >
+                                    Upravit
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setResetPasswordDialog({ open: true, email: user.email })}
+                                  >
+                                    <KeyRound className="w-4 h-4 mr-1" />
+                                    Reset hesla
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-6">
+          {/* Nastavení systému */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-primary" />
-                  <CardTitle>Správa uživatelů</CardTitle>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportUsers}
-                  disabled={filteredUsers.length === 0}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export do CSV
-                </Button>
+              <div className="flex items-center gap-2">
+                <SettingsIcon className="w-5 h-5 text-primary" />
+                <CardTitle>Nastavení systému</CardTitle>
               </div>
               <CardDescription>
-                Jako admin můžete upravovat profily ostatních uživatelů a resetovat jejich hesla
+                Konfigurace výchozích hodnot a notifikací
               </CardDescription>
             </CardHeader>
-          <CardContent>
-            <div className="space-y-4 mb-4">
-              <div className="flex gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Hledat podle jména nebo emailu..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+            <CardContent className="space-y-6">
+              {/* Emailové notifikace */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Mail className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold">Emailové notifikace</h3>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="email-enabled">Povolit emailové notifikace</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Zasílat automatické připomínky o končících školeních
+                    </p>
+                  </div>
+                  <Switch
+                    id="email-enabled"
+                    checked={settings.emailNotificationsEnabled}
+                    onCheckedChange={(checked) => updateSetting('emailNotificationsEnabled', checked)}
                   />
                 </div>
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Filtrovat podle role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Všechny role</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="user">Uživatel</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              {filteredUsers.map((user) => (
-                <Card key={user.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-3 flex-1">
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-semibold">
-                            {user.first_name} {user.last_name}
-                          </h3>
-                          <div className="flex items-center gap-2">
-                            {getRoleBadge(user.roles)}
-                            <Select
-                              value={getRoleValue(user.roles)}
-                              onValueChange={(value) => {
-                                if (value === "admin" || value === "manager" || value === "user") {
-                                  handleRoleChange(user.id, value);
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="w-[140px] h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="manager">Manager</SelectItem>
-                                <SelectItem value="user">Uživatel</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="space-y-1 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4" />
-                            <span>{user.email}</span>
-                          </div>
-                          {user.position && (
-                            <div>
-                              <span className="font-medium">Pozice:</span> {user.position}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingUser(user)}
-                        >
-                          Upravit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setResetPasswordDialog({ open: true, email: user.email })}
-                        >
-                          <KeyRound className="w-4 h-4 mr-1" />
-                          Reset hesla
-                        </Button>
-                      </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label>Status RESEND API klíče</Label>
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground">
+                        Pro odesílání emailů je potřeba nastavit RESEND_API_KEY v tajných klíčích projektu.
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                </div>
+
+                {settings.emailNotificationsEnabled && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <Label htmlFor="check-interval">Interval kontroly (cron formát)</Label>
+                      <Input
+                        id="check-interval"
+                        value={settings.notificationCheckInterval}
+                        onChange={(e) => updateSetting('notificationCheckInterval', e.target.value)}
+                        placeholder="0 8 * * *"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Příklady: "0 8 * * *" = každý den v 8:00, "0 */6 * * *" = každých 6 hodin
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Výchozí intervaly */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold">Výchozí intervaly</h3>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="remind-days">Připomínka před vypršením (dny)</Label>
+                  <Input
+                    id="remind-days"
+                    type="number"
+                    min="1"
+                    value={settings.defaultRemindDaysBefore}
+                    onChange={(e) => updateSetting('defaultRemindDaysBefore', parseInt(e.target.value))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Kolik dní před vypršením školení má být odeslána připomínka
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="repeat-days">Interval opakování školení (dny)</Label>
+                  <Input
+                    id="repeat-days"
+                    type="number"
+                    min="1"
+                    value={settings.defaultRepeatDaysAfter}
+                    onChange={(e) => updateSetting('defaultRepeatDaysAfter', parseInt(e.target.value))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Výchozí počet dní po kterých má být školení opakováno (např. 365 pro roční školení)
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Připomínky info */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bell className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold">Šablona připomínek</h3>
+                </div>
+                
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <p>
+                    Systém automaticky kontroluje školení, kterým brzy vyprší platnost podle nastaveného
+                    intervalu "Připomínka před vypršením".
+                  </p>
+                  <p>
+                    Pro každé školení s končící platností bude zaslán email na adresu zaměstnance
+                    s upozorněním na nutnost opakování školení.
+                  </p>
+                  <p className="font-medium text-foreground">
+                    Pro aktivaci emailových notifikací je nutné:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>Nastavit RESEND_API_KEY v tajných klíčích projektu</li>
+                    <li>Povolit emailové notifikace výše</li>
+                    <li>Ověřit doménu v Resend dashboard</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={handleSaveSettings} size="lg">
+                  <Save className="w-4 h-4 mr-2" />
+                  Uložit nastavení
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="import">
+            <BulkImportPage />
+          </TabsContent>
+        )}
+      </Tabs>
+
+      {/* Dialog pro změnu hesla */}
+      <Dialog open={changePasswordDialog} onOpenChange={setChangePasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Změnit heslo</DialogTitle>
+            <DialogDescription>
+              Zadejte nové heslo. Heslo musí mít alespoň 6 znaků.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Nové heslo</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Zadejte nové heslo"
+              />
             </div>
-          </CardContent>
-        </Card>
-        </>
-      )}
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Potvrzení hesla</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Zadejte heslo znovu"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setChangePasswordDialog(false);
+                setNewPassword("");
+                setConfirmPassword("");
+              }}
+            >
+              Zrušit
+            </Button>
+            <Button onClick={handleChangePassword} disabled={loading}>
+              <Save className="w-4 h-4 mr-2" />
+              Změnit heslo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog pro úpravu uživatele */}
       <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
@@ -828,56 +1035,6 @@ const Profile = () => {
             </Button>
             <Button onClick={handleSaveUserProfile} disabled={loading}>
               Uložit změny
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog pro změnu hesla */}
-      <Dialog open={changePasswordDialog} onOpenChange={setChangePasswordDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Změnit heslo</DialogTitle>
-            <DialogDescription>
-              Zadejte nové heslo. Heslo musí mít alespoň 6 znaků.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">Nové heslo</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Zadejte nové heslo"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Potvrzení hesla</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Zadejte heslo znovu"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setChangePasswordDialog(false);
-                setNewPassword("");
-                setConfirmPassword("");
-              }}
-            >
-              Zrušit
-            </Button>
-            <Button onClick={handleChangePassword} disabled={loading}>
-              <Save className="w-4 h-4 mr-2" />
-              Změnit heslo
             </Button>
           </DialogFooter>
         </DialogContent>
