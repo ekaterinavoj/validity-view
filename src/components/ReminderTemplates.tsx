@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Save, X, Bell } from "lucide-react";
+import { Plus, Edit, Trash2, Save, X, Bell, Play, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ReminderTemplate {
   id: string;
@@ -44,6 +45,8 @@ export const ReminderTemplates = () => {
 
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [users, setUsers] = useState<Array<{ id: string; email: string; full_name: string }>>([]);
+  const [runningCheck, setRunningCheck] = useState(false);
+  const [checkResult, setCheckResult] = useState<{ total_emails_sent: number; results: any[] } | null>(null);
 
   useEffect(() => {
     loadTemplates();
@@ -246,8 +249,112 @@ export const ReminderTemplates = () => {
     return { subject, body };
   };
 
+  const handleRunCheck = async () => {
+    setRunningCheck(true);
+    setCheckResult(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('send-training-reminders', {
+        body: { manual_trigger: true }
+      });
+
+      if (error) throw error;
+
+      setCheckResult(data);
+      
+      toast({
+        title: "Kontrola dokončena",
+        description: `Bylo odesláno ${data.total_emails_sent} připomínek.`,
+      });
+    } catch (error: any) {
+      console.error("Error running check:", error);
+      toast({
+        title: "Chyba při kontrole připomínek",
+        description: error.message || "Nepodařilo se spustit kontrolu připomínek.",
+        variant: "destructive",
+      });
+    } finally {
+      setRunningCheck(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Manuální kontrola připomínek */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Play className="w-5 h-5" />
+            Manuální kontrola připomínek
+          </CardTitle>
+          <CardDescription>
+            Spusťte okamžitou kontrolu školení a odešlete připomínky bez čekání na automatickou kontrolu
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <Bell className="h-4 w-4" />
+            <AlertDescription>
+              <p className="font-semibold mb-2">Jak funguje manuální kontrola:</p>
+              <ul className="text-sm space-y-1 list-disc list-inside">
+                <li>Systém projde všechny aktivní šablony připomínek</li>
+                <li>Zkontroluje školení, kterým brzy vyprší platnost</li>
+                <li>Odešle připomínkové emaily podle nastavených šablon</li>
+                <li>Zobrazí výsledek - kolik emailů bylo odesláno</li>
+              </ul>
+              <p className="text-xs text-muted-foreground mt-3">
+                <strong>Poznámka:</strong> Pro odeslání emailů musí být nastaven RESEND_API_KEY.
+              </p>
+            </AlertDescription>
+          </Alert>
+
+          <div className="flex items-center gap-4">
+            <Button 
+              onClick={handleRunCheck} 
+              disabled={runningCheck}
+              size="lg"
+              className="w-full md:w-auto"
+            >
+              {runningCheck ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Kontroluji...
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Zkontrolovat nyní
+                </>
+              )}
+            </Button>
+          </div>
+
+          {checkResult && (
+            <Alert className="mt-4">
+              <Bell className="h-4 w-4" />
+              <AlertDescription>
+                <p className="font-semibold">Výsledek kontroly:</p>
+                <p className="text-sm mt-1">
+                  Celkem odesláno <strong>{checkResult.total_emails_sent}</strong> připomínek
+                </p>
+                {checkResult.results && checkResult.results.length > 0 && (
+                  <div className="mt-3 max-h-40 overflow-y-auto">
+                    <p className="text-xs font-semibold mb-1">Detail:</p>
+                    <ul className="text-xs space-y-1">
+                      {checkResult.results.map((result: any, idx: number) => (
+                        <li key={idx} className={result.status === 'sent' ? 'text-green-600' : 'text-red-600'}>
+                          {result.status === 'sent' ? '✓' : '✗'} {result.template} - {result.recipients || 0} příjemců
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
