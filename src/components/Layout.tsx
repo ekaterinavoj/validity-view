@@ -3,25 +3,17 @@ import {
   LayoutDashboard,
   Calendar, 
   History, 
-  Users, 
   PlusCircle, 
-  BookOpen, 
-  Building2,
-  Upload,
-  UserX,
-  Settings
+  Settings,
+  MoreHorizontal
 } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/scheduled-trainings", label: "Naplánovaná školení", icon: Calendar },
   { to: "/history", label: "Historie školení", icon: History },
-  { to: "/inactive-report", label: "Pozastavená školení", icon: UserX },
-  { to: "/employees", label: "Školené osoby", icon: Users },
   { to: "/new-training", label: "Vytvoření nového školení", icon: PlusCircle },
-  { to: "/bulk-import", label: "Hromadný import", icon: Upload },
-  { to: "/training-types", label: "Typy školení", icon: BookOpen },
-  { to: "/departments", label: "Střediska", icon: Building2 },
+  { to: "/other", label: "Ostatní", icon: MoreHorizontal },
   { to: "/settings", label: "Nastavení", icon: Settings },
 ];
 
