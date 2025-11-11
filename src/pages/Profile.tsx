@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, KeyRound, Mail, Shield, Search, Settings as SettingsIcon, Bell, Clock } from "lucide-react";
+import { User, Save, KeyRound, Mail, Shield, Search, Settings as SettingsIcon, Bell, Clock, Download, Users, TrendingUp } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import Papa from "papaparse";
 import {
   Select,
   SelectContent,
@@ -330,6 +331,41 @@ const Profile = () => {
     setSettings((prev: any) => ({ ...prev, [key]: value }));
   };
 
+  const handleExportUsers = () => {
+    const exportData = filteredUsers.map((user) => ({
+      "Jméno": user.first_name,
+      "Příjmení": user.last_name,
+      "Email": user.email,
+      "Pozice": user.position || "",
+      "Role": getRoleValue(user.roles),
+    }));
+
+    const csv = Papa.unparse(exportData);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `uzivatele_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export úspěšný",
+      description: `Export ${filteredUsers.length} uživatelů byl dokončen.`,
+    });
+  };
+
+  const getUserStats = () => {
+    const total = allUsers.length;
+    const admins = allUsers.filter(u => u.roles.includes("admin")).length;
+    const managers = allUsers.filter(u => u.roles.includes("manager")).length;
+    const users = allUsers.filter(u => u.roles.includes("user")).length;
+    
+    return { total, admins, managers, users };
+  };
+
   const getRoleBadge = (roles: string[]) => {
     if (roles.includes("admin")) {
       return <Badge variant="destructive">Admin</Badge>;
@@ -579,16 +615,65 @@ const Profile = () => {
 
       {/* Admin - správa uživatelů */}
       {isAdmin && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-primary" />
-              <CardTitle>Správa uživatelů</CardTitle>
-            </div>
-            <CardDescription>
-              Jako admin můžete upravovat profily ostatních uživatelů a resetovat jejich hesla
-            </CardDescription>
-          </CardHeader>
+        <>
+          {/* Statistiky uživatelů */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                <CardTitle>Statistiky uživatelů</CardTitle>
+              </div>
+              <CardDescription>
+                Přehled uživatelské základny
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
+                  <Users className="w-8 h-8 text-primary mb-2" />
+                  <div className="text-2xl font-bold">{getUserStats().total}</div>
+                  <div className="text-sm text-muted-foreground">Celkem uživatelů</div>
+                </div>
+                <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-red-500/10">
+                  <Shield className="w-8 h-8 text-red-600 mb-2" />
+                  <div className="text-2xl font-bold text-red-600">{getUserStats().admins}</div>
+                  <div className="text-sm text-muted-foreground">Adminů</div>
+                </div>
+                <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-blue-500/10">
+                  <Shield className="w-8 h-8 text-blue-600 mb-2" />
+                  <div className="text-2xl font-bold text-blue-600">{getUserStats().managers}</div>
+                  <div className="text-sm text-muted-foreground">Manažerů</div>
+                </div>
+                <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-green-500/10">
+                  <User className="w-8 h-8 text-green-600 mb-2" />
+                  <div className="text-2xl font-bold text-green-600">{getUserStats().users}</div>
+                  <div className="text-sm text-muted-foreground">Uživatelů</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-primary" />
+                  <CardTitle>Správa uživatelů</CardTitle>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportUsers}
+                  disabled={filteredUsers.length === 0}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export do CSV
+                </Button>
+              </div>
+              <CardDescription>
+                Jako admin můžete upravovat profily ostatních uživatelů a resetovat jejich hesla
+              </CardDescription>
+            </CardHeader>
           <CardContent>
             <div className="space-y-4 mb-4">
               <div className="flex gap-4">
@@ -682,6 +767,7 @@ const Profile = () => {
             </div>
           </CardContent>
         </Card>
+        </>
       )}
 
       {/* Dialog pro úpravu uživatele */}
