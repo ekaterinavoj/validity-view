@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Training } from "@/types/training";
 import { Calendar, CheckCircle, AlertCircle, XCircle, Upload, TrendingUp, Users, Clock, Activity, FileDown, FileSpreadsheet } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Area, AreaChart } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend } from "recharts";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -155,20 +155,6 @@ export default function Dashboard() {
     { month: "Říjen", dokončeno: 14, naplánováno: 9 },
     { month: "Listopad", dokončeno: 20, naplánováno: 15 },
   ];
-  
-  // Data pro expirující certifikáty timeline
-  const expirationTimeline = [
-    { období: "0-30 dní", počet: expiring30 },
-    { období: "31-60 dní", počet: expiring60 - expiring30 },
-    { období: "61-90 dní", počet: expiring90 - expiring60 },
-  ];
-
-  // Data pro pie chart
-  const pieData = [
-    { name: "Platné", value: validTrainings, fill: "hsl(var(--status-valid))" },
-    { name: "Brzy vyprší", value: warningTrainings, fill: "hsl(var(--status-warning))" },
-    { name: "Prošlé", value: expiredTrainings, fill: "hsl(var(--status-expired))" },
-  ];
 
   // Data pro bar chart - školení podle oddělení
   const departmentStats = mockTrainings.reduce((acc, training) => {
@@ -244,14 +230,6 @@ export default function Dashboard() {
       ];
       const ws3 = XLSX.utils.aoa_to_sheet(trendExportData);
       XLSX.utils.book_append_sheet(wb, ws3, 'Trendy');
-
-      // List 4: Expirující certifikáty
-      const expirationData = [
-        ['Období', 'Počet'],
-        ...expirationTimeline.map(d => [d.období, d.počet])
-      ];
-      const ws4 = XLSX.utils.aoa_to_sheet(expirationData);
-      XLSX.utils.book_append_sheet(wb, ws4, 'Expirující');
 
       // Uložení souboru
       const timestamp = new Date().toISOString().split('T')[0];
@@ -497,34 +475,8 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Grafy - řádek 1 */}
+      {/* Grafy */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Pie Chart - Celkový přehled */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Přehled platnosti školení</h3>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
-
         {/* Bar Chart - Podle oddělení */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Školení podle oddělení</h3>
@@ -546,10 +498,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </ChartContainer>
         </Card>
-      </div>
 
-      {/* Grafy - řádek 2 */}
-      <div className="grid gap-6 lg:grid-cols-2">
         {/* Line Chart - Trendy aktivit */}
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -586,37 +535,6 @@ export default function Dashboard() {
                   dot={{ r: 4 }}
                 />
               </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
-
-        {/* Area Chart - Expirující certifikáty timeline */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-5 h-5 text-orange-500" />
-            <h3 className="text-lg font-semibold">Expirující certifikáty (90 dní)</h3>
-          </div>
-          <ChartContainer config={{
-            počet: { label: "Počet školení", color: "hsl(var(--chart-3))" }
-          }} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={expirationTimeline}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="období" 
-                  stroke="hsl(var(--foreground))"
-                  fontSize={12}
-                />
-                <YAxis stroke="hsl(var(--foreground))" />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Area 
-                  type="monotone" 
-                  dataKey="počet" 
-                  stroke="hsl(var(--chart-3))" 
-                  fill="hsl(var(--chart-3))"
-                  fillOpacity={0.6}
-                />
-              </AreaChart>
             </ResponsiveContainer>
           </ChartContainer>
         </Card>
