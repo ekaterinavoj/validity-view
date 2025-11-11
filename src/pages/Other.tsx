@@ -12,13 +12,13 @@ export default function Other() {
     <div className="space-y-6">
       <h2 className="text-3xl font-bold text-foreground">Ostatní</h2>
       
-      <Tabs defaultValue="inactive" className="space-y-6">
+      <Tabs defaultValue="employees" className="space-y-6">
         <TabsList className="grid w-full grid-cols-6 text-xs">
-          <TabsTrigger value="inactive">Pozastavená</TabsTrigger>
           <TabsTrigger value="employees">Školené osoby</TabsTrigger>
-          <TabsTrigger value="bulk-import">Import</TabsTrigger>
-          <TabsTrigger value="departments">Střediska</TabsTrigger>
           <TabsTrigger value="training-types">Typy školení</TabsTrigger>
+          <TabsTrigger value="departments">Střediska</TabsTrigger>
+          <TabsTrigger value="bulk-import">Import</TabsTrigger>
+          <TabsTrigger value="inactive">Pozastavená</TabsTrigger>
           <TabsTrigger value="settings">Nastavení</TabsTrigger>
         </TabsList>
 
