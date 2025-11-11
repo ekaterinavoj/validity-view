@@ -1,9 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Training } from "@/types/training";
-import { Calendar, CheckCircle, AlertCircle, XCircle, Upload } from "lucide-react";
+import { Calendar, CheckCircle, AlertCircle, XCircle, Upload, TrendingUp, Users, Clock, Activity } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Area, AreaChart } from "recharts";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
 
@@ -117,6 +117,47 @@ export default function Dashboard() {
   const validTrainings = activeTrainings.filter(t => t.status === "valid").length;
   const warningTrainings = activeTrainings.filter(t => t.status === "warning").length;
   const expiredTrainings = activeTrainings.filter(t => t.status === "expired").length;
+  
+  // Statistiky o zaměstnancích
+  const uniqueEmployees = new Set(mockTrainings.map(t => t.employeeNumber)).size;
+  
+  // Školení expirující v příštích 30/60/90 dnech
+  const today = new Date();
+  const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const in60Days = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
+  const in90Days = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+  
+  const expiring30 = activeTrainings.filter(t => {
+    const date = new Date(t.date);
+    return date >= today && date <= in30Days;
+  }).length;
+  
+  const expiring60 = activeTrainings.filter(t => {
+    const date = new Date(t.date);
+    return date >= today && date <= in60Days;
+  }).length;
+  
+  const expiring90 = activeTrainings.filter(t => {
+    const date = new Date(t.date);
+    return date >= today && date <= in90Days;
+  }).length;
+  
+  // Mock data pro trendy - simulace školení v posledních 6 měsících
+  const trendData = [
+    { month: "Červen", dokončeno: 12, naplánováno: 8 },
+    { month: "Červenec", dokončeno: 15, naplánováno: 10 },
+    { month: "Srpen", dokončeno: 8, naplánováno: 6 },
+    { month: "Září", dokončeno: 18, naplánováno: 12 },
+    { month: "Říjen", dokončeno: 14, naplánováno: 9 },
+    { month: "Listopad", dokončeno: 20, naplánováno: 15 },
+  ];
+  
+  // Data pro expirující certifikáty timeline
+  const expirationTimeline = [
+    { období: "0-30 dní", počet: expiring30 },
+    { období: "31-60 dní", počet: expiring60 - expiring30 },
+    { období: "61-90 dní", počet: expiring90 - expiring60 },
+  ];
 
   // Data pro pie chart
   const pieData = [
@@ -192,7 +233,7 @@ export default function Dashboard() {
         </div>
       </Card>
 
-      {/* Statistiky */}
+      {/* Statistiky - řádek 1 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="p-6">
           <div className="flex items-center gap-4">
@@ -243,7 +284,58 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Grafy */}
+      {/* Statistiky - řádek 2 */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-500/10 rounded-lg">
+              <Users className="w-6 h-6 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Školení zaměstnanců</p>
+              <p className="text-2xl font-bold">{uniqueEmployees}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-orange-500/10 rounded-lg">
+              <Clock className="w-6 h-6 text-orange-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Vyprší do 30 dní</p>
+              <p className="text-2xl font-bold">{expiring30}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-yellow-500/10 rounded-lg">
+              <Clock className="w-6 h-6 text-yellow-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Vyprší do 60 dní</p>
+              <p className="text-2xl font-bold">{expiring60}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-purple-500/10 rounded-lg">
+              <Activity className="w-6 h-6 text-purple-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Vyprší do 90 dní</p>
+              <p className="text-2xl font-bold">{expiring90}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Grafy - řádek 1 */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Pie Chart - Celkový přehled */}
         <Card className="p-6">
@@ -289,6 +381,80 @@ export default function Dashboard() {
                 <Bar dataKey="brzy vyprší" fill="hsl(var(--status-warning))" />
                 <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" />
               </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </Card>
+      </div>
+
+      {/* Grafy - řádek 2 */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Line Chart - Trendy aktivit */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            <h3 className="text-lg font-semibold">Trendy školení (6 měsíců)</h3>
+          </div>
+          <ChartContainer config={{
+            dokončeno: { label: "Dokončeno", color: "hsl(var(--chart-1))" },
+            naplánováno: { label: "Naplánováno", color: "hsl(var(--chart-2))" }
+          }} className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="hsl(var(--foreground))"
+                  fontSize={12}
+                />
+                <YAxis stroke="hsl(var(--foreground))" />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="dokončeno" 
+                  stroke="hsl(var(--chart-1))" 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="naplánováno" 
+                  stroke="hsl(var(--chart-2))" 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </Card>
+
+        {/* Area Chart - Expirující certifikáty timeline */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-orange-500" />
+            <h3 className="text-lg font-semibold">Expirující certifikáty (90 dní)</h3>
+          </div>
+          <ChartContainer config={{
+            počet: { label: "Počet školení", color: "hsl(var(--chart-3))" }
+          }} className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={expirationTimeline}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="období" 
+                  stroke="hsl(var(--foreground))"
+                  fontSize={12}
+                />
+                <YAxis stroke="hsl(var(--foreground))" />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Area 
+                  type="monotone" 
+                  dataKey="počet" 
+                  stroke="hsl(var(--chart-3))" 
+                  fill="hsl(var(--chart-3))"
+                  fillOpacity={0.6}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </ChartContainer>
         </Card>
