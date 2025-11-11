@@ -171,6 +171,63 @@ export type Database = {
           },
         ]
       }
+      reminder_logs: {
+        Row: {
+          created_at: string
+          email_body: string
+          email_subject: string
+          error_message: string | null
+          id: string
+          recipient_emails: string[]
+          sent_at: string
+          status: string
+          template_id: string | null
+          template_name: string
+          training_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_body: string
+          email_subject: string
+          error_message?: string | null
+          id?: string
+          recipient_emails: string[]
+          sent_at?: string
+          status?: string
+          template_id?: string | null
+          template_name: string
+          training_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_body?: string
+          email_subject?: string
+          error_message?: string | null
+          id?: string
+          recipient_emails?: string[]
+          sent_at?: string
+          status?: string
+          template_id?: string | null
+          template_name?: string
+          training_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "reminder_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_logs_training_id_fkey"
+            columns: ["training_id"]
+            isOneToOne: false
+            referencedRelation: "trainings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reminder_templates: {
         Row: {
           created_at: string

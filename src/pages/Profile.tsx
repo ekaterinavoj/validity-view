@@ -17,6 +17,8 @@ import { format, subMonths } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import BulkImportPage from "./BulkImportPage";
 import { ReminderTemplates } from "@/components/ReminderTemplates";
+import { ReminderLogs } from "@/components/ReminderLogs";
+import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import {
   Select,
   SelectContent,
@@ -482,10 +484,11 @@ const Profile = () => {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full" style={{ gridTemplateColumns: isAdmin ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)' }}>
           <TabsTrigger value="profile">Můj profil</TabsTrigger>
           <TabsTrigger value="settings">Nastavení</TabsTrigger>
           {isAdmin && <TabsTrigger value="templates">Šablony</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="logs">Historie</TabsTrigger>}
           {isAdmin && <TabsTrigger value="import">Import</TabsTrigger>}
         </TabsList>
 
@@ -929,8 +932,14 @@ const Profile = () => {
         )}
 
         {isAdmin && (
+          <TabsContent value="logs">
+            <ReminderLogs />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
           <TabsContent value="import">
-            <BulkImportPage />
+            <BulkTrainingImport />
           </TabsContent>
         )}
       </Tabs>

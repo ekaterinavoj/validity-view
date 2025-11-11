@@ -218,6 +218,23 @@ const handler = async (req: Request): Promise<Response> => {
           console.log(`Email sent for training ${training.id}:`, emailResponse);
           totalEmailsSent++;
 
+          // Uložit log o odeslaném emailu
+          const { error: logError } = await supabase
+            .from("reminder_logs")
+            .insert({
+              training_id: training.id,
+              template_id: template.id,
+              template_name: template.name,
+              recipient_emails: recipients,
+              email_subject: subject,
+              email_body: body,
+              status: "sent",
+            });
+
+          if (logError) {
+            console.error("Failed to log email:", logError);
+          }
+
           results.push({
             training_id: training.id,
             template: template.name,
@@ -226,6 +243,25 @@ const handler = async (req: Request): Promise<Response> => {
           });
         } catch (emailError: any) {
           console.error(`Failed to send email for training ${training.id}:`, emailError);
+          
+          // Uložit log o chybě
+          const { error: logError } = await supabase
+            .from("reminder_logs")
+            .insert({
+              training_id: training.id,
+              template_id: template.id,
+              template_name: template.name,
+              recipient_emails: recipients,
+              email_subject: subject,
+              email_body: body,
+              status: "failed",
+              error_message: emailError.message,
+            });
+
+          if (logError) {
+            console.error("Failed to log error:", logError);
+          }
+
           results.push({
             training_id: training.id,
             template: template.name,
