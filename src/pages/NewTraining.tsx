@@ -42,7 +42,7 @@ export default function NewTraining() {
   const [useCustomCompany, setUseCustomCompany] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [periodUnit, setPeriodUnit] = useState<"years" | "days">("years");
+  const [periodUnit, setPeriodUnit] = useState<"years" | "months" | "days">("years");
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -234,12 +234,16 @@ export default function NewTraining() {
                 const totalDays = parseInt(field.value) || 0;
                 const displayValue = periodUnit === "years" 
                   ? (totalDays / 365).toFixed(1)
+                  : periodUnit === "months"
+                  ? (totalDays / 30).toFixed(1)
                   : totalDays.toString();
                 
                 const handleValueChange = (value: string) => {
                   const numValue = parseFloat(value) || 0;
                   const daysValue = periodUnit === "years" 
                     ? Math.round(numValue * 365)
+                    : periodUnit === "months"
+                    ? Math.round(numValue * 30)
                     : Math.round(numValue);
                   field.onChange(daysValue.toString());
                 };
@@ -261,6 +265,15 @@ export default function NewTraining() {
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="radio"
+                            checked={periodUnit === "months"}
+                            onChange={() => setPeriodUnit("months")}
+                            className="w-4 h-4 text-primary"
+                          />
+                          <span className="text-sm">Měsíce</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
                             checked={periodUnit === "days"}
                             onChange={() => setPeriodUnit("days")}
                             className="w-4 h-4 text-primary"
@@ -273,22 +286,24 @@ export default function NewTraining() {
                         <FormControl>
                           <Input 
                             type="number"
-                            step={periodUnit === "years" ? "0.1" : "1"}
+                            step={periodUnit === "days" ? "1" : "0.1"}
                             value={displayValue}
                             onChange={(e) => handleValueChange(e.target.value)}
                             className="w-32"
                           />
                         </FormControl>
                         <span className="text-sm text-muted-foreground">
-                          {periodUnit === "years" ? "roky" : "dní"}
+                          {periodUnit === "years" ? "roky" : periodUnit === "months" ? "měsíce" : "dní"}
                         </span>
                       </div>
                       
                       {totalDays > 0 && (
                         <p className="text-xs text-muted-foreground">
                           {periodUnit === "years" 
-                            ? `= ${totalDays} dní`
-                            : `= ${(totalDays / 365).toFixed(2)} ${(totalDays / 365) === 1 ? "rok" : (totalDays / 365) < 5 ? "roky" : "let"}`
+                            ? `= ${totalDays} dní (${(totalDays / 30).toFixed(1)} měsíců)`
+                            : periodUnit === "months"
+                            ? `= ${totalDays} dní (${(totalDays / 365).toFixed(2)} roky)`
+                            : `= ${(totalDays / 30).toFixed(1)} měsíců (${(totalDays / 365).toFixed(2)} roky)`
                           }
                         </p>
                       )}
