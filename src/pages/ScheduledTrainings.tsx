@@ -9,18 +9,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Training } from "@/types/training";
-import { Edit, Trash2, Plus, Search, X, Download } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Edit, Trash2, Plus, Download } from "lucide-react";
+import { useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
+import { AdvancedFilters } from "@/components/AdvancedFilters";
 
 // Mock data
 const mockTrainings: Training[] = [
@@ -82,28 +76,40 @@ const mockTrainings: Training[] = [
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const {
+    filters,
+    updateFilter,
+    clearFilters,
+    hasActiveFilters,
+    saveCurrentFilters,
+    loadSavedFilter,
+    deleteSavedFilter,
+    savedFilters,
+  } = useAdvancedFilters("scheduled-trainings-filters");
 
-  // Získat unikátní oddělení a typy školení
+  // Získat unikátní hodnoty pro filtry
   const departments = useMemo(() => {
-    const depts = new Set(mockTrainings.map(t => t.department));
+    const depts = new Set(mockTrainings.map((t) => t.department));
     return Array.from(depts).sort();
   }, []);
 
   const trainingTypes = useMemo(() => {
-    const types = new Set(mockTrainings.map(t => t.type));
+    const types = new Set(mockTrainings.map((t) => t.type));
     return Array.from(types).sort();
+  }, []);
+
+  const trainers = useMemo(() => {
+    const trainerSet = new Set(mockTrainings.map((t) => t.trainer));
+    return Array.from(trainerSet).sort();
   }, []);
 
   // Filtrovaná data
   const filteredTrainings = useMemo(() => {
-    return mockTrainings.filter(training => {
+    return mockTrainings.filter((training) => {
       // Vyhledávání
-      const searchLower = searchQuery.toLowerCase();
-      const matchesSearch = searchQuery === "" || 
+      const searchLower = filters.searchQuery.toLowerCase();
+      const matchesSearch =
+        filters.searchQuery === "" ||
         training.employeeName.toLowerCase().includes(searchLower) ||
         training.employeeNumber.includes(searchLower) ||
         training.type.toLowerCase().includes(searchLower) ||
@@ -111,23 +117,33 @@ export default function ScheduledTrainings() {
         training.trainer.toLowerCase().includes(searchLower);
 
       // Filtry
-      const matchesStatus = statusFilter === "all" || training.status === statusFilter;
-      const matchesDepartment = departmentFilter === "all" || training.department === departmentFilter;
-      const matchesType = typeFilter === "all" || training.type === typeFilter;
+      const matchesStatus =
+        filters.statusFilter === "all" || training.status === filters.statusFilter;
+      const matchesDepartment =
+        filters.departmentFilter === "all" ||
+        training.department === filters.departmentFilter;
+      const matchesType =
+        filters.typeFilter === "all" || training.type === filters.typeFilter;
+      const matchesTrainer =
+        filters.trainerFilter === "all" || training.trainer === filters.trainerFilter;
 
-      return matchesSearch && matchesStatus && matchesDepartment && matchesType;
+      // Datum filtrování
+      const trainingDate = new Date(training.date);
+      const matchesDateFrom =
+        !filters.dateFrom || trainingDate >= filters.dateFrom;
+      const matchesDateTo = !filters.dateTo || trainingDate <= filters.dateTo;
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesDepartment &&
+        matchesType &&
+        matchesTrainer &&
+        matchesDateFrom &&
+        matchesDateTo
+      );
     });
-  }, [searchQuery, statusFilter, departmentFilter, typeFilter]);
-
-  const clearFilters = () => {
-    setSearchQuery("");
-    setStatusFilter("all");
-    setDepartmentFilter("all");
-    setTypeFilter("all");
-  };
-
-  const hasActiveFilters = searchQuery !== "" || statusFilter !== "all" || 
-    departmentFilter !== "all" || typeFilter !== "all";
+  }, [filters]);
 
   const exportToCSV = () => {
     try {
@@ -230,75 +246,22 @@ export default function ScheduledTrainings() {
         </div>
       </div>
 
-      {/* Vyhledávání a filtry */}
-      <Card className="p-4">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          {/* Vyhledávání */}
-          <div className="lg:col-span-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Hledat podle jména, osobního čísla, typu..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
-
-          {/* Filtr stavu */}
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Stav školení" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Všechny stavy</SelectItem>
-              <SelectItem value="valid">Platné</SelectItem>
-              <SelectItem value="warning">Brzy vyprší</SelectItem>
-              <SelectItem value="expired">Prošlé</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Filtr oddělení */}
-          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Oddělení" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Všechna oddělení</SelectItem>
-              {departments.map(dept => (
-                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Filtr typu školení */}
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Typ školení" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Všechny typy</SelectItem>
-              {trainingTypes.map(type => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Vymazat filtry */}
-        {hasActiveFilters && (
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-            <p className="text-sm text-muted-foreground">
-              Zobrazeno {filteredTrainings.length} z {mockTrainings.length} školení
-            </p>
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="w-4 h-4 mr-2" />
-              Vymazat filtry
-            </Button>
-          </div>
-        )}
-      </Card>
+      {/* Pokročilé filtry */}
+      <AdvancedFilters
+        filters={filters}
+        onFilterChange={updateFilter}
+        onClearFilters={clearFilters}
+        onSaveFilters={saveCurrentFilters}
+        onLoadFilter={loadSavedFilter}
+        onDeleteFilter={deleteSavedFilter}
+        savedFilters={savedFilters}
+        hasActiveFilters={hasActiveFilters}
+        departments={departments}
+        trainingTypes={trainingTypes}
+        trainers={trainers}
+        resultCount={filteredTrainings.length}
+        totalCount={mockTrainings.length}
+      />
 
       <Card className="p-6">
         <div className="overflow-x-auto">

@@ -7,11 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Edit, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -52,7 +52,102 @@ const statusLabels = {
 
 export default function Employees() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const { toast } = useToast();
+
+  const departments = useMemo(() => {
+    const depts = new Set(mockEmployees.map((e) => e.department));
+    return Array.from(depts).sort();
+  }, []);
+
+  const filteredEmployees = useMemo(() => {
+    return mockEmployees.filter((employee) => {
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch =
+        searchQuery === "" ||
+        employee.firstName.toLowerCase().includes(searchLower) ||
+        employee.lastName.toLowerCase().includes(searchLower) ||
+        employee.employeeNumber.includes(searchLower) ||
+        employee.email.toLowerCase().includes(searchLower) ||
+        employee.position.toLowerCase().includes(searchLower);
+
+      const matchesDepartment =
+        departmentFilter === "all" || employee.department === departmentFilter;
+      const matchesStatus = statusFilter === "all" || employee.status === statusFilter;
+
+      return matchesSearch && matchesDepartment && matchesStatus;
+    });
+  }, [searchQuery, departmentFilter, statusFilter]);
+
+  const hasActiveFilters =
+    searchQuery !== "" || departmentFilter !== "all" || statusFilter !== "all";
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setDepartmentFilter("all");
+    setStatusFilter("all");
+  };
+
+  const exportToCSV = () => {
+    try {
+      const headers = [
+        "Osobní číslo",
+        "Jméno",
+        "Příjmení",
+        "Email",
+        "Pozice",
+        "Středisko",
+        "Stav",
+      ];
+
+      const rows = filteredEmployees.map((employee) => [
+        employee.employeeNumber,
+        employee.firstName,
+        employee.lastName,
+        employee.email,
+        employee.position,
+        employee.department,
+        statusLabels[employee.status],
+      ]);
+
+      const escapeCSV = (value: string) => {
+        if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      const csvContent = [
+        headers.map(escapeCSV).join(","),
+        ...rows.map((row) => row.map(escapeCSV).join(",")),
+      ].join("\n");
+
+      const BOM = "\uFEFF";
+      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      const timestamp = new Date().toISOString().split("T")[0];
+      link.setAttribute("href", url);
+      link.setAttribute("download", `zamestnanci_export_${timestamp}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Export úspěšný",
+        description: `Exportováno ${filteredEmployees.length} zaměstnanců.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -77,8 +172,13 @@ export default function Employees() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold text-foreground">Školené osoby</h2>
-        
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -253,9 +353,66 @@ export default function Employees() {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
-      
+
+      {/* Filtry */}
+      <Card className="p-4">
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="md:col-span-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Hledat podle jména, emailu, osobního čísla..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
+
+          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Středisko" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všechna střediska</SelectItem>
+              {departments.map((dept) => (
+                <SelectItem key={dept} value={dept}>
+                  {dept}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Stav" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všechny stavy</SelectItem>
+              <SelectItem value="employed">Zaměstnaný</SelectItem>
+              <SelectItem value="parental_leave">Rodičovská dovolená</SelectItem>
+              <SelectItem value="sick_leave">Nemocenská</SelectItem>
+              <SelectItem value="terminated">Již nepracuje</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              Zobrazeno {filteredEmployees.length} z {mockEmployees.length} zaměstnanců
+            </p>
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="w-4 h-4 mr-2" />
+              Vymazat filtry
+            </Button>
+          </div>
+        )}
+      </Card>
+
       <Card>
         <Table>
           <TableHeader>
@@ -270,7 +427,14 @@ export default function Employees() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockEmployees.map((employee) => (
+            {filteredEmployees.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  Žádní zaměstnanci nenalezeni
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredEmployees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.employeeNumber}</TableCell>
                 <TableCell>{employee.firstName} {employee.lastName}</TableCell>
@@ -291,7 +455,8 @@ export default function Employees() {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>
