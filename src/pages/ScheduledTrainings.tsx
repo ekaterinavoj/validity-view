@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Training } from "@/types/training";
-import { Edit, Trash2, Plus, Download, CalendarClock } from "lucide-react";
+import { Edit, Trash2, Plus, Download, CalendarClock, FileSpreadsheet, FileDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
@@ -18,6 +18,9 @@ import { AdvancedFilters } from "@/components/AdvancedFilters";
 import { TrainingProtocolCell } from "@/components/TrainingProtocolCell";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   Dialog,
   DialogContent,
@@ -393,6 +396,194 @@ export default function ScheduledTrainings() {
     }
   };
 
+  const exportToExcel = () => {
+    try {
+      const trainingsToExport = selectedTrainings.size > 0
+        ? filteredTrainings.filter(t => selectedTrainings.has(t.id))
+        : filteredTrainings;
+
+      if (trainingsToExport.length === 0) {
+        toast({
+          title: "Žádná data k exportu",
+          description: "Nejsou k dispozici žádná školení pro export.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+
+      // Mapování statusu
+      const statusMap = {
+        valid: "Platne",
+        warning: "Brzy vyprsi",
+        expired: "Prosle"
+      };
+
+      // Příprava dat
+      const data = [
+        ['Stav', 'Skoleni platne do', 'Typ skoleni', 'Osobni cislo', 'Jmeno', 'Provozovna', 'Stredisko', 'Datum skoleni', 'Skolitel', 'Firma', 'Zadavatel', 'Perioda (dny)', 'Poznamka'],
+        ...trainingsToExport.map(t => [
+          statusMap[t.status],
+          new Date(t.date).toLocaleDateString("cs-CZ"),
+          t.type,
+          t.employeeNumber,
+          t.employeeName,
+          t.facility,
+          t.department,
+          new Date(t.lastTrainingDate).toLocaleDateString("cs-CZ"),
+          t.trainer || '',
+          t.company || '',
+          t.requester || '',
+          t.period,
+          t.note || ''
+        ])
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      
+      // Nastavit šířky sloupců
+      ws['!cols'] = [
+        { wch: 12 }, // Stav
+        { wch: 15 }, // Skoleni platne do
+        { wch: 25 }, // Typ skoleni
+        { wch: 12 }, // Osobni cislo
+        { wch: 20 }, // Jmeno
+        { wch: 40 }, // Provozovna
+        { wch: 15 }, // Stredisko
+        { wch: 15 }, // Datum skoleni
+        { wch: 20 }, // Skolitel
+        { wch: 25 }, // Firma
+        { wch: 20 }, // Zadavatel
+        { wch: 12 }, // Perioda
+        { wch: 30 }  // Poznamka
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Skoleni');
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `skoleni_export_${timestamp}.xlsx`, {
+        bookType: 'xlsx',
+        type: 'binary'
+      });
+
+      const exportMessage = selectedTrainings.size > 0
+        ? `Exportováno ${trainingsToExport.length} vybraných školení.`
+        : `Exportováno ${trainingsToExport.length} záznamů školení.`;
+
+      toast({
+        title: "Export dokončen",
+        description: exportMessage,
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data do Excel.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportToPDF = () => {
+    try {
+      const trainingsToExport = selectedTrainings.size > 0
+        ? filteredTrainings.filter(t => selectedTrainings.has(t.id))
+        : filteredTrainings;
+
+      if (trainingsToExport.length === 0) {
+        toast({
+          title: "Žádná data k exportu",
+          description: "Nejsou k dispozici žádná školení pro export.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const pdf = new jsPDF('l', 'mm', 'a4'); // landscape
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      let yPosition = 20;
+
+      // Nadpis
+      pdf.setFontSize(18);
+      pdf.text('Seznam skoleni', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
+
+      // Datum generování
+      pdf.setFontSize(10);
+      const date = new Date().toLocaleDateString('cs-CZ');
+      pdf.text(`Vygenerovano: ${date}`, pageWidth / 2, yPosition, { align: 'center' });
+      
+      if (selectedTrainings.size > 0) {
+        pdf.text(`Exportovano: ${trainingsToExport.length} vybranych skoleni`, pageWidth / 2, yPosition + 5, { align: 'center' });
+        yPosition += 10;
+      }
+      yPosition += 10;
+
+      // Mapování statusu
+      const statusMap = {
+        valid: "Platne",
+        warning: "Brzy vyprsi",
+        expired: "Prosle"
+      };
+
+      // Tabulka se školením
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Stav', 'Platne do', 'Typ', 'Cislo', 'Jmeno', 'Stredisko', 'Skolitel', 'Firma']],
+        body: trainingsToExport.map(t => [
+          statusMap[t.status],
+          new Date(t.date).toLocaleDateString("cs-CZ"),
+          t.type,
+          t.employeeNumber,
+          t.employeeName,
+          t.department,
+          t.trainer || '-',
+          t.company || '-'
+        ]),
+        theme: 'striped',
+        headStyles: { 
+          fillColor: [66, 66, 66],
+          fontSize: 9,
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          fontSize: 8
+        },
+        columnStyles: {
+          0: { cellWidth: 20 },
+          1: { cellWidth: 25 },
+          2: { cellWidth: 45 },
+          3: { cellWidth: 20 },
+          4: { cellWidth: 40 },
+          5: { cellWidth: 30 },
+          6: { cellWidth: 35 },
+          7: { cellWidth: 35 }
+        },
+        margin: { left: 10, right: 10 },
+      });
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      pdf.save(`skoleni_export_${timestamp}.pdf`);
+
+      const exportMessage = selectedTrainings.size > 0
+        ? `Exportováno ${trainingsToExport.length} vybraných školení.`
+        : `Exportováno ${trainingsToExport.length} záznamů školení.`;
+
+      toast({
+        title: "Export dokončen",
+        description: exportMessage,
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data do PDF.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -406,11 +597,18 @@ export default function ScheduledTrainings() {
             <CalendarClock className="w-4 h-4 mr-2" />
             Vybrat expirující (30 dní)
           </Button>
-          <Button variant="outline" onClick={exportToCSV}>
-            <Download className="w-4 h-4 mr-2" />
+          <Button variant="outline" onClick={exportToExcel}>
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
             {selectedTrainings.size > 0 
-              ? `Export vybraných (${selectedTrainings.size})`
-              : "Export CSV"
+              ? `Export Excel (${selectedTrainings.size})`
+              : "Export Excel"
+            }
+          </Button>
+          <Button variant="outline" onClick={exportToPDF}>
+            <FileDown className="w-4 h-4 mr-2" />
+            {selectedTrainings.size > 0 
+              ? `Export PDF (${selectedTrainings.size})`
+              : "Export PDF"
             }
           </Button>
           <Button onClick={() => navigate("/new-training")}>
