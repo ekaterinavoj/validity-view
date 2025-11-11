@@ -15,6 +15,7 @@ import { useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
+import { TrainingProtocolCell } from "@/components/TrainingProtocolCell";
 
 // Mock data
 const mockTrainings: Training[] = [
@@ -281,13 +282,14 @@ export default function ScheduledTrainings() {
                 <TableHead>Zadavatel</TableHead>
                 <TableHead>Perioda (dny)</TableHead>
                 <TableHead>Poznámka</TableHead>
+                <TableHead className="text-center">Aktuální protokol</TableHead>
                 <TableHead className="text-right">Akce</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredTrainings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
                     Žádná školení nenalezena
                   </TableCell>
                 </TableRow>
@@ -316,6 +318,9 @@ export default function ScheduledTrainings() {
                   <TableCell className="text-center">{training.period}</TableCell>
                   <TableCell className="max-w-xs truncate" title={training.note}>
                     {training.note}
+                  </TableCell>
+                  <TableCell>
+                    <TrainingProtocolCell trainingId={training.id} />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-2">
