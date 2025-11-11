@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Training } from "@/types/training";
-import { Edit, Trash2, Plus, Download, CalendarClock, FileSpreadsheet, FileDown, Upload, X } from "lucide-react";
+import { Edit, Trash2, Plus, Download, CalendarClock, FileSpreadsheet, FileDown, Upload, X, FileText, FileImage, File } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
@@ -127,6 +127,30 @@ export default function ScheduledTrainings() {
     uploadedFiles: [] as File[],
   });
   
+  // Pomocná funkce pro formátování velikosti souboru
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  // Pomocná funkce pro ikonu podle typu souboru
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    
+    if (extension === 'pdf') {
+      return <FileText className="w-5 h-5 text-red-500" />;
+    } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) {
+      return <FileImage className="w-5 h-5 text-blue-500" />;
+    } else if (['doc', 'docx'].includes(extension || '')) {
+      return <FileText className="w-5 h-5 text-blue-600" />;
+    } else {
+      return <File className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
   const {
     filters,
     updateFilter,
@@ -946,22 +970,54 @@ export default function ScheduledTrainings() {
                         </div>
 
                         {bulkEditData.uploadedFiles.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-sm font-medium">
-                              Vybrané soubory ({bulkEditData.uploadedFiles.length}):
-                            </p>
-                            <div className="space-y-1 max-h-32 overflow-y-auto">
+                          <div className="space-y-3 border rounded-lg p-3 bg-muted/30">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-semibold">
+                                Vybrané soubory ({bulkEditData.uploadedFiles.length})
+                              </p>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setBulkEditData({
+                                    ...bulkEditData,
+                                    uploadedFiles: [],
+                                  });
+                                }}
+                                className="h-7 text-xs"
+                              >
+                                Odebrat vše
+                              </Button>
+                            </div>
+                            <div className="space-y-2 max-h-64 overflow-y-auto">
                               {bulkEditData.uploadedFiles.map((file, idx) => (
                                 <div
                                   key={idx}
-                                  className="flex items-center justify-between p-2 bg-muted rounded text-sm"
+                                  className="flex items-center gap-3 p-3 bg-background rounded-md border hover:border-primary/50 transition-colors"
                                 >
-                                  <span className="truncate flex-1">{file.name}</span>
+                                  <div className="flex-shrink-0">
+                                    {getFileIcon(file.name)}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate" title={file.name}>
+                                      {file.name}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-xs text-muted-foreground">
+                                        {formatFileSize(file.size)}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">•</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {file.type || 'Neznámý typ'}
+                                      </span>
+                                    </div>
+                                  </div>
                                   <Button
                                     type="button"
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6"
+                                    className="h-8 w-8 flex-shrink-0"
                                     onClick={() => {
                                       const newFiles = [...bulkEditData.uploadedFiles];
                                       newFiles.splice(idx, 1);
@@ -971,13 +1027,13 @@ export default function ScheduledTrainings() {
                                       });
                                     }}
                                   >
-                                    <X className="w-3 h-3" />
+                                    <X className="w-4 h-4" />
                                   </Button>
                                 </div>
                               ))}
                             </div>
 
-                            <div className="flex items-center space-x-2 pt-2">
+                            <div className="flex items-start space-x-2 pt-2 border-t">
                               <Checkbox
                                 id="replace-files"
                                 checked={bulkEditData.replaceExistingFiles}
@@ -987,14 +1043,19 @@ export default function ScheduledTrainings() {
                                     replaceExistingFiles: checked as boolean,
                                   })
                                 }
+                                className="mt-0.5"
                               />
-                              <Label
-                                htmlFor="replace-files"
-                                className="text-sm font-normal cursor-pointer"
-                              >
-                                Nahradit původní soubory (pokud není zaškrtnuto, nové soubory se
-                                přidají k existujícím)
-                              </Label>
+                              <div className="space-y-1">
+                                <Label
+                                  htmlFor="replace-files"
+                                  className="text-sm font-medium cursor-pointer leading-none"
+                                >
+                                  Nahradit původní soubory
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  Pokud není zaškrtnuto, nové soubory se přidají k existujícím
+                                </p>
+                              </div>
                             </div>
                           </div>
                         )}
