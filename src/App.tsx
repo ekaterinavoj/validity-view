@@ -9,7 +9,6 @@ import ScheduledTrainings from "./pages/ScheduledTrainings";
 import History from "./pages/History";
 import NewTraining from "./pages/NewTraining";
 import EditTraining from "./pages/EditTraining";
-import Settings from "./pages/Settings";
 import Other from "./pages/Other";
 import NotFound from "./pages/NotFound";
 
@@ -29,7 +28,6 @@ const App = () => (
             <Route path="/new-training" element={<NewTraining />} />
             <Route path="/edit-training/:id" element={<EditTraining />} />
             <Route path="/other" element={<Other />} />
-            <Route path="/settings" element={<Settings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -4,7 +4,6 @@ import {
   Calendar, 
   History, 
   PlusCircle, 
-  Settings,
   MoreHorizontal
 } from "lucide-react";
 
@@ -14,7 +13,6 @@ const navItems = [
   { to: "/history", label: "Historie školení", icon: History },
   { to: "/new-training", label: "Vytvoření nového školení", icon: PlusCircle },
   { to: "/other", label: "Ostatní", icon: MoreHorizontal },
-  { to: "/settings", label: "Nastavení", icon: Settings },
 ];
 
 interface LayoutProps {

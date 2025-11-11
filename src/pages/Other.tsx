@@ -1,10 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserX, Users, Upload, Building2, BookOpen } from "lucide-react";
+import { UserX, Users, Upload, Building2, BookOpen, Settings } from "lucide-react";
 import InactiveEmployeesReport from "./InactiveEmployeesReport";
 import Employees from "./Employees";
 import BulkImportPage from "./BulkImportPage";
 import Departments from "./Departments";
 import TrainingTypes from "./TrainingTypes";
+import SettingsPage from "./Settings";
 
 export default function Other() {
   return (
@@ -12,7 +13,7 @@ export default function Other() {
       <h2 className="text-3xl font-bold text-foreground">Ostatní</h2>
       
       <Tabs defaultValue="inactive" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="inactive" className="flex items-center gap-2">
             <UserX className="w-4 h-4" />
             Pozastavená školení
@@ -32,6 +33,10 @@ export default function Other() {
           <TabsTrigger value="training-types" className="flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
             Typy školení
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Nastavení
           </TabsTrigger>
         </TabsList>
 
@@ -53,6 +58,10 @@ export default function Other() {
 
         <TabsContent value="training-types" className="space-y-6">
           <TrainingTypes />
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-6">
+          <SettingsPage />
         </TabsContent>
       </Tabs>
     </div>
