@@ -17,6 +17,7 @@ const formSchema = z.object({
   name: z.string().min(1, "Zadejte název typu školení"),
   periodValue: z.string().min(1, "Zadejte periodicitu"),
   periodUnit: z.enum(["days", "months", "years"]),
+  durationHours: z.string().min(1, "Zadejte délku školení v hodinách"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -38,6 +39,7 @@ export default function TrainingTypes() {
     defaultValues: {
       periodValue: "2",
       periodUnit: "years",
+      durationHours: "2",
     },
   });
 
@@ -100,6 +102,20 @@ export default function TrainingTypes() {
                       <FormLabel>Název typu události *</FormLabel>
                       <FormControl>
                         <Input placeholder="např. ATEX" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="durationHours"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Délka školení (hodiny) *</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.5" placeholder="např. 2" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
