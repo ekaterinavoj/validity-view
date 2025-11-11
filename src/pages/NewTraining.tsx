@@ -218,18 +218,30 @@ export default function NewTraining() {
             <FormField
               control={form.control}
               name="periodDays"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Periodicita *</FormLabel>
-                  <div className="flex gap-2 items-center">
-                    <FormControl>
-                      <Input type="number" {...field} className="w-32" />
-                    </FormControl>
-                    <span className="text-sm text-muted-foreground">Dní</span>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const days = parseInt(field.value) || 0;
+                const years = (days / 365).toFixed(2);
+                
+                return (
+                  <FormItem>
+                    <FormLabel>Periodicita *</FormLabel>
+                    <div className="flex gap-2 items-center">
+                      <FormControl>
+                        <Input type="number" {...field} className="w-32" />
+                      </FormControl>
+                      <span className="text-sm text-muted-foreground">
+                        roky/({days} dní)
+                      </span>
+                    </div>
+                    {days > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {years} {parseFloat(years) === 1 ? "rok" : parseFloat(years) < 5 ? "roky" : "let"}
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <div className="space-y-2">
