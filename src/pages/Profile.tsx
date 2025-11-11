@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, KeyRound, Mail, Shield, Search } from "lucide-react";
+import { User, Save, KeyRound, Mail, Shield, Search, Settings as SettingsIcon, Bell, Clock } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -64,6 +65,22 @@ const Profile = () => {
   // Filtrování uživatelů
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  
+  // Nastavení systému
+  const loadSettings = () => {
+    const saved = localStorage.getItem('systemSettings');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return {
+      emailNotificationsEnabled: false,
+      defaultRemindDaysBefore: 30,
+      defaultRepeatDaysAfter: 365,
+      notificationCheckInterval: '0 8 * * *',
+    };
+  };
+
+  const [settings, setSettings] = useState(loadSettings());
 
   // Form state pro vlastní profil
   const [firstName, setFirstName] = useState(profile?.first_name || "");
@@ -301,6 +318,18 @@ const Profile = () => {
     }
   };
 
+  const handleSaveSettings = () => {
+    localStorage.setItem('systemSettings', JSON.stringify(settings));
+    toast({
+      title: "Nastavení uloženo",
+      description: "Vaše nastavení bylo úspěšně uloženo.",
+    });
+  };
+
+  const updateSetting = (key: string, value: any) => {
+    setSettings((prev: any) => ({ ...prev, [key]: value }));
+  };
+
   const getRoleBadge = (roles: string[]) => {
     if (roles.includes("admin")) {
       return <Badge variant="destructive">Admin</Badge>;
@@ -402,6 +431,147 @@ const Profile = () => {
             <Button onClick={handleSaveOwnProfile} disabled={loading}>
               <Save className="w-4 h-4 mr-2" />
               Uložit změny
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Nastavení systému */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <SettingsIcon className="w-5 h-5 text-primary" />
+            <CardTitle>Nastavení systému</CardTitle>
+          </div>
+          <CardDescription>
+            Konfigurace výchozích hodnot a notifikací
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Emailové notifikace */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Mail className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold">Emailové notifikace</h3>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="email-enabled">Povolit emailové notifikace</Label>
+                <p className="text-sm text-muted-foreground">
+                  Zasílat automatické připomínky o končících školeních
+                </p>
+              </div>
+              <Switch
+                id="email-enabled"
+                checked={settings.emailNotificationsEnabled}
+                onCheckedChange={(checked) => updateSetting('emailNotificationsEnabled', checked)}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label>Status RESEND API klíče</Label>
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">
+                    Pro odesílání emailů je potřeba nastavit RESEND_API_KEY v tajných klíčích projektu.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {settings.emailNotificationsEnabled && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <Label htmlFor="check-interval">Interval kontroly (cron formát)</Label>
+                  <Input
+                    id="check-interval"
+                    value={settings.notificationCheckInterval}
+                    onChange={(e) => updateSetting('notificationCheckInterval', e.target.value)}
+                    placeholder="0 8 * * *"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Příklady: "0 8 * * *" = každý den v 8:00, "0 */6 * * *" = každých 6 hodin
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Výchozí intervaly */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold">Výchozí intervaly</h3>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="remind-days">Připomínka před vypršením (dny)</Label>
+              <Input
+                id="remind-days"
+                type="number"
+                min="1"
+                value={settings.defaultRemindDaysBefore}
+                onChange={(e) => updateSetting('defaultRemindDaysBefore', parseInt(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Kolik dní před vypršením školení má být odeslána připomínka
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="repeat-days">Interval opakování školení (dny)</Label>
+              <Input
+                id="repeat-days"
+                type="number"
+                min="1"
+                value={settings.defaultRepeatDaysAfter}
+                onChange={(e) => updateSetting('defaultRepeatDaysAfter', parseInt(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Výchozí počet dní po kterých má být školení opakováno (např. 365 pro roční školení)
+              </p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Připomínky info */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Bell className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold">Šablona připomínek</h3>
+            </div>
+            
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                Systém automaticky kontroluje školení, kterým brzy vyprší platnost podle nastaveného
+                intervalu "Připomínka před vypršením".
+              </p>
+              <p>
+                Pro každé školení s končící platností bude zaslán email na adresu zaměstnance
+                s upozorněním na nutnost opakování školení.
+              </p>
+              <p className="font-medium text-foreground">
+                Pro aktivaci emailových notifikací je nutné:
+              </p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>Nastavit RESEND_API_KEY v tajných klíčích projektu</li>
+                <li>Povolit emailové notifikace výše</li>
+                <li>Ověřit doménu v Resend dashboard</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={handleSaveSettings} size="lg">
+              <Save className="w-4 h-4 mr-2" />
+              Uložit nastavení
             </Button>
           </div>
         </CardContent>
