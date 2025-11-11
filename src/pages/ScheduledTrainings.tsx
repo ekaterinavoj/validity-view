@@ -43,6 +43,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { FileUploader, UploadedFile } from "@/components/FileUploader";
+import { Checkbox as CheckboxComponent } from "@/components/ui/checkbox";
 
 // Mock data
 const mockTrainings: Training[] = [
@@ -115,7 +117,10 @@ export default function ScheduledTrainings() {
     trainer: "",
     company: "",
     note: "",
+    lastTrainingDate: "",
+    keepExistingFiles: false,
   });
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   
   const {
     filters,
@@ -226,17 +231,19 @@ export default function ScheduledTrainings() {
     console.log("Hromadná úprava:", {
       selectedIds: Array.from(selectedTrainings),
       changes: bulkEditData,
+      files: uploadedFiles,
     });
 
     toast({
       title: "Hromadná úprava provedena",
-      description: `Aktualizováno ${selectedTrainings.size} školení.`,
+      description: `Aktualizováno ${selectedTrainings.size} školení${uploadedFiles.length > 0 ? ` a nahráno ${uploadedFiles.length} souborů` : ""}.`,
     });
 
     // Reset
     setBulkEditDialogOpen(false);
     setSelectedTrainings(new Set());
-    setBulkEditData({ trainer: "", company: "", note: "" });
+    setBulkEditData({ trainer: "", company: "", note: "", lastTrainingDate: "", keepExistingFiles: false });
+    setUploadedFiles([]);
   };
 
   const handleBulkDelete = () => {
@@ -645,7 +652,7 @@ export default function ScheduledTrainings() {
                     Hromadná úprava
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Hromadná úprava školení</DialogTitle>
                     <DialogDescription>
@@ -654,6 +661,19 @@ export default function ScheduledTrainings() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Datum školení</Label>
+                      <Input
+                        type="date"
+                        value={bulkEditData.lastTrainingDate}
+                        onChange={(e) =>
+                          setBulkEditData({ ...bulkEditData, lastTrainingDate: e.target.value })
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Datum proběhlého školení - bude nastaveno u všech vybraných školení
+                      </p>
+                    </div>
                     <div className="space-y-2">
                       <Label>Školitel</Label>
                       <Input
@@ -685,11 +705,43 @@ export default function ScheduledTrainings() {
                         rows={3}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Dokumenty</Label>
+                      <FileUploader
+                        files={uploadedFiles}
+                        onFilesChange={setUploadedFiles}
+                        maxFiles={10}
+                        acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
+                      />
+                      <div className="flex items-center space-x-2 mt-3 p-3 bg-muted/50 rounded-md">
+                        <CheckboxComponent
+                          id="keepExistingFiles"
+                          checked={bulkEditData.keepExistingFiles}
+                          onCheckedChange={(checked) =>
+                            setBulkEditData({ ...bulkEditData, keepExistingFiles: checked as boolean })
+                          }
+                        />
+                        <label
+                          htmlFor="keepExistingFiles"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          Ponechat stávající soubory a přidat nové
+                        </label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {bulkEditData.keepExistingFiles 
+                          ? "Nahrané soubory budou přidány ke stávajícím dokumentům" 
+                          : "Nahrané soubory nahradí všechny stávající dokumenty u vybraných školení"}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex gap-2 justify-end">
                     <Button
                       variant="outline"
-                      onClick={() => setBulkEditDialogOpen(false)}
+                      onClick={() => {
+                        setBulkEditDialogOpen(false);
+                        setUploadedFiles([]);
+                      }}
                     >
                       Zrušit
                     </Button>
