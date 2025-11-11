@@ -26,6 +26,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -96,6 +106,7 @@ export default function ScheduledTrainings() {
   const navigate = useNavigate();
   const [selectedTrainings, setSelectedTrainings] = useState<Set<string>>(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkEditData, setBulkEditData] = useState({
     trainer: "",
     company: "",
@@ -234,7 +245,11 @@ export default function ScheduledTrainings() {
       return;
     }
 
-    // TODO: Přidat potvrzovací dialog a mazání z databáze
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmBulkDelete = () => {
+    // TODO: Smazat vybraná školení z databáze
     console.log("Hromadné mazání:", Array.from(selectedTrainings));
     
     toast({
@@ -243,7 +258,13 @@ export default function ScheduledTrainings() {
     });
 
     setSelectedTrainings(new Set());
+    setDeleteDialogOpen(false);
   };
+
+  // Získat detaily vybraných školení
+  const selectedTrainingDetails = useMemo(() => {
+    return filteredTrainings.filter(t => selectedTrainings.has(t.id));
+  }, [selectedTrainings, filteredTrainings]);
 
   const exportToCSV = () => {
     try {
@@ -422,14 +443,70 @@ export default function ScheduledTrainings() {
                   </div>
                 </DialogContent>
               </Dialog>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleBulkDelete}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Smazat vybrané
-              </Button>
+              <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Smazat vybrané
+                </Button>
+                <AlertDialogContent className="max-w-2xl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Potvrzení smazání školení</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Opravdu chcete smazat následující školení? Tato akce je nevratná.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="max-h-96 overflow-y-auto">
+                    <div className="space-y-3 py-4">
+                      <div className="grid grid-cols-4 gap-2 text-xs font-medium text-muted-foreground border-b pb-2">
+                        <div>Zaměstnanec</div>
+                        <div>Typ školení</div>
+                        <div>Datum</div>
+                        <div>Stav</div>
+                      </div>
+                      {selectedTrainingDetails.map((training) => (
+                        <div key={training.id} className="grid grid-cols-4 gap-2 text-sm border-b pb-2">
+                          <div className="font-medium">
+                            {training.employeeName}
+                            <span className="text-xs text-muted-foreground block">
+                              {training.employeeNumber}
+                            </span>
+                          </div>
+                          <div>{training.type}</div>
+                          <div className="text-xs">
+                            {new Date(training.date).toLocaleDateString("cs-CZ")}
+                          </div>
+                          <div>
+                            <StatusBadge status={training.status} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <p className="text-sm font-medium text-destructive">
+                        Celkem bude smazáno: {selectedTrainings.size} {selectedTrainings.size === 1 ? "školení" : "školení"}
+                      </p>
+                      <ul className="mt-2 text-xs text-muted-foreground space-y-1">
+                        <li>• Všechna data o školení budou trvale odstraněna</li>
+                        <li>• Nahrané dokumenty zůstanou zachovány</li>
+                        <li>• Historie školení bude aktualizována</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={confirmBulkDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Smazat {selectedTrainings.size} {selectedTrainings.size === 1 ? "školení" : "školení"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </Card>
