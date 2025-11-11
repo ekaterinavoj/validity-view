@@ -9,8 +9,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Training } from "@/types/training";
-import { Edit, Trash2, Plus } from "lucide-react";
+import { Edit, Trash2, Plus, Search, X } from "lucide-react";
+import { useState, useMemo } from "react";
 
 // Mock data
 const mockTrainings: Training[] = [
@@ -71,6 +80,53 @@ const mockTrainings: Training[] = [
 ];
 
 export default function ScheduledTrainings() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+
+  // Získat unikátní oddělení a typy školení
+  const departments = useMemo(() => {
+    const depts = new Set(mockTrainings.map(t => t.department));
+    return Array.from(depts).sort();
+  }, []);
+
+  const trainingTypes = useMemo(() => {
+    const types = new Set(mockTrainings.map(t => t.type));
+    return Array.from(types).sort();
+  }, []);
+
+  // Filtrovaná data
+  const filteredTrainings = useMemo(() => {
+    return mockTrainings.filter(training => {
+      // Vyhledávání
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch = searchQuery === "" || 
+        training.employeeName.toLowerCase().includes(searchLower) ||
+        training.employeeNumber.includes(searchLower) ||
+        training.type.toLowerCase().includes(searchLower) ||
+        training.department.toLowerCase().includes(searchLower) ||
+        training.trainer.toLowerCase().includes(searchLower);
+
+      // Filtry
+      const matchesStatus = statusFilter === "all" || training.status === statusFilter;
+      const matchesDepartment = departmentFilter === "all" || training.department === departmentFilter;
+      const matchesType = typeFilter === "all" || training.type === typeFilter;
+
+      return matchesSearch && matchesStatus && matchesDepartment && matchesType;
+    });
+  }, [searchQuery, statusFilter, departmentFilter, typeFilter]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setDepartmentFilter("all");
+    setTypeFilter("all");
+  };
+
+  const hasActiveFilters = searchQuery !== "" || statusFilter !== "all" || 
+    departmentFilter !== "all" || typeFilter !== "all";
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -80,6 +136,76 @@ export default function ScheduledTrainings() {
           Nové školení
         </Button>
       </div>
+
+      {/* Vyhledávání a filtry */}
+      <Card className="p-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          {/* Vyhledávání */}
+          <div className="lg:col-span-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Hledat podle jména, osobního čísla, typu..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
+
+          {/* Filtr stavu */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Stav školení" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všechny stavy</SelectItem>
+              <SelectItem value="valid">Platné</SelectItem>
+              <SelectItem value="warning">Brzy vyprší</SelectItem>
+              <SelectItem value="expired">Prošlé</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Filtr oddělení */}
+          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Oddělení" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všechna oddělení</SelectItem>
+              {departments.map(dept => (
+                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Filtr typu školení */}
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Typ školení" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všechny typy</SelectItem>
+              {trainingTypes.map(type => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Vymazat filtry */}
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              Zobrazeno {filteredTrainings.length} z {mockTrainings.length} školení
+            </p>
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="w-4 h-4 mr-2" />
+              Vymazat filtry
+            </Button>
+          </div>
+        )}
+      </Card>
 
       <Card className="p-6">
         <div className="overflow-x-auto">
@@ -103,7 +229,14 @@ export default function ScheduledTrainings() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockTrainings.map((training) => (
+              {filteredTrainings.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+                    Žádná školení nenalezena
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTrainings.map((training) => (
                 <TableRow key={training.id}>
                   <TableCell>
                     <StatusBadge status={training.status} />
@@ -139,7 +272,8 @@ export default function ScheduledTrainings() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              ))
+              )}
             </TableBody>
           </Table>
         </div>
