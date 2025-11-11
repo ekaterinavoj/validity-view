@@ -18,6 +18,7 @@ import { AdvancedFilters } from "@/components/AdvancedFilters";
 import { TrainingProtocolCell } from "@/components/TrainingProtocolCell";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -111,6 +112,7 @@ export default function ScheduledTrainings() {
   const [selectedTrainings, setSelectedTrainings] = useState<Set<string>>(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [bulkEditData, setBulkEditData] = useState({
     trainer: "",
     company: "",
@@ -221,22 +223,75 @@ export default function ScheduledTrainings() {
     setBulkEditDialogOpen(true);
   };
 
-  const applyBulkEdit = () => {
-    // TODO: Aplikovat změny na vybraná školení v databázi
-    console.log("Hromadná úprava:", {
-      selectedIds: Array.from(selectedTrainings),
-      changes: bulkEditData,
-    });
+  const applyBulkEdit = async () => {
+    if (selectedTrainings.size === 0) {
+      return;
+    }
 
-    toast({
-      title: "Hromadná úprava provedena",
-      description: `Aktualizováno ${selectedTrainings.size} školení.`,
-    });
+    setLoading(true);
+    
+    try {
+      // Připravit data pro update - pouze pole, která mají hodnotu
+      const updates: any = {};
+      if (bulkEditData.trainer.trim() !== "") {
+        updates.trainer = bulkEditData.trainer.trim();
+      }
+      if (bulkEditData.company.trim() !== "") {
+        updates.company = bulkEditData.company.trim();
+      }
+      if (bulkEditData.note.trim() !== "") {
+        updates.note = bulkEditData.note.trim();
+      }
 
-    // Reset
-    setBulkEditDialogOpen(false);
-    setSelectedTrainings(new Set());
-    setBulkEditData({ trainer: "", company: "", note: "" });
+      // Pokud nejsou žádné změny
+      if (Object.keys(updates).length === 0) {
+        toast({
+          title: "Žádné změny",
+          description: "Nevyplnili jste žádné pole pro úpravu.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Získat aktuálního uživatele
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("Uživatel není přihlášen");
+      }
+
+      // Aplikovat změny na všechna vybraná školení
+      const selectedIds = Array.from(selectedTrainings);
+      
+      const { error } = await supabase
+        .from("trainings")
+        .update(updates)
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Hromadná úprava provedena",
+        description: `Úspěšně aktualizováno ${selectedTrainings.size} školení.`,
+      });
+
+      // Reset stavu
+      setBulkEditDialogOpen(false);
+      setSelectedTrainings(new Set());
+      setBulkEditData({ trainer: "", company: "", note: "" });
+      
+      // Znovu načíst data
+      window.location.reload();
+    } catch (error: any) {
+      console.error("Error in bulk edit:", error);
+      toast({
+        title: "Chyba při hromadné úpravě",
+        description: error.message || "Nepodařilo se aktualizovat školení.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBulkDelete = () => {
@@ -252,17 +307,43 @@ export default function ScheduledTrainings() {
     setDeleteDialogOpen(true);
   };
 
-  const confirmBulkDelete = () => {
-    // TODO: Smazat vybraná školení z databáze
-    console.log("Hromadné mazání:", Array.from(selectedTrainings));
-    
-    toast({
-      title: "Školení smazána",
-      description: `Smazáno ${selectedTrainings.size} školení.`,
-    });
+  const confirmBulkDelete = async () => {
+    if (selectedTrainings.size === 0) {
+      return;
+    }
 
-    setSelectedTrainings(new Set());
-    setDeleteDialogOpen(false);
+    setLoading(true);
+    
+    try {
+      const selectedIds = Array.from(selectedTrainings);
+      
+      const { error } = await supabase
+        .from("trainings")
+        .delete()
+        .in("id", selectedIds);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Školení smazána",
+        description: `Úspěšně smazáno ${selectedTrainings.size} školení.`,
+      });
+
+      setSelectedTrainings(new Set());
+      setDeleteDialogOpen(false);
+      
+      // Znovu načíst data
+      window.location.reload();
+    } catch (error: any) {
+      console.error("Error in bulk delete:", error);
+      toast({
+        title: "Chyba při mazání",
+        description: error.message || "Nepodařilo se smazat školení.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Rychlý výběr školení expirujících do X dní
@@ -689,11 +770,16 @@ export default function ScheduledTrainings() {
                   <div className="flex gap-2 justify-end">
                     <Button
                       variant="outline"
-                      onClick={() => setBulkEditDialogOpen(false)}
+                      onClick={() => {
+                        setBulkEditDialogOpen(false);
+                        setBulkEditData({ trainer: "", company: "", note: "" });
+                      }}
                     >
                       Zrušit
                     </Button>
-                    <Button onClick={applyBulkEdit}>Aplikovat změny</Button>
+                    <Button onClick={applyBulkEdit} disabled={loading}>
+                      {loading ? "Ukládám..." : "Aplikovat změny"}
+                    </Button>
                   </div>
                 </DialogContent>
               </Dialog>
