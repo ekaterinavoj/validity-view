@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download } from "lucide-react";
+import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download, Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import * as XLSX from 'xlsx';
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),

@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserX, Users, Upload, Building2, BookOpen, Settings, Clock, BarChart3 } from "lucide-react";
+import { UserX, Users, Upload, Building2, BookOpen, Settings, Clock, BarChart3, UserCheck } from "lucide-react";
 import InactiveEmployeesReport from "./InactiveEmployeesReport";
 import Employees from "./Employees";
 import BulkImportPage from "./BulkImportPage";
@@ -8,6 +8,7 @@ import TrainingTypes from "./TrainingTypes";
 import SettingsPage from "./Settings";
 import TrainingHoursStats from "./TrainingHoursStats";
 import DepartmentDashboard from "./DepartmentDashboard";
+import TrainersOverview from "./TrainersOverview";
 
 export default function Other() {
   return (
@@ -15,72 +16,27 @@ export default function Other() {
       <h2 className="text-3xl font-bold text-foreground">Ostatní</h2>
       
       <Tabs defaultValue="inactive" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8">
-          <TabsTrigger value="inactive" className="flex items-center gap-2">
-            <UserX className="w-4 h-4" />
-            Pozastavená školení
-          </TabsTrigger>
-          <TabsTrigger value="employees" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Školené osoby
-          </TabsTrigger>
-          <TabsTrigger value="bulk-import" className="flex items-center gap-2">
-            <Upload className="w-4 h-4" />
-            Hromadný import
-          </TabsTrigger>
-          <TabsTrigger value="departments" className="flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            Střediska
-          </TabsTrigger>
-          <TabsTrigger value="training-types" className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4" />
-            Typy školení
-          </TabsTrigger>
-          <TabsTrigger value="training-hours" className="flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            Odškolené hodiny
-          </TabsTrigger>
-          <TabsTrigger value="department-dashboard" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Dashboard oddělení
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="w-4 h-4" />
-            Nastavení
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-9 text-xs">
+          <TabsTrigger value="inactive">Pozastavená</TabsTrigger>
+          <TabsTrigger value="employees">Školené osoby</TabsTrigger>
+          <TabsTrigger value="bulk-import">Import</TabsTrigger>
+          <TabsTrigger value="departments">Střediska</TabsTrigger>
+          <TabsTrigger value="training-types">Typy</TabsTrigger>
+          <TabsTrigger value="training-hours">Hodiny</TabsTrigger>
+          <TabsTrigger value="department-dashboard">Dashboard odd.</TabsTrigger>
+          <TabsTrigger value="trainers">Školitelé</TabsTrigger>
+          <TabsTrigger value="settings">Nastavení</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="inactive" className="space-y-6">
-          <InactiveEmployeesReport />
-        </TabsContent>
-
-        <TabsContent value="employees" className="space-y-6">
-          <Employees />
-        </TabsContent>
-
-        <TabsContent value="bulk-import" className="space-y-6">
-          <BulkImportPage />
-        </TabsContent>
-
-        <TabsContent value="departments" className="space-y-6">
-          <Departments />
-        </TabsContent>
-
-        <TabsContent value="training-types" className="space-y-6">
-          <TrainingTypes />
-        </TabsContent>
-
-        <TabsContent value="training-hours" className="space-y-6">
-          <TrainingHoursStats />
-        </TabsContent>
-
-        <TabsContent value="department-dashboard" className="space-y-6">
-          <DepartmentDashboard />
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-6">
-          <SettingsPage />
-        </TabsContent>
+        <TabsContent value="inactive"><InactiveEmployeesReport /></TabsContent>
+        <TabsContent value="employees"><Employees /></TabsContent>
+        <TabsContent value="bulk-import"><BulkImportPage /></TabsContent>
+        <TabsContent value="departments"><Departments /></TabsContent>
+        <TabsContent value="training-types"><TrainingTypes /></TabsContent>
+        <TabsContent value="training-hours"><TrainingHoursStats /></TabsContent>
+        <TabsContent value="department-dashboard"><DepartmentDashboard /></TabsContent>
+        <TabsContent value="trainers"><TrainersOverview /></TabsContent>
+        <TabsContent value="settings"><SettingsPage /></TabsContent>
       </Tabs>
     </div>
   );
