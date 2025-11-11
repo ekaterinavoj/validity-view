@@ -29,6 +29,7 @@ export interface Employee {
   department: string;
   status: "employed" | "parental_leave" | "sick_leave" | "terminated";
   terminationDate?: string;
+  notes?: string;
 }
 
 export interface TrainingType {

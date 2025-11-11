@@ -27,6 +27,7 @@ const formSchema = z.object({
   departmentId: z.string().min(1, "Vyberte středisko"),
   status: z.enum(["employed", "parental_leave", "sick_leave", "terminated"]),
   terminationDate: z.date().optional(),
+  notes: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -41,14 +42,15 @@ const mockEmployees = [
     position: "Operátor výroby",
     department: "2002000003",
     status: "employed" as const,
+    notes: "",
   },
 ];
 
 const statusLabels = {
-  employed: "Zaměstnaný",
-  parental_leave: "Rodičovská dovolená",
+  employed: "Aktivní",
+  parental_leave: "Mateřská/rodičovská",
   sick_leave: "Nemocenská",
-  terminated: "Již nepracuje",
+  terminated: "Ukončený",
 };
 
 export default function Employees() {
@@ -160,6 +162,10 @@ export default function Employees() {
   const selectedStatus = form.watch("status");
 
   const onSubmit = (data: FormValues) => {
+    // Automaticky nastavit poznámku pro ukončené zaměstnance
+    if (data.status === "terminated" && data.terminationDate) {
+      data.notes = `Ukončen ke dni ${format(data.terminationDate, "dd.MM.yyyy", { locale: cs })}`;
+    }
     console.log(data);
     toast({
       title: "Zaměstnanec přidán",
@@ -300,10 +306,10 @@ export default function Employees() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="employed">Zaměstnaný</SelectItem>
-                          <SelectItem value="parental_leave">Rodičovská dovolená</SelectItem>
+                          <SelectItem value="employed">Aktivní</SelectItem>
+                          <SelectItem value="parental_leave">Mateřská/rodičovská</SelectItem>
                           <SelectItem value="sick_leave">Nemocenská</SelectItem>
-                          <SelectItem value="terminated">Již u nás nepracuje</SelectItem>
+                          <SelectItem value="terminated">Ukončený</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -393,10 +399,10 @@ export default function Employees() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Všechny stavy</SelectItem>
-              <SelectItem value="employed">Zaměstnaný</SelectItem>
-              <SelectItem value="parental_leave">Rodičovská dovolená</SelectItem>
+              <SelectItem value="employed">Aktivní</SelectItem>
+              <SelectItem value="parental_leave">Mateřská/rodičovská</SelectItem>
               <SelectItem value="sick_leave">Nemocenská</SelectItem>
-              <SelectItem value="terminated">Již nepracuje</SelectItem>
+              <SelectItem value="terminated">Ukončený</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -424,13 +430,14 @@ export default function Employees() {
               <TableHead>Pozice</TableHead>
               <TableHead>Středisko</TableHead>
               <TableHead>Stav</TableHead>
+              <TableHead>Poznámky</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Žádní zaměstnanci nenalezeni
                 </TableCell>
               </TableRow>
@@ -445,6 +452,7 @@ export default function Employees() {
                 <TableCell>
                   <Badge variant="secondary">{statusLabels[employee.status]}</Badge>
                 </TableCell>
+                <TableCell className="text-sm text-muted-foreground">{employee.notes || "-"}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm">
