@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, KeyRound, Mail, Shield } from "lucide-react";
+import { User, Save, KeyRound, Mail, Shield, Search } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -24,6 +24,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface UserProfile {
   id: string;
@@ -44,6 +54,16 @@ const Profile = () => {
     open: false,
     email: "",
   });
+  
+  // Změna hesla
+  const [changePasswordDialog, setChangePasswordDialog] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  
+  // Filtrování uživatelů
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
 
   // Form state pro vlastní profil
   const [firstName, setFirstName] = useState(profile?.first_name || "");
@@ -169,6 +189,53 @@ const Profile = () => {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Hesla se neshodují",
+        description: "Nové heslo a potvrzení hesla musí být stejné.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "Heslo je příliš krátké",
+        description: "Heslo musí mít alespoň 6 znaků.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Heslo změněno",
+        description: "Vaše heslo bylo úspěšně změněno.",
+      });
+      
+      setChangePasswordDialog(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast({
+        title: "Chyba při změně hesla",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleResetPassword = async () => {
     setLoading(true);
     try {
@@ -195,6 +262,45 @@ const Profile = () => {
     }
   };
 
+  const handleRoleChange = async (userId: string, newRole: "admin" | "manager" | "user") => {
+    setLoading(true);
+    try {
+      // Smazat stávající role
+      const { error: deleteError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (deleteError) throw deleteError;
+
+      // Přidat novou roli
+      const { error: insertError } = await supabase
+        .from("user_roles")
+        .insert([{ 
+          user_id: userId, 
+          role: newRole,
+          created_by: profile?.id 
+        }]);
+
+      if (insertError) throw insertError;
+
+      await loadAllUsers();
+      
+      toast({
+        title: "Role změněna",
+        description: "Role uživatele byla úspěšně změněna.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Chyba při změně role",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getRoleBadge = (roles: string[]) => {
     if (roles.includes("admin")) {
       return <Badge variant="destructive">Admin</Badge>;
@@ -204,6 +310,25 @@ const Profile = () => {
     }
     return <Badge variant="secondary">Uživatel</Badge>;
   };
+
+  const getRoleValue = (roles: string[]) => {
+    if (roles.includes("admin")) return "admin";
+    if (roles.includes("manager")) return "manager";
+    return "user";
+  };
+
+  const filteredUsers = allUsers.filter((user) => {
+    const matchesSearch = 
+      user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesRole = 
+      roleFilter === "all" || 
+      user.roles.includes(roleFilter);
+    
+    return matchesSearch && matchesRole;
+  });
 
   return (
     <div className="space-y-6">
@@ -257,7 +382,23 @@ const Profile = () => {
             />
           </div>
 
-          <div className="flex justify-end">
+          <Separator className="my-4" />
+          
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Změna hesla</h3>
+            <p className="text-sm text-muted-foreground">
+              Chcete-li změnit heslo, klikněte na tlačítko níže
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => setChangePasswordDialog(true)}
+            >
+              <KeyRound className="w-4 h-4 mr-2" />
+              Změnit heslo
+            </Button>
+          </div>
+
+          <div className="flex justify-end mt-6">
             <Button onClick={handleSaveOwnProfile} disabled={loading}>
               <Save className="w-4 h-4 mr-2" />
               Uložit změny
@@ -279,8 +420,33 @@ const Profile = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="space-y-4 mb-4">
+              <div className="flex gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Hledat podle jména nebo emailu..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filtrovat podle role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Všechny role</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="user">Uživatel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
             <div className="space-y-4">
-              {allUsers.map((user) => (
+              {filteredUsers.map((user) => (
                 <Card key={user.id}>
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between">
@@ -289,7 +455,26 @@ const Profile = () => {
                           <h3 className="text-lg font-semibold">
                             {user.first_name} {user.last_name}
                           </h3>
-                          {getRoleBadge(user.roles)}
+                          <div className="flex items-center gap-2">
+                            {getRoleBadge(user.roles)}
+                            <Select
+                              value={getRoleValue(user.roles)}
+                              onValueChange={(value) => {
+                                if (value === "admin" || value === "manager" || value === "user") {
+                                  handleRoleChange(user.id, value);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-[140px] h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="manager">Manager</SelectItem>
+                                <SelectItem value="user">Uživatel</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                         <div className="space-y-1 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
@@ -387,6 +572,56 @@ const Profile = () => {
             </Button>
             <Button onClick={handleSaveUserProfile} disabled={loading}>
               Uložit změny
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog pro změnu hesla */}
+      <Dialog open={changePasswordDialog} onOpenChange={setChangePasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Změnit heslo</DialogTitle>
+            <DialogDescription>
+              Zadejte nové heslo. Heslo musí mít alespoň 6 znaků.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Nové heslo</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Zadejte nové heslo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Potvrzení hesla</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Zadejte heslo znovu"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setChangePasswordDialog(false);
+                setNewPassword("");
+                setConfirmPassword("");
+              }}
+            >
+              Zrušit
+            </Button>
+            <Button onClick={handleChangePassword} disabled={loading}>
+              <Save className="w-4 h-4 mr-2" />
+              Změnit heslo
             </Button>
           </DialogFooter>
         </DialogContent>
