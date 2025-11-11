@@ -6,7 +6,8 @@ import {
   Users, 
   PlusCircle, 
   BookOpen, 
-  Building2 
+  Building2,
+  Upload
 } from "lucide-react";
 
 const navItems = [
@@ -15,6 +16,7 @@ const navItems = [
   { to: "/history", label: "Historie školení", icon: History },
   { to: "/employees", label: "Školené osoby", icon: Users },
   { to: "/new-training", label: "Vytvoření nového školení", icon: PlusCircle },
+  { to: "/bulk-import", label: "Hromadný import", icon: Upload },
   { to: "/training-types", label: "Typy školení", icon: BookOpen },
   { to: "/departments", label: "Střediska", icon: Building2 },
 ];

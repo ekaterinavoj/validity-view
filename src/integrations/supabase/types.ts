@@ -14,6 +14,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      departments: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          email: string
+          employee_number: string
+          first_name: string
+          id: string
+          last_name: string
+          position: string
+          status: string
+          termination_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          email: string
+          employee_number: string
+          first_name: string
+          id?: string
+          last_name: string
+          position: string
+          status: string
+          termination_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          email?: string
+          employee_number?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          position?: string
+          status?: string
+          termination_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_documents: {
         Row: {
           description: string | null
@@ -53,12 +124,117 @@ export type Database = {
         }
         Relationships: []
       }
+      training_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          facility: string
+          id: string
+          name: string
+          period_days: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          facility: string
+          id?: string
+          name: string
+          period_days: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          facility?: string
+          id?: string
+          name?: string
+          period_days?: number
+        }
+        Relationships: []
+      }
+      trainings: {
+        Row: {
+          company: string | null
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          facility: string
+          id: string
+          last_training_date: string
+          next_training_date: string
+          note: string | null
+          remind_days_before: number | null
+          reminder_template: string | null
+          repeat_days_after: number | null
+          requester: string | null
+          status: string
+          trainer: string | null
+          training_type_id: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          facility: string
+          id?: string
+          last_training_date: string
+          next_training_date: string
+          note?: string | null
+          remind_days_before?: number | null
+          reminder_template?: string | null
+          repeat_days_after?: number | null
+          requester?: string | null
+          status?: string
+          trainer?: string | null
+          training_type_id: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          facility?: string
+          id?: string
+          last_training_date?: string
+          next_training_date?: string
+          note?: string | null
+          remind_days_before?: number | null
+          reminder_template?: string | null
+          repeat_days_after?: number | null
+          requester?: string | null
+          status?: string
+          trainer?: string | null
+          training_type_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trainings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trainings_training_type_id_fkey"
+            columns: ["training_type_id"]
+            isOneToOne: false
+            referencedRelation: "training_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_training_status: {
+        Args: { next_date: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
