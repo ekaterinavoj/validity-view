@@ -1,17 +1,17 @@
 import { NavLink } from "./NavLink";
 import { 
   Calendar, 
-  BarChart3,
   History, 
   PlusCircle,
+  BarChart3,
   MoreHorizontal
 } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "Naplánovaná školení", icon: Calendar },
-  { to: "/statistics", label: "Statistika", icon: BarChart3 },
   { to: "/history", label: "Historie školení", icon: History },
   { to: "/new-training", label: "Vytvoření nového školení", icon: PlusCircle },
+  { to: "/statistics", label: "Statistika", icon: BarChart3 },
   { to: "/other", label: "Ostatní", icon: MoreHorizontal },
 ];
 
