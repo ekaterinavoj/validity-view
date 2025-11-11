@@ -16,6 +16,7 @@ import Papa from "papaparse";
 import { format, subMonths } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import BulkImportPage from "./BulkImportPage";
+import { ReminderTemplates } from "@/components/ReminderTemplates";
 import {
   Select,
   SelectContent,
@@ -481,9 +482,10 @@ const Profile = () => {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile">Můj profil</TabsTrigger>
           <TabsTrigger value="settings">Nastavení</TabsTrigger>
+          {isAdmin && <TabsTrigger value="templates">Šablony</TabsTrigger>}
           {isAdmin && <TabsTrigger value="import">Import</TabsTrigger>}
         </TabsList>
 
@@ -919,6 +921,12 @@ const Profile = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="templates">
+            <ReminderTemplates />
+          </TabsContent>
+        )}
 
         {isAdmin && (
           <TabsContent value="import">

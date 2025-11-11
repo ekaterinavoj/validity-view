@@ -171,6 +171,51 @@ export type Database = {
           },
         ]
       }
+      reminder_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          email_body: string
+          email_subject: string
+          id: string
+          is_active: boolean
+          name: string
+          remind_days_before: number
+          repeat_interval_days: number | null
+          target_user_ids: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          email_body: string
+          email_subject: string
+          id?: string
+          is_active?: boolean
+          name: string
+          remind_days_before?: number
+          repeat_interval_days?: number | null
+          target_user_ids?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          email_body?: string
+          email_subject?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          remind_days_before?: number
+          repeat_interval_days?: number | null
+          target_user_ids?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       training_documents: {
         Row: {
           description: string | null
@@ -254,6 +299,7 @@ export type Database = {
           note: string | null
           remind_days_before: number | null
           reminder_template: string | null
+          reminder_template_id: string | null
           repeat_days_after: number | null
           requester: string | null
           status: string
@@ -274,6 +320,7 @@ export type Database = {
           note?: string | null
           remind_days_before?: number | null
           reminder_template?: string | null
+          reminder_template_id?: string | null
           repeat_days_after?: number | null
           requester?: string | null
           status?: string
@@ -294,6 +341,7 @@ export type Database = {
           note?: string | null
           remind_days_before?: number | null
           reminder_template?: string | null
+          reminder_template_id?: string | null
           repeat_days_after?: number | null
           requester?: string | null
           status?: string
@@ -307,6 +355,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trainings_reminder_template_id_fkey"
+            columns: ["reminder_template_id"]
+            isOneToOne: false
+            referencedRelation: "reminder_templates"
             referencedColumns: ["id"]
           },
           {

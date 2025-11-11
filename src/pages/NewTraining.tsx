@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadTrainingDocument } from "@/lib/trainingDocuments";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -45,6 +46,7 @@ export default function NewTraining() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [periodUnit, setPeriodUnit] = useState<"years" | "months" | "days">("years");
+  const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -63,6 +65,22 @@ export default function NewTraining() {
       console.log("Zadavatel automaticky nastaven:", `${profile.first_name} ${profile.last_name}`);
     }
   }, [profile]);
+
+  // Načtení šablon připomínek
+  useEffect(() => {
+    const loadTemplates = async () => {
+      const { data, error } = await supabase
+        .from("reminder_templates")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+
+      if (!error && data) {
+        setReminderTemplates(data);
+      }
+    };
+    loadTemplates();
+  }, []);
 
   // Automatický výpočet data expirace
   const lastTrainingDate = form.watch("lastTrainingDate");
@@ -441,14 +459,37 @@ export default function NewTraining() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Šablona připomenutí *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select 
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      // Automaticky vyplnit hodnoty podle šablony
+                      const template = reminderTemplates.find(t => t.id === value);
+                      if (template) {
+                        form.setValue("remindDaysBefore", template.remind_days_before.toString());
+                        if (template.repeat_interval_days) {
+                          form.setValue("repeatDaysAfter", template.repeat_interval_days.toString());
+                        }
+                      }
+                    }}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Vyberte šablonu" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="template1">Schenck Process</SelectItem>
+                      {reminderTemplates.length === 0 ? (
+                        <SelectItem value="none" disabled>
+                          Žádné šablony k dispozici
+                        </SelectItem>
+                      ) : (
+                        reminderTemplates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name} ({template.remind_days_before} dní)
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
