@@ -18,22 +18,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { ReminderTemplates } from "@/components/ReminderTemplates";
 import { ReminderLogs } from "@/components/ReminderLogs";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 interface UserProfile {
   id: string;
   first_name: string;
@@ -44,28 +30,36 @@ interface UserProfile {
   created_at?: string;
   last_sign_in_at?: string;
 }
-
 const Profile = () => {
-  const { toast } = useToast();
-  const { profile, isAdmin, refreshProfile } = useAuth();
+  const {
+    toast
+  } = useToast();
+  const {
+    profile,
+    isAdmin,
+    refreshProfile
+  } = useAuth();
   const [loading, setLoading] = useState(false);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-  const [resetPasswordDialog, setResetPasswordDialog] = useState<{ open: boolean; email: string }>({
+  const [resetPasswordDialog, setResetPasswordDialog] = useState<{
+    open: boolean;
+    email: string;
+  }>({
     open: false,
-    email: "",
+    email: ""
   });
-  
+
   // Změna hesla
   const [changePasswordDialog, setChangePasswordDialog] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  
+
   // Filtrování uživatelů
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  
+
   // Nastavení systému
   const loadSettings = () => {
     const saved = localStorage.getItem('systemSettings');
@@ -76,10 +70,9 @@ const Profile = () => {
       emailNotificationsEnabled: false,
       defaultRemindDaysBefore: 30,
       defaultRepeatDaysAfter: 365,
-      notificationCheckInterval: '0 8 * * *',
+      notificationCheckInterval: '0 8 * * *'
     };
   };
-
   const [settings, setSettings] = useState(loadSettings());
 
   // Form state pro vlastní profil
@@ -87,7 +80,6 @@ const Profile = () => {
   const [lastName, setLastName] = useState(profile?.last_name || "");
   const [email, setEmail] = useState(profile?.email || "");
   const [position, setPosition] = useState(profile?.position || "");
-
   useEffect(() => {
     if (profile) {
       setFirstName(profile.first_name);
@@ -96,33 +88,31 @@ const Profile = () => {
       setPosition(profile.position || "");
     }
   }, [profile]);
-
   useEffect(() => {
     if (isAdmin) {
       loadAllUsers();
     }
   }, [isAdmin]);
-
   const loadAllUsers = async () => {
     try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at");
-
+      const {
+        data: profiles,
+        error: profilesError
+      } = await supabase.from("profiles").select("*").order("created_at");
       if (profilesError) throw profilesError;
-
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id, role");
-
+      const {
+        data: roles,
+        error: rolesError
+      } = await supabase.from("user_roles").select("user_id, role");
       if (rolesError) throw rolesError;
 
       // Získat poslední přihlášení z auth.users
-      const { data, error: authError } = await supabase.auth.admin.listUsers();
+      const {
+        data,
+        error: authError
+      } = await supabase.auth.admin.listUsers();
       const authUsers = data?.users || [];
-
-      const usersWithRoles = profiles?.map((p) => {
+      const usersWithRoles = profiles?.map(p => {
         const authUser = authUsers.find((au: any) => au.id === p.id);
         return {
           id: p.id,
@@ -132,121 +122,104 @@ const Profile = () => {
           position: p.position,
           created_at: p.created_at,
           last_sign_in_at: authUser?.last_sign_in_at,
-          roles: roles?.filter((r) => r.user_id === p.id).map((r) => r.role) || [],
+          roles: roles?.filter(r => r.user_id === p.id).map(r => r.role) || []
         };
       }) || [];
-
       setAllUsers(usersWithRoles);
     } catch (error: any) {
       toast({
         title: "Chyba při načítání uživatelů",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
   const handleSaveOwnProfile = async () => {
     if (!profile?.id) return;
-
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          first_name: firstName,
-          last_name: lastName,
-          email: email,
-          position: position,
-        })
-        .eq("id", profile.id);
-
+      const {
+        error
+      } = await supabase.from("profiles").update({
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        position: position
+      }).eq("id", profile.id);
       if (error) throw error;
-
       await refreshProfile();
-
       toast({
         title: "Profil aktualizován",
-        description: "Váš profil byl úspěšně aktualizován.",
+        description: "Váš profil byl úspěšně aktualizován."
       });
     } catch (error: any) {
       toast({
         title: "Chyba při aktualizaci profilu",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const handleSaveUserProfile = async () => {
     if (!editingUser) return;
-
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          first_name: editingUser.first_name,
-          last_name: editingUser.last_name,
-          email: editingUser.email,
-          position: editingUser.position,
-        })
-        .eq("id", editingUser.id);
-
+      const {
+        error
+      } = await supabase.from("profiles").update({
+        first_name: editingUser.first_name,
+        last_name: editingUser.last_name,
+        email: editingUser.email,
+        position: editingUser.position
+      }).eq("id", editingUser.id);
       if (error) throw error;
-
       await loadAllUsers();
       setEditingUser(null);
-
       toast({
         title: "Profil aktualizován",
-        description: "Profil uživatele byl úspěšně aktualizován.",
+        description: "Profil uživatele byl úspěšně aktualizován."
       });
     } catch (error: any) {
       toast({
         title: "Chyba při aktualizaci profilu",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
       toast({
         title: "Hesla se neshodují",
         description: "Nové heslo a potvrzení hesla musí být stejné.",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
-
     if (newPassword.length < 6) {
       toast({
         title: "Heslo je příliš krátké",
         description: "Heslo musí mít alespoň 6 znaků.",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
-
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
+      const {
+        error
+      } = await supabase.auth.updateUser({
+        password: newPassword
       });
-
       if (error) throw error;
-
       toast({
         title: "Heslo změněno",
-        description: "Vaše heslo bylo úspěšně změněno.",
+        description: "Vaše heslo bylo úspěšně změněno."
       });
-      
       setChangePasswordDialog(false);
       setNewPassword("");
       setConfirmPassword("");
@@ -254,103 +227,99 @@ const Profile = () => {
       toast({
         title: "Chyba při změně hesla",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const handleResetPassword = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetPasswordDialog.email, {
-        redirectTo: `${window.location.origin}/auth`,
+      const {
+        error
+      } = await supabase.auth.resetPasswordForEmail(resetPasswordDialog.email, {
+        redirectTo: `${window.location.origin}/auth`
       });
-
       if (error) throw error;
-
       toast({
         title: "Email pro reset hesla odeslán",
-        description: `Na email ${resetPasswordDialog.email} byl odeslán odkaz pro reset hesla.`,
+        description: `Na email ${resetPasswordDialog.email} byl odeslán odkaz pro reset hesla.`
       });
-      
-      setResetPasswordDialog({ open: false, email: "" });
+      setResetPasswordDialog({
+        open: false,
+        email: ""
+      });
     } catch (error: any) {
       toast({
         title: "Chyba při odesílání emailu",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const handleRoleChange = async (userId: string, newRole: "admin" | "manager" | "user") => {
     setLoading(true);
     try {
       // Smazat stávající role
-      const { error: deleteError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
-
+      const {
+        error: deleteError
+      } = await supabase.from("user_roles").delete().eq("user_id", userId);
       if (deleteError) throw deleteError;
 
       // Přidat novou roli
-      const { error: insertError } = await supabase
-        .from("user_roles")
-        .insert([{ 
-          user_id: userId, 
-          role: newRole,
-          created_by: profile?.id 
-        }]);
-
+      const {
+        error: insertError
+      } = await supabase.from("user_roles").insert([{
+        user_id: userId,
+        role: newRole,
+        created_by: profile?.id
+      }]);
       if (insertError) throw insertError;
-
       await loadAllUsers();
-      
       toast({
         title: "Role změněna",
-        description: "Role uživatele byla úspěšně změněna.",
+        description: "Role uživatele byla úspěšně změněna."
       });
     } catch (error: any) {
       toast({
         title: "Chyba při změně role",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const handleSaveSettings = () => {
     localStorage.setItem('systemSettings', JSON.stringify(settings));
     toast({
       title: "Nastavení uloženo",
-      description: "Vaše nastavení bylo úspěšně uloženo.",
+      description: "Vaše nastavení bylo úspěšně uloženo."
     });
   };
-
   const updateSetting = (key: string, value: any) => {
-    setSettings((prev: any) => ({ ...prev, [key]: value }));
+    setSettings((prev: any) => ({
+      ...prev,
+      [key]: value
+    }));
   };
-
   const handleExportUsers = () => {
-    const exportData = filteredUsers.map((user) => ({
+    const exportData = filteredUsers.map(user => ({
       "Jméno": user.first_name,
       "Příjmení": user.last_name,
       "Email": user.email,
       "Pozice": user.position || "",
       "Role": getRoleValue(user.roles),
       "Poslední přihlášení": user.last_sign_in_at ? format(new Date(user.last_sign_in_at), "dd.MM.yyyy HH:mm") : "",
-      "Registrace": user.created_at ? format(new Date(user.created_at), "dd.MM.yyyy") : "",
+      "Registrace": user.created_at ? format(new Date(user.created_at), "dd.MM.yyyy") : ""
     }));
-
     const csv = Papa.unparse(exportData);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;"
+    });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -359,85 +328,69 @@ const Profile = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
     toast({
       title: "Export úspěšný",
-      description: `Export ${filteredUsers.length} uživatelů byl dokončen.`,
+      description: `Export ${filteredUsers.length} uživatelů byl dokončen.`
     });
   };
-
   const getUserStats = () => {
     const total = allUsers.length;
     const admins = allUsers.filter(u => u.roles.includes("admin")).length;
     const managers = allUsers.filter(u => u.roles.includes("manager")).length;
     const users = allUsers.filter(u => u.roles.includes("user")).length;
-    
-    return { total, admins, managers, users };
+    return {
+      total,
+      admins,
+      managers,
+      users
+    };
   };
-
   const getUserGrowthData = () => {
     const months = [];
     const now = new Date();
-    
     for (let i = 5; i >= 0; i--) {
       const date = subMonths(now, i);
       const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
       const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      
       const count = allUsers.filter(u => {
         if (!u.created_at) return false;
         const createdDate = new Date(u.created_at);
         return createdDate >= monthStart && createdDate <= monthEnd;
       }).length;
-      
       months.push({
         month: format(date, "MMM yyyy"),
-        users: count,
+        users: count
       });
     }
-    
     return months;
   };
-
   const handleBulkDeactivate = async () => {
     if (selectedUsers.length === 0) return;
-
     setLoading(true);
     try {
       // Změnit role na "user" a označit jako deaktivované
       for (const userId of selectedUsers) {
-        await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", userId);
+        await supabase.from("user_roles").delete().eq("user_id", userId);
       }
-
       await loadAllUsers();
       setSelectedUsers([]);
-      
       toast({
         title: "Uživatelé deaktivováni",
-        description: `${selectedUsers.length} uživatelů bylo deaktivováno.`,
+        description: `${selectedUsers.length} uživatelů bylo deaktivováno.`
       });
     } catch (error: any) {
       toast({
         title: "Chyba při deaktivaci",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const toggleUserSelection = (userId: string) => {
-    setSelectedUsers(prev => 
-      prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
+    setSelectedUsers(prev => prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]);
   };
-
   const toggleAllUsers = () => {
     if (selectedUsers.length === filteredUsers.length) {
       setSelectedUsers([]);
@@ -445,7 +398,6 @@ const Profile = () => {
       setSelectedUsers(filteredUsers.map(u => u.id));
     }
   };
-
   const getRoleBadge = (roles: string[]) => {
     if (roles.includes("admin")) {
       return <Badge variant="destructive">Admin</Badge>;
@@ -455,35 +407,26 @@ const Profile = () => {
     }
     return <Badge variant="secondary">Uživatel</Badge>;
   };
-
   const getRoleValue = (roles: string[]) => {
     if (roles.includes("admin")) return "admin";
     if (roles.includes("manager")) return "manager";
     return "user";
   };
-
-  const filteredUsers = allUsers.filter((user) => {
-    const matchesSearch = 
-      user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesRole = 
-      roleFilter === "all" || 
-      user.roles.includes(roleFilter);
-    
+  const filteredUsers = allUsers.filter(user => {
+    const matchesSearch = user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) || user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) || user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === "all" || user.roles.includes(roleFilter);
     return matchesSearch && matchesRole;
   });
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center gap-3">
         <User className="w-8 h-8 text-primary" />
         <h2 className="text-3xl font-bold text-foreground">Profil a nastavení</h2>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full" style={{ gridTemplateColumns: isAdmin ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)' }}>
+        <TabsList className="grid w-full" style={{
+        gridTemplateColumns: isAdmin ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)'
+      }}>
           <TabsTrigger value="profile">Můj profil</TabsTrigger>
           <TabsTrigger value="settings">Nastavení</TabsTrigger>
           {isAdmin && <TabsTrigger value="templates">Šablony</TabsTrigger>}
@@ -502,39 +445,22 @@ const Profile = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Jméno</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                  />
+                  <Input id="firstName" value={firstName} onChange={e => setFirstName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Příjmení</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                  />
+                  <Input id="lastName" value={lastName} onChange={e => setLastName(e.target.value)} />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+                <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="position">Pozice</Label>
-                <Input
-                  id="position"
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                />
+                <Input id="position" value={position} onChange={e => setPosition(e.target.value)} />
               </div>
 
               <Separator className="my-4" />
@@ -544,10 +470,7 @@ const Profile = () => {
                 <p className="text-sm text-muted-foreground">
                   Chcete-li změnit heslo, klikněte na tlačítko níže
                 </p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setChangePasswordDialog(true)}
-                >
+                <Button variant="outline" onClick={() => setChangePasswordDialog(true)}>
                   <KeyRound className="w-4 h-4 mr-2" />
                   Změnit heslo
                 </Button>
@@ -563,8 +486,7 @@ const Profile = () => {
           </Card>
 
           {/* Admin - statistiky a správa uživatelů */}
-          {isAdmin && (
-            <>
+          {isAdmin && <>
               {/* Statistiky uživatelů */}
               <Card>
                 <CardHeader>
@@ -626,23 +548,11 @@ const Profile = () => {
                       <CardTitle>Správa uživatelů</CardTitle>
                     </div>
                     <div className="flex gap-2">
-                      {selectedUsers.length > 0 && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={handleBulkDeactivate}
-                          disabled={loading}
-                        >
+                      {selectedUsers.length > 0 && <Button variant="destructive" size="sm" onClick={handleBulkDeactivate} disabled={loading}>
                           <UserX className="w-4 h-4 mr-2" />
                           Deaktivovat ({selectedUsers.length})
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleExportUsers}
-                        disabled={filteredUsers.length === 0}
-                      >
+                        </Button>}
+                      <Button variant="outline" size="sm" onClick={handleExportUsers} disabled={filteredUsers.length === 0}>
                         <Download className="w-4 h-4 mr-2" />
                         Export do CSV
                       </Button>
@@ -657,12 +567,7 @@ const Profile = () => {
                     <div className="flex gap-4">
                       <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Hledat podle jména nebo emailu..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10"
-                        />
+                        <Input placeholder="Hledat podle jména nebo emailu..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
                       </div>
                       <Select value={roleFilter} onValueChange={setRoleFilter}>
                         <SelectTrigger className="w-[200px]">
@@ -678,11 +583,7 @@ const Profile = () => {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="select-all"
-                        checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
-                        onCheckedChange={toggleAllUsers}
-                      />
+                      <Checkbox id="select-all" checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0} onCheckedChange={toggleAllUsers} />
                       <Label htmlFor="select-all" className="text-sm text-muted-foreground cursor-pointer">
                         Vybrat všechny ({filteredUsers.length})
                       </Label>
@@ -690,15 +591,10 @@ const Profile = () => {
                   </div>
                 
                   <div className="space-y-4">
-                    {filteredUsers.map((user) => (
-                      <Card key={user.id}>
+                    {filteredUsers.map(user => <Card key={user.id}>
                         <CardContent className="pt-6">
                           <div className="flex items-start gap-3">
-                            <Checkbox
-                              checked={selectedUsers.includes(user.id)}
-                              onCheckedChange={() => toggleUserSelection(user.id)}
-                              className="mt-1"
-                            />
+                            <Checkbox checked={selectedUsers.includes(user.id)} onCheckedChange={() => toggleUserSelection(user.id)} className="mt-1" />
                             <div className="flex-1">
                               <div className="flex items-start justify-between">
                                 <div className="space-y-3 flex-1">
@@ -708,14 +604,11 @@ const Profile = () => {
                                     </h3>
                                     <div className="flex items-center gap-2">
                                       {getRoleBadge(user.roles)}
-                                      <Select
-                                        value={getRoleValue(user.roles)}
-                                        onValueChange={(value) => {
-                                          if (value === "admin" || value === "manager" || value === "user") {
-                                            handleRoleChange(user.id, value);
-                                          }
-                                        }}
-                                      >
+                                      <Select value={getRoleValue(user.roles)} onValueChange={value => {
+                                  if (value === "admin" || value === "manager" || value === "user") {
+                                    handleRoleChange(user.id, value);
+                                  }
+                                }}>
                                         <SelectTrigger className="w-[140px] h-8">
                                           <SelectValue />
                                         </SelectTrigger>
@@ -732,38 +625,27 @@ const Profile = () => {
                                       <Mail className="w-4 h-4" />
                                       <span>{user.email}</span>
                                     </div>
-                                    {user.position && (
-                                      <div>
+                                    {user.position && <div>
                                         <span className="font-medium">Pozice:</span> {user.position}
-                                      </div>
-                                    )}
-                                    {user.last_sign_in_at && (
-                                      <div>
+                                      </div>}
+                                    {user.last_sign_in_at && <div>
                                         <span className="font-medium">Poslední přihlášení:</span>{" "}
                                         {format(new Date(user.last_sign_in_at), "dd.MM.yyyy HH:mm")}
-                                      </div>
-                                    )}
-                                    {user.created_at && (
-                                      <div>
+                                      </div>}
+                                    {user.created_at && <div>
                                         <span className="font-medium">Registrace:</span>{" "}
                                         {format(new Date(user.created_at), "dd.MM.yyyy")}
-                                      </div>
-                                    )}
+                                      </div>}
                                   </div>
                                 </div>
                                 <div className="flex gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setEditingUser(user)}
-                                  >
+                                  <Button variant="outline" size="sm" onClick={() => setEditingUser(user)}>
                                     Upravit
                                   </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setResetPasswordDialog({ open: true, email: user.email })}
-                                  >
+                                  <Button variant="outline" size="sm" onClick={() => setResetPasswordDialog({
+                              open: true,
+                              email: user.email
+                            })}>
                                     <KeyRound className="w-4 h-4 mr-1" />
                                     Reset hesla
                                   </Button>
@@ -772,175 +654,29 @@ const Profile = () => {
                             </div>
                           </div>
                         </CardContent>
-                      </Card>
-                    ))}
+                      </Card>)}
                   </div>
                 </CardContent>
               </Card>
-            </>
-          )}
+            </>}
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
           {/* Nastavení systému */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <SettingsIcon className="w-5 h-5 text-primary" />
-                <CardTitle>Nastavení systému</CardTitle>
-              </div>
-              <CardDescription>
-                Konfigurace výchozích hodnot a notifikací
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Emailové notifikace */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Mail className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold">Emailové notifikace</h3>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="email-enabled">Povolit emailové notifikace</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Zasílat automatické připomínky o končících školeních
-                    </p>
-                  </div>
-                  <Switch
-                    id="email-enabled"
-                    checked={settings.emailNotificationsEnabled}
-                    onCheckedChange={(checked) => updateSetting('emailNotificationsEnabled', checked)}
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label>Status RESEND API klíče</Label>
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
-                    <div className="flex-1">
-                      <p className="text-sm text-muted-foreground">
-                        Pro odesílání emailů je potřeba nastavit RESEND_API_KEY v tajných klíčích projektu.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {settings.emailNotificationsEnabled && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <Label htmlFor="check-interval">Interval kontroly (cron formát)</Label>
-                      <Input
-                        id="check-interval"
-                        value={settings.notificationCheckInterval}
-                        onChange={(e) => updateSetting('notificationCheckInterval', e.target.value)}
-                        placeholder="0 8 * * *"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Příklady: "0 8 * * *" = každý den v 8:00, "0 */6 * * *" = každých 6 hodin
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Výchozí intervaly */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold">Výchozí intervaly</h3>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="remind-days">Připomínka před vypršením (dny)</Label>
-                  <Input
-                    id="remind-days"
-                    type="number"
-                    min="1"
-                    value={settings.defaultRemindDaysBefore}
-                    onChange={(e) => updateSetting('defaultRemindDaysBefore', parseInt(e.target.value))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Kolik dní před vypršením školení má být odeslána připomínka
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="repeat-days">Interval opakování školení (dny)</Label>
-                  <Input
-                    id="repeat-days"
-                    type="number"
-                    min="1"
-                    value={settings.defaultRepeatDaysAfter}
-                    onChange={(e) => updateSetting('defaultRepeatDaysAfter', parseInt(e.target.value))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Výchozí počet dní po kterých má být školení opakováno (např. 365 pro roční školení)
-                  </p>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Připomínky info */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Bell className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold">Šablona připomínek</h3>
-                </div>
-                
-                <div className="space-y-3 text-sm text-muted-foreground">
-                  <p>
-                    Systém automaticky kontroluje školení, kterým brzy vyprší platnost podle nastaveného
-                    intervalu "Připomínka před vypršením".
-                  </p>
-                  <p>
-                    Pro každé školení s končící platností bude zaslán email na adresu zaměstnance
-                    s upozorněním na nutnost opakování školení.
-                  </p>
-                  <p className="font-medium text-foreground">
-                    Pro aktivaci emailových notifikací je nutné:
-                  </p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li>Nastavit RESEND_API_KEY v tajných klíčích projektu</li>
-                    <li>Povolit emailové notifikace výše</li>
-                    <li>Ověřit doménu v Resend dashboard</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button onClick={handleSaveSettings} size="lg">
-                  <Save className="w-4 h-4 mr-2" />
-                  Uložit nastavení
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          
         </TabsContent>
 
-        {isAdmin && (
-          <TabsContent value="templates">
+        {isAdmin && <TabsContent value="templates">
             <ReminderTemplates />
-          </TabsContent>
-        )}
+          </TabsContent>}
 
-        {isAdmin && (
-          <TabsContent value="logs">
+        {isAdmin && <TabsContent value="logs">
             <ReminderLogs />
-          </TabsContent>
-        )}
+          </TabsContent>}
 
-        {isAdmin && (
-          <TabsContent value="import">
+        {isAdmin && <TabsContent value="import">
             <BulkTrainingImport />
-          </TabsContent>
-        )}
+          </TabsContent>}
       </Tabs>
 
       {/* Dialog pro změnu hesla */}
@@ -955,34 +691,19 @@ const Profile = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="newPassword">Nové heslo</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Zadejte nové heslo"
-              />
+              <Input id="newPassword" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Zadejte nové heslo" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Potvrzení hesla</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Zadejte heslo znovu"
-              />
+              <Input id="confirmPassword" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Zadejte heslo znovu" />
             </div>
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setChangePasswordDialog(false);
-                setNewPassword("");
-                setConfirmPassword("");
-              }}
-            >
+            <Button variant="outline" onClick={() => {
+            setChangePasswordDialog(false);
+            setNewPassword("");
+            setConfirmPassword("");
+          }}>
               Zrušit
             </Button>
             <Button onClick={handleChangePassword} disabled={loading}>
@@ -1002,49 +723,38 @@ const Profile = () => {
               Změňte údaje uživatele {editingUser?.first_name} {editingUser?.last_name}
             </DialogDescription>
           </DialogHeader>
-          {editingUser && (
-            <div className="space-y-4">
+          {editingUser && <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Jméno</Label>
-                  <Input
-                    value={editingUser.first_name}
-                    onChange={(e) =>
-                      setEditingUser({ ...editingUser, first_name: e.target.value })
-                    }
-                  />
+                  <Input value={editingUser.first_name} onChange={e => setEditingUser({
+                ...editingUser,
+                first_name: e.target.value
+              })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Příjmení</Label>
-                  <Input
-                    value={editingUser.last_name}
-                    onChange={(e) =>
-                      setEditingUser({ ...editingUser, last_name: e.target.value })
-                    }
-                  />
+                  <Input value={editingUser.last_name} onChange={e => setEditingUser({
+                ...editingUser,
+                last_name: e.target.value
+              })} />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={editingUser.email}
-                  onChange={(e) =>
-                    setEditingUser({ ...editingUser, email: e.target.value })
-                  }
-                />
+                <Input type="email" value={editingUser.email} onChange={e => setEditingUser({
+              ...editingUser,
+              email: e.target.value
+            })} />
               </div>
               <div className="space-y-2">
                 <Label>Pozice</Label>
-                <Input
-                  value={editingUser.position || ""}
-                  onChange={(e) =>
-                    setEditingUser({ ...editingUser, position: e.target.value })
-                  }
-                />
+                <Input value={editingUser.position || ""} onChange={e => setEditingUser({
+              ...editingUser,
+              position: e.target.value
+            })} />
               </div>
-            </div>
-          )}
+            </div>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingUser(null)}>
               Zrušit
@@ -1057,10 +767,10 @@ const Profile = () => {
       </Dialog>
 
       {/* Dialog pro reset hesla */}
-      <Dialog
-        open={resetPasswordDialog.open}
-        onOpenChange={(open) => setResetPasswordDialog({ open, email: "" })}
-      >
+      <Dialog open={resetPasswordDialog.open} onOpenChange={open => setResetPasswordDialog({
+      open,
+      email: ""
+    })}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Resetovat heslo</DialogTitle>
@@ -1070,10 +780,10 @@ const Profile = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setResetPasswordDialog({ open: false, email: "" })}
-            >
+            <Button variant="outline" onClick={() => setResetPasswordDialog({
+            open: false,
+            email: ""
+          })}>
               Zrušit
             </Button>
             <Button onClick={handleResetPassword} disabled={loading}>
@@ -1083,8 +793,6 @@ const Profile = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>;
 };
-
 export default Profile;
