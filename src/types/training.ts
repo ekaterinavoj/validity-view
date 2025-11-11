@@ -16,6 +16,7 @@ export interface Training {
   calendar: string;
   note: string;
   protocol?: string;
+  is_active?: boolean;
 }
 
 export interface Employee {

@@ -36,6 +36,7 @@ const mockTrainings: Training[] = [
     reminderTemplate: "Standardní",
     calendar: "Ano",
     note: "Pravidelné školení",
+    is_active: true,
   },
   {
     id: "2",
@@ -54,6 +55,7 @@ const mockTrainings: Training[] = [
     reminderTemplate: "Urgentní",
     calendar: "Ano",
     note: "Prodloužená perioda",
+    is_active: true,
   },
   {
     id: "3",
@@ -72,6 +74,7 @@ const mockTrainings: Training[] = [
     reminderTemplate: "Standardní",
     calendar: "Ne",
     note: "Nutné obnovit",
+    is_active: true,
   },
 ];
 
@@ -104,9 +107,13 @@ export default function ScheduledTrainings() {
     return Array.from(trainerSet).sort();
   }, []);
 
-  // Filtrovaná data
+  // Filtrovaná data - pouze aktivní školení
   const filteredTrainings = useMemo(() => {
     return mockTrainings.filter((training) => {
+      // Zobrazit pouze aktivní školení (kde zaměstnanec má status "zaměstnáno")
+      if (training.is_active === false) {
+        return false;
+      }
       // Vyhledávání
       const searchLower = filters.searchQuery.toLowerCase();
       const matchesSearch =

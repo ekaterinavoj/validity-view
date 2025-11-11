@@ -159,6 +159,7 @@ export type Database = {
           employee_id: string
           facility: string
           id: string
+          is_active: boolean
           last_training_date: string
           next_training_date: string
           note: string | null
@@ -178,6 +179,7 @@ export type Database = {
           employee_id: string
           facility: string
           id?: string
+          is_active?: boolean
           last_training_date: string
           next_training_date: string
           note?: string | null
@@ -197,6 +199,7 @@ export type Database = {
           employee_id?: string
           facility?: string
           id?: string
+          is_active?: boolean
           last_training_date?: string
           next_training_date?: string
           note?: string | null

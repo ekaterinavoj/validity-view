@@ -26,6 +26,7 @@ const mockTrainings: Training[] = [
     reminderTemplate: "Standardní",
     calendar: "Ano",
     note: "Pravidelné školení",
+    is_active: true,
   },
   {
     id: "2",
@@ -44,6 +45,7 @@ const mockTrainings: Training[] = [
     reminderTemplate: "Urgentní",
     calendar: "Ano",
     note: "Prodloužená perioda",
+    is_active: true,
   },
   {
     id: "3",
@@ -62,6 +64,7 @@ const mockTrainings: Training[] = [
     reminderTemplate: "Standardní",
     calendar: "Ne",
     note: "Nutné obnovit",
+    is_active: true,
   },
   {
     id: "4",
@@ -80,6 +83,7 @@ const mockTrainings: Training[] = [
     reminderTemplate: "Standardní",
     calendar: "Ano",
     note: "",
+    is_active: true,
   },
   {
     id: "5",
@@ -98,17 +102,21 @@ const mockTrainings: Training[] = [
     reminderTemplate: "Urgentní",
     calendar: "Ano",
     note: "",
+    is_active: true,
   },
 ];
 
 export default function Dashboard() {
   const navigate = useNavigate();
   
-  // Výpočet statistik
-  const totalTrainings = mockTrainings.length;
-  const validTrainings = mockTrainings.filter(t => t.status === "valid").length;
-  const warningTrainings = mockTrainings.filter(t => t.status === "warning").length;
-  const expiredTrainings = mockTrainings.filter(t => t.status === "expired").length;
+  // Filtrovat pouze aktivní školení
+  const activeTrainings = mockTrainings.filter(t => t.is_active !== false);
+  
+  // Výpočet statistik (pouze z aktivních školení)
+  const totalTrainings = activeTrainings.length;
+  const validTrainings = activeTrainings.filter(t => t.status === "valid").length;
+  const warningTrainings = activeTrainings.filter(t => t.status === "warning").length;
+  const expiredTrainings = activeTrainings.filter(t => t.status === "expired").length;
 
   // Data pro pie chart
   const pieData = [
