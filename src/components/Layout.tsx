@@ -9,7 +9,8 @@ import {
   MoreHorizontal,
   LogOut,
   User,
-  Shield
+  Shield,
+  FileText
 } from "lucide-react";
 
 const navItems = [
@@ -25,7 +26,7 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children }: LayoutProps) => {
-  const { profile, roles, isAdmin, signOut } = useAuth();
+  const { profile, roles, isAdmin, isManager, signOut } = useAuth();
 
   const getRoleBadge = () => {
     if (roles.includes("admin")) {
@@ -104,6 +105,16 @@ export const Layout = ({ children }: LayoutProps) => {
               >
                 <Shield className="w-4 h-4" />
                 Správa uživatelů
+              </NavLink>
+            )}
+            {(isAdmin || isManager) && (
+              <NavLink
+                to="/audit-log"
+                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
+                activeClassName="text-foreground bg-card border-b-2 border-primary"
+              >
+                <FileText className="w-4 h-4" />
+                Audit log
               </NavLink>
             )}
           </div>

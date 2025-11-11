@@ -13,6 +13,7 @@ import EditTraining from "./pages/EditTraining";
 import Other from "./pages/Other";
 import Auth from "./pages/Auth";
 import UserManagement from "./pages/UserManagement";
+import AuditLog from "./pages/AuditLog";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -93,6 +94,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <UserManagement />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/audit-log"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AuditLog />
                   </Layout>
                 </ProtectedRoute>
               }
