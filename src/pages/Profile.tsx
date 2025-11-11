@@ -15,7 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Papa from "papaparse";
 import { format, subMonths } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import BulkImportPage from "./BulkImportPage";
 import { ReminderTemplates } from "@/components/ReminderTemplates";
 import { ReminderLogs } from "@/components/ReminderLogs";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
