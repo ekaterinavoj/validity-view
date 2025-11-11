@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Training } from "@/types/training";
-import { Edit, Trash2, Plus, Download, CalendarClock, FileSpreadsheet, FileDown } from "lucide-react";
+import { Edit, Trash2, Plus, Download, CalendarClock, FileSpreadsheet, FileDown, Upload, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
@@ -19,6 +19,11 @@ import { TrainingProtocolCell } from "@/components/TrainingProtocolCell";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cs } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -117,6 +122,9 @@ export default function ScheduledTrainings() {
     trainer: "",
     company: "",
     note: "",
+    lastTrainingDate: undefined as Date | undefined,
+    replaceExistingFiles: false,
+    uploadedFiles: [] as File[],
   });
   
   const {
@@ -242,12 +250,18 @@ export default function ScheduledTrainings() {
       if (bulkEditData.note.trim() !== "") {
         updates.note = bulkEditData.note.trim();
       }
+      if (bulkEditData.lastTrainingDate) {
+        updates.last_training_date = format(bulkEditData.lastTrainingDate, "yyyy-MM-dd");
+        
+        // Vypočítat next_training_date pro každé školení podle jeho periody
+        // To bude potřeba udělat jednotlivě pro každé školení
+      }
 
-      // Pokud nejsou žádné změny
-      if (Object.keys(updates).length === 0) {
+      // Pokud nejsou žádné změny ani soubory
+      if (Object.keys(updates).length === 0 && bulkEditData.uploadedFiles.length === 0) {
         toast({
           title: "Žádné změny",
-          description: "Nevyplnili jste žádné pole pro úpravu.",
+          description: "Nevyplnili jste žádné pole pro úpravu ani nenahrali soubory.",
           variant: "destructive",
         });
         setLoading(false);
@@ -260,25 +274,124 @@ export default function ScheduledTrainings() {
         throw new Error("Uživatel není přihlášen");
       }
 
-      // Aplikovat změny na všechna vybraná školení
       const selectedIds = Array.from(selectedTrainings);
-      
-      const { error } = await supabase
-        .from("trainings")
-        .update(updates)
-        .in("id", selectedIds);
 
-      if (error) throw error;
+      // Pokud je změna data, musíme každé školení upravit individuálně (kvůli výpočtu next_training_date)
+      if (bulkEditData.lastTrainingDate) {
+        for (const trainingId of selectedIds) {
+          // Získat periodicitu školení
+          const { data: training, error: fetchError } = await supabase
+            .from("trainings")
+            .select("training_types(period_days)")
+            .eq("id", trainingId)
+            .single();
+
+          if (fetchError) throw fetchError;
+
+          const periodDays = (training as any).training_types?.period_days || 365;
+          const nextDate = new Date(bulkEditData.lastTrainingDate);
+          nextDate.setDate(nextDate.getDate() + periodDays);
+
+          const individualUpdates = {
+            ...updates,
+            next_training_date: format(nextDate, "yyyy-MM-dd"),
+          };
+
+          const { error: updateError } = await supabase
+            .from("trainings")
+            .update(individualUpdates)
+            .eq("id", trainingId);
+
+          if (updateError) throw updateError;
+        }
+      } else if (Object.keys(updates).length > 0) {
+        // Pokud není změna data, můžeme aktualizovat hromadně
+        const { error } = await supabase
+          .from("trainings")
+          .update(updates)
+          .in("id", selectedIds);
+
+        if (error) throw error;
+      }
+
+      // Zpracování souborů
+      if (bulkEditData.uploadedFiles.length > 0) {
+        for (const trainingId of selectedIds) {
+          // Pokud má být nahrazen existující soubor, nejdříve ho smažeme
+          if (bulkEditData.replaceExistingFiles) {
+            // Získat stávající dokumenty
+            const { data: existingDocs, error: docsError } = await supabase
+              .from("training_documents")
+              .select("file_path")
+              .eq("training_id", trainingId);
+
+            if (docsError) throw docsError;
+
+            // Smazat soubory ze storage
+            if (existingDocs && existingDocs.length > 0) {
+              const filePaths = existingDocs.map(doc => doc.file_path);
+              const { error: storageError } = await supabase.storage
+                .from("training-documents")
+                .remove(filePaths);
+
+              if (storageError) console.error("Error deleting old files:", storageError);
+
+              // Smazat záznamy z databáze
+              const { error: deleteError } = await supabase
+                .from("training_documents")
+                .delete()
+                .eq("training_id", trainingId);
+
+              if (deleteError) throw deleteError;
+            }
+          }
+
+          // Nahrát nové soubory
+          for (const file of bulkEditData.uploadedFiles) {
+            const fileExt = file.name.split(".").pop();
+            const fileName = `${trainingId}/${Date.now()}.${fileExt}`;
+
+            // Nahrát do storage
+            const { error: uploadError } = await supabase.storage
+              .from("training-documents")
+              .upload(fileName, file);
+
+            if (uploadError) throw uploadError;
+
+            // Vytvořit záznam v databázi
+            const { error: docError } = await supabase
+              .from("training_documents")
+              .insert({
+                training_id: trainingId,
+                file_name: file.name,
+                file_path: fileName,
+                file_type: file.type,
+                file_size: file.size,
+                document_type: file.type.includes("pdf") ? "certificate" : "other",
+                uploaded_by: user.id,
+              });
+
+            if (docError) throw docError;
+          }
+        }
+      }
 
       toast({
         title: "Hromadná úprava provedena",
-        description: `Úspěšně aktualizováno ${selectedTrainings.size} školení.`,
+        description: `Úspěšně aktualizováno ${selectedTrainings.size} školení${bulkEditData.uploadedFiles.length > 0 ? ` a nahráno ${bulkEditData.uploadedFiles.length} souborů` : ""}.`,
       });
 
       // Reset stavu
       setBulkEditDialogOpen(false);
       setSelectedTrainings(new Set());
-      setBulkEditData({ trainer: "", company: "", note: "" });
+      setBulkEditData({ 
+        trainer: "", 
+        company: "", 
+        note: "", 
+        lastTrainingDate: undefined,
+        replaceExistingFiles: false,
+        uploadedFiles: [],
+      });
       
       // Znovu načíst data
       window.location.reload();
@@ -736,6 +849,42 @@ export default function ScheduledTrainings() {
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
+                      <Label>Datum posledního školení</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !bulkEditData.lastTrainingDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarClock className="mr-2 h-4 w-4" />
+                            {bulkEditData.lastTrainingDate ? (
+                              format(bulkEditData.lastTrainingDate, "d. MMMM yyyy", { locale: cs })
+                            ) : (
+                              <span>Vyberte datum (ponechat prázdné pro beze změny)</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={bulkEditData.lastTrainingDate}
+                            onSelect={(date) =>
+                              setBulkEditData({ ...bulkEditData, lastTrainingDate: date })
+                            }
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-xs text-muted-foreground">
+                        Datum dalšího školení se vypočítá automaticky podle periody každého školení
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
                       <Label>Školitel</Label>
                       <Input
                         placeholder="Nový školitel (ponechat prázdné pro beze změny)"
@@ -766,13 +915,109 @@ export default function ScheduledTrainings() {
                         rows={3}
                       />
                     </div>
+
+                    <div className="space-y-3 border-t pt-4">
+                      <Label>Soubory (PDF, dokumenty)</Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            id="bulk-file-upload"
+                            multiple
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              setBulkEditData({
+                                ...bulkEditData,
+                                uploadedFiles: [...bulkEditData.uploadedFiles, ...files],
+                              });
+                            }}
+                            className="hidden"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => document.getElementById("bulk-file-upload")?.click()}
+                            className="w-full"
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            Nahrát soubory
+                          </Button>
+                        </div>
+
+                        {bulkEditData.uploadedFiles.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium">
+                              Vybrané soubory ({bulkEditData.uploadedFiles.length}):
+                            </p>
+                            <div className="space-y-1 max-h-32 overflow-y-auto">
+                              {bulkEditData.uploadedFiles.map((file, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between p-2 bg-muted rounded text-sm"
+                                >
+                                  <span className="truncate flex-1">{file.name}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => {
+                                      const newFiles = [...bulkEditData.uploadedFiles];
+                                      newFiles.splice(idx, 1);
+                                      setBulkEditData({
+                                        ...bulkEditData,
+                                        uploadedFiles: newFiles,
+                                      });
+                                    }}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="flex items-center space-x-2 pt-2">
+                              <Checkbox
+                                id="replace-files"
+                                checked={bulkEditData.replaceExistingFiles}
+                                onCheckedChange={(checked) =>
+                                  setBulkEditData({
+                                    ...bulkEditData,
+                                    replaceExistingFiles: checked as boolean,
+                                  })
+                                }
+                              />
+                              <Label
+                                htmlFor="replace-files"
+                                className="text-sm font-normal cursor-pointer"
+                              >
+                                Nahradit původní soubory (pokud není zaškrtnuto, nové soubory se
+                                přidají k existujícím)
+                              </Label>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <p className="text-xs text-muted-foreground">
+                          Soubory budou nahrány ke všem vybraným školením
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex gap-2 justify-end">
                     <Button
                       variant="outline"
                       onClick={() => {
                         setBulkEditDialogOpen(false);
-                        setBulkEditData({ trainer: "", company: "", note: "" });
+                        setBulkEditData({ 
+                          trainer: "", 
+                          company: "", 
+                          note: "",
+                          lastTrainingDate: undefined,
+                          replaceExistingFiles: false,
+                          uploadedFiles: [],
+                        });
                       }}
                     >
                       Zrušit
