@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { formatPeriodicity } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -346,24 +347,7 @@ export default function ScheduledTrainings() {
         training.trainer,
         training.company,
         training.requester,
-        (() => {
-          if (training.period % 365 === 0) {
-            const years = Math.round(training.period / 365);
-            const yearWord = years === 1 ? "rok" : years < 5 ? "roky" : "roků";
-            const prefix = years === 1 ? "každý" : years < 5 ? "každé" : "každých";
-            return `${prefix} ${years} ${yearWord}`;
-          } else if (training.period % 30 === 0) {
-            const months = Math.round(training.period / 30);
-            const monthWord = months === 1 ? "měsíc" : months < 5 ? "měsíce" : "měsíců";
-            const prefix = months === 1 ? "každý" : months < 5 ? "každé" : "každých";
-            return `${prefix} ${months} ${monthWord}`;
-          } else {
-            const days = training.period;
-            const dayWord = days === 1 ? "den" : days < 5 ? "dny" : "dní";
-            const prefix = days === 1 ? "každý" : days < 5 ? "každé" : "každých";
-            return `${prefix} ${days} ${dayWord}`;
-          }
-        })(),
+        formatPeriodicity(training.period),
         training.note
       ]);
 
@@ -441,24 +425,6 @@ export default function ScheduledTrainings() {
       const data = [
         ['Stav', 'Skoleni platne do', 'Typ skoleni', 'Osobni cislo', 'Jmeno', 'Provozovna', 'Stredisko', 'Datum skoleni', 'Skolitel', 'Firma', 'Zadavatel', 'Periodicita', 'Poznamka'],
         ...trainingsToExport.map(t => {
-          let periodText = "";
-          if (t.period % 365 === 0) {
-            const years = Math.round(t.period / 365);
-            const yearWord = years === 1 ? "rok" : years < 5 ? "roky" : "roků";
-            const prefix = years === 1 ? "každý" : years < 5 ? "každé" : "každých";
-            periodText = `${prefix} ${years} ${yearWord}`;
-          } else if (t.period % 30 === 0) {
-            const months = Math.round(t.period / 30);
-            const monthWord = months === 1 ? "měsíc" : months < 5 ? "měsíce" : "měsíců";
-            const prefix = months === 1 ? "každý" : months < 5 ? "každé" : "každých";
-            periodText = `${prefix} ${months} ${monthWord}`;
-          } else {
-            const days = t.period;
-            const dayWord = days === 1 ? "den" : days < 5 ? "dny" : "dní";
-            const prefix = days === 1 ? "každý" : days < 5 ? "každé" : "každých";
-            periodText = `${prefix} ${days} ${dayWord}`;
-          }
-          
           return [
             statusMap[t.status],
             new Date(t.date).toLocaleDateString("cs-CZ"),
@@ -471,7 +437,7 @@ export default function ScheduledTrainings() {
             t.trainer || '',
             t.company || '',
             t.requester || '',
-            periodText,
+            formatPeriodicity(t.period),
             t.note || ''
           ];
         })

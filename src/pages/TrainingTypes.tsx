@@ -14,6 +14,7 @@ import { z } from "zod";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { formatPeriodicity } from "@/lib/utils";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -388,28 +389,7 @@ export default function TrainingTypes() {
                 </TableRow>
               ) : (
                 trainingTypes.map((type) => {
-                  let displayPeriod = "";
-                  
-                  // Detekce původní jednotky podle period_days
-                  if (type.period_days % 365 === 0) {
-                    // Roky
-                    const years = Math.round(type.period_days / 365);
-                    const yearWord = years === 1 ? "rok" : years < 5 ? "roky" : "roků";
-                    const prefix = years === 1 ? "každý" : years < 5 ? "každé" : "každých";
-                    displayPeriod = `${prefix} ${years} ${yearWord}`;
-                  } else if (type.period_days % 30 === 0) {
-                    // Měsíce
-                    const months = Math.round(type.period_days / 30);
-                    const monthWord = months === 1 ? "měsíc" : months < 5 ? "měsíce" : "měsíců";
-                    const prefix = months === 1 ? "každý" : months < 5 ? "každé" : "každých";
-                    displayPeriod = `${prefix} ${months} ${monthWord}`;
-                  } else {
-                    // Dny
-                    const days = type.period_days;
-                    const dayWord = days === 1 ? "den" : days < 5 ? "dny" : "dní";
-                    const prefix = days === 1 ? "každý" : days < 5 ? "každé" : "každých";
-                    displayPeriod = `${prefix} ${days} ${dayWord}`;
-                  }
+                  const displayPeriod = formatPeriodicity(type.period_days);
 
                   return (
                     <TableRow key={type.id}>
