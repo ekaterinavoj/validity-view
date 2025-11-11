@@ -11,12 +11,24 @@ import {
 } from "@/components/ui/table";
 import { Training } from "@/types/training";
 import { Edit, Trash2, Plus, Download } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
 import { TrainingProtocolCell } from "@/components/TrainingProtocolCell";
 import { useNavigate } from "react-router-dom";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 // Mock data
 const mockTrainings: Training[] = [
@@ -82,6 +94,14 @@ const mockTrainings: Training[] = [
 export default function ScheduledTrainings() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [selectedTrainings, setSelectedTrainings] = useState<Set<string>>(new Set());
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
+  const [bulkEditData, setBulkEditData] = useState({
+    trainer: "",
+    company: "",
+    note: "",
+  });
+  
   const {
     filters,
     updateFilter,
@@ -154,6 +174,76 @@ export default function ScheduledTrainings() {
       );
     });
   }, [filters]);
+
+  // Hromadný výběr
+  const toggleSelectAll = () => {
+    if (selectedTrainings.size === filteredTrainings.length) {
+      setSelectedTrainings(new Set());
+    } else {
+      setSelectedTrainings(new Set(filteredTrainings.map(t => t.id)));
+    }
+  };
+
+  const toggleSelectTraining = (id: string) => {
+    const newSelected = new Set(selectedTrainings);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedTrainings(newSelected);
+  };
+
+  const handleBulkEdit = () => {
+    if (selectedTrainings.size === 0) {
+      toast({
+        title: "Žádná školení vybrána",
+        description: "Vyberte alespoň jedno školení pro hromadnou úpravu.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setBulkEditDialogOpen(true);
+  };
+
+  const applyBulkEdit = () => {
+    // TODO: Aplikovat změny na vybraná školení v databázi
+    console.log("Hromadná úprava:", {
+      selectedIds: Array.from(selectedTrainings),
+      changes: bulkEditData,
+    });
+
+    toast({
+      title: "Hromadná úprava provedena",
+      description: `Aktualizováno ${selectedTrainings.size} školení.`,
+    });
+
+    // Reset
+    setBulkEditDialogOpen(false);
+    setSelectedTrainings(new Set());
+    setBulkEditData({ trainer: "", company: "", note: "" });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedTrainings.size === 0) {
+      toast({
+        title: "Žádná školení vybrána",
+        description: "Vyberte alespoň jedno školení pro smazání.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // TODO: Přidat potvrzovací dialog a mazání z databáze
+    console.log("Hromadné mazání:", Array.from(selectedTrainings));
+    
+    toast({
+      title: "Školení smazána",
+      description: `Smazáno ${selectedTrainings.size} školení.`,
+    });
+
+    setSelectedTrainings(new Set());
+  };
 
   const exportToCSV = () => {
     try {
@@ -249,12 +339,101 @@ export default function ScheduledTrainings() {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          <Button>
+          <Button onClick={() => navigate("/new-training")}>
             <Plus className="w-4 h-4 mr-2" />
             Nové školení
           </Button>
         </div>
       </div>
+
+      {/* Hromadné akce */}
+      {selectedTrainings.size > 0 && (
+        <Card className="p-4 bg-primary/5 border-primary/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <p className="text-sm font-medium">
+                Vybráno {selectedTrainings.size} {selectedTrainings.size === 1 ? "školení" : "školení"}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedTrainings(new Set())}
+              >
+                Zrušit výběr
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Dialog open={bulkEditDialogOpen} onOpenChange={setBulkEditDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="default" size="sm" onClick={handleBulkEdit}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Hromadná úprava
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Hromadná úprava školení</DialogTitle>
+                    <DialogDescription>
+                      Změny budou aplikovány na {selectedTrainings.size} {selectedTrainings.size === 1 ? "školení" : "školení"}.
+                      Prázdná pole zůstanou beze změny.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Školitel</Label>
+                      <Input
+                        placeholder="Nový školitel (ponechat prázdné pro beze změny)"
+                        value={bulkEditData.trainer}
+                        onChange={(e) =>
+                          setBulkEditData({ ...bulkEditData, trainer: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Firma</Label>
+                      <Input
+                        placeholder="Nová firma (ponechat prázdné pro beze změny)"
+                        value={bulkEditData.company}
+                        onChange={(e) =>
+                          setBulkEditData({ ...bulkEditData, company: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Poznámka</Label>
+                      <Textarea
+                        placeholder="Nová poznámka (ponechat prázdné pro beze změny)"
+                        value={bulkEditData.note}
+                        onChange={(e) =>
+                          setBulkEditData({ ...bulkEditData, note: e.target.value })
+                        }
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => setBulkEditDialogOpen(false)}
+                    >
+                      Zrušit
+                    </Button>
+                    <Button onClick={applyBulkEdit}>Aplikovat změny</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Smazat vybrané
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Pokročilé filtry */}
       <AdvancedFilters
@@ -278,6 +457,15 @@ export default function ScheduledTrainings() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={
+                      filteredTrainings.length > 0 &&
+                      selectedTrainings.size === filteredTrainings.length
+                    }
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Stav</TableHead>
                 <TableHead>Školení platné do</TableHead>
                 <TableHead>Typ školení</TableHead>
@@ -298,13 +486,19 @@ export default function ScheduledTrainings() {
             <TableBody>
               {filteredTrainings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
                     Žádná školení nenalezena
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredTrainings.map((training) => (
                 <TableRow key={training.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedTrainings.has(training.id)}
+                      onCheckedChange={() => toggleSelectTraining(training.id)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <StatusBadge status={training.status} />
                   </TableCell>
