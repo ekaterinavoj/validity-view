@@ -42,6 +42,7 @@ export default function NewTraining() {
   const [useCustomCompany, setUseCustomCompany] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [periodUnit, setPeriodUnit] = useState<"years" | "days">("years");
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -219,25 +220,68 @@ export default function NewTraining() {
               control={form.control}
               name="periodDays"
               render={({ field }) => {
-                const days = parseInt(field.value) || 0;
-                const years = (days / 365).toFixed(2);
+                const totalDays = parseInt(field.value) || 0;
+                const displayValue = periodUnit === "years" 
+                  ? (totalDays / 365).toFixed(1)
+                  : totalDays.toString();
+                
+                const handleValueChange = (value: string) => {
+                  const numValue = parseFloat(value) || 0;
+                  const daysValue = periodUnit === "years" 
+                    ? Math.round(numValue * 365)
+                    : Math.round(numValue);
+                  field.onChange(daysValue.toString());
+                };
                 
                 return (
                   <FormItem>
                     <FormLabel>Periodicita *</FormLabel>
-                    <div className="flex gap-2 items-center">
-                      <FormControl>
-                        <Input type="number" {...field} className="w-32" />
-                      </FormControl>
-                      <span className="text-sm text-muted-foreground">
-                        roky/({days} dní)
-                      </span>
+                    <div className="space-y-3">
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            checked={periodUnit === "years"}
+                            onChange={() => setPeriodUnit("years")}
+                            className="w-4 h-4 text-primary"
+                          />
+                          <span className="text-sm">Roky</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            checked={periodUnit === "days"}
+                            onChange={() => setPeriodUnit("days")}
+                            className="w-4 h-4 text-primary"
+                          />
+                          <span className="text-sm">Dny</span>
+                        </label>
+                      </div>
+                      
+                      <div className="flex gap-2 items-center">
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            step={periodUnit === "years" ? "0.1" : "1"}
+                            value={displayValue}
+                            onChange={(e) => handleValueChange(e.target.value)}
+                            className="w-32"
+                          />
+                        </FormControl>
+                        <span className="text-sm text-muted-foreground">
+                          {periodUnit === "years" ? "roky" : "dní"}
+                        </span>
+                      </div>
+                      
+                      {totalDays > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {periodUnit === "years" 
+                            ? `= ${totalDays} dní`
+                            : `= ${(totalDays / 365).toFixed(2)} ${(totalDays / 365) === 1 ? "rok" : (totalDays / 365) < 5 ? "roky" : "let"}`
+                          }
+                        </p>
+                      )}
                     </div>
-                    {days > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        {years} {parseFloat(years) === 1 ? "rok" : parseFloat(years) < 5 ? "roky" : "let"}
-                      </p>
-                    )}
                     <FormMessage />
                   </FormItem>
                 );
