@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { cs } from "date-fns/locale";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -53,6 +53,17 @@ export default function NewTraining() {
       repeatDaysAfter: "30",
     },
   });
+
+  // Automatický výpočet data expirace
+  const lastTrainingDate = form.watch("lastTrainingDate");
+  const periodDays = form.watch("periodDays");
+  
+  const expirationDate = useMemo(() => {
+    if (!lastTrainingDate || !periodDays) return null;
+    const days = parseInt(periodDays) || 0;
+    if (days <= 0) return null;
+    return addDays(lastTrainingDate, days);
+  }, [lastTrainingDate, periodDays]);
 
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
@@ -287,6 +298,30 @@ export default function NewTraining() {
                 );
               }}
             />
+
+            {/* Automaticky vypočítané datum expirace */}
+            {expirationDate && (
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium text-foreground">
+                      Vypočítané datum expirace
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Datum školení + periodicita
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-primary">
+                      {format(expirationDate, "dd.MM.yyyy", { locale: cs })}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(expirationDate, "EEEE", { locale: cs })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Školitel</Label>
