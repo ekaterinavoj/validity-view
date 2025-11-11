@@ -44,6 +44,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          notes: string | null
           position: string
           status: string
           termination_date: string | null
@@ -57,6 +58,7 @@ export type Database = {
           first_name: string
           id?: string
           last_name: string
+          notes?: string | null
           position: string
           status: string
           termination_date?: string | null
@@ -70,6 +72,7 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          notes?: string | null
           position?: string
           status?: string
           termination_date?: string | null
