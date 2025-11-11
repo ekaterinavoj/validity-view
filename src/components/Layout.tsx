@@ -8,7 +8,8 @@ import {
   BookOpen, 
   Building2,
   Upload,
-  UserX
+  UserX,
+  Settings
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { to: "/bulk-import", label: "Hromadný import", icon: Upload },
   { to: "/training-types", label: "Typy školení", icon: BookOpen },
   { to: "/departments", label: "Střediska", icon: Building2 },
+  { to: "/settings", label: "Nastavení", icon: Settings },
 ];
 
 interface LayoutProps {

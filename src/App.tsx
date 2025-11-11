@@ -14,6 +14,7 @@ import Departments from "./pages/Departments";
 import BulkImportPage from "./pages/BulkImportPage";
 import InactiveEmployeesReport from "./pages/InactiveEmployeesReport";
 import EditTraining from "./pages/EditTraining";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/departments" element={<Departments />} />
             <Route path="/bulk-import" element={<BulkImportPage />} />
             <Route path="/inactive-report" element={<InactiveEmployeesReport />} />
+            <Route path="/settings" element={<Settings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
