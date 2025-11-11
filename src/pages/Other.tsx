@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserX, Users, Upload, Building2, BookOpen, Settings, Clock } from "lucide-react";
+import { UserX, Users, Upload, Building2, BookOpen, Settings, Clock, BarChart3 } from "lucide-react";
 import InactiveEmployeesReport from "./InactiveEmployeesReport";
 import Employees from "./Employees";
 import BulkImportPage from "./BulkImportPage";
@@ -7,6 +7,7 @@ import Departments from "./Departments";
 import TrainingTypes from "./TrainingTypes";
 import SettingsPage from "./Settings";
 import TrainingHoursStats from "./TrainingHoursStats";
+import DepartmentDashboard from "./DepartmentDashboard";
 
 export default function Other() {
   return (
@@ -14,7 +15,7 @@ export default function Other() {
       <h2 className="text-3xl font-bold text-foreground">Ostatní</h2>
       
       <Tabs defaultValue="inactive" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="inactive" className="flex items-center gap-2">
             <UserX className="w-4 h-4" />
             Pozastavená školení
@@ -38,6 +39,10 @@ export default function Other() {
           <TabsTrigger value="training-hours" className="flex items-center gap-2">
             <Clock className="w-4 h-4" />
             Odškolené hodiny
+          </TabsTrigger>
+          <TabsTrigger value="department-dashboard" className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Dashboard oddělení
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
@@ -67,6 +72,10 @@ export default function Other() {
 
         <TabsContent value="training-hours" className="space-y-6">
           <TrainingHoursStats />
+        </TabsContent>
+
+        <TabsContent value="department-dashboard" className="space-y-6">
+          <DepartmentDashboard />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
