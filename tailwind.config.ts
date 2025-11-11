@@ -57,6 +57,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        status: {
+          valid: "hsl(var(--status-valid))",
+          "valid-foreground": "hsl(var(--status-valid-foreground))",
+          warning: "hsl(var(--status-warning))",
+          "warning-foreground": "hsl(var(--status-warning-foreground))",
+          expired: "hsl(var(--status-expired))",
+          "expired-foreground": "hsl(var(--status-expired-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
