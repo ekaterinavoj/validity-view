@@ -1,11 +1,15 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Training } from "@/types/training";
-import { Calendar, CheckCircle, AlertCircle, XCircle, Upload, TrendingUp, Users, Clock, Activity } from "lucide-react";
+import { Calendar, CheckCircle, AlertCircle, XCircle, Upload, TrendingUp, Users, Clock, Activity, FileDown, FileSpreadsheet } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Area, AreaChart } from "recharts";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 // Mock data - stejná jako v ScheduledTrainings
 const mockTrainings: Training[] = [
@@ -108,6 +112,7 @@ const mockTrainings: Training[] = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   // Filtrovat pouze aktivní školení
   const activeTrainings = mockTrainings.filter(t => t.is_active !== false);
@@ -204,9 +209,167 @@ export default function Dashboard() {
     },
   };
 
+  // Export do Excel
+  const exportToExcel = () => {
+    try {
+      // Pracovní sešit
+      const wb = XLSX.utils.book_new();
+
+      // List 1: Celkové statistiky
+      const statsData = [
+        ['Statistika', 'Hodnota'],
+        ['Celkem školení', totalTrainings],
+        ['Platné školení', validTrainings],
+        ['Brzy vyprší', warningTrainings],
+        ['Prošlé školení', expiredTrainings],
+        ['Školení zaměstnanců', uniqueEmployees],
+        ['Vyprší do 30 dní', expiring30],
+        ['Vyprší do 60 dní', expiring60],
+        ['Vyprší do 90 dní', expiring90],
+      ];
+      const ws1 = XLSX.utils.aoa_to_sheet(statsData);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Statistiky');
+
+      // List 2: Školení podle oddělení
+      const deptData = [
+        ['Oddělení', 'Platné', 'Brzy vyprší', 'Prošlé'],
+        ...barData.map(d => [d.department, d.platné, d['brzy vyprší'], d.prošlé])
+      ];
+      const ws2 = XLSX.utils.aoa_to_sheet(deptData);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Podle oddělení');
+
+      // List 3: Trendy
+      const trendExportData = [
+        ['Měsíc', 'Dokončeno', 'Naplánováno'],
+        ...trendData.map(d => [d.month, d.dokončeno, d.naplánováno])
+      ];
+      const ws3 = XLSX.utils.aoa_to_sheet(trendExportData);
+      XLSX.utils.book_append_sheet(wb, ws3, 'Trendy');
+
+      // List 4: Expirující certifikáty
+      const expirationData = [
+        ['Období', 'Počet'],
+        ...expirationTimeline.map(d => [d.období, d.počet])
+      ];
+      const ws4 = XLSX.utils.aoa_to_sheet(expirationData);
+      XLSX.utils.book_append_sheet(wb, ws4, 'Expirující');
+
+      // Uložení souboru
+      const timestamp = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `dashboard_statistiky_${timestamp}.xlsx`);
+
+      toast({
+        title: "Export dokončen",
+        description: "Statistiky byly exportovány do Excel souboru.",
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data do Excel.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Export do PDF
+  const exportToPDF = async () => {
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let yPosition = 20;
+
+      // Nadpis
+      pdf.setFontSize(20);
+      pdf.text('Dashboard - Statistiky školení', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // Datum generování
+      pdf.setFontSize(10);
+      const date = new Date().toLocaleDateString('cs-CZ');
+      pdf.text(`Vygenerováno: ${date}`, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // Statistiky - tabulka
+      pdf.setFontSize(14);
+      pdf.text('Celkové statistiky', 15, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(10);
+      const stats = [
+        ['Celkem školení:', totalTrainings.toString()],
+        ['Platné školení:', validTrainings.toString()],
+        ['Brzy vyprší:', warningTrainings.toString()],
+        ['Prošlé školení:', expiredTrainings.toString()],
+        ['Školení zaměstnanců:', uniqueEmployees.toString()],
+        ['Vyprší do 30 dní:', expiring30.toString()],
+        ['Vyprší do 60 dní:', expiring60.toString()],
+        ['Vyprší do 90 dní:', expiring90.toString()],
+      ];
+
+      stats.forEach(([label, value]) => {
+        pdf.text(label, 20, yPosition);
+        pdf.text(value, 80, yPosition);
+        yPosition += 7;
+      });
+
+      yPosition += 10;
+
+      // Školení podle oddělení
+      if (yPosition > pageHeight - 60) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      pdf.setFontSize(14);
+      pdf.text('Školení podle oddělení', 15, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(10);
+      barData.forEach(dept => {
+        if (yPosition > pageHeight - 20) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        pdf.text(`${dept.department}:`, 20, yPosition);
+        pdf.text(`Platné: ${dept.platné}, Brzy vyprší: ${dept['brzy vyprší']}, Prošlé: ${dept.prošlé}`, 25, yPosition + 5);
+        yPosition += 12;
+      });
+
+      // Uložení PDF
+      const timestamp = new Date().toISOString().split('T')[0];
+      pdf.save(`dashboard_${timestamp}.pdf`);
+
+      toast({
+        title: "Export dokončen",
+        description: "Dashboard byl exportován do PDF souboru.",
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat dashboard do PDF.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToExcel}>
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Export do Excel
+          </Button>
+          <Button variant="outline" onClick={exportToPDF}>
+            <FileDown className="w-4 h-4 mr-2" />
+            Export do PDF
+          </Button>
+        </div>
+      </div>
 
       {/* Hromadný import */}
       <Card className="p-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
