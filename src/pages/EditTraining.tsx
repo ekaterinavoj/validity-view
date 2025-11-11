@@ -65,6 +65,7 @@ export default function EditTraining() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [periodUnit, setPeriodUnit] = useState<"years" | "days">("years");
   const [loading, setLoading] = useState(true);
+  const [replaceMode, setReplaceMode] = useState(true);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -130,6 +131,12 @@ export default function EditTraining() {
       // TODO: Aktualizovat školení v databázi
       console.log("Aktualizuji školení:", data);
       
+      // Pokud je režim nahrazení a jsou nové soubory, nejprve smazat staré
+      if (replaceMode && uploadedFiles.length > 0) {
+        // TODO: Smazat všechny staré dokumenty z databáze
+        console.log("Mažu staré dokumenty pro nahrazení novými");
+      }
+      
       // Nahrání nových souborů
       if (uploadedFiles.length > 0) {
         const uploadPromises = uploadedFiles.map((uploadedFile) =>
@@ -146,7 +153,9 @@ export default function EditTraining() {
       
       toast({
         title: "Školení aktualizováno",
-        description: "Změny byly úspěšně uloženy.",
+        description: replaceMode && uploadedFiles.length > 0
+          ? "Změny byly uloženy a dokumenty nahrazeny."
+          : "Změny byly úspěšně uloženy.",
       });
       
       navigate("/scheduled-trainings");
@@ -478,6 +487,9 @@ export default function EditTraining() {
                 maxFiles={10}
                 maxSize={20}
                 acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
+                showReplaceOption={true}
+                replaceMode={replaceMode}
+                onReplaceModeChange={setReplaceMode}
               />
             </div>
 
