@@ -22,7 +22,6 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatPeriodicity } from "@/lib/utils";
-import { addDays } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -44,9 +43,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { FileUploader, UploadedFile } from "@/components/FileUploader";
-import { Checkbox as CheckboxComponent } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Mock data
 const mockTrainings: Training[] = [
@@ -119,10 +115,7 @@ export default function ScheduledTrainings() {
     trainer: "",
     company: "",
     note: "",
-    lastTrainingDate: "",
-    keepExistingFiles: false,
   });
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   
   const {
     filters,
@@ -147,13 +140,8 @@ export default function ScheduledTrainings() {
   }, []);
 
   const trainers = useMemo(() => {
-    const trainerSet = new Set(mockTrainings.map((t) => t.trainer).filter(Boolean));
+    const trainerSet = new Set(mockTrainings.map((t) => t.trainer));
     return Array.from(trainerSet).sort();
-  }, []);
-
-  const companies = useMemo(() => {
-    const companySet = new Set(mockTrainings.map((t) => t.company).filter(Boolean));
-    return Array.from(companySet).sort();
   }, []);
 
   // Filtrovaná data - pouze aktivní školení
@@ -235,48 +223,20 @@ export default function ScheduledTrainings() {
 
   const applyBulkEdit = () => {
     // TODO: Aplikovat změny na vybraná školení v databázi
-    // Pokud se změnilo datum školení, automaticky přepočítat next_training_date
-    const updatesWithRecalculation = Array.from(selectedTrainings).map(trainingId => {
-      const training = filteredTrainings.find(t => t.id === trainingId);
-      if (!training) return null;
-
-      const updates: any = {};
-      
-      // Pokud se mění datum školení, přepočítat datum platnosti
-      if (bulkEditData.lastTrainingDate) {
-        const newLastDate = new Date(bulkEditData.lastTrainingDate);
-        const periodDays = training.period;
-        const newNextDate = new Date(newLastDate);
-        newNextDate.setDate(newNextDate.getDate() + periodDays);
-        
-        updates.lastTrainingDate = bulkEditData.lastTrainingDate;
-        updates.nextTrainingDate = newNextDate.toISOString().split('T')[0];
-      }
-      
-      if (bulkEditData.trainer) updates.trainer = bulkEditData.trainer;
-      if (bulkEditData.company) updates.company = bulkEditData.company;
-      if (bulkEditData.note) updates.note = bulkEditData.note;
-      
-      return { trainingId, updates };
-    }).filter(Boolean);
-
-    console.log("Hromadná úprava s automatickým přepočtem:", {
+    console.log("Hromadná úprava:", {
       selectedIds: Array.from(selectedTrainings),
       changes: bulkEditData,
-      files: uploadedFiles,
-      recalculatedDates: updatesWithRecalculation,
     });
 
     toast({
       title: "Hromadná úprava provedena",
-      description: `Aktualizováno ${selectedTrainings.size} školení${uploadedFiles.length > 0 ? ` a nahráno ${uploadedFiles.length} souborů` : ""}${bulkEditData.lastTrainingDate ? " s přepočtem data platnosti" : ""}.`,
+      description: `Aktualizováno ${selectedTrainings.size} školení.`,
     });
 
     // Reset
     setBulkEditDialogOpen(false);
     setSelectedTrainings(new Set());
-    setBulkEditData({ trainer: "", company: "", note: "", lastTrainingDate: "", keepExistingFiles: false });
-    setUploadedFiles([]);
+    setBulkEditData({ trainer: "", company: "", note: "" });
   };
 
   const handleBulkDelete = () => {
@@ -685,7 +645,7 @@ export default function ScheduledTrainings() {
                     Hromadná úprava
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Hromadná úprava školení</DialogTitle>
                     <DialogDescription>
@@ -695,95 +655,24 @@ export default function ScheduledTrainings() {
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label>Datum školení</Label>
+                      <Label>Školitel</Label>
                       <Input
-                        type="date"
-                        value={bulkEditData.lastTrainingDate}
+                        placeholder="Nový školitel (ponechat prázdné pro beze změny)"
+                        value={bulkEditData.trainer}
                         onChange={(e) =>
-                          setBulkEditData({ ...bulkEditData, lastTrainingDate: e.target.value })
+                          setBulkEditData({ ...bulkEditData, trainer: e.target.value })
                         }
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Datum proběhlého školení - bude nastaveno u všech vybraných školení a automaticky se přepočítá datum platnosti
-                      </p>
-                      
-                      {/* Zobrazit info o automatickém přepočtu */}
-                      {bulkEditData.lastTrainingDate && selectedTrainingDetails.length > 0 && (
-                        <div className="p-3 bg-primary/5 border border-primary/20 rounded-md mt-2">
-                          <p className="text-xs font-medium text-foreground mb-2">
-                            Automatický přepočet data platnosti:
-                          </p>
-                          <div className="space-y-1 max-h-32 overflow-y-auto">
-                            {selectedTrainingDetails.slice(0, 5).map((training) => {
-                              const newLastDate = new Date(bulkEditData.lastTrainingDate);
-                              const newNextDate = new Date(newLastDate);
-                              newNextDate.setDate(newNextDate.getDate() + training.period);
-                              
-                              return (
-                                <div key={training.id} className="text-xs text-muted-foreground flex justify-between">
-                                  <span className="truncate flex-1">{training.employeeName}</span>
-                                  <span className="ml-2 text-primary font-medium">
-                                    → {newNextDate.toLocaleDateString("cs-CZ")}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                            {selectedTrainingDetails.length > 5 && (
-                              <p className="text-xs text-muted-foreground italic">
-                                ... a dalších {selectedTrainingDetails.length - 5} školení
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Školitel</Label>
-                      <Select
-                        value={bulkEditData.trainer}
-                        onValueChange={(value) =>
-                          setBulkEditData({ ...bulkEditData, trainer: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Vyberte školitele (ponechat prázdné pro beze změny)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Beze změny</SelectItem>
-                          {trainers.map((trainer) => (
-                            <SelectItem key={trainer} value={trainer}>
-                              {trainer}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Vyberte školitele ze seznamu použitých školitelů
-                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Firma</Label>
-                      <Select
+                      <Input
+                        placeholder="Nová firma (ponechat prázdné pro beze změny)"
                         value={bulkEditData.company}
-                        onValueChange={(value) =>
-                          setBulkEditData({ ...bulkEditData, company: value })
+                        onChange={(e) =>
+                          setBulkEditData({ ...bulkEditData, company: e.target.value })
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Vyberte firmu (ponechat prázdné pro beze změny)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Beze změny</SelectItem>
-                          {companies.map((company) => (
-                            <SelectItem key={company} value={company}>
-                              {company}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Vyberte firmu ze seznamu použitých firem
-                      </p>
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Poznámka</Label>
@@ -796,43 +685,11 @@ export default function ScheduledTrainings() {
                         rows={3}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Dokumenty</Label>
-                      <FileUploader
-                        files={uploadedFiles}
-                        onFilesChange={setUploadedFiles}
-                        maxFiles={10}
-                        acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
-                      />
-                      <div className="flex items-center space-x-2 mt-3 p-3 bg-muted/50 rounded-md">
-                        <CheckboxComponent
-                          id="keepExistingFiles"
-                          checked={bulkEditData.keepExistingFiles}
-                          onCheckedChange={(checked) =>
-                            setBulkEditData({ ...bulkEditData, keepExistingFiles: checked as boolean })
-                          }
-                        />
-                        <label
-                          htmlFor="keepExistingFiles"
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          Ponechat stávající soubory a přidat nové
-                        </label>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {bulkEditData.keepExistingFiles 
-                          ? "Nahrané soubory budou přidány ke stávajícím dokumentům" 
-                          : "Nahrané soubory nahradí všechny stávající dokumenty u vybraných školení"}
-                      </p>
-                    </div>
                   </div>
                   <div className="flex gap-2 justify-end">
                     <Button
                       variant="outline"
-                      onClick={() => {
-                        setBulkEditDialogOpen(false);
-                        setUploadedFiles([]);
-                      }}
+                      onClick={() => setBulkEditDialogOpen(false)}
                     >
                       Zrušit
                     </Button>

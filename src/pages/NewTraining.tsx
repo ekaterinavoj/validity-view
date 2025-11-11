@@ -23,14 +23,7 @@ const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
   employeeId: z.string().min(1, "Vyberte školenu osobu"),
   trainingTypeId: z.string().min(1, "Vyberte typ školení"),
-  lastTrainingDate: z.date({ required_error: "Zadejte datum posledního školení" })
-    .refine((date) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const maxFutureDate = new Date(today);
-      maxFutureDate.setDate(maxFutureDate.getDate() + 365); // Max 1 rok do budoucnosti
-      return date <= maxFutureDate;
-    }, "Datum školení nesmí být více než 1 rok v budoucnosti"),
+  lastTrainingDate: z.date({ required_error: "Zadejte datum posledního školení" }),
   periodDays: z.string().min(1, "Zadejte periodicitu"),
   trainerId: z.string().optional(),
   customTrainerName: z.string().optional(),
@@ -81,16 +74,6 @@ export default function NewTraining() {
     if (days <= 0) return null;
     return addDays(lastTrainingDate, days);
   }, [lastTrainingDate, periodDays]);
-
-  // Kontrola budoucího data
-  const isFutureDate = useMemo(() => {
-    if (!lastTrainingDate) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const trainingDate = new Date(lastTrainingDate);
-    trainingDate.setHours(0, 0, 0, 0);
-    return trainingDate > today;
-  }, [lastTrainingDate]);
 
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
@@ -249,26 +232,6 @@ export default function NewTraining() {
                       />
                     </PopoverContent>
                   </Popover>
-                  {isFutureDate && (
-                    <div className="flex items-start gap-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
-                      <svg
-                        className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                        />
-                      </svg>
-                      <p className="text-xs text-amber-700">
-                        Upozornění: Zadali jste datum v budoucnosti. Obvykle by mělo být datum školení v minulosti nebo dnešní den.
-                      </p>
-                    </div>
-                  )}
                   <FormMessage />
                 </FormItem>
               )}
