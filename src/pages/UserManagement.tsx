@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Shield, UserCog } from "lucide-react";
+import { Loader2, Shield, UserCog, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface UserProfile {
@@ -37,6 +38,8 @@ export default function UserManagement() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
 
   useEffect(() => {
     if (!isAdmin) {
@@ -119,6 +122,37 @@ export default function UserManagement() {
     }
   };
 
+  const filteredUsers = useMemo(() => {
+    let filtered = users;
+
+    // Filter by search query (name or email)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((user) => {
+        const fullName = `${user.first_name} ${user.last_name}`.toLowerCase();
+        const email = user.email.toLowerCase();
+        return fullName.includes(query) || email.includes(query);
+      });
+    }
+
+    // Filter by role
+    if (roleFilter !== "all") {
+      filtered = filtered.filter((user) => {
+        const currentRole = user.roles[0] || "user";
+        return currentRole === roleFilter;
+      });
+    }
+
+    return filtered;
+  }, [users, searchQuery, roleFilter]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setRoleFilter("all");
+  };
+
+  const hasActiveFilters = searchQuery !== "" || roleFilter !== "all";
+
   if (!isAdmin) {
     return null;
   }
@@ -145,6 +179,51 @@ export default function UserManagement() {
             <Badge variant="secondary">{users.length} uživatelů</Badge>
           </div>
 
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Hledat podle jména nebo emailu..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filtrovat podle role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všechny role</SelectItem>
+                <SelectItem value="user">Uživatel</SelectItem>
+                <SelectItem value="manager">Manažer</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={clearFilters}
+                title="Vymazat filtry"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+
+          {/* Results count */}
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>
+                Zobrazeno <strong>{filteredUsers.length}</strong> z <strong>{users.length}</strong> uživatelů
+              </span>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -161,39 +240,49 @@ export default function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => {
-                  const currentRole = user.roles[0] || "user";
-                  return (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">
-                        {user.first_name} {user.last_name}
-                      </TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.position || "-"}</TableCell>
-                      <TableCell>
-                        <Badge className={roleColors[currentRole as keyof typeof roleColors]}>
-                          {roleLabels[currentRole as keyof typeof roleLabels]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={currentRole}
-                          onValueChange={(value) => handleRoleChange(user.id, value)}
-                          disabled={user.id === profile?.id}
-                        >
-                          <SelectTrigger className="w-40">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">Uživatel</SelectItem>
-                            <SelectItem value="manager">Manažer</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {filteredUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      {hasActiveFilters 
+                        ? "Žádní uživatelé nevyhovují zadaným filtrům."
+                        : "Žádní uživatelé nenalezeni."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredUsers.map((user) => {
+                    const currentRole = user.roles[0] || "user";
+                    return (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">
+                          {user.first_name} {user.last_name}
+                        </TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.position || "-"}</TableCell>
+                        <TableCell>
+                          <Badge className={roleColors[currentRole as keyof typeof roleColors]}>
+                            {roleLabels[currentRole as keyof typeof roleLabels]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={currentRole}
+                            onValueChange={(value) => handleRoleChange(user.id, value)}
+                            disabled={user.id === profile?.id}
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="user">Uživatel</SelectItem>
+                              <SelectItem value="manager">Manažer</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           )}
