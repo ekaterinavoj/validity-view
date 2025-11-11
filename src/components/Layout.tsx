@@ -98,6 +98,16 @@ export const Layout = ({ children }: LayoutProps) => {
                 </NavLink>
               );
             })}
+            {isAdmin && (
+              <NavLink
+                to="/user-management"
+                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
+                activeClassName="text-foreground bg-card border-b-2 border-primary"
+              >
+                <Shield className="w-4 h-4" />
+                Správa uživatelů
+              </NavLink>
+            )}
             {(isAdmin || isManager) && (
               <NavLink
                 to="/audit-log"
