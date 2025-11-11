@@ -65,6 +65,21 @@ export default {
           expired: "hsl(var(--status-expired))",
           "expired-foreground": "hsl(var(--status-expired-foreground))",
         },
+        qlar: {
+          dark: "hsl(var(--qlar-dark))",
+          brand: "hsl(var(--qlar-brand))",
+          pool: "hsl(var(--qlar-pool))",
+          apple: "hsl(var(--qlar-apple))",
+          lavender: "hsl(var(--qlar-lavender))",
+          tech: "hsl(var(--qlar-tech))",
+        },
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
