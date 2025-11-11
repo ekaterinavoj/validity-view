@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line } from "recharts";
-import { Calendar, Clock, TrendingUp, FileSpreadsheet } from "lucide-react";
+import { Calendar, Clock, TrendingUp, FileSpreadsheet, FileDown } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function TrainingHoursStats() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
@@ -78,39 +80,46 @@ export default function TrainingHoursStats() {
         ['Statistika', 'Hodnota'],
         ['Rok', selectedYear],
         ['Celkem hodin', totalHours],
-        ['Celkem školení', totalTrainings],
-        ['Průměr hodin na školení', avgHoursPerTraining],
-        ['Průměr hodin za měsíc', avgHoursPerMonth],
+        ['Celkem skoleni', totalTrainings],
+        ['Prumer hodin na skoleni', avgHoursPerTraining],
+        ['Prumer hodin za mesic', avgHoursPerMonth],
       ];
       const ws1 = XLSX.utils.aoa_to_sheet(statsData);
+      ws1['!cols'] = [{ wch: 30 }, { wch: 15 }];
       XLSX.utils.book_append_sheet(wb, ws1, 'Statistiky');
 
       // List 2: Měsíční přehled
       const monthlyExportData = [
-        ['Měsíc', 'Hodiny', 'Počet školení'],
+        ['Mesic', 'Hodiny', 'Pocet skoleni'],
         ...monthlyData.map(d => [d.měsíc, d.hodiny, d.počet])
       ];
       const ws2 = XLSX.utils.aoa_to_sheet(monthlyExportData);
-      XLSX.utils.book_append_sheet(wb, ws2, 'Měsíční přehled');
+      ws2['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 15 }];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Mesicni prehled');
 
       // List 3: Podle typu školení
       const typeData = [
-        ['Typ školení', 'Hodiny', 'Počet školení', 'Průměrná délka'],
+        ['Typ skoleni', 'Hodiny', 'Pocet skoleni', 'Prumerna delka'],
         ...trainingTypeStats.map(d => [d.typ, d.hodiny, d.počet, d.prům_délka])
       ];
       const ws3 = XLSX.utils.aoa_to_sheet(typeData);
+      ws3['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
       XLSX.utils.book_append_sheet(wb, ws3, 'Podle typu');
 
       // List 4: Podle oddělení
       const deptData = [
-        ['Oddělení', 'Hodiny', 'Počet školení'],
+        ['Oddeleni', 'Hodiny', 'Pocet skoleni'],
         ...departmentStats.map(d => [d.oddělení, d.hodiny, d.počet])
       ];
       const ws4 = XLSX.utils.aoa_to_sheet(deptData);
-      XLSX.utils.book_append_sheet(wb, ws4, 'Podle oddělení');
+      ws4['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 15 }];
+      XLSX.utils.book_append_sheet(wb, ws4, 'Podle oddeleni');
 
       const timestamp = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `odskolene_hodiny_${selectedYear}_${timestamp}.xlsx`);
+      XLSX.writeFile(wb, `odskolene_hodiny_${selectedYear}_${timestamp}.xlsx`, {
+        bookType: 'xlsx',
+        type: 'binary'
+      });
 
       toast({
         title: "Export dokončen",
@@ -126,14 +135,138 @@ export default function TrainingHoursStats() {
     }
   };
 
+  const exportToPDF = () => {
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      let yPosition = 20;
+
+      // Nadpis
+      pdf.setFontSize(20);
+      pdf.text('Statistiky odskolenich hodin', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
+
+      // Období
+      pdf.setFontSize(12);
+      const period = selectedMonth === "all" 
+        ? `Rok ${selectedYear}` 
+        : `${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}`;
+      pdf.text(period, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // Celkové statistiky
+      pdf.setFontSize(14);
+      pdf.text('Celkove statistiky', 15, yPosition);
+      yPosition += 5;
+
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Statistika', 'Hodnota']],
+        body: [
+          ['Celkem hodin', totalHours.toString()],
+          ['Celkem skoleni', totalTrainings.toString()],
+          ['Prumer hodin na skoleni', avgHoursPerTraining],
+          ['Prumer hodin za mesic', avgHoursPerMonth],
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [66, 66, 66] },
+        margin: { left: 15 },
+      });
+
+      yPosition = (pdf as any).lastAutoTable.finalY + 15;
+
+      // Podle typu školení
+      pdf.setFontSize(14);
+      pdf.text('Podle typu skoleni', 15, yPosition);
+      yPosition += 5;
+
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Typ skoleni', 'Hodiny', 'Pocet', 'Prumer']],
+        body: trainingTypeStats.map(d => [
+          d.typ,
+          d.hodiny.toString(),
+          d.počet.toString(),
+          d.prům_délka.toString()
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [66, 66, 66] },
+        margin: { left: 15 },
+      });
+
+      yPosition = (pdf as any).lastAutoTable.finalY + 15;
+
+      // Podle oddělení
+      pdf.setFontSize(14);
+      pdf.text('Podle oddeleni', 15, yPosition);
+      yPosition += 5;
+
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Oddeleni', 'Hodiny', 'Pocet skoleni']],
+        body: departmentStats.map(d => [
+          d.oddělení,
+          d.hodiny.toString(),
+          d.počet.toString()
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [66, 66, 66] },
+        margin: { left: 15 },
+      });
+
+      yPosition = (pdf as any).lastAutoTable.finalY + 15;
+
+      // Měsíční přehled (pokud je vybrán celý rok)
+      if (selectedMonth === "all" && yPosition < 200) {
+        pdf.setFontSize(14);
+        pdf.text('Mesicni prehled', 15, yPosition);
+        yPosition += 5;
+
+        autoTable(pdf, {
+          startY: yPosition,
+          head: [['Mesic', 'Hodiny', 'Pocet skoleni']],
+          body: monthlyData.map(d => [
+            d.měsíc,
+            d.hodiny.toString(),
+            d.počet.toString()
+          ]),
+          theme: 'striped',
+          headStyles: { fillColor: [66, 66, 66] },
+          margin: { left: 15 },
+        });
+      }
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      pdf.save(`odskolene_hodiny_${selectedYear}_${timestamp}.pdf`);
+
+      toast({
+        title: "Export dokončen",
+        description: "Statistiky hodin byly exportovány do PDF souboru.",
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data do PDF.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold text-foreground">Statistiky odškolených hodin</h2>
-        <Button variant="outline" onClick={exportToExcel}>
-          <FileSpreadsheet className="w-4 h-4 mr-2" />
-          Export do Excel
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToExcel}>
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Export do Excel
+          </Button>
+          <Button variant="outline" onClick={exportToPDF}>
+            <FileDown className="w-4 h-4 mr-2" />
+            Export do PDF
+          </Button>
+        </div>
       </div>
 
       {/* Filtry */}

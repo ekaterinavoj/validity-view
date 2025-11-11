@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Mock data - stejná jako v ScheduledTrainings
 const mockTrainings: Training[] = [
@@ -205,22 +206,23 @@ export default function Dashboard() {
         ['Statistika', 'Hodnota'],
         ['Celkem školení', totalTrainings],
         ['Platné školení', validTrainings],
-        ['Brzy vyprší', warningTrainings],
         ['Prošlé školení', expiredTrainings],
-        ['Školení zaměstnanců', uniqueEmployees],
         ['Vyprší do 30 dní', expiring30],
         ['Vyprší do 60 dní', expiring60],
         ['Vyprší do 90 dní', expiring90],
       ];
       const ws1 = XLSX.utils.aoa_to_sheet(statsData);
+      // Nastavit šířky sloupců
+      ws1['!cols'] = [{ wch: 25 }, { wch: 15 }];
       XLSX.utils.book_append_sheet(wb, ws1, 'Statistiky');
 
       // List 2: Školení podle oddělení
       const deptData = [
-        ['Oddělení', 'Platné', 'Brzy vyprší', 'Prošlé'],
-        ...barData.map(d => [d.department, d.platné, d['brzy vyprší'], d.prošlé])
+        ['Oddělení', 'Platné', 'Prošlé'],
+        ...barData.map(d => [d.department, d.platné, d.prošlé])
       ];
       const ws2 = XLSX.utils.aoa_to_sheet(deptData);
+      ws2['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 12 }];
       XLSX.utils.book_append_sheet(wb, ws2, 'Podle oddělení');
 
       // List 3: Trendy
@@ -229,11 +231,15 @@ export default function Dashboard() {
         ...trendData.map(d => [d.month, d.dokončeno, d.naplánováno])
       ];
       const ws3 = XLSX.utils.aoa_to_sheet(trendExportData);
+      ws3['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 15 }];
       XLSX.utils.book_append_sheet(wb, ws3, 'Trendy');
 
-      // Uložení souboru
+      // Uložení souboru s UTF-8 kódováním
       const timestamp = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `dashboard_statistiky_${timestamp}.xlsx`);
+      XLSX.writeFile(wb, `dashboard_statistiky_${timestamp}.xlsx`, { 
+        bookType: 'xlsx',
+        type: 'binary'
+      });
 
       toast({
         title: "Export dokončen",
@@ -254,64 +260,78 @@ export default function Dashboard() {
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
       let yPosition = 20;
 
       // Nadpis
       pdf.setFontSize(20);
-      pdf.text('Dashboard - Statistiky školení', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 15;
+      pdf.text('Dashboard - Statistiky skoleni', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
 
       // Datum generování
       pdf.setFontSize(10);
       const date = new Date().toLocaleDateString('cs-CZ');
-      pdf.text(`Vygenerováno: ${date}`, pageWidth / 2, yPosition, { align: 'center' });
+      pdf.text(`Vygenerovano: ${date}`, pageWidth / 2, yPosition, { align: 'center' });
       yPosition += 15;
 
       // Statistiky - tabulka
       pdf.setFontSize(14);
-      pdf.text('Celkové statistiky', 15, yPosition);
-      yPosition += 10;
+      pdf.text('Celkove statistiky', 15, yPosition);
+      yPosition += 5;
 
-      pdf.setFontSize(10);
-      const stats = [
-        ['Celkem školení:', totalTrainings.toString()],
-        ['Platné školení:', validTrainings.toString()],
-        ['Brzy vyprší:', warningTrainings.toString()],
-        ['Prošlé školení:', expiredTrainings.toString()],
-        ['Školení zaměstnanců:', uniqueEmployees.toString()],
-        ['Vyprší do 30 dní:', expiring30.toString()],
-        ['Vyprší do 60 dní:', expiring60.toString()],
-        ['Vyprší do 90 dní:', expiring90.toString()],
-      ];
-
-      stats.forEach(([label, value]) => {
-        pdf.text(label, 20, yPosition);
-        pdf.text(value, 80, yPosition);
-        yPosition += 7;
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Statistika', 'Hodnota']],
+        body: [
+          ['Celkem skoleni', totalTrainings.toString()],
+          ['Platne skoleni', validTrainings.toString()],
+          ['Prosle skoleni', expiredTrainings.toString()],
+          ['Vyprsi do 30 dni', expiring30.toString()],
+          ['Vyprsi do 60 dni', expiring60.toString()],
+          ['Vyprsi do 90 dni', expiring90.toString()],
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [66, 66, 66] },
+        margin: { left: 15 },
       });
 
-      yPosition += 10;
+      yPosition = (pdf as any).lastAutoTable.finalY + 15;
 
       // Školení podle oddělení
-      if (yPosition > pageHeight - 60) {
-        pdf.addPage();
-        yPosition = 20;
-      }
-
       pdf.setFontSize(14);
-      pdf.text('Školení podle oddělení', 15, yPosition);
-      yPosition += 10;
+      pdf.text('Skoleni podle oddeleni', 15, yPosition);
+      yPosition += 5;
 
-      pdf.setFontSize(10);
-      barData.forEach(dept => {
-        if (yPosition > pageHeight - 20) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-        pdf.text(`${dept.department}:`, 20, yPosition);
-        pdf.text(`Platné: ${dept.platné}, Brzy vyprší: ${dept['brzy vyprší']}, Prošlé: ${dept.prošlé}`, 25, yPosition + 5);
-        yPosition += 12;
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Oddeleni', 'Platne', 'Prosle']],
+        body: barData.map(d => [
+          d.department,
+          d.platné.toString(),
+          d.prošlé.toString()
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [66, 66, 66] },
+        margin: { left: 15 },
+      });
+
+      yPosition = (pdf as any).lastAutoTable.finalY + 15;
+
+      // Trendy
+      pdf.setFontSize(14);
+      pdf.text('Trendy skoleni (6 mesicu)', 15, yPosition);
+      yPosition += 5;
+
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Mesic', 'Dokonceno', 'Naplanovano']],
+        body: trendData.map(d => [
+          d.month,
+          d.dokončeno.toString(),
+          d.naplánováno.toString()
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [66, 66, 66] },
+        margin: { left: 15 },
       });
 
       // Uložení PDF
