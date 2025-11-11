@@ -45,6 +45,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { Checkbox as CheckboxComponent } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Mock data
 const mockTrainings: Training[] = [
@@ -145,8 +146,13 @@ export default function ScheduledTrainings() {
   }, []);
 
   const trainers = useMemo(() => {
-    const trainerSet = new Set(mockTrainings.map((t) => t.trainer));
+    const trainerSet = new Set(mockTrainings.map((t) => t.trainer).filter(Boolean));
     return Array.from(trainerSet).sort();
+  }, []);
+
+  const companies = useMemo(() => {
+    const companySet = new Set(mockTrainings.map((t) => t.company).filter(Boolean));
+    return Array.from(companySet).sort();
   }, []);
 
   // Filtrovaná data - pouze aktivní školení
@@ -671,28 +677,56 @@ export default function ScheduledTrainings() {
                         }
                       />
                       <p className="text-xs text-muted-foreground">
-                        Datum proběhlého školení - bude nastaveno u všech vybraných školení
+                        Datum proběhlého školení - bude nastaveno u všech vybraných školení a automaticky se přepočítá datum platnosti
                       </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Školitel</Label>
-                      <Input
-                        placeholder="Nový školitel (ponechat prázdné pro beze změny)"
+                      <Select
                         value={bulkEditData.trainer}
-                        onChange={(e) =>
-                          setBulkEditData({ ...bulkEditData, trainer: e.target.value })
+                        onValueChange={(value) =>
+                          setBulkEditData({ ...bulkEditData, trainer: value })
                         }
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Vyberte školitele (ponechat prázdné pro beze změny)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Beze změny</SelectItem>
+                          {trainers.map((trainer) => (
+                            <SelectItem key={trainer} value={trainer}>
+                              {trainer}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Vyberte školitele ze seznamu použitých školitelů
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Firma</Label>
-                      <Input
-                        placeholder="Nová firma (ponechat prázdné pro beze změny)"
+                      <Select
                         value={bulkEditData.company}
-                        onChange={(e) =>
-                          setBulkEditData({ ...bulkEditData, company: e.target.value })
+                        onValueChange={(value) =>
+                          setBulkEditData({ ...bulkEditData, company: value })
                         }
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Vyberte firmu (ponechat prázdné pro beze změny)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Beze změny</SelectItem>
+                          {companies.map((company) => (
+                            <SelectItem key={company} value={company}>
+                              {company}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Vyberte firmu ze seznamu použitých firem
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Poznámka</Label>

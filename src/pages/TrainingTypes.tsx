@@ -44,6 +44,8 @@ export default function TrainingTypes() {
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [propagateDialogOpen, setPropagateDialogOpen] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState<{ data: FormValues; oldPeriod: number } | null>(null);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -110,7 +112,16 @@ export default function TrainingTypes() {
       };
 
       if (editingType) {
-        // Aktualizace existujícího typu
+        // Kontrola, zda se změnila perioda
+        if (editingType.period_days !== periodDays) {
+          // Zobrazit dialog pro potvrzení propagace
+          setPendingUpdate({ data, oldPeriod: editingType.period_days });
+          setPropagateDialogOpen(true);
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Aktualizace existujícího typu (bez změny periody)
         const { error } = await supabase
           .from("training_types")
           .update(trainingTypeData)
@@ -145,6 +156,95 @@ export default function TrainingTypes() {
       toast({
         title: "Chyba",
         description: "Nepodařilo se uložit typ školení.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePropagateUpdate = async (propagate: boolean) => {
+    if (!pendingUpdate || !editingType) return;
+
+    setIsSubmitting(true);
+    try {
+      const periodDays = convertToDays(
+        parseFloat(pendingUpdate.data.periodValue),
+        pendingUpdate.data.periodUnit
+      );
+      const durationHours = parseFloat(pendingUpdate.data.durationHours);
+
+      const trainingTypeData = {
+        facility: pendingUpdate.data.facility,
+        name: pendingUpdate.data.name,
+        period_days: periodDays,
+        duration_hours: durationHours,
+        description: pendingUpdate.data.description || null,
+      };
+
+      // Aktualizovat typ školení
+      const { error: typeError } = await supabase
+        .from("training_types")
+        .update(trainingTypeData)
+        .eq("id", editingType.id);
+
+      if (typeError) throw typeError;
+
+      if (propagate) {
+        // Načíst všechna školení s tímto typem
+        const { data: trainings, error: trainingsError } = await supabase
+          .from("trainings")
+          .select("id, last_training_date")
+          .eq("training_type_id", editingType.id);
+
+        if (trainingsError) throw trainingsError;
+
+        if (trainings && trainings.length > 0) {
+          // Aktualizovat periodicitu a přepočítat data platnosti
+          const updates = trainings.map((training) => {
+            const lastDate = new Date(training.last_training_date);
+            const nextDate = new Date(lastDate);
+            nextDate.setDate(nextDate.getDate() + periodDays);
+
+            return supabase
+              .from("trainings")
+              .update({
+                repeat_days_after: periodDays,
+                next_training_date: nextDate.toISOString().split("T")[0],
+              })
+              .eq("id", training.id);
+          });
+
+          await Promise.all(updates);
+
+          toast({
+            title: "Typ školení aktualizován",
+            description: `Periodicita byla změněna u ${trainings.length} školení a data platnosti přepočítána.`,
+          });
+        } else {
+          toast({
+            title: "Typ školení aktualizován",
+            description: "Žádná školení nebyła nalezena pro aktualizaci.",
+          });
+        }
+      } else {
+        toast({
+          title: "Typ školení aktualizován",
+          description: "Změny byly uloženy bez propagace do existujících školení.",
+        });
+      }
+
+      setPropagateDialogOpen(false);
+      setPendingUpdate(null);
+      setDialogOpen(false);
+      setEditingType(null);
+      form.reset();
+      loadTrainingTypes();
+    } catch (error) {
+      console.error("Chyba při aktualizaci:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se aktualizovat školení.",
         variant: "destructive",
       });
     } finally {
@@ -439,6 +539,48 @@ export default function TrainingTypes() {
             <AlertDialogCancel>Zrušit</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={propagateDialogOpen} onOpenChange={setPropagateDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Propagovat změnu periody?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Změnili jste periodicitu školení. Chcete aktualizovat periodicitu a přepočítat data platnosti u všech existujících školení tohoto typu?
+              <div className="mt-4 p-3 bg-muted rounded-md">
+                <p className="text-sm font-medium">Typ školení: {editingType?.name}</p>
+                <p className="text-sm mt-1">
+                  Stará perioda: {editingType && formatPeriodicity(editingType.period_days)}
+                </p>
+                <p className="text-sm">
+                  Nová perioda: {pendingUpdate && formatPeriodicity(convertToDays(parseFloat(pendingUpdate.data.periodValue), pendingUpdate.data.periodUnit))}
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setPropagateDialogOpen(false);
+              setPendingUpdate(null);
+            }}>
+              Zrušit
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => handlePropagateUpdate(false)}
+              disabled={isSubmitting}
+            >
+              Ne, pouze typ
+            </Button>
+            <AlertDialogAction
+              onClick={() => handlePropagateUpdate(true)}
+              disabled={isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Ano, propagovat
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
