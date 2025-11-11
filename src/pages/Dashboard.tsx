@@ -1,9 +1,11 @@
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Training } from "@/types/training";
-import { Calendar, CheckCircle, AlertCircle, XCircle } from "lucide-react";
+import { Calendar, CheckCircle, AlertCircle, XCircle, Upload } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useNavigate } from "react-router-dom";
 
 // Mock data - stejná jako v ScheduledTrainings
 const mockTrainings: Training[] = [
@@ -100,6 +102,8 @@ const mockTrainings: Training[] = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  
   // Výpočet statistik
   const totalTrainings = mockTrainings.length;
   const validTrainings = mockTrainings.filter(t => t.status === "valid").length;
@@ -154,6 +158,31 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
+
+      {/* Hromadný import */}
+      <Card className="p-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/20 rounded-lg">
+              <Upload className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Hromadný import školení</h3>
+              <p className="text-sm text-muted-foreground">
+                Importujte školení z Excel nebo CSV souboru
+              </p>
+            </div>
+          </div>
+          <Button 
+            onClick={() => navigate('/bulk-import')}
+            size="lg"
+            className="gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Otevřít import
+          </Button>
+        </div>
+      </Card>
 
       {/* Statistiky */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
