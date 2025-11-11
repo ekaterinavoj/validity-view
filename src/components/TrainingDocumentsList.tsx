@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, File, Download, Trash2, Loader2 } from "lucide-react";
+import { FileText, File, Download, Trash2, Loader2, Eye } from "lucide-react";
+import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   TrainingDocument,
@@ -37,6 +38,7 @@ export function TrainingDocumentsList({
   const [documents, setDocuments] = useState<TrainingDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ name: string; url: string; type: string } | null>(null);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -70,6 +72,26 @@ export function TrainingDocumentsList({
 
     if (url) {
       window.open(url, "_blank");
+    }
+  };
+
+  const handlePreview = async (document: TrainingDocument) => {
+    const { url, error } = await getDocumentDownloadUrl(document.file_path);
+    if (error) {
+      toast({
+        title: "Chyba při načítání náhledu",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (url) {
+      setPreviewFile({
+        name: document.file_name,
+        url,
+        type: document.file_type,
+      });
     }
   };
 
@@ -112,8 +134,16 @@ export function TrainingDocumentsList({
   }
 
   return (
-    <div className="space-y-3">
-      {documents.map((document) => (
+    <>
+      <FilePreviewDialog
+        open={!!previewFile}
+        onOpenChange={(open) => !open && setPreviewFile(null)}
+        file={previewFile || { name: "", url: "", type: "" }}
+        onDownload={previewFile ? () => window.open(previewFile.url, "_blank") : undefined}
+      />
+      
+      <div className="space-y-3">
+        {documents.map((document) => (
         <Card key={document.id} className="p-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-accent rounded">
@@ -145,6 +175,14 @@ export function TrainingDocumentsList({
                   )}
                 </div>
                 <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePreview(document)}
+                    title="Náhled"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -191,7 +229,8 @@ export function TrainingDocumentsList({
             </div>
           </div>
         </Card>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   );
 }

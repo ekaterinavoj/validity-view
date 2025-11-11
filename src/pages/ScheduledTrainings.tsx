@@ -10,7 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Training } from "@/types/training";
-import { Edit, Trash2, Plus, Download, CalendarClock, FileSpreadsheet, FileDown, Upload, X, FileText, FileImage, File } from "lucide-react";
+import { Edit, Trash2, Plus, Download, CalendarClock, FileSpreadsheet, FileDown, Upload, X, FileText, FileImage, File, Eye } from "lucide-react";
+import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
@@ -118,6 +119,7 @@ export default function ScheduledTrainings() {
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [bulkEditData, setBulkEditData] = useState({
     trainer: "",
     company: "",
@@ -806,16 +808,25 @@ export default function ScheduledTrainings() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-foreground">Naplánovaná školení</h2>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => selectExpiringTrainings(30)}
-            title="Vybrat všechna školení, která vyprší do 30 dní"
-          >
-            <CalendarClock className="w-4 h-4 mr-2" />
+    <>
+      {previewFile && (
+        <FilePreviewDialog
+          open={true}
+          onOpenChange={(open) => !open && setPreviewFile(null)}
+          file={previewFile}
+        />
+      )}
+      
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold text-foreground">Naplánovaná školení</h2>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => selectExpiringTrainings(30)}
+              title="Vybrat všechna školení, která vyprší do 30 dní"
+            >
+              <CalendarClock className="w-4 h-4 mr-2" />
             Vybrat expirující (30 dní)
           </Button>
           <Button variant="outline" onClick={exportToExcel}>
@@ -1013,22 +1024,35 @@ export default function ScheduledTrainings() {
                                       </span>
                                     </div>
                                   </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 flex-shrink-0"
-                                    onClick={() => {
-                                      const newFiles = [...bulkEditData.uploadedFiles];
-                                      newFiles.splice(idx, 1);
-                                      setBulkEditData({
-                                        ...bulkEditData,
-                                        uploadedFiles: newFiles,
-                                      });
-                                    }}
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
+                                  <div className="flex gap-1 flex-shrink-0">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => setPreviewFile(file)}
+                                      title="Náhled"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        const newFiles = [...bulkEditData.uploadedFiles];
+                                        newFiles.splice(idx, 1);
+                                        setBulkEditData({
+                                          ...bulkEditData,
+                                          uploadedFiles: newFiles,
+                                        });
+                                      }}
+                                      title="Odebrat"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -1304,5 +1328,6 @@ export default function ScheduledTrainings() {
         </div>
       </div>
     </div>
+    </>
   );
 }
