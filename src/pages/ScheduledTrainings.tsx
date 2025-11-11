@@ -268,6 +268,20 @@ export default function ScheduledTrainings() {
 
   const exportToCSV = () => {
     try {
+      // Exportovat vybraná školení, pokud jsou nějaká vybrána, jinak všechna filtrovaná
+      const trainingsToExport = selectedTrainings.size > 0
+        ? filteredTrainings.filter(t => selectedTrainings.has(t.id))
+        : filteredTrainings;
+
+      if (trainingsToExport.length === 0) {
+        toast({
+          title: "Žádná data k exportu",
+          description: "Nejsou k dispozici žádná školení pro export.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Hlavičky CSV
       const headers = [
         "Stav",
@@ -293,7 +307,7 @@ export default function ScheduledTrainings() {
       };
 
       // Převod dat na CSV řádky
-      const rows = filteredTrainings.map(training => [
+      const rows = trainingsToExport.map(training => [
         statusMap[training.status],
         new Date(training.date).toLocaleDateString("cs-CZ"),
         training.type,
@@ -338,9 +352,13 @@ export default function ScheduledTrainings() {
       link.click();
       document.body.removeChild(link);
 
+      const exportMessage = selectedTrainings.size > 0
+        ? `Exportováno ${trainingsToExport.length} vybraných školení.`
+        : `Exportováno ${trainingsToExport.length} záznamů školení.`;
+
       toast({
         title: "Export úspěšný",
-        description: `Exportováno ${filteredTrainings.length} záznamů školení.`,
+        description: exportMessage,
       });
     } catch (error) {
       toast({
@@ -358,7 +376,10 @@ export default function ScheduledTrainings() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            {selectedTrainings.size > 0 
+              ? `Export vybraných (${selectedTrainings.size})`
+              : "Export CSV"
+            }
           </Button>
           <Button onClick={() => navigate("/new-training")}>
             <Plus className="w-4 h-4 mr-2" />
