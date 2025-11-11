@@ -322,7 +322,7 @@ export default function ScheduledTrainings() {
         "Školitel",
         "Firma",
         "Zadavatel",
-        "Perioda (roky)",
+        "Periodicita",
         "Poznámka"
       ];
 
@@ -346,7 +346,24 @@ export default function ScheduledTrainings() {
         training.trainer,
         training.company,
         training.requester,
-        (training.period / 365).toFixed(1),
+        (() => {
+          if (training.period % 365 === 0) {
+            const years = Math.round(training.period / 365);
+            const yearWord = years === 1 ? "rok" : years < 5 ? "roky" : "roků";
+            const prefix = years === 1 ? "každý" : years < 5 ? "každé" : "každých";
+            return `${prefix} ${years} ${yearWord}`;
+          } else if (training.period % 30 === 0) {
+            const months = Math.round(training.period / 30);
+            const monthWord = months === 1 ? "měsíc" : months < 5 ? "měsíce" : "měsíců";
+            const prefix = months === 1 ? "každý" : months < 5 ? "každé" : "každých";
+            return `${prefix} ${months} ${monthWord}`;
+          } else {
+            const days = training.period;
+            const dayWord = days === 1 ? "den" : days < 5 ? "dny" : "dní";
+            const prefix = days === 1 ? "každý" : days < 5 ? "každé" : "každých";
+            return `${prefix} ${days} ${dayWord}`;
+          }
+        })(),
         training.note
       ]);
 
@@ -422,22 +439,42 @@ export default function ScheduledTrainings() {
 
       // Příprava dat
       const data = [
-        ['Stav', 'Skoleni platne do', 'Typ skoleni', 'Osobni cislo', 'Jmeno', 'Provozovna', 'Stredisko', 'Datum skoleni', 'Skolitel', 'Firma', 'Zadavatel', 'Perioda (roky)', 'Poznamka'],
-        ...trainingsToExport.map(t => [
-          statusMap[t.status],
-          new Date(t.date).toLocaleDateString("cs-CZ"),
-          t.type,
-          t.employeeNumber,
-          t.employeeName,
-          t.facility,
-          t.department,
-          new Date(t.lastTrainingDate).toLocaleDateString("cs-CZ"),
-          t.trainer || '',
-          t.company || '',
-          t.requester || '',
-          (t.period / 365).toFixed(1),
-          t.note || ''
-        ])
+        ['Stav', 'Skoleni platne do', 'Typ skoleni', 'Osobni cislo', 'Jmeno', 'Provozovna', 'Stredisko', 'Datum skoleni', 'Skolitel', 'Firma', 'Zadavatel', 'Periodicita', 'Poznamka'],
+        ...trainingsToExport.map(t => {
+          let periodText = "";
+          if (t.period % 365 === 0) {
+            const years = Math.round(t.period / 365);
+            const yearWord = years === 1 ? "rok" : years < 5 ? "roky" : "roků";
+            const prefix = years === 1 ? "každý" : years < 5 ? "každé" : "každých";
+            periodText = `${prefix} ${years} ${yearWord}`;
+          } else if (t.period % 30 === 0) {
+            const months = Math.round(t.period / 30);
+            const monthWord = months === 1 ? "měsíc" : months < 5 ? "měsíce" : "měsíců";
+            const prefix = months === 1 ? "každý" : months < 5 ? "každé" : "každých";
+            periodText = `${prefix} ${months} ${monthWord}`;
+          } else {
+            const days = t.period;
+            const dayWord = days === 1 ? "den" : days < 5 ? "dny" : "dní";
+            const prefix = days === 1 ? "každý" : days < 5 ? "každé" : "každých";
+            periodText = `${prefix} ${days} ${dayWord}`;
+          }
+          
+          return [
+            statusMap[t.status],
+            new Date(t.date).toLocaleDateString("cs-CZ"),
+            t.type,
+            t.employeeNumber,
+            t.employeeName,
+            t.facility,
+            t.department,
+            new Date(t.lastTrainingDate).toLocaleDateString("cs-CZ"),
+            t.trainer || '',
+            t.company || '',
+            t.requester || '',
+            periodText,
+            t.note || ''
+          ];
+        })
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(data);
@@ -805,7 +842,7 @@ export default function ScheduledTrainings() {
                 <TableHead>Školitel</TableHead>
                 <TableHead>Firma</TableHead>
                 <TableHead>Zadavatel</TableHead>
-                <TableHead>Perioda (roky)</TableHead>
+                <TableHead>Periodicita</TableHead>
                 <TableHead>Poznámka</TableHead>
                 <TableHead className="text-center">Aktuální protokol</TableHead>
                 <TableHead className="text-right">Akce</TableHead>
@@ -846,7 +883,26 @@ export default function ScheduledTrainings() {
                   <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                   <TableCell className="whitespace-nowrap">{training.company}</TableCell>
                   <TableCell className="whitespace-nowrap">{training.requester}</TableCell>
-                  <TableCell className="text-center">{(training.period / 365).toFixed(1)}</TableCell>
+                  <TableCell className="text-center">
+                    {(() => {
+                      if (training.period % 365 === 0) {
+                        const years = Math.round(training.period / 365);
+                        const yearWord = years === 1 ? "rok" : years < 5 ? "roky" : "roků";
+                        const prefix = years === 1 ? "každý" : years < 5 ? "každé" : "každých";
+                        return `${prefix} ${years} ${yearWord}`;
+                      } else if (training.period % 30 === 0) {
+                        const months = Math.round(training.period / 30);
+                        const monthWord = months === 1 ? "měsíc" : months < 5 ? "měsíce" : "měsíců";
+                        const prefix = months === 1 ? "každý" : months < 5 ? "každé" : "každých";
+                        return `${prefix} ${months} ${monthWord}`;
+                      } else {
+                        const days = training.period;
+                        const dayWord = days === 1 ? "den" : days < 5 ? "dny" : "dní";
+                        const prefix = days === 1 ? "každý" : days < 5 ? "každé" : "každých";
+                        return `${prefix} ${days} ${dayWord}`;
+                      }
+                    })()}
+                  </TableCell>
                   <TableCell className="max-w-xs truncate" title={training.note}>
                     {training.note}
                   </TableCell>
