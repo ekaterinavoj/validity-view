@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Training } from "@/types/training";
-import { Edit, Trash2, Plus, Download } from "lucide-react";
+import { Edit, Trash2, Plus, Download, CalendarClock } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
@@ -261,6 +261,30 @@ export default function ScheduledTrainings() {
     setDeleteDialogOpen(false);
   };
 
+  // Rychlý výběr školení expirujících do X dní
+  const selectExpiringTrainings = (daysAhead: number = 30) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const targetDate = new Date(today);
+    targetDate.setDate(targetDate.getDate() + daysAhead);
+    
+    const expiringIds = filteredTrainings
+      .filter(training => {
+        const trainingDate = new Date(training.date);
+        trainingDate.setHours(0, 0, 0, 0);
+        return trainingDate >= today && trainingDate <= targetDate;
+      })
+      .map(t => t.id);
+    
+    setSelectedTrainings(new Set(expiringIds));
+    
+    toast({
+      title: "Výběr dokončen",
+      description: `Vybráno ${expiringIds.length} školení expirujících do ${daysAhead} dní.`,
+    });
+  };
+
   // Získat detaily vybraných školení
   const selectedTrainingDetails = useMemo(() => {
     return filteredTrainings.filter(t => selectedTrainings.has(t.id));
@@ -374,6 +398,14 @@ export default function ScheduledTrainings() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold text-foreground">Naplánovaná školení</h2>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => selectExpiringTrainings(30)}
+            title="Vybrat všechna školení, která vyprší do 30 dní"
+          >
+            <CalendarClock className="w-4 h-4 mr-2" />
+            Vybrat expirující (30 dní)
+          </Button>
           <Button variant="outline" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
             {selectedTrainings.size > 0 
