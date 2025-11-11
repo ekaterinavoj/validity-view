@@ -22,6 +22,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatPeriodicity } from "@/lib/utils";
+import { addDays } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -234,15 +235,41 @@ export default function ScheduledTrainings() {
 
   const applyBulkEdit = () => {
     // TODO: Aplikovat změny na vybraná školení v databázi
-    console.log("Hromadná úprava:", {
+    // Pokud se změnilo datum školení, automaticky přepočítat next_training_date
+    const updatesWithRecalculation = Array.from(selectedTrainings).map(trainingId => {
+      const training = filteredTrainings.find(t => t.id === trainingId);
+      if (!training) return null;
+
+      const updates: any = {};
+      
+      // Pokud se mění datum školení, přepočítat datum platnosti
+      if (bulkEditData.lastTrainingDate) {
+        const newLastDate = new Date(bulkEditData.lastTrainingDate);
+        const periodDays = training.period;
+        const newNextDate = new Date(newLastDate);
+        newNextDate.setDate(newNextDate.getDate() + periodDays);
+        
+        updates.lastTrainingDate = bulkEditData.lastTrainingDate;
+        updates.nextTrainingDate = newNextDate.toISOString().split('T')[0];
+      }
+      
+      if (bulkEditData.trainer) updates.trainer = bulkEditData.trainer;
+      if (bulkEditData.company) updates.company = bulkEditData.company;
+      if (bulkEditData.note) updates.note = bulkEditData.note;
+      
+      return { trainingId, updates };
+    }).filter(Boolean);
+
+    console.log("Hromadná úprava s automatickým přepočtem:", {
       selectedIds: Array.from(selectedTrainings),
       changes: bulkEditData,
       files: uploadedFiles,
+      recalculatedDates: updatesWithRecalculation,
     });
 
     toast({
       title: "Hromadná úprava provedena",
-      description: `Aktualizováno ${selectedTrainings.size} školení${uploadedFiles.length > 0 ? ` a nahráno ${uploadedFiles.length} souborů` : ""}.`,
+      description: `Aktualizováno ${selectedTrainings.size} školení${uploadedFiles.length > 0 ? ` a nahráno ${uploadedFiles.length} souborů` : ""}${bulkEditData.lastTrainingDate ? " s přepočtem data platnosti" : ""}.`,
     });
 
     // Reset
@@ -679,6 +706,36 @@ export default function ScheduledTrainings() {
                       <p className="text-xs text-muted-foreground">
                         Datum proběhlého školení - bude nastaveno u všech vybraných školení a automaticky se přepočítá datum platnosti
                       </p>
+                      
+                      {/* Zobrazit info o automatickém přepočtu */}
+                      {bulkEditData.lastTrainingDate && selectedTrainingDetails.length > 0 && (
+                        <div className="p-3 bg-primary/5 border border-primary/20 rounded-md mt-2">
+                          <p className="text-xs font-medium text-foreground mb-2">
+                            Automatický přepočet data platnosti:
+                          </p>
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {selectedTrainingDetails.slice(0, 5).map((training) => {
+                              const newLastDate = new Date(bulkEditData.lastTrainingDate);
+                              const newNextDate = new Date(newLastDate);
+                              newNextDate.setDate(newNextDate.getDate() + training.period);
+                              
+                              return (
+                                <div key={training.id} className="text-xs text-muted-foreground flex justify-between">
+                                  <span className="truncate flex-1">{training.employeeName}</span>
+                                  <span className="ml-2 text-primary font-medium">
+                                    → {newNextDate.toLocaleDateString("cs-CZ")}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            {selectedTrainingDetails.length > 5 && (
+                              <p className="text-xs text-muted-foreground italic">
+                                ... a dalších {selectedTrainingDetails.length - 5} školení
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label>Školitel</Label>
