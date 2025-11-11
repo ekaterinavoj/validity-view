@@ -189,7 +189,7 @@ export default function InactiveEmployeesReport() {
         "Středisko",
         "Stav zaměstnance",
         "Typ školení",
-        "Datum expirace",
+        "Školení platné do",
         "Datum školení",
         "Stav školení",
         "Poznámka",
@@ -387,7 +387,7 @@ export default function InactiveEmployeesReport() {
                           <TableHeader>
                             <TableRow>
                               <TableHead>Typ školení</TableHead>
-                              <TableHead>Datum expirace</TableHead>
+                              <TableHead>Školení platné do</TableHead>
                               <TableHead>Datum školení</TableHead>
                               <TableHead>Perioda (dny)</TableHead>
                               <TableHead>Školitel</TableHead>
