@@ -158,13 +158,13 @@ export default function ScheduledTrainings() {
       // Hlavičky CSV
       const headers = [
         "Stav",
-        "Datum školení",
+        "Datum expirace",
         "Typ školení",
         "Osobní číslo",
         "Jméno",
         "Provozovna",
         "Středisko",
-        "Datum posledního školení",
+        "Datum školení",
         "Školitel",
         "Firma",
         "Zadavatel",
@@ -277,13 +277,13 @@ export default function ScheduledTrainings() {
             <TableHeader>
               <TableRow>
                 <TableHead>Stav</TableHead>
-                <TableHead>Datum</TableHead>
+                <TableHead>Datum expirace</TableHead>
                 <TableHead>Typ školení</TableHead>
                 <TableHead>Osobní číslo</TableHead>
                 <TableHead>Jméno</TableHead>
                 <TableHead>Provozovna</TableHead>
                 <TableHead>Středisko</TableHead>
-                <TableHead>Poslední školení</TableHead>
+                <TableHead>Datum školení</TableHead>
                 <TableHead>Školitel</TableHead>
                 <TableHead>Firma</TableHead>
                 <TableHead>Zadavatel</TableHead>

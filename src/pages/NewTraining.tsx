@@ -189,7 +189,7 @@ export default function NewTraining() {
               name="lastTrainingDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Poslední školení *</FormLabel>
+                  <FormLabel>Datum školení *</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
