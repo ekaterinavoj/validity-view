@@ -1,10 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Training } from "@/types/training";
-import { Calendar, CheckCircle, AlertCircle, XCircle, Upload, TrendingUp, Users, Clock, Activity, FileDown, FileSpreadsheet } from "lucide-react";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend } from "recharts";
-import { StatusBadge } from "@/components/StatusBadge";
+import { Calendar, CheckCircle, XCircle, Upload, Activity, FileDown, FileSpreadsheet, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
@@ -146,62 +143,12 @@ export default function Dashboard() {
     const date = new Date(t.date);
     return date >= today && date <= in90Days;
   }).length;
-  
-  // Mock data pro trendy - simulace školení v posledních 6 měsících
-  const trendData = [
-    { month: "Červen", dokončeno: 12, naplánováno: 8 },
-    { month: "Červenec", dokončeno: 15, naplánováno: 10 },
-    { month: "Srpen", dokončeno: 8, naplánováno: 6 },
-    { month: "Září", dokončeno: 18, naplánováno: 12 },
-    { month: "Říjen", dokončeno: 14, naplánováno: 9 },
-    { month: "Listopad", dokončeno: 20, naplánováno: 15 },
-  ];
-
-  // Data pro bar chart - školení podle oddělení
-  const departmentStats = mockTrainings.reduce((acc, training) => {
-    const dept = training.department;
-    if (!acc[dept]) {
-      acc[dept] = { valid: 0, warning: 0, expired: 0 };
-    }
-    acc[dept][training.status]++;
-    return acc;
-  }, {} as Record<string, { valid: number; warning: number; expired: number }>);
-
-  const barData = Object.entries(departmentStats).map(([dept, stats]) => ({
-    department: dept,
-    platné: stats.valid,
-    "brzy vyprší": stats.warning,
-    prošlé: stats.expired,
-  }));
-
-  // Nadcházející školení (seřazeno podle data)
-  const upcomingTrainings = [...mockTrainings]
-    .filter(t => new Date(t.date) >= new Date())
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 5);
-
-  const chartConfig = {
-    valid: {
-      label: "Platné",
-      color: "hsl(var(--status-valid))",
-    },
-    warning: {
-      label: "Brzy vyprší",
-      color: "hsl(var(--status-warning))",
-    },
-    expired: {
-      label: "Prošlé",
-      color: "hsl(var(--status-expired))",
-    },
-  };
 
   // Export do Excel
   const exportToExcel = () => {
     try {
-      // Pracovní sešit
       const wb = XLSX.utils.book_new();
 
-      // List 1: Celkové statistiky
       const statsData = [
         ['Statistika', 'Hodnota'],
         ['Celkem školení', totalTrainings],
@@ -212,29 +159,9 @@ export default function Dashboard() {
         ['Vyprší do 90 dní', expiring90],
       ];
       const ws1 = XLSX.utils.aoa_to_sheet(statsData);
-      // Nastavit šířky sloupců
       ws1['!cols'] = [{ wch: 25 }, { wch: 15 }];
       XLSX.utils.book_append_sheet(wb, ws1, 'Statistiky');
 
-      // List 2: Školení podle oddělení
-      const deptData = [
-        ['Oddělení', 'Platné', 'Prošlé'],
-        ...barData.map(d => [d.department, d.platné, d.prošlé])
-      ];
-      const ws2 = XLSX.utils.aoa_to_sheet(deptData);
-      ws2['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 12 }];
-      XLSX.utils.book_append_sheet(wb, ws2, 'Podle oddělení');
-
-      // List 3: Trendy
-      const trendExportData = [
-        ['Měsíc', 'Dokončeno', 'Naplánováno'],
-        ...trendData.map(d => [d.month, d.dokončeno, d.naplánováno])
-      ];
-      const ws3 = XLSX.utils.aoa_to_sheet(trendExportData);
-      ws3['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 15 }];
-      XLSX.utils.book_append_sheet(wb, ws3, 'Trendy');
-
-      // Uložení souboru s UTF-8 kódováním
       const timestamp = new Date().toISOString().split('T')[0];
       XLSX.writeFile(wb, `dashboard_statistiky_${timestamp}.xlsx`, { 
         bookType: 'xlsx',
@@ -262,18 +189,15 @@ export default function Dashboard() {
       const pageWidth = pdf.internal.pageSize.getWidth();
       let yPosition = 20;
 
-      // Nadpis
       pdf.setFontSize(20);
       pdf.text('Dashboard - Statistiky skoleni', pageWidth / 2, yPosition, { align: 'center' });
       yPosition += 10;
 
-      // Datum generování
       pdf.setFontSize(10);
       const date = new Date().toLocaleDateString('cs-CZ');
       pdf.text(`Vygenerovano: ${date}`, pageWidth / 2, yPosition, { align: 'center' });
       yPosition += 15;
 
-      // Statistiky - tabulka
       pdf.setFontSize(14);
       pdf.text('Celkove statistiky', 15, yPosition);
       yPosition += 5;
@@ -294,47 +218,6 @@ export default function Dashboard() {
         margin: { left: 15 },
       });
 
-      yPosition = (pdf as any).lastAutoTable.finalY + 15;
-
-      // Školení podle oddělení
-      pdf.setFontSize(14);
-      pdf.text('Skoleni podle oddeleni', 15, yPosition);
-      yPosition += 5;
-
-      autoTable(pdf, {
-        startY: yPosition,
-        head: [['Oddeleni', 'Platne', 'Prosle']],
-        body: barData.map(d => [
-          d.department,
-          d.platné.toString(),
-          d.prošlé.toString()
-        ]),
-        theme: 'striped',
-        headStyles: { fillColor: [66, 66, 66] },
-        margin: { left: 15 },
-      });
-
-      yPosition = (pdf as any).lastAutoTable.finalY + 15;
-
-      // Trendy
-      pdf.setFontSize(14);
-      pdf.text('Trendy skoleni (6 mesicu)', 15, yPosition);
-      yPosition += 5;
-
-      autoTable(pdf, {
-        startY: yPosition,
-        head: [['Mesic', 'Dokonceno', 'Naplanovano']],
-        body: trendData.map(d => [
-          d.month,
-          d.dokončeno.toString(),
-          d.naplánováno.toString()
-        ]),
-        theme: 'striped',
-        headStyles: { fillColor: [66, 66, 66] },
-        margin: { left: 15 },
-      });
-
-      // Uložení PDF
       const timestamp = new Date().toISOString().split('T')[0];
       pdf.save(`dashboard_${timestamp}.pdf`);
 
@@ -467,104 +350,6 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
-
-      {/* Grafy */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Bar Chart - Podle oddělení */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Školení podle oddělení</h3>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="department" 
-                  stroke="hsl(var(--foreground))"
-                  fontSize={12}
-                />
-                <YAxis stroke="hsl(var(--foreground))" />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="platné" fill="hsl(var(--status-valid))" />
-                <Bar dataKey="brzy vyprší" fill="hsl(var(--status-warning))" />
-                <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
-
-        {/* Line Chart - Trendy aktivit */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            <h3 className="text-lg font-semibold">Trendy školení (6 měsíců)</h3>
-          </div>
-          <ChartContainer config={{
-            dokončeno: { label: "Dokončeno", color: "hsl(var(--chart-1))" },
-            naplánováno: { label: "Naplánováno", color: "hsl(var(--chart-2))" }
-          }} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="hsl(var(--foreground))"
-                  fontSize={12}
-                />
-                <YAxis stroke="hsl(var(--foreground))" />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="dokončeno" 
-                  stroke="hsl(var(--chart-1))" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="naplánováno" 
-                  stroke="hsl(var(--chart-2))" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
-      </div>
-
-      {/* Nadcházející školení */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Nadcházející školení</h3>
-        <div className="space-y-4">
-          {upcomingTrainings.length > 0 ? (
-            upcomingTrainings.map((training) => (
-              <div
-                key={training.id}
-                className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-center gap-4 flex-1">
-                  <StatusBadge status={training.status} />
-                  <div className="flex-1">
-                    <p className="font-medium">{training.employeeName}</p>
-                    <p className="text-sm text-muted-foreground">{training.type}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">
-                      {new Date(training.date).toLocaleDateString("cs-CZ")}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{training.department}</p>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-center text-muted-foreground py-8">
-              Žádná nadcházející školení
-            </p>
-          )}
-        </div>
-      </Card>
     </div>
   );
 }

@@ -3,13 +3,14 @@ import {
   LayoutDashboard,
   Calendar, 
   History, 
-  PlusCircle, 
-  Clock,
+  PlusCircle,
+  BarChart3,
   MoreHorizontal
 } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/statistics", label: "Statistika", icon: BarChart3 },
   { to: "/scheduled-trainings", label: "Naplánovaná školení", icon: Calendar },
   { to: "/history", label: "Historie školení", icon: History },
   { to: "/new-training", label: "Vytvoření nového školení", icon: PlusCircle },
