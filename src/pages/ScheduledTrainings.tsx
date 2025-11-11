@@ -18,8 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Training } from "@/types/training";
-import { Edit, Trash2, Plus, Search, X } from "lucide-react";
+import { Edit, Trash2, Plus, Search, X, Download } from "lucide-react";
 import { useState, useMemo } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock data
 const mockTrainings: Training[] = [
@@ -80,6 +81,7 @@ const mockTrainings: Training[] = [
 ];
 
 export default function ScheduledTrainings() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
@@ -127,14 +129,105 @@ export default function ScheduledTrainings() {
   const hasActiveFilters = searchQuery !== "" || statusFilter !== "all" || 
     departmentFilter !== "all" || typeFilter !== "all";
 
+  const exportToCSV = () => {
+    try {
+      // Hlavičky CSV
+      const headers = [
+        "Stav",
+        "Datum školení",
+        "Typ školení",
+        "Osobní číslo",
+        "Jméno",
+        "Provozovna",
+        "Středisko",
+        "Datum posledního školení",
+        "Školitel",
+        "Firma",
+        "Zadavatel",
+        "Perioda (dny)",
+        "Poznámka"
+      ];
+
+      // Mapování statusu na češtinu
+      const statusMap = {
+        valid: "Platné",
+        warning: "Brzy vyprší",
+        expired: "Prošlé"
+      };
+
+      // Převod dat na CSV řádky
+      const rows = filteredTrainings.map(training => [
+        statusMap[training.status],
+        new Date(training.date).toLocaleDateString("cs-CZ"),
+        training.type,
+        training.employeeNumber,
+        training.employeeName,
+        training.facility,
+        training.department,
+        new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
+        training.trainer,
+        training.company,
+        training.requester,
+        training.period.toString(),
+        training.note
+      ]);
+
+      // Escapování hodnot pro CSV (uvozovky kolem hodnot s čárkami)
+      const escapeCSV = (value: string) => {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      // Vytvoření CSV obsahu
+      const csvContent = [
+        headers.map(escapeCSV).join(','),
+        ...rows.map(row => row.map(escapeCSV).join(','))
+      ].join('\n');
+
+      // Přidání BOM pro správné zobrazení českých znaků v Excelu
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      // Stažení souboru
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      const timestamp = new Date().toISOString().split('T')[0];
+      link.setAttribute('href', url);
+      link.setAttribute('download', `skoleni_export_${timestamp}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Export úspěšný",
+        description: `Exportováno ${filteredTrainings.length} záznamů školení.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold text-foreground">Naplánovaná školení</h2>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Nové školení
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Nové školení
+          </Button>
+        </div>
       </div>
 
       {/* Vyhledávání a filtry */}
