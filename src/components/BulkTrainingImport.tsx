@@ -289,6 +289,108 @@ export const BulkTrainingImport = () => {
     }
   };
 
+  const handleReImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast({
+        title: "Soubor je příliš velký",
+        description: "Maximální velikost souboru je 5MB.",
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
+
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    const ALLOWED_EXTENSIONS = ['csv', 'xlsx', 'xls'];
+    if (!fileExtension || !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+      toast({
+        title: "Nepodporovaný formát",
+        description: "Podporované formáty: CSV, XLSX, XLS",
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
+
+    setImporting(true);
+    setResult(null);
+
+    try {
+      let data: ImportRow[] = [];
+
+      if (fileExtension === "csv") {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: async (results) => {
+            data = results.data as ImportRow[];
+            if (data.length === 0) {
+              toast({
+                title: "Prázdný soubor",
+                description: "Soubor neobsahuje žádná data.",
+                variant: "destructive",
+              });
+              setImporting(false);
+              return;
+            }
+            await processImport(data);
+          },
+          error: (error) => {
+            throw new Error(`Chyba při čtení CSV: ${error.message}`);
+          },
+        });
+      } else if (fileExtension === "xlsx" || fileExtension === "xls") {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const workbook = XLSX.read(e.target?.result, { type: "binary" });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            data = XLSX.utils.sheet_to_json(worksheet) as ImportRow[];
+            
+            if (data.length === 0) {
+              toast({
+                title: "Prázdný soubor",
+                description: "Soubor neobsahuje žádná data.",
+                variant: "destructive",
+              });
+              setImporting(false);
+              return;
+            }
+            
+            await processImport(data);
+            
+            toast({
+              title: "Soubor znovu načten",
+              description: "Import byl dokončen.",
+            });
+          } catch (error: any) {
+            toast({
+              title: "Chyba při čtení souboru",
+              description: error.message,
+              variant: "destructive",
+            });
+            setImporting(false);
+          }
+        };
+        reader.readAsBinaryString(file);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Chyba při načítání souboru",
+        description: error.message,
+        variant: "destructive",
+      });
+      setImporting(false);
+    } finally {
+      event.target.value = '';
+    }
+  };
+
   const exportErrors = () => {
     if (!result || result.failedRows.length === 0) {
       toast({
@@ -319,7 +421,7 @@ export const BulkTrainingImport = () => {
 
     toast({
       title: "Export dokončen",
-      description: `Exportováno ${errorData.length} chybných záznamů.`,
+      description: `Exportováno ${errorData.length} chybných záznamů. Po opravě můžete soubor znovu nahrát.`,
     });
   };
 
@@ -402,14 +504,33 @@ export const BulkTrainingImport = () => {
                       </ul>
                     </div>
                     {result.failed > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={exportErrors}
-                      >
-                        <FileDown className="w-4 h-4 mr-2" />
-                        Exportovat chyby
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={exportErrors}
+                        >
+                          <FileDown className="w-4 h-4 mr-2" />
+                          Exportovat chyby
+                        </Button>
+                        <input
+                          id="reimport-file"
+                          type="file"
+                          accept=".csv,.xlsx,.xls"
+                          onChange={handleReImport}
+                          className="hidden"
+                          disabled={importing}
+                        />
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => document.getElementById('reimport-file')?.click()}
+                          disabled={importing}
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          {importing ? "Zpracovávám..." : "Nahrát opravený soubor"}
+                        </Button>
+                      </div>
                     )}
                   </div>
                   {result.errors.length > 0 && (

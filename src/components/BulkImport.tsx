@@ -343,6 +343,68 @@ export function BulkImport() {
     }
   };
 
+  const handleReImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFile = e.target.files?.[0];
+    if (!newFile) return;
+
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (newFile.size > MAX_SIZE) {
+      toast({
+        title: "Soubor je příliš velký",
+        description: "Maximální velikost souboru je 5MB.",
+        variant: "destructive",
+      });
+      e.target.value = '';
+      return;
+    }
+
+    const fileExtension = newFile.name.split(".").pop()?.toLowerCase();
+    const ALLOWED_EXTENSIONS = ['csv', 'xlsx', 'xls'];
+    if (!fileExtension || !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+      toast({
+        title: "Nepodporovaný formát",
+        description: "Podporované formáty: CSV, XLSX, XLS",
+        variant: "destructive",
+      });
+      e.target.value = '';
+      return;
+    }
+
+    setImporting(true);
+    setProgress(0);
+    setFile(newFile);
+
+    try {
+      const rows = await parseFile(newFile);
+      if (rows.length === 0) {
+        toast({
+          title: "Chyba",
+          description: "Soubor neobsahuje žádná data",
+          variant: "destructive",
+        });
+        setImporting(false);
+        return;
+      }
+
+      const importResult = await processImport(rows);
+      setResult(importResult);
+
+      toast({
+        title: "Soubor znovu načten",
+        description: `Importováno ${importResult.success} školení, ${importResult.errors.length} chyb`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Chyba při načítání souboru",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
   const exportErrors = () => {
     if (!result || result.errors.length === 0) {
       toast({
@@ -386,7 +448,7 @@ export function BulkImport() {
 
     toast({
       title: "Export dokončen",
-      description: `Exportováno ${errorData.length} chybných záznamů.`,
+      description: `Exportováno ${errorData.length} chybných záznamů. Po opravě můžete soubor znovu nahrát.`,
     });
   };
 
@@ -457,15 +519,32 @@ export function BulkImport() {
                             <XCircle className="w-3 h-3 mr-1" />
                             {result.errors.length} chyb
                           </Badge>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={exportErrors}
-                            className="ml-auto"
-                          >
-                            <FileDown className="w-4 h-4 mr-2" />
-                            Exportovat chyby
-                          </Button>
+                          <div className="ml-auto flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={exportErrors}
+                            >
+                              <FileDown className="w-4 h-4 mr-2" />
+                              Exportovat chyby
+                            </Button>
+                            <input
+                              type="file"
+                              id="reimport-file"
+                              accept=".csv,.xlsx,.xls"
+                              onChange={handleReImport}
+                              className="hidden"
+                            />
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => document.getElementById('reimport-file')?.click()}
+                              disabled={importing}
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              {importing ? "Zpracovávám..." : "Nahrát opravený soubor"}
+                            </Button>
+                          </div>
                         </>
                       )}
                     </div>

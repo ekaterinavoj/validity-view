@@ -126,6 +126,84 @@ export function BulkEmployeeImport() {
     setImportedData([]);
   };
 
+  const handleReImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast({
+        title: "Soubor je příliš velký",
+        description: "Maximální velikost souboru je 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+          const validatedData: ImportedEmployee[] = jsonData.map((row: any, index) => {
+            const employeeData = {
+              firstName: row['Jméno'] || row['firstName'] || '',
+              lastName: row['Příjmení'] || row['lastName'] || '',
+              email: row['Email'] || row['email'] || '',
+              employeeNumber: row['Osobní číslo'] || row['employeeNumber'] || '',
+              position: row['Pozice'] || row['position'] || '',
+              department: row['Středisko'] || row['department'] || '',
+              status: (row['Stav'] || row['status'] || 'employed').toLowerCase(),
+            };
+
+            const validation = employeeSchema.safeParse(employeeData);
+            
+            return {
+              data: employeeData,
+              isValid: validation.success,
+              errors: validation.success ? [] : validation.error.errors.map(e => e.message),
+              rowNumber: index + 2,
+            };
+          });
+
+          setImportedData(validatedData);
+
+          const validCount = validatedData.filter(d => d.isValid).length;
+          const invalidCount = validatedData.length - validCount;
+
+          toast({
+            title: "Soubor znovu načten",
+            description: `Načteno ${validatedData.length} záznamů. ${validCount} platných, ${invalidCount} s chybami.`,
+          });
+        } catch (error) {
+          toast({
+            title: "Chyba při zpracování souboru",
+            description: "Soubor nemá správný formát.",
+            variant: "destructive",
+          });
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+    } catch (error) {
+      toast({
+        title: "Chyba při načítání souboru",
+        description: "Nepodařilo se načíst soubor.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+      e.target.value = '';
+    }
+  };
+
   const exportErrors = () => {
     const errorData = importedData
       .filter(d => !d.isValid)
@@ -152,7 +230,7 @@ export function BulkEmployeeImport() {
 
     toast({
       title: "Export dokončen",
-      description: `Exportováno ${errorData.length} chybných záznamů.`,
+      description: `Exportováno ${errorData.length} chybných záznamů. Po opravě můžete soubor znovu nahrát.`,
     });
   };
 
@@ -194,15 +272,32 @@ export function BulkEmployeeImport() {
                 <span className="font-medium">{invalidCount} s chybami</span>
               </div>
               {invalidCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={exportErrors}
-                  className="ml-auto"
-                >
-                  <FileDown className="w-4 h-4 mr-2" />
-                  Exportovat chyby
-                </Button>
+                <div className="ml-auto flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportErrors}
+                  >
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Exportovat chyby
+                  </Button>
+                  <input
+                    type="file"
+                    id="employee-reimport"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleReImport}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => document.getElementById('employee-reimport')?.click()}
+                    disabled={isProcessing}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {isProcessing ? "Zpracovávám..." : "Nahrát opravený soubor"}
+                  </Button>
+                </div>
               )}
             </div>
 
