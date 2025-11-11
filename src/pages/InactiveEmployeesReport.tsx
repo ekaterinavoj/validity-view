@@ -389,7 +389,7 @@ export default function InactiveEmployeesReport() {
                               <TableHead>Typ školení</TableHead>
                               <TableHead>Školení platné do</TableHead>
                               <TableHead>Datum školení</TableHead>
-                              <TableHead>Perioda (dny)</TableHead>
+                              <TableHead>Perioda (roky)</TableHead>
                               <TableHead>Školitel</TableHead>
                               <TableHead>Firma</TableHead>
                               <TableHead>Poznámka</TableHead>
@@ -405,7 +405,7 @@ export default function InactiveEmployeesReport() {
                                 <TableCell className="whitespace-nowrap">
                                   {new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ")}
                                 </TableCell>
-                                <TableCell className="text-center">{training.period}</TableCell>
+                                <TableCell className="text-center">{(training.period / 365).toFixed(1)}</TableCell>
                                 <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                                 <TableCell className="whitespace-nowrap">{training.company}</TableCell>
                                 <TableCell className="max-w-xs truncate" title={training.note}>

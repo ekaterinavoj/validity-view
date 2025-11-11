@@ -322,7 +322,7 @@ export default function ScheduledTrainings() {
         "Školitel",
         "Firma",
         "Zadavatel",
-        "Perioda (dny)",
+        "Perioda (roky)",
         "Poznámka"
       ];
 
@@ -346,7 +346,7 @@ export default function ScheduledTrainings() {
         training.trainer,
         training.company,
         training.requester,
-        training.period.toString(),
+        (training.period / 365).toFixed(1),
         training.note
       ]);
 
@@ -422,7 +422,7 @@ export default function ScheduledTrainings() {
 
       // Příprava dat
       const data = [
-        ['Stav', 'Skoleni platne do', 'Typ skoleni', 'Osobni cislo', 'Jmeno', 'Provozovna', 'Stredisko', 'Datum skoleni', 'Skolitel', 'Firma', 'Zadavatel', 'Perioda (dny)', 'Poznamka'],
+        ['Stav', 'Skoleni platne do', 'Typ skoleni', 'Osobni cislo', 'Jmeno', 'Provozovna', 'Stredisko', 'Datum skoleni', 'Skolitel', 'Firma', 'Zadavatel', 'Perioda (roky)', 'Poznamka'],
         ...trainingsToExport.map(t => [
           statusMap[t.status],
           new Date(t.date).toLocaleDateString("cs-CZ"),
@@ -435,7 +435,7 @@ export default function ScheduledTrainings() {
           t.trainer || '',
           t.company || '',
           t.requester || '',
-          t.period,
+          (t.period / 365).toFixed(1),
           t.note || ''
         ])
       ];
@@ -805,7 +805,7 @@ export default function ScheduledTrainings() {
                 <TableHead>Školitel</TableHead>
                 <TableHead>Firma</TableHead>
                 <TableHead>Zadavatel</TableHead>
-                <TableHead>Perioda (dny)</TableHead>
+                <TableHead>Perioda (roky)</TableHead>
                 <TableHead>Poznámka</TableHead>
                 <TableHead className="text-center">Aktuální protokol</TableHead>
                 <TableHead className="text-right">Akce</TableHead>
@@ -846,7 +846,7 @@ export default function ScheduledTrainings() {
                   <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                   <TableCell className="whitespace-nowrap">{training.company}</TableCell>
                   <TableCell className="whitespace-nowrap">{training.requester}</TableCell>
-                  <TableCell className="text-center">{training.period}</TableCell>
+                  <TableCell className="text-center">{(training.period / 365).toFixed(1)}</TableCell>
                   <TableCell className="max-w-xs truncate" title={training.note}>
                     {training.note}
                   </TableCell>

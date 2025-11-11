@@ -412,24 +412,6 @@ export default function NewTraining() {
 
             <FormField
               control={form.control}
-              name="protocol"
-              render={({ field: { value, onChange, ...field } }) => (
-                <FormItem>
-                  <FormLabel>Protokol</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="file" 
-                      {...field}
-                      onChange={(e) => onChange(e.target.files?.[0])}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="reminderTemplateId"
               render={({ field }) => (
                 <FormItem>
