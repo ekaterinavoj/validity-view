@@ -1,5 +1,6 @@
 import { NavLink } from "./NavLink";
 import { 
+  LayoutDashboard,
   Calendar, 
   History, 
   Users, 
@@ -9,7 +10,8 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { to: "/", label: "Naplánovaná školení", icon: Calendar },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/scheduled-trainings", label: "Naplánovaná školení", icon: Calendar },
   { to: "/history", label: "Historie školení", icon: History },
   { to: "/employees", label: "Školené osoby", icon: Users },
   { to: "/new-training", label: "Vytvoření nového školení", icon: PlusCircle },
