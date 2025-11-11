@@ -17,7 +17,8 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download, Upload } from "lucide-react";
+import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download } from "lucide-react";
+import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -241,6 +242,7 @@ export default function Employees() {
         <h2 className="text-3xl font-bold text-foreground">Školené osoby</h2>
 
         <div className="flex gap-2">
+          <BulkEmployeeImport />
           <Button variant="outline" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
             Export CSV
