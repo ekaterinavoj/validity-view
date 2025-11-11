@@ -13,6 +13,7 @@ import TrainingTypes from "./pages/TrainingTypes";
 import Departments from "./pages/Departments";
 import BulkImportPage from "./pages/BulkImportPage";
 import InactiveEmployeesReport from "./pages/InactiveEmployeesReport";
+import EditTraining from "./pages/EditTraining";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/history" element={<History />} />
             <Route path="/employees" element={<Employees />} />
             <Route path="/new-training" element={<NewTraining />} />
+            <Route path="/edit-training/:id" element={<EditTraining />} />
             <Route path="/training-types" element={<TrainingTypes />} />
             <Route path="/departments" element={<Departments />} />
             <Route path="/bulk-import" element={<BulkImportPage />} />

@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
 import { TrainingProtocolCell } from "@/components/TrainingProtocolCell";
+import { useNavigate } from "react-router-dom";
 
 // Mock data
 const mockTrainings: Training[] = [
@@ -80,6 +81,7 @@ const mockTrainings: Training[] = [
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const {
     filters,
     updateFilter,
@@ -331,7 +333,11 @@ export default function ScheduledTrainings() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="icon">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => navigate(`/edit-training/${training.id}`)}
+                      >
                         <Edit className="w-4 h-4" />
                       </Button>
                       <Button variant="ghost" size="icon">
