@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
 import { Layout } from "./components/Layout";
 import Statistics from "./pages/Statistics";
 import ScheduledTrainings from "./pages/ScheduledTrainings";
@@ -10,7 +11,9 @@ import History from "./pages/History";
 import NewTraining from "./pages/NewTraining";
 import EditTraining from "./pages/EditTraining";
 import Other from "./pages/Other";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -20,18 +23,73 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Layout>
+        <AuthProvider>
           <Routes>
-            <Route path="/" element={<ScheduledTrainings />} />
-            <Route path="/statistics" element={<Statistics />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/new-training" element={<NewTraining />} />
-            <Route path="/edit-training/:id" element={<EditTraining />} />
-            <Route path="/other" element={<Other />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ScheduledTrainings />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/statistics"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Statistics />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/history"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <History />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/new-training"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <NewTraining />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/edit-training/:id"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <EditTraining />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/other"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Other />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </Layout>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

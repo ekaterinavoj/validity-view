@@ -1,10 +1,14 @@
 import { NavLink } from "./NavLink";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "./ui/button";
 import { 
   Calendar, 
   History, 
   PlusCircle,
   BarChart3,
-  MoreHorizontal
+  MoreHorizontal,
+  LogOut,
+  User
 } from "lucide-react";
 
 const navItems = [
@@ -20,13 +24,42 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children }: LayoutProps) => {
+  const { profile, signOut } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-foreground">
-            Systém správy školení
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-foreground">
+              Systém správy školení
+            </h1>
+            
+            {profile && (
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium text-foreground">
+                    {profile.first_name} {profile.last_name}
+                  </span>
+                  {profile.position && (
+                    <span className="text-muted-foreground">
+                      ({profile.position})
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={signOut}
+                  className="gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Odhlásit se
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
       

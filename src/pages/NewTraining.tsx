@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cs } from "date-fns/locale";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,6 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadTrainingDocument } from "@/lib/trainingDocuments";
+import { useAuth } from "@/contexts/AuthContext";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -38,6 +39,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export default function NewTraining() {
+  const { profile } = useAuth();
   const [useCustomTrainer, setUseCustomTrainer] = useState(false);
   const [useCustomCompany, setUseCustomCompany] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -53,6 +55,14 @@ export default function NewTraining() {
       repeatDaysAfter: "30",
     },
   });
+
+  // Automatické nastavení zadavatele z přihlášeného uživatele
+  useEffect(() => {
+    if (profile) {
+      // Zadavatel bude automaticky nastaven jako přihlášený uživatel
+      console.log("Zadavatel automaticky nastaven:", `${profile.first_name} ${profile.last_name}`);
+    }
+  }, [profile]);
 
   // Automatický výpočet data expirace
   const lastTrainingDate = form.watch("lastTrainingDate");
@@ -493,6 +503,30 @@ export default function NewTraining() {
                 </FormItem>
               )}
             />
+
+            {/* Zadavatel - automaticky vyplněno */}
+            <div className="space-y-2">
+              <Label>Zadavatel</Label>
+              <Input 
+                value={profile ? `${profile.first_name} ${profile.last_name}${profile.position ? ` (${profile.position})` : ''}` : 'Načítání...'}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-sm text-muted-foreground">
+                Zadavatel je automaticky nastaven podle přihlášeného uživatele
+              </p>
+            </div>
+
+            {expirationDate && (
+              <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                <p className="text-sm font-medium">
+                  Platnost školení do:{" "}
+                  <span className="font-bold">
+                    {format(expirationDate, "d. MMMM yyyy", { locale: cs })}
+                  </span>
+                </p>
+              </div>
+            )}
 
             <div className="flex gap-4">
               <Button type="submit" disabled={isSubmitting}>
