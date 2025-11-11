@@ -373,8 +373,8 @@ export default function Dashboard() {
         </div>
       </Card>
 
-      {/* Statistiky - řádek 1 */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Statistiky */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="p-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-primary/10 rounded-lg">
@@ -401,39 +401,12 @@ export default function Dashboard() {
 
         <Card className="p-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-status-warning/10 rounded-lg">
-              <AlertCircle className="w-6 h-6 text-status-warning" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Brzy vyprší</p>
-              <p className="text-2xl font-bold">{warningTrainings}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
             <div className="p-3 bg-status-expired/10 rounded-lg">
               <XCircle className="w-6 h-6 text-status-expired" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Prošlé školení</p>
               <p className="text-2xl font-bold">{expiredTrainings}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Statistiky - řádek 2 */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 rounded-lg">
-              <Users className="w-6 h-6 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Školení zaměstnanců</p>
-              <p className="text-2xl font-bold">{uniqueEmployees}</p>
             </div>
           </div>
         </Card>
