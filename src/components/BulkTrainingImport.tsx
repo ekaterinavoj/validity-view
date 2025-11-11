@@ -66,19 +66,55 @@ export const BulkTrainingImport = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Validace velikosti souboru
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_SIZE) {
+      toast({
+        title: "Soubor je příliš velký",
+        description: "Maximální velikost souboru je 5MB.",
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
+
+    // Validace typu souboru
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    const ALLOWED_EXTENSIONS = ['csv', 'xlsx', 'xls'];
+    if (!fileExtension || !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+      toast({
+        title: "Nepodporovaný formát",
+        description: "Podporované formáty: CSV, XLSX, XLS",
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
+
     setImporting(true);
     setResult(null);
 
     try {
-      const fileExtension = file.name.split(".").pop()?.toLowerCase();
       let data: ImportRow[] = [];
 
       if (fileExtension === "csv") {
         // Zpracování CSV
         Papa.parse(file, {
           header: true,
+          skipEmptyLines: true,
           complete: async (results) => {
             data = results.data as ImportRow[];
+            
+            if (data.length === 0) {
+              toast({
+                title: "Prázdný soubor",
+                description: "Soubor neobsahuje žádná data.",
+                variant: "destructive",
+              });
+              setImporting(false);
+              return;
+            }
+            
             await processImport(data);
           },
           error: (error) => {
@@ -89,15 +125,41 @@ export const BulkTrainingImport = () => {
         // Zpracování Excel
         const reader = new FileReader();
         reader.onload = async (e) => {
-          const workbook = XLSX.read(e.target?.result, { type: "binary" });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          data = XLSX.utils.sheet_to_json(worksheet) as ImportRow[];
-          await processImport(data);
+          try {
+            const workbook = XLSX.read(e.target?.result, { type: "binary" });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            data = XLSX.utils.sheet_to_json(worksheet) as ImportRow[];
+            
+            if (data.length === 0) {
+              toast({
+                title: "Prázdný soubor",
+                description: "Soubor neobsahuje žádná data.",
+                variant: "destructive",
+              });
+              setImporting(false);
+              return;
+            }
+            
+            await processImport(data);
+          } catch (error: any) {
+            toast({
+              title: "Chyba při čtení souboru",
+              description: error.message,
+              variant: "destructive",
+            });
+            setImporting(false);
+          }
+        };
+        reader.onerror = () => {
+          toast({
+            title: "Chyba při načítání souboru",
+            description: "Nepodařilo se načíst soubor.",
+            variant: "destructive",
+          });
+          setImporting(false);
         };
         reader.readAsBinaryString(file);
-      } else {
-        throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel (.xlsx, .xls)");
       }
     } catch (error: any) {
       toast({
@@ -106,6 +168,8 @@ export const BulkTrainingImport = () => {
         variant: "destructive",
       });
       setImporting(false);
+    } finally {
+      event.target.value = '';
     }
   };
 
@@ -245,6 +309,9 @@ export const BulkTrainingImport = () => {
                 <p className="text-sm mt-3">
                   <strong>Důležité:</strong> Zaměstnanec i typ školení musí již existovat v systému. 
                   Datum dalšího školení se vypočítá automaticky podle periody typu školení.
+                </p>
+                <p className="text-sm mt-2 text-muted-foreground">
+                  <strong>Limity:</strong> Maximální velikost souboru je 5MB. Podporované formáty: CSV, XLSX, XLS.
                 </p>
               </div>
             </AlertDescription>

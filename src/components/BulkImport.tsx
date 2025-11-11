@@ -278,6 +278,29 @@ export function BulkImport() {
       return;
     }
 
+    // Validace velikosti souboru
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_SIZE) {
+      toast({
+        title: "Soubor je příliš velký",
+        description: "Maximální velikost souboru je 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validace typu souboru
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    const ALLOWED_EXTENSIONS = ['csv', 'xlsx', 'xls'];
+    if (!fileExtension || !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+      toast({
+        title: "Nepodporovaný formát",
+        description: "Podporované formáty: CSV, XLSX, XLS",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setImporting(true);
     setProgress(0);
     setResult(null);
@@ -337,8 +360,11 @@ export function BulkImport() {
 
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">2. Nahrát soubor</h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-2">
               Nahrajte vyplněný CSV nebo Excel soubor.
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              <strong>Limity:</strong> Maximální velikost 5MB. Podporované formáty: CSV, XLSX, XLS.
             </p>
             <div className="flex gap-4 items-end">
               <div className="flex-1">
