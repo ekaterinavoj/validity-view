@@ -3,7 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, FileDown } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, FileDown, Copy } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -18,17 +22,32 @@ interface ImportRow {
   note?: string;
 }
 
+interface DuplicateRecord {
+  row: number;
+  data: ImportRow;
+  existingTraining: {
+    id: string;
+    last_training_date: string;
+    next_training_date: string;
+  };
+}
+
 interface ImportResult {
   success: number;
   failed: number;
   errors: string[];
   failedRows: Array<{ row: number; data: ImportRow; error: string }>;
+  duplicates?: DuplicateRecord[];
 }
 
 export const BulkTrainingImport = () => {
   const { toast } = useToast();
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [duplicates, setDuplicates] = useState<DuplicateRecord[]>([]);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [duplicateAction, setDuplicateAction] = useState<'skip' | 'overwrite' | 'import'>('skip');
+  const [pendingImportData, setPendingImportData] = useState<ImportRow[]>([]);
 
   const downloadTemplate = () => {
     const template = [
@@ -174,9 +193,10 @@ export const BulkTrainingImport = () => {
     }
   };
 
-  const processImport = async (data: ImportRow[]) => {
+  const processImport = async (data: ImportRow[], skipDuplicateCheck = false) => {
     const errors: string[] = [];
     const failedRows: Array<{ row: number; data: ImportRow; error: string }> = [];
+    const foundDuplicates: DuplicateRecord[] = [];
     let successCount = 0;
     let failedCount = 0;
 
@@ -233,29 +253,79 @@ export const BulkTrainingImport = () => {
             continue;
           }
 
+          // Kontrola duplicity (stejný zaměstnanec + typ školení)
+          if (!skipDuplicateCheck) {
+            const { data: existingTraining } = await supabase
+              .from("trainings")
+              .select("id, last_training_date, next_training_date")
+              .eq("employee_id", employees[0].id)
+              .eq("training_type_id", trainingTypes[0].id)
+              .maybeSingle();
+
+            if (existingTraining) {
+              foundDuplicates.push({
+                row: rowNum,
+                data: row,
+                existingTraining,
+              });
+              continue;
+            }
+          }
+
           // Vypočítat next_training_date
           const lastDate = new Date(row.last_training_date);
           const nextDate = new Date(lastDate);
           nextDate.setDate(nextDate.getDate() + trainingTypes[0].period_days);
 
-          // Vložit školení
-          const { error: insertError } = await supabase
-            .from("trainings")
-            .insert({
-              employee_id: employees[0].id,
-              training_type_id: trainingTypes[0].id,
-              facility: row.facility,
-              last_training_date: row.last_training_date,
-              next_training_date: nextDate.toISOString().split('T')[0],
-              trainer: row.trainer || null,
-              company: row.company || null,
-              note: row.note || null,
-              created_by: user.id,
-              status: 'valid',
-              is_active: true,
-            });
+          // Vložit nebo aktualizovat školení podle zvolené akce
+          if (skipDuplicateCheck && duplicateAction === 'overwrite') {
+            // Najít existující školení a aktualizovat
+            const { data: existingTraining } = await supabase
+              .from("trainings")
+              .select("id")
+              .eq("employee_id", employees[0].id)
+              .eq("training_type_id", trainingTypes[0].id)
+              .maybeSingle();
 
-          if (insertError) throw insertError;
+            if (existingTraining) {
+              const { error: updateError } = await supabase
+                .from("trainings")
+                .update({
+                  facility: row.facility,
+                  last_training_date: row.last_training_date,
+                  next_training_date: nextDate.toISOString().split('T')[0],
+                  trainer: row.trainer || null,
+                  company: row.company || null,
+                  note: row.note || null,
+                })
+                .eq("id", existingTraining.id);
+
+              if (updateError) throw updateError;
+            }
+          } else if (duplicateAction === 'skip' && skipDuplicateCheck) {
+            // Přeskočit tento záznam
+            continue;
+          } else {
+            // Vložit nové školení
+            const { error: insertError } = await supabase
+              .from("trainings")
+              .insert({
+                employee_id: employees[0].id,
+                training_type_id: trainingTypes[0].id,
+                facility: row.facility,
+                last_training_date: row.last_training_date,
+                next_training_date: nextDate.toISOString().split('T')[0],
+                trainer: row.trainer || null,
+                company: row.company || null,
+                note: row.note || null,
+                created_by: user.id,
+                status: 'valid',
+                is_active: true,
+              });
+
+            if (insertError) throw insertError;
+          }
+
           successCount++;
         } catch (error: any) {
           const errorMsg = `Řádek ${rowNum}: ${error.message}`;
@@ -265,12 +335,28 @@ export const BulkTrainingImport = () => {
         }
       }
 
-      setResult({
+      // Pokud byly nalezeny duplicity a nekontrolujeme je znovu, zobrazit dialog
+      if (foundDuplicates.length > 0 && !skipDuplicateCheck) {
+        setDuplicates(foundDuplicates);
+        setShowDuplicateDialog(true);
+        setPendingImportData(data);
+        return {
+          success: successCount,
+          failed: failedCount,
+          errors: errors.slice(0, 10),
+          failedRows,
+          duplicates: foundDuplicates,
+        };
+      }
+
+      const finalResult = {
         success: successCount,
         failed: failedCount,
-        errors: errors.slice(0, 10), // Zobrazit max 10 chyb
+        errors: errors.slice(0, 10),
         failedRows,
-      });
+      };
+
+      setResult(finalResult);
 
       if (successCount > 0) {
         toast({
@@ -278,12 +364,15 @@ export const BulkTrainingImport = () => {
           description: `Úspěšně importováno ${successCount} školení.`,
         });
       }
+
+      return finalResult;
     } catch (error: any) {
       toast({
         title: "Chyba při importu",
         description: error.message,
         variant: "destructive",
       });
+      throw error;
     } finally {
       setImporting(false);
     }
@@ -551,6 +640,143 @@ export const BulkTrainingImport = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog pro duplicity */}
+      <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Copy className="w-5 h-5 text-warning" />
+              Nalezeny duplicitní záznamy
+            </DialogTitle>
+            <DialogDescription>
+              Byly nalezeny záznamy, které již v systému existují pro daného zaměstnance a typ školení.
+              Vyberte, jak s nimi chcete naložit.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <p className="font-semibold mb-2">Co znamená duplicita?</p>
+                <p className="text-sm mb-2">
+                  Duplicita nastává, když zaměstnanec již má v systému záznam o stejném typu školení 
+                  (stejný typ školení + provozovna). Zaměstnanec může mít více školení ve stejný den, 
+                  pokud se liší typ školení.
+                </p>
+                <p className="text-sm font-semibold mt-3">Nalezeno {duplicates.length} duplicitních záznamů</p>
+              </AlertDescription>
+            </Alert>
+
+            <RadioGroup value={duplicateAction} onValueChange={(value: any) => setDuplicateAction(value)}>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50">
+                  <RadioGroupItem value="skip" id="skip" />
+                  <div className="flex-1">
+                    <Label htmlFor="skip" className="cursor-pointer font-semibold">
+                      Přeskočit duplicity
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Duplicitní záznamy nebudou importovány. Existující data v systému zůstanou beze změny.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50">
+                  <RadioGroupItem value="overwrite" id="overwrite" />
+                  <div className="flex-1">
+                    <Label htmlFor="overwrite" className="cursor-pointer font-semibold">
+                      Přepsat existující záznamy
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Aktualizovat existující záznamy novými daty z importu (datum školení, školitel, firma, atd.).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50">
+                  <RadioGroupItem value="import" id="import" />
+                  <div className="flex-1">
+                    <Label htmlFor="import" className="cursor-pointer font-semibold">
+                      Importovat jako nové záznamy
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Vytvořit nové záznamy i přes duplicitu. Zaměstnanec pak bude mít více záznamů 
+                      stejného typu školení (použijte pouze pokud je to záměr).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </RadioGroup>
+
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted px-4 py-2">
+                <h4 className="font-semibold">Seznam duplicitních záznamů</h4>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">Řádek</TableHead>
+                      <TableHead>Zaměstnanec</TableHead>
+                      <TableHead>Typ školení</TableHead>
+                      <TableHead>Provozovna</TableHead>
+                      <TableHead>Nové datum</TableHead>
+                      <TableHead>Stávající datum</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {duplicates.map((dup, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-mono text-xs">{dup.row}</TableCell>
+                        <TableCell className="text-sm">
+                          {dup.data.employee_number}
+                        </TableCell>
+                        <TableCell className="text-sm">{dup.data.training_type_name}</TableCell>
+                        <TableCell className="text-sm">{dup.data.facility}</TableCell>
+                        <TableCell className="text-sm font-medium text-primary">
+                          {dup.data.last_training_date}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {dup.existingTraining.last_training_date}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDuplicateDialog(false);
+                setDuplicates([]);
+                setPendingImportData([]);
+              }}
+            >
+              Zrušit import
+            </Button>
+            <Button
+              onClick={async () => {
+                setShowDuplicateDialog(false);
+                setImporting(true);
+                try {
+                  await processImport(pendingImportData, true);
+                } finally {
+                  setDuplicates([]);
+                  setPendingImportData([]);
+                }
+              }}
+            >
+              Pokračovat v importu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
