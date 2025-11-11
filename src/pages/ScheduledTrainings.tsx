@@ -123,7 +123,7 @@ export default function ScheduledTrainings() {
     company: "",
     note: "",
     lastTrainingDate: undefined as Date | undefined,
-    replaceExistingFiles: false,
+    keepExistingFiles: false,
     uploadedFiles: [] as File[],
   });
   
@@ -341,8 +341,8 @@ export default function ScheduledTrainings() {
       // Zpracování souborů
       if (bulkEditData.uploadedFiles.length > 0) {
         for (const trainingId of selectedIds) {
-          // Pokud má být nahrazen existující soubor, nejdříve ho smažeme
-          if (bulkEditData.replaceExistingFiles) {
+          // Pokud NEponecháváme existující soubory, nejdříve je smažeme
+          if (!bulkEditData.keepExistingFiles) {
             // Získat stávající dokumenty
             const { data: existingDocs, error: docsError } = await supabase
               .from("training_documents")
@@ -408,14 +408,14 @@ export default function ScheduledTrainings() {
       // Reset stavu
       setBulkEditDialogOpen(false);
       setSelectedTrainings(new Set());
-      setBulkEditData({ 
-        trainer: "", 
-        company: "", 
-        note: "", 
-        lastTrainingDate: undefined,
-        replaceExistingFiles: false,
-        uploadedFiles: [],
-      });
+    setBulkEditData({
+      trainer: "",
+      company: "",
+      note: "",
+      lastTrainingDate: undefined,
+      keepExistingFiles: false,
+      uploadedFiles: [],
+    });
       
       // Znovu načíst data
       window.location.reload();
@@ -1036,11 +1036,11 @@ export default function ScheduledTrainings() {
                             <div className="flex items-start space-x-2 pt-2 border-t">
                               <Checkbox
                                 id="replace-files"
-                                checked={bulkEditData.replaceExistingFiles}
+                                checked={bulkEditData.keepExistingFiles}
                                 onCheckedChange={(checked) =>
                                   setBulkEditData({
                                     ...bulkEditData,
-                                    replaceExistingFiles: checked as boolean,
+                                    keepExistingFiles: checked as boolean,
                                   })
                                 }
                                 className="mt-0.5"
@@ -1050,10 +1050,10 @@ export default function ScheduledTrainings() {
                                   htmlFor="replace-files"
                                   className="text-sm font-medium cursor-pointer leading-none"
                                 >
-                                  Nahradit původní soubory
+                                  Ponechat původní a nahrát nové k nim
                                 </Label>
                                 <p className="text-xs text-muted-foreground">
-                                  Pokud není zaškrtnuto, nové soubory se přidají k existujícím
+                                  Pokud není zaškrtnuto, původní soubory budou nahrazeny novými
                                 </p>
                               </div>
                             </div>
@@ -1076,7 +1076,7 @@ export default function ScheduledTrainings() {
                           company: "", 
                           note: "",
                           lastTrainingDate: undefined,
-                          replaceExistingFiles: false,
+                          keepExistingFiles: false,
                           uploadedFiles: [],
                         });
                       }}
