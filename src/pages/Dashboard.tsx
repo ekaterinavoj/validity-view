@@ -9,7 +9,6 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 // Mock data - stejná jako v ScheduledTrainings
 const mockTrainings: Training[] = [
