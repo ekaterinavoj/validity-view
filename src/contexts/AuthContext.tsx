@@ -12,11 +12,17 @@ interface Profile {
   department_id?: string;
 }
 
+type UserRole = "admin" | "manager" | "user";
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  roles: UserRole[];
   loading: boolean;
+  hasRole: (role: UserRole) => boolean;
+  isAdmin: boolean;
+  isManager: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, firstName: string, lastName: string, position?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -29,6 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [roles, setRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -51,9 +58,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const loadRoles = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Error loading roles:", error);
+        return;
+      }
+
+      setRoles(data?.map((r) => r.role as UserRole) || []);
+    } catch (error) {
+      console.error("Error loading roles:", error);
+    }
+  };
+
+  const hasRole = (role: UserRole): boolean => {
+    return roles.includes(role);
+  };
+
+  const isAdmin = roles.includes("admin");
+  const isManager = roles.includes("manager");
+
   const refreshProfile = async () => {
     if (user?.id) {
       await loadProfile(user.id);
+      await loadRoles(user.id);
     }
   };
 
@@ -64,13 +97,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer profile loading with setTimeout to avoid deadlock
+        // Defer profile and roles loading with setTimeout to avoid deadlock
         if (session?.user) {
           setTimeout(() => {
             loadProfile(session.user.id);
+            loadRoles(session.user.id);
           }, 0);
         } else {
           setProfile(null);
+          setRoles([]);
         }
         
         setLoading(false);
@@ -85,6 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         setTimeout(() => {
           loadProfile(session.user.id);
+          loadRoles(session.user.id);
         }, 0);
       }
       
@@ -148,6 +184,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await supabase.auth.signOut();
       setProfile(null);
+      setRoles([]);
       toast({
         title: "Odhlášení úspěšné",
         description: "Byli jste úspěšně odhlášeni.",
@@ -167,7 +204,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         session,
         profile,
+        roles,
         loading,
+        hasRole,
+        isAdmin,
+        isManager,
         signIn,
         signUp,
         signOut,

@@ -8,7 +8,8 @@ import {
   BarChart3,
   MoreHorizontal,
   LogOut,
-  User
+  User,
+  Shield
 } from "lucide-react";
 
 const navItems = [
@@ -24,7 +25,17 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children }: LayoutProps) => {
-  const { profile, signOut } = useAuth();
+  const { profile, roles, isAdmin, signOut } = useAuth();
+
+  const getRoleBadge = () => {
+    if (roles.includes("admin")) {
+      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-500/20 text-red-700 dark:text-red-300">Admin</span>;
+    }
+    if (roles.includes("manager")) {
+      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300">Manažer</span>;
+    }
+    return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-500/20 text-green-700 dark:text-green-300">Uživatel</span>;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -37,16 +48,21 @@ export const Layout = ({ children }: LayoutProps) => {
             
             {profile && (
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-3 text-sm">
                   <User className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium text-foreground">
-                    {profile.first_name} {profile.last_name}
-                  </span>
-                  {profile.position && (
-                    <span className="text-muted-foreground">
-                      ({profile.position})
+                  <div className="flex flex-col items-end">
+                    <span className="font-medium text-foreground">
+                      {profile.first_name} {profile.last_name}
                     </span>
-                  )}
+                    <div className="flex items-center gap-2">
+                      {profile.position && (
+                        <span className="text-xs text-muted-foreground">
+                          {profile.position}
+                        </span>
+                      )}
+                      {getRoleBadge()}
+                    </div>
+                  </div>
                 </div>
                 <Button
                   variant="outline"
@@ -80,6 +96,16 @@ export const Layout = ({ children }: LayoutProps) => {
                 </NavLink>
               );
             })}
+            {isAdmin && (
+              <NavLink
+                to="/user-management"
+                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
+                activeClassName="text-foreground bg-card border-b-2 border-primary"
+              >
+                <Shield className="w-4 h-4" />
+                Správa uživatelů
+              </NavLink>
+            )}
           </div>
         </nav>
         

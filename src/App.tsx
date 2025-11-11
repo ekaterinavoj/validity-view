@@ -12,6 +12,7 @@ import NewTraining from "./pages/NewTraining";
 import EditTraining from "./pages/EditTraining";
 import Other from "./pages/Other";
 import Auth from "./pages/Auth";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -82,6 +83,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Other />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/user-management"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <UserManagement />
                   </Layout>
                 </ProtectedRoute>
               }
