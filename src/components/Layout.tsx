@@ -12,7 +12,7 @@ const navItems = [
   { to: "/", label: "Naplánovaná školení", icon: Calendar },
   { to: "/history", label: "Historie školení", icon: History },
   { to: "/employees", label: "Školené osoby", icon: Users },
-  { to: "/new-training", label: "Nové školení", icon: PlusCircle },
+  { to: "/new-training", label: "Vytvoření nového školení", icon: PlusCircle },
   { to: "/training-types", label: "Typy školení", icon: BookOpen },
   { to: "/departments", label: "Střediska", icon: Building2 },
 ];
