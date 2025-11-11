@@ -7,13 +7,15 @@ import {
   PlusCircle, 
   BookOpen, 
   Building2,
-  Upload
+  Upload,
+  UserX
 } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/scheduled-trainings", label: "Naplánovaná školení", icon: Calendar },
   { to: "/history", label: "Historie školení", icon: History },
+  { to: "/inactive-report", label: "Pozastavená školení", icon: UserX },
   { to: "/employees", label: "Školené osoby", icon: Users },
   { to: "/new-training", label: "Vytvoření nového školení", icon: PlusCircle },
   { to: "/bulk-import", label: "Hromadný import", icon: Upload },
