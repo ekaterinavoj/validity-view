@@ -18,7 +18,7 @@ export default function Other() {
           <TabsTrigger value="employees">Školené osoby</TabsTrigger>
           <TabsTrigger value="bulk-import">Import</TabsTrigger>
           <TabsTrigger value="departments">Střediska</TabsTrigger>
-          <TabsTrigger value="training-types">Typy</TabsTrigger>
+          <TabsTrigger value="training-types">Typy školení</TabsTrigger>
           <TabsTrigger value="settings">Nastavení</TabsTrigger>
         </TabsList>
 
