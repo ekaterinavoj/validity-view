@@ -39,11 +39,37 @@ export const ReminderTemplates = () => {
     email_subject: "",
     email_body: "",
     is_active: true,
+    target_user_ids: [] as string[],
   });
+
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [users, setUsers] = useState<Array<{ id: string; email: string; full_name: string }>>([]);
 
   useEffect(() => {
     loadTemplates();
+    loadUsers();
   }, []);
+
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name")
+        .order("email");
+
+      if (error) throw error;
+      
+      const formattedUsers = (data || []).map(user => ({
+        id: user.id,
+        email: user.email,
+        full_name: `${user.first_name} ${user.last_name}`.trim() || user.email
+      }));
+      
+      setUsers(formattedUsers);
+    } catch (error: any) {
+      console.error("Error loading users:", error);
+    }
+  };
 
   const loadTemplates = async () => {
     try {
@@ -72,6 +98,7 @@ export const ReminderTemplates = () => {
       email_subject: "",
       email_body: "",
       is_active: true,
+      target_user_ids: [],
     });
     setCreateDialogOpen(true);
   };
@@ -85,6 +112,7 @@ export const ReminderTemplates = () => {
       email_subject: template.email_subject,
       email_body: template.email_body,
       is_active: template.is_active,
+      target_user_ids: (template as any).target_user_ids || [],
     });
     setEditingTemplate(template);
     setCreateDialogOpen(true);
@@ -114,6 +142,7 @@ export const ReminderTemplates = () => {
             email_subject: formData.email_subject,
             email_body: formData.email_body,
             is_active: formData.is_active,
+            target_user_ids: formData.target_user_ids,
           })
           .eq("id", editingTemplate.id);
 
@@ -127,7 +156,10 @@ export const ReminderTemplates = () => {
         // Vytvoření nové šablony
         const { error } = await supabase
           .from("reminder_templates")
-          .insert([formData]);
+          .insert([{
+            ...formData,
+            target_user_ids: formData.target_user_ids,
+          }]);
 
         if (error) throw error;
 
@@ -200,6 +232,18 @@ export const ReminderTemplates = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const getPreviewEmail = () => {
+    const subject = formData.email_subject
+      .replace(/\{\{training_name\}\}/g, "Bezpečnost práce")
+      .replace(/\{\{days_remaining\}\}/g, "15");
+    
+    const body = formData.email_body
+      .replace(/\{\{training_name\}\}/g, "Bezpečnost práce")
+      .replace(/\{\{days_remaining\}\}/g, "15");
+    
+    return { subject, body };
   };
 
   return (
@@ -380,6 +424,42 @@ export const ReminderTemplates = () => {
               </p>
             </div>
 
+            <div className="space-y-2">
+              <Label>Příjemci připomínek</Label>
+              <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                {users.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Načítání uživatelů...</p>
+                ) : (
+                  users.map((user) => (
+                    <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded">
+                      <input
+                        type="checkbox"
+                        checked={formData.target_user_ids.includes(user.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({
+                              ...formData,
+                              target_user_ids: [...formData.target_user_ids, user.id]
+                            });
+                          } else {
+                            setFormData({
+                              ...formData,
+                              target_user_ids: formData.target_user_ids.filter(id => id !== user.id)
+                            });
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm">{user.full_name} ({user.email})</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Pokud nevyberete žádného uživatele, připomínky se odešlou všem oprávněným uživatelům
+              </p>
+            </div>
+
             <div className="flex items-center gap-2">
               <Switch
                 id="is_active"
@@ -392,6 +472,14 @@ export const ReminderTemplates = () => {
             </div>
           </div>
           <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setPreviewDialogOpen(true)}
+              disabled={!formData.email_subject || !formData.email_body}
+            >
+              <Bell className="w-4 h-4 mr-2" />
+              Náhled emailu
+            </Button>
             <Button 
               variant="outline" 
               onClick={() => {
@@ -433,6 +521,44 @@ export const ReminderTemplates = () => {
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Smazat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog pro náhled emailu */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Náhled připomínkového emailu</DialogTitle>
+            <DialogDescription>
+              Ukázka emailu s nahrazenými proměnnými (příklad: školení "Bezpečnost práce", 15 dní do vypršení)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Předmět:</Label>
+              <div className="p-3 bg-muted rounded-md">
+                <p className="text-sm">{getPreviewEmail().subject}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Text emailu:</Label>
+              <div className="p-4 bg-muted rounded-md min-h-32">
+                <p className="text-sm whitespace-pre-wrap">{getPreviewEmail().body}</p>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground p-3 bg-accent/10 rounded">
+              <p className="font-semibold mb-1">Dostupné proměnné:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li><code>{'{{training_name}}'}</code> - název školení</li>
+                <li><code>{'{{days_remaining}}'}</code> - počet dní do vypršení</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>
+              Zavřít
             </Button>
           </DialogFooter>
         </DialogContent>
