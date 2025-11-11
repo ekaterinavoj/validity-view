@@ -4,6 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -55,6 +65,9 @@ const statusLabels = {
 
 export default function Employees() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<typeof mockEmployees[0] | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<typeof mockEmployees[0] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -161,18 +174,65 @@ export default function Employees() {
 
   const selectedStatus = form.watch("status");
 
+  const handleEdit = (employee: typeof mockEmployees[0]) => {
+    setEditingEmployee(employee);
+    form.reset({
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      email: employee.email,
+      employeeNumber: employee.employeeNumber,
+      position: employee.position,
+      departmentId: employee.department,
+      status: employee.status,
+      notes: employee.notes || "",
+    });
+    setDialogOpen(true);
+  };
+
+  const openDeleteDialog = (employee: typeof mockEmployees[0]) => {
+    setEmployeeToDelete(employee);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (!employeeToDelete) return;
+    
+    toast({
+      title: "Zaměstnanec smazán",
+      description: `${employeeToDelete.firstName} ${employeeToDelete.lastName} byl úspěšně odstraněn.`,
+    });
+    
+    setDeleteDialogOpen(false);
+    setEmployeeToDelete(null);
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) {
+      setEditingEmployee(null);
+      form.reset({ status: "employed" });
+    }
+  };
+
   const onSubmit = (data: FormValues) => {
     // Automaticky nastavit poznámku pro ukončené zaměstnance
     if (data.status === "terminated" && data.terminationDate) {
       data.notes = `Ukončen ke dni ${format(data.terminationDate, "dd.MM.yyyy", { locale: cs })}`;
     }
-    console.log(data);
-    toast({
-      title: "Zaměstnanec přidán",
-      description: "Nový zaměstnanec byl úspěšně přidán do systému.",
-    });
-    setDialogOpen(false);
-    form.reset();
+    
+    if (editingEmployee) {
+      toast({
+        title: "Zaměstnanec aktualizován",
+        description: "Údaje zaměstnance byly úspěšně upraveny.",
+      });
+    } else {
+      toast({
+        title: "Zaměstnanec přidán",
+        description: "Nový zaměstnanec byl úspěšně přidán do systému.",
+      });
+    }
+    
+    handleDialogClose(false);
   };
 
   return (
@@ -185,7 +245,7 @@ export default function Employees() {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -194,7 +254,7 @@ export default function Employees() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Nový zaměstnanec</DialogTitle>
+              <DialogTitle>{editingEmployee ? "Upravit zaměstnance" : "Nový zaměstnanec"}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -455,11 +515,11 @@ export default function Employees() {
                 <TableCell className="text-sm text-muted-foreground">{employee.notes || "-"}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(employee)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm">
-                      <Trash2 className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(employee)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 </TableCell>
@@ -469,6 +529,23 @@ export default function Employees() {
           </TableBody>
         </Table>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Opravdu chcete smazat zaměstnance?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tato akce je nevratná. Zaměstnanec "{employeeToDelete?.firstName} {employeeToDelete?.lastName}" bude trvale odstraněn z databáze.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušit</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

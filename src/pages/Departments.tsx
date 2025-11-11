@@ -4,6 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Edit, Plus, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -29,20 +39,62 @@ const mockDepartments = [
 
 export default function Departments() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingDepartment, setEditingDepartment] = useState<typeof mockDepartments[0] | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [departmentToDelete, setDepartmentToDelete] = useState<typeof mockDepartments[0] | null>(null);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
   });
 
-  const onSubmit = (data: FormValues) => {
-    console.log(data);
-    toast({
-      title: "Středisko vytvořeno",
-      description: "Nové středisko bylo úspěšně přidáno.",
+  const handleEdit = (dept: typeof mockDepartments[0]) => {
+    setEditingDepartment(dept);
+    form.reset({
+      facility: "qlar-jenec-dc3",
+      code: dept.code,
     });
-    setDialogOpen(false);
-    form.reset();
+    setDialogOpen(true);
+  };
+
+  const openDeleteDialog = (dept: typeof mockDepartments[0]) => {
+    setDepartmentToDelete(dept);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (!departmentToDelete) return;
+    
+    toast({
+      title: "Středisko smazáno",
+      description: `Středisko ${departmentToDelete.code} bylo úspěšně odstraněno.`,
+    });
+    
+    setDeleteDialogOpen(false);
+    setDepartmentToDelete(null);
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) {
+      setEditingDepartment(null);
+      form.reset();
+    }
+  };
+
+  const onSubmit = (data: FormValues) => {
+    if (editingDepartment) {
+      toast({
+        title: "Středisko aktualizováno",
+        description: "Středisko bylo úspěšně upraveno.",
+      });
+    } else {
+      toast({
+        title: "Středisko vytvořeno",
+        description: "Nové středisko bylo úspěšně přidáno.",
+      });
+    }
+    handleDialogClose(false);
   };
 
   return (
@@ -50,7 +102,7 @@ export default function Departments() {
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold text-foreground">Editovat střediska</h2>
         
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -59,7 +111,7 @@ export default function Departments() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nové středisko</DialogTitle>
+              <DialogTitle>{editingDepartment ? "Upravit středisko" : "Nové středisko"}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -128,11 +180,11 @@ export default function Departments() {
                 <TableCell className="font-medium">{dept.code}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(dept)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm">
-                      <Trash2 className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(dept)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 </TableCell>
@@ -141,6 +193,23 @@ export default function Departments() {
           </TableBody>
         </Table>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Opravdu chcete smazat středisko?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tato akce je nevratná. Středisko "{departmentToDelete?.code}" bude trvale odstraněno z databáze.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušit</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 import { Training } from "@/types/training";
 import { Edit, Trash2, Plus, Download, CalendarClock, FileSpreadsheet, FileDown, Upload, X, FileText, FileImage, File, Eye } from "lucide-react";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
+import { Progress } from "@/components/ui/progress";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
@@ -120,6 +121,8 @@ export default function ScheduledTrainings() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   const [bulkEditData, setBulkEditData] = useState({
     trainer: "",
     company: "",
@@ -342,6 +345,12 @@ export default function ScheduledTrainings() {
 
       // Zpracování souborů
       if (bulkEditData.uploadedFiles.length > 0) {
+        setIsUploading(true);
+        setUploadProgress(0);
+        
+        const totalFiles = bulkEditData.uploadedFiles.length * selectedIds.length;
+        let uploadedCount = 0;
+        
         for (const trainingId of selectedIds) {
           // Pokud NEponecháváme existující soubory, nejdříve je smažeme
           if (!bulkEditData.keepExistingFiles) {
@@ -398,8 +407,14 @@ export default function ScheduledTrainings() {
               });
 
             if (docError) throw docError;
+            
+            uploadedCount++;
+            setUploadProgress(Math.round((uploadedCount / totalFiles) * 100));
           }
         }
+        
+        setIsUploading(false);
+        setUploadProgress(0);
       }
 
       toast({
@@ -959,14 +974,67 @@ export default function ScheduledTrainings() {
                             type="file"
                             id="bulk-file-upload"
                             multiple
-                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                            onChange={(e) => {
-                              const files = Array.from(e.target.files || []);
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            
+                            // Validace souborů
+                            const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+                            const ALLOWED_TYPES = [
+                              'application/pdf',
+                              'application/msword',
+                              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                              'image/jpeg',
+                              'image/jpg',
+                              'image/png'
+                            ];
+                            
+                            const validFiles: File[] = [];
+                            const errors: string[] = [];
+                            
+                            files.forEach(file => {
+                              // Kontrola velikosti
+                              if (file.size > MAX_FILE_SIZE) {
+                                errors.push(`${file.name}: Velikost přesahuje 10MB`);
+                                return;
+                              }
+                              
+                              // Kontrola typu
+                              const fileExtension = file.name.split('.').pop()?.toLowerCase();
+                              const isValidType = ALLOWED_TYPES.includes(file.type) ||
+                                ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'].includes(fileExtension || '');
+                              
+                              if (!isValidType) {
+                                errors.push(`${file.name}: Nepodporovaný typ souboru`);
+                                return;
+                              }
+                              
+                              validFiles.push(file);
+                            });
+                            
+                            if (errors.length > 0) {
+                              toast({
+                                title: "Některé soubory nebyly přidány",
+                                description: errors.join(', '),
+                                variant: "destructive",
+                              });
+                            }
+                            
+                            if (validFiles.length > 0) {
                               setBulkEditData({
                                 ...bulkEditData,
-                                uploadedFiles: [...bulkEditData.uploadedFiles, ...files],
+                                uploadedFiles: [...bulkEditData.uploadedFiles, ...validFiles],
                               });
-                            }}
+                              
+                              toast({
+                                title: "Soubory přidány",
+                                description: `Přidáno ${validFiles.length} souborů.`,
+                              });
+                            }
+                            
+                            // Reset input
+                            e.target.value = '';
+                          }}
                             className="hidden"
                           />
                           <Button
@@ -1084,6 +1152,16 @@ export default function ScheduledTrainings() {
                           </div>
                         )}
                         
+                        {isUploading && (
+                          <div className="space-y-2 border-t pt-4">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Nahrávání souborů...</span>
+                              <span className="font-medium">{uploadProgress}%</span>
+                            </div>
+                            <Progress value={uploadProgress} className="h-2" />
+                          </div>
+                        )}
+                        
                         <p className="text-xs text-muted-foreground">
                           Soubory budou nahrány ke všem vybraným školením
                         </p>
@@ -1104,11 +1182,21 @@ export default function ScheduledTrainings() {
                           uploadedFiles: [],
                         });
                       }}
+                      disabled={loading || isUploading}
                     >
                       Zrušit
                     </Button>
-                    <Button onClick={applyBulkEdit} disabled={loading}>
-                      {loading ? "Ukládám..." : "Aplikovat změny"}
+                    <Button onClick={applyBulkEdit} disabled={loading || isUploading}>
+                      {isUploading ? (
+                        <>
+                          <Upload className="w-4 h-4 mr-2 animate-bounce" />
+                          Nahrávání... {uploadProgress}%
+                        </>
+                      ) : loading ? (
+                        "Ukládám..."
+                      ) : (
+                        "Aplikovat změny"
+                      )}
                     </Button>
                   </div>
                 </DialogContent>
