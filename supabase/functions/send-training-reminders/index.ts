@@ -41,10 +41,15 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY is not configured");
+      console.warn("RESEND_API_KEY is not configured - email sending disabled");
       return new Response(
-        JSON.stringify({ error: "Email service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          message: "Email service not configured",
+          info: "Pro odesílání emailů je potřeba nastavit RESEND_API_KEY v administraci.",
+          total_emails_sent: 0,
+          results: []
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
