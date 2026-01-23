@@ -192,6 +192,63 @@ function buildTrainingsTable(trainings: TrainingItem[]): string {
   return html;
 }
 
+// Transient error patterns that should trigger retry
+const TRANSIENT_ERROR_PATTERNS = [
+  /timeout/i,
+  /ECONNRESET/i,
+  /ETIMEDOUT/i,
+  /ENOTFOUND/i,
+  /socket hang up/i,
+  /network/i,
+  /rate.?limit/i,
+  /too many requests/i,
+  /5\d{2}/,  // 5xx errors
+  /temporarily unavailable/i,
+  /service unavailable/i,
+  /internal server error/i,
+  /bad gateway/i,
+  /gateway timeout/i,
+];
+
+// Permanent error patterns that should NOT retry
+const PERMANENT_ERROR_PATTERNS = [
+  /invalid.*(email|recipient|address)/i,
+  /unverified/i,
+  /bounced/i,
+  /blocked/i,
+  /unauthorized/i,
+  /forbidden/i,
+  /authentication/i,
+  /invalid.?api.?key/i,
+  /not configured/i,
+  /missing.*key/i,
+  /bad request/i,
+  /invalid.*domain/i,
+  /domain not verified/i,
+];
+
+function isTransientError(error: string): boolean {
+  // Check permanent errors first - these should never retry
+  if (PERMANENT_ERROR_PATTERNS.some(pattern => pattern.test(error))) {
+    return false;
+  }
+  // Check if matches transient patterns
+  return TRANSIENT_ERROR_PATTERNS.some(pattern => pattern.test(error));
+}
+
+function calculateBackoffDelay(attempt: number): number {
+  // Exponential backoff: 30s, 2min, 10min with jitter
+  const baseDelays = [30000, 120000, 600000]; // 30s, 2min, 10min
+  const delay = baseDelays[attempt - 1] || baseDelays[baseDelays.length - 1];
+  // Add jitter: +/- 20% of delay
+  const jitter = delay * 0.2 * (Math.random() * 2 - 1);
+  return Math.round(delay + jitter);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Send email via Resend with BCC/To/CC support
 async function sendViaResend(
   recipients: string[], 
@@ -200,7 +257,7 @@ async function sendViaResend(
   deliveryMode: string,
   fromEmail?: string, 
   fromName?: string
-): Promise<{ success: boolean; error?: string; provider: string }> {
+): Promise<{ success: boolean; error?: string; provider: string; statusCode?: number }> {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   if (!apiKey) {
     return { success: false, error: "RESEND_API_KEY not configured", provider: "resend" };
@@ -238,7 +295,7 @@ async function sendViaResend(
 
     if (!response.ok) {
       const error = await response.text();
-      return { success: false, error, provider: "resend" };
+      return { success: false, error, provider: "resend", statusCode: response.status };
     }
 
     return { success: true, provider: "resend" };
@@ -247,22 +304,78 @@ async function sendViaResend(
   }
 }
 
-// Send email with provider selection
+interface SendEmailResult {
+  success: boolean;
+  error?: string;
+  provider: string;
+  attempts: number;
+  attemptErrors: string[];
+}
+
+// Send email with provider selection and exponential backoff retry
 async function sendEmail(
   recipients: string[],
   subject: string,
   body: string,
   deliveryMode: string,
-  emailProvider: any
-): Promise<{ success: boolean; error?: string; provider: string }> {
-  return await sendViaResend(
-    recipients, 
-    subject, 
-    body, 
-    deliveryMode,
-    emailProvider.smtp_from_email, 
-    emailProvider.smtp_from_name
-  );
+  emailProvider: any,
+  maxAttempts: number = 3
+): Promise<SendEmailResult> {
+  const attemptErrors: string[] = [];
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`Email send attempt ${attempt}/${maxAttempts}`);
+    
+    const result = await sendViaResend(
+      recipients, 
+      subject, 
+      body, 
+      deliveryMode,
+      emailProvider.smtp_from_email, 
+      emailProvider.smtp_from_name
+    );
+    
+    if (result.success) {
+      return {
+        success: true,
+        provider: result.provider,
+        attempts: attempt,
+        attemptErrors,
+      };
+    }
+    
+    const errorMsg = `Attempt ${attempt}: ${result.error || "Unknown error"}`;
+    attemptErrors.push(errorMsg);
+    console.log(`Attempt ${attempt} failed: ${result.error}`);
+    
+    // Check if this is a permanent error - don't retry
+    if (!isTransientError(result.error || "")) {
+      console.log(`Permanent error detected, not retrying: ${result.error}`);
+      return {
+        success: false,
+        error: result.error,
+        provider: result.provider,
+        attempts: attempt,
+        attemptErrors,
+      };
+    }
+    
+    // If not last attempt, wait before retrying
+    if (attempt < maxAttempts) {
+      const delay = calculateBackoffDelay(attempt);
+      console.log(`Transient error, retrying in ${delay}ms...`);
+      await sleep(delay);
+    }
+  }
+  
+  // All attempts exhausted
+  return {
+    success: false,
+    error: attemptErrors[attemptErrors.length - 1],
+    provider: "resend",
+    attempts: maxAttempts,
+    attemptErrors,
+  };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -397,17 +510,18 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    // Send the email using the original content
+    // Send the email using the original content with retry
     const deliveryMode = originalLog.delivery_mode || "bcc";
     const result = await sendEmail(
       originalLog.recipient_emails,
       originalLog.email_subject,
       originalLog.email_body,
       deliveryMode,
-      emailProvider
+      emailProvider,
+      3 // Max 3 retry attempts
     );
     
-    // Log the resend attempt with reference to original
+    // Log the resend attempt with reference to original and attempt history
     await supabase.from("reminder_logs").insert({
       training_id: null,
       employee_id: null,
@@ -419,10 +533,14 @@ const handler = async (req: Request): Promise<Response> => {
       email_subject: originalLog.email_subject,
       email_body: originalLog.email_body,
       status: result.success ? "resent" : "failed",
-      error_message: result.error || null,
+      error_message: result.success ? null : result.attemptErrors.join(" | "),
       template_name: `Resend`,
       delivery_mode: deliveryMode,
       resent_from_log_id: resendLogId, // Audit trail reference
+      attempt_number: result.attempts,
+      max_attempts: 3,
+      attempt_errors: result.attemptErrors.length > 0 ? result.attemptErrors : null,
+      final_status: result.success ? "sent" : "failed",
     });
     
     return new Response(
@@ -433,6 +551,8 @@ const handler = async (req: Request): Promise<Response> => {
         resent: true,
         originalLogId: resendLogId,
         error: result.error,
+        attempts: result.attempts,
+        attemptErrors: result.attemptErrors,
       }),
       { headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
@@ -672,16 +792,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email - test mode now actually sends with TEST prefix (for verification)
     // Simulation mode (dry run) is handled separately in UI
+    // Uses exponential backoff retry for transient errors
     const result = await sendEmail(
       actualRecipients,
       subject,
       fullBody,
       actualDeliveryMode,
-      emailProvider
+      emailProvider,
+      3 // Max 3 retry attempts
     );
 
     // Log the reminder - one entry per send (not per recipient) for summary emails
     // This is the idempotency record: week_start + is_test determines uniqueness
+    // Includes attempt history for debugging
     await supabase.from("reminder_logs").insert({
       training_id: null,
       employee_id: null,
@@ -693,18 +816,22 @@ const handler = async (req: Request): Promise<Response> => {
       email_subject: subject,
       email_body: fullBody,
       status: result.success ? "sent" : "failed",
-      error_message: result.error || null,
+      error_message: result.success ? null : result.attemptErrors.join(" | "),
       template_name: singleRecipientEmail ? `Single preview to ${singleRecipientEmail}` : `Summary${testMode ? " (test)" : ""}`,
       delivery_mode: actualDeliveryMode,
+      attempt_number: result.attempts,
+      max_attempts: 3,
+      attempt_errors: result.attemptErrors.length > 0 ? result.attemptErrors : null,
+      final_status: result.success ? "sent" : "failed",
     });
 
     if (result.success) {
       emailsSent = recipientEmails.length;
-      console.log(`Summary email sent to ${emailsSent} recipients`);
+      console.log(`Summary email sent to ${emailsSent} recipients after ${result.attempts} attempt(s)`);
     } else {
       emailsFailed = recipientEmails.length;
-      errors.push(`Failed to send summary: ${result.error}`);
-      console.error(`Failed to send summary email: ${result.error}`);
+      errors.push(`Failed to send summary after ${result.attempts} attempts: ${result.error}`);
+      console.error(`Failed to send summary email after ${result.attempts} attempts: ${result.error}`);
     }
 
     // Update run record

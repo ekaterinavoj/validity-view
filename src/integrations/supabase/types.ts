@@ -173,6 +173,8 @@ export type Database = {
       }
       reminder_logs: {
         Row: {
+          attempt_errors: Json | null
+          attempt_number: number
           created_at: string
           days_before: number | null
           delivery_mode: string | null
@@ -180,8 +182,10 @@ export type Database = {
           email_subject: string
           employee_id: string | null
           error_message: string | null
+          final_status: string | null
           id: string
           is_test: boolean
+          max_attempts: number
           provider_used: string | null
           recipient_emails: string[]
           resent_from_log_id: string | null
@@ -193,6 +197,8 @@ export type Database = {
           week_start: string | null
         }
         Insert: {
+          attempt_errors?: Json | null
+          attempt_number?: number
           created_at?: string
           days_before?: number | null
           delivery_mode?: string | null
@@ -200,8 +206,10 @@ export type Database = {
           email_subject: string
           employee_id?: string | null
           error_message?: string | null
+          final_status?: string | null
           id?: string
           is_test?: boolean
+          max_attempts?: number
           provider_used?: string | null
           recipient_emails: string[]
           resent_from_log_id?: string | null
@@ -213,6 +221,8 @@ export type Database = {
           week_start?: string | null
         }
         Update: {
+          attempt_errors?: Json | null
+          attempt_number?: number
           created_at?: string
           days_before?: number | null
           delivery_mode?: string | null
@@ -220,8 +230,10 @@ export type Database = {
           email_subject?: string
           employee_id?: string | null
           error_message?: string | null
+          final_status?: string | null
           id?: string
           is_test?: boolean
+          max_attempts?: number
           provider_used?: string | null
           recipient_emails?: string[]
           resent_from_log_id?: string | null
