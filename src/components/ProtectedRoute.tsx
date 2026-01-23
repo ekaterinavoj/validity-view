@@ -15,8 +15,19 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps) => {
   const { user, loading, profile, isPending, roles, rolesLoaded, signOut } = useAuth();
 
+  console.log('[ProtectedRoute] State:', { 
+    loading, 
+    user: !!user, 
+    rolesLoaded, 
+    roles, 
+    requiredRoles,
+    isPending,
+    approvalStatus: profile?.approval_status 
+  });
+
   // Show loader while initial auth check is in progress
   if (loading) {
+    console.log('[ProtectedRoute] Showing loader - loading=true');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -31,6 +42,7 @@ export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps)
 
   // If we have requiredRoles but roles haven't loaded yet, show loader
   if (requiredRoles && requiredRoles.length > 0 && !rolesLoaded) {
+    console.log('[ProtectedRoute] Showing loader - waiting for roles to load');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
