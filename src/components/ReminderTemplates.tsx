@@ -46,7 +46,7 @@ export const ReminderTemplates = () => {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [users, setUsers] = useState<Array<{ id: string; email: string; full_name: string }>>([]);
   const [runningCheck, setRunningCheck] = useState(false);
-  const [checkResult, setCheckResult] = useState<{ total_emails_sent: number; results: any[] } | null>(null);
+  const [checkResult, setCheckResult] = useState<{ total_emails_sent: number; results: any[]; info?: string; message?: string } | null>(null);
 
   useEffect(() => {
     loadTemplates();
@@ -262,10 +262,19 @@ export const ReminderTemplates = () => {
 
       setCheckResult(data);
       
-      toast({
-        title: "Kontrola dokončena",
-        description: `Bylo odesláno ${data.total_emails_sent} připomínek.`,
-      });
+      // Check if email service is not configured
+      if (data.info) {
+        toast({
+          title: "Email služba není nakonfigurována",
+          description: data.info,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Kontrola dokončena",
+          description: `Bylo odesláno ${data.total_emails_sent} připomínek.`,
+        });
+      }
     } catch (error: any) {
       console.error("Error running check:", error);
       toast({
@@ -330,24 +339,33 @@ export const ReminderTemplates = () => {
           </div>
 
           {checkResult && (
-            <Alert className="mt-4">
+            <Alert className={`mt-4 ${checkResult.info ? 'border-secondary' : ''}`}>
               <Bell className="h-4 w-4" />
               <AlertDescription>
-                <p className="font-semibold">Výsledek kontroly:</p>
-                <p className="text-sm mt-1">
-                  Celkem odesláno <strong>{checkResult.total_emails_sent}</strong> připomínek
-                </p>
-                {checkResult.results && checkResult.results.length > 0 && (
-                  <div className="mt-3 max-h-40 overflow-y-auto">
-                    <p className="text-xs font-semibold mb-1">Detail:</p>
-                    <ul className="text-xs space-y-1">
-                      {checkResult.results.map((result: any, idx: number) => (
-                        <li key={idx} className={result.status === 'sent' ? 'text-green-600' : 'text-red-600'}>
-                          {result.status === 'sent' ? '✓' : '✗'} {result.template} - {result.recipients || 0} příjemců
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                {checkResult.info ? (
+                  <>
+                    <p className="font-semibold text-secondary-foreground">Email služba není nakonfigurována</p>
+                    <p className="text-sm mt-1">{checkResult.info}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold">Výsledek kontroly:</p>
+                    <p className="text-sm mt-1">
+                      Celkem odesláno <strong>{checkResult.total_emails_sent}</strong> připomínek
+                    </p>
+                    {checkResult.results && checkResult.results.length > 0 && (
+                      <div className="mt-3 max-h-40 overflow-y-auto">
+                        <p className="text-xs font-semibold mb-1">Detail:</p>
+                        <ul className="text-xs space-y-1">
+                          {checkResult.results.map((result: any, idx: number) => (
+                            <li key={idx} className={result.status === 'sent' ? 'text-primary' : 'text-destructive'}>
+                              {result.status === 'sent' ? '✓' : '✗'} {result.template} - {result.recipients || 0} příjemců
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
                 )}
               </AlertDescription>
             </Alert>
