@@ -26,6 +26,8 @@ import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { OnboardingSettings } from "@/components/OnboardingSettings";
 import { PendingUsersPanel } from "@/components/PendingUsersPanel";
 import { UserInvitePanel } from "@/components/UserInvitePanel";
+import { BulkTrainingImport } from "@/components/BulkTrainingImport";
+import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
 
 interface SystemSetting {
   id: string;
@@ -1079,47 +1081,9 @@ export default function AdminSettings() {
 
         {/* Data Tab */}
         <TabsContent value="data" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Import a export dat</CardTitle>
-              <CardDescription>
-                Hromadný import nebo export dat ze systému
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">Export dat</h4>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Stáhněte si CSV soubory s daty ze systému
-                  </p>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full" onClick={() => navigate("/other")}>
-                      Exportovat zaměstnance
-                    </Button>
-                    <Button variant="outline" className="w-full" onClick={() => navigate("/other")}>
-                      Exportovat školení
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">Import dat</h4>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Nahrajte CSV soubory pro hromadný import
-                  </p>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full" onClick={() => navigate("/other")}>
-                      Importovat zaměstnance
-                    </Button>
-                    <Button variant="outline" className="w-full" onClick={() => navigate("/other")}>
-                      Importovat školení
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <BulkTrainingImport />
+          
+          <BulkEmployeeImport />
         </TabsContent>
       </Tabs>
     </div>
