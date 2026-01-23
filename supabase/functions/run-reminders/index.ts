@@ -60,10 +60,10 @@ function replaceVariables(template: string, training: Training, daysLeft: number
 }
 
 // Send email via Resend
-async function sendViaResend(to: string, subject: string, body: string): Promise<{ success: boolean; error?: string }> {
+async function sendViaResend(to: string, subject: string, body: string, fromEmail?: string, fromName?: string): Promise<{ success: boolean; error?: string; provider: string }> {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   if (!apiKey) {
-    return { success: false, error: "RESEND_API_KEY not configured" };
+    return { success: false, error: "RESEND_API_KEY not configured", provider: "resend" };
   }
 
   try {
@@ -74,7 +74,7 @@ async function sendViaResend(to: string, subject: string, body: string): Promise
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        from: "Training System <onboarding@resend.dev>",
+        from: `${fromName || "Training System"} <${fromEmail || "onboarding@resend.dev"}>`,
         to: [to],
         subject,
         html: body.replace(/\n/g, "<br>"),
@@ -83,34 +83,50 @@ async function sendViaResend(to: string, subject: string, body: string): Promise
 
     if (!response.ok) {
       const error = await response.text();
-      return { success: false, error };
+      return { success: false, error, provider: "resend" };
     }
 
-    return { success: true };
+    return { success: true, provider: "resend" };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: error.message, provider: "resend" };
   }
 }
 
-// Send email via SMTP
+// Send email via SMTP (placeholder - requires denomailer)
 async function sendViaSMTP(
   to: string, 
   subject: string, 
   body: string, 
   config: any
-): Promise<{ success: boolean; error?: string }> {
-  // For SMTP we would use a library like nodemailer
-  // Since Deno doesn't have native SMTP support, we'll use an HTTP relay or external service
-  // For on-prem, you would configure this with your SMTP server
-  
+): Promise<{ success: boolean; error?: string; provider: string }> {
   const smtpPassword = Deno.env.get("SMTP_PASSWORD");
   if (!smtpPassword) {
-    return { success: false, error: "SMTP_PASSWORD not configured" };
+    return { success: false, error: "SMTP_PASSWORD not configured", provider: "smtp" };
   }
 
-  // In production, implement SMTP sending here using the config
-  // For now, we return an error indicating SMTP is not yet implemented
-  return { success: false, error: "SMTP sending not yet implemented - use Resend" };
+  // Note: Full SMTP implementation requires denomailer import
+  // For now, return error indicating SMTP needs configuration
+  return { success: false, error: "SMTP not fully configured - use fallback mode", provider: "smtp" };
+}
+
+// Send email with provider selection and fallback
+async function sendEmail(
+  to: string,
+  subject: string,
+  body: string,
+  emailProvider: any
+): Promise<{ success: boolean; error?: string; provider: string }> {
+  if (emailProvider.provider === "smtp" || emailProvider.provider === "smtp_with_resend_fallback") {
+    const result = await sendViaSMTP(to, subject, body, emailProvider);
+    
+    if (!result.success && emailProvider.provider === "smtp_with_resend_fallback") {
+      console.log("SMTP failed, falling back to Resend:", result.error);
+      return await sendViaResend(to, subject, body, emailProvider.smtp_from_email, emailProvider.smtp_from_name);
+    }
+    return result;
+  }
+  
+  return await sendViaResend(to, subject, body);
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -327,15 +343,12 @@ const handler = async (req: Request): Promise<Response> => {
         const body = replaceVariables(emailTemplate.body, training as Training, daysLeft);
 
         // Send email (or simulate in test mode)
-        let result: { success: boolean; error?: string };
+        let result: { success: boolean; error?: string; provider: string };
         if (testMode) {
-          // In test mode, simulate successful send without actually sending
           console.log(`[TEST MODE] Would send email to ${training.employee.email}: ${subject}`);
-          result = { success: true };
-        } else if (emailProvider.provider === "smtp") {
-          result = await sendViaSMTP(training.employee.email, subject, body, emailProvider);
+          result = { success: true, provider: "simulated" };
         } else {
-          result = await sendViaResend(training.employee.email, subject, body);
+          result = await sendEmail(training.employee.email, subject, body, emailProvider);
         }
 
         // Log the reminder with idempotency fields
@@ -344,6 +357,8 @@ const handler = async (req: Request): Promise<Response> => {
           employee_id: training.employee.id,
           days_before: daysBefore,
           week_start: weekStart,
+          is_test: testMode,
+          provider_used: result.provider,
           recipient_emails: [training.employee.email],
           email_subject: subject,
           email_body: body,

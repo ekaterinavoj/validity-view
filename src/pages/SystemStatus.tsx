@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RunDetailLogs } from "@/components/RunDetailLogs";
+import { ReminderDryRunPreview } from "@/components/ReminderDryRunPreview";
+import { ExportReminderLogs } from "@/components/ExportReminderLogs";
 import { 
   Loader2, 
   Activity, 
@@ -361,6 +363,9 @@ export default function SystemStatus() {
                   : "Manuálně spustí kontrolu a odeslání připomínek"
                 }
               </p>
+              <div className="mt-3">
+                <ReminderDryRunPreview />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -375,10 +380,13 @@ export default function SystemStatus() {
               Posledních 10 spuštění připomínkového systému
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={loadRuns}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Obnovit
-          </Button>
+          <div className="flex gap-2">
+            <ExportReminderLogs />
+            <Button variant="outline" size="sm" onClick={loadRuns}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Obnovit
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {runs.length === 0 ? (
