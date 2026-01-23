@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { RunDetailLogs } from "@/components/RunDetailLogs";
 import { 
   Loader2, 
   Activity, 
@@ -21,7 +23,9 @@ import {
   Send,
   RefreshCw,
   AlertTriangle,
-  FlaskConical
+  FlaskConical,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -50,6 +54,7 @@ export default function SystemStatus() {
   const [sendingTest, setSendingTest] = useState(false);
   const [runningReminders, setRunningReminders] = useState(false);
   const [testMode, setTestMode] = useState(false);
+  const [expandedRuns, setExpandedRuns] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isAdmin) {
@@ -166,18 +171,32 @@ export default function SystemStatus() {
   const getTriggerLabel = (trigger: string) => {
     switch (trigger) {
       case "manual":
-        return "Manuální";
+        return { label: "Manuální", isTest: false };
       case "manual_test":
-        return "Manuální (test)";
+        return { label: "Manuální (test)", isTest: true };
       case "test":
-        return "Test";
+        return { label: "Test", isTest: true };
       case "cron":
-        return "Automaticky (cron)";
+        return { label: "Automaticky (cron)", isTest: false };
+      case "cron_test":
+        return { label: "Cron (test)", isTest: true };
       case "pg_cron":
-        return "Automaticky (pg_cron)";
+        return { label: "Automaticky (pg_cron)", isTest: false };
       default:
-        return trigger;
+        return { label: trigger, isTest: trigger.includes("test") };
     }
+  };
+
+  const toggleRunExpanded = (runId: string) => {
+    setExpandedRuns(prev => {
+      const next = new Set(prev);
+      if (next.has(runId)) {
+        next.delete(runId);
+      } else {
+        next.add(runId);
+      }
+      return next;
+    });
   };
 
   const lastSuccessfulRun = runs.find(r => r.status === "success");
@@ -369,47 +388,79 @@ export default function SystemStatus() {
             </div>
           ) : (
             <div className="space-y-4">
-              {runs.map((run) => (
-                <div 
-                  key={run.id} 
-                  className="flex items-start justify-between p-4 border rounded-lg"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      {run.status === "success" && <CheckCircle2 className="w-4 h-4 text-primary" />}
-                      {run.status === "failed" && <XCircle className="w-4 h-4 text-destructive" />}
-                      {run.status === "running" && <Loader2 className="w-4 h-4 animate-spin" />}
-                      <span className="font-medium">
-                        {format(new Date(run.started_at), "d. M. yyyy HH:mm:ss", { locale: cs })}
-                      </span>
-                      {getStatusBadge(run.status)}
+              {runs.map((run) => {
+                const triggerInfo = getTriggerLabel(run.triggered_by);
+                const isExpanded = expandedRuns.has(run.id);
+                
+                return (
+                  <Collapsible key={run.id} open={isExpanded} onOpenChange={() => toggleRunExpanded(run.id)}>
+                    <div className="border rounded-lg overflow-hidden">
+                      <CollapsibleTrigger asChild>
+                        <div className="flex items-start justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2">
+                              {isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                              )}
+                              {run.status === "success" && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                              {run.status === "failed" && <XCircle className="w-4 h-4 text-destructive" />}
+                              {run.status === "running" && <Loader2 className="w-4 h-4 animate-spin" />}
+                              <span className="font-medium">
+                                {format(new Date(run.started_at), "d. M. yyyy HH:mm:ss", { locale: cs })}
+                              </span>
+                              {getStatusBadge(run.status)}
+                              {triggerInfo.isTest && (
+                                <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                                  <FlaskConical className="w-3 h-3" />
+                                  Test
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground ml-6">
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                {run.emails_sent} odesláno
+                              </span>
+                              {run.emails_failed > 0 && (
+                                <span className="flex items-center gap-1 text-destructive">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  {run.emails_failed} selhalo
+                                </span>
+                              )}
+                              <span>{triggerInfo.label}</span>
+                            </div>
+                            {run.error_message && (
+                              <p className="text-sm text-destructive mt-2 ml-6">
+                                {run.error_message}
+                              </p>
+                            )}
+                          </div>
+                          {run.ended_at && (
+                            <span className="text-xs text-muted-foreground">
+                              Trvání: {Math.round((new Date(run.ended_at).getTime() - new Date(run.started_at).getTime()) / 1000)}s
+                            </span>
+                          )}
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="border-t bg-muted/30 p-4">
+                          <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                            <Mail className="w-4 h-4" />
+                            Detailní přehled odeslaných emailů
+                          </h4>
+                          <RunDetailLogs 
+                            runId={run.id} 
+                            weekStart={run.week_start} 
+                            isTest={triggerInfo.isTest}
+                          />
+                        </div>
+                      </CollapsibleContent>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Mail className="w-3 h-3" />
-                        {run.emails_sent} odesláno
-                      </span>
-                      {run.emails_failed > 0 && (
-                        <span className="flex items-center gap-1 text-destructive">
-                          <AlertTriangle className="w-3 h-3" />
-                          {run.emails_failed} selhalo
-                        </span>
-                      )}
-                      <span>{getTriggerLabel(run.triggered_by)}</span>
-                    </div>
-                    {run.error_message && (
-                      <p className="text-sm text-destructive mt-2">
-                        {run.error_message}
-                      </p>
-                    )}
-                  </div>
-                  {run.ended_at && (
-                    <span className="text-xs text-muted-foreground">
-                      Trvání: {Math.round((new Date(run.ended_at).getTime() - new Date(run.started_at).getTime()) / 1000)}s
-                    </span>
-                  )}
-                </div>
-              ))}
+                  </Collapsible>
+                );
+              })}
             </div>
           )}
         </CardContent>
