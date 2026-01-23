@@ -176,9 +176,18 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!result.success) {
+      // Check if it's a configuration issue vs actual sending error
+      const isConfigError = result.error?.includes("not configured");
       return new Response(
-        JSON.stringify({ error: `Failed to send: ${result.error}`, provider: providerUsed }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ 
+          success: false,
+          error: isConfigError 
+            ? `Email služba není nakonfigurována. Pro odesílání emailů nastavte RESEND_API_KEY nebo SMTP.`
+            : `Nepodařilo se odeslat: ${result.error}`, 
+          provider: providerUsed,
+          configurationRequired: isConfigError
+        }),
+        { status: isConfigError ? 200 : 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 

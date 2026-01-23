@@ -105,6 +105,20 @@ export default function SystemStatus() {
 
       if (error) throw error;
 
+      // Check for configuration issues
+      if (data?.configurationRequired) {
+        toast({
+          title: "Email služba není nakonfigurována",
+          description: data.error,
+          variant: "default",
+        });
+        return;
+      }
+
+      if (data?.success === false) {
+        throw new Error(data.error || "Nepodařilo se odeslat email");
+      }
+
       toast({
         title: "Testovací email odeslán",
         description: `Email byl úspěšně odeslán na ${testEmail}`,
