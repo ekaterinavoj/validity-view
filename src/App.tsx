@@ -43,6 +43,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             {/* Primary navigation - accessible to all approved users */}
             <Route path="/" element={<ProtectedLayout><ScheduledTrainings /></ProtectedLayout>} />
+            <Route path="/scheduled-trainings" element={<ProtectedLayout><ScheduledTrainings /></ProtectedLayout>} />
             <Route path="/history" element={<ProtectedLayout><History /></ProtectedLayout>} />
             <Route path="/new-training" element={<ProtectedLayout><NewTraining /></ProtectedLayout>} />
             <Route path="/edit-training/:id" element={<ProtectedLayout><EditTraining /></ProtectedLayout>} />
