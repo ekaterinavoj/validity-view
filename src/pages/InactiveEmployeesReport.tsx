@@ -9,8 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Training } from "@/types/training";
-import { Download, UserX, Calendar } from "lucide-react";
+import { Download, UserX, Calendar, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -21,124 +20,8 @@ import {
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatPeriodicity } from "@/lib/utils";
-
-// Mock data - zaměstnanci s neaktivními statusy
-const mockInactiveEmployees = [
-  {
-    id: "emp1",
-    employeeNumber: "12351",
-    firstName: "Martina",
-    lastName: "Dvořáková",
-    email: "martina.dvorakova@qlar.cz",
-    position: "Operátor výroby",
-    department: "Výroba",
-    status: "parental_leave" as const,
-  },
-  {
-    id: "emp2",
-    employeeNumber: "12352",
-    firstName: "Tomáš",
-    lastName: "Black",
-    email: "tomas.black@qlar.cz",
-    position: "Technik údržby",
-    department: "Údržba",
-    status: "sick_leave" as const,
-  },
-  {
-    id: "emp3",
-    employeeNumber: "12353",
-    firstName: "Petr",
-    lastName: "Veselý",
-    email: "petr.vesely@qlar.cz",
-    position: "Skladník",
-    department: "Logistika",
-    status: "terminated" as const,
-  },
-];
-
-// Mock data - deaktivovaná školení
-const mockInactiveTrainings: (Training & { employeeId: string })[] = [
-  {
-    id: "train1",
-    employeeId: "emp1",
-    status: "valid",
-    date: "2025-05-15",
-    type: "BOZP - Základní",
-    employeeNumber: "12351",
-    employeeName: "Martina Dvořáková",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Výroba",
-    lastTrainingDate: "2024-05-15",
-    trainer: "Petr Svoboda",
-    company: "BOZP Servis s.r.o.",
-    requester: "Marie Procházková",
-    period: 365,
-    reminderTemplate: "Standardní",
-    calendar: "Ano",
-    note: "Pozastaveno - rodičovská dovolená",
-    is_active: false,
-  },
-  {
-    id: "train2",
-    employeeId: "emp1",
-    status: "warning",
-    date: "2025-02-20",
-    type: "Práce ve výškách",
-    employeeNumber: "12351",
-    employeeName: "Martina Dvořáková",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Výroba",
-    lastTrainingDate: "2023-02-20",
-    trainer: "Tomáš Černý",
-    company: "Výškové práce s.r.o.",
-    requester: "Marie Procházková",
-    period: 730,
-    reminderTemplate: "Urgentní",
-    calendar: "Ano",
-    note: "Pozastaveno - rodičovská dovolená",
-    is_active: false,
-  },
-  {
-    id: "train3",
-    employeeId: "emp2",
-    status: "valid",
-    date: "2025-08-10",
-    type: "BOZP - Základní",
-    employeeNumber: "12352",
-    employeeName: "Tomáš Black",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Údržba",
-    lastTrainingDate: "2024-08-10",
-    trainer: "Petr Svoboda",
-    company: "BOZP Servis s.r.o.",
-    requester: "Marie Procházková",
-    period: 365,
-    reminderTemplate: "Standardní",
-    calendar: "Ano",
-    note: "Pozastaveno - nemocenská",
-    is_active: false,
-  },
-  {
-    id: "train4",
-    employeeId: "emp3",
-    status: "expired",
-    date: "2024-09-01",
-    type: "Řidičský průkaz VZV",
-    employeeNumber: "12353",
-    employeeName: "Petr Veselý",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Logistika",
-    lastTrainingDate: "2019-09-01",
-    trainer: "Jiří Malý",
-    company: "VZV Školení s.r.o.",
-    requester: "Marie Procházková",
-    period: 1825,
-    reminderTemplate: "Standardní",
-    calendar: "Ne",
-    note: "Ukončeno - zaměstnanec již nepracuje",
-    is_active: false,
-  },
-];
+import { useInactiveEmployees } from "@/hooks/useEmployees";
+import { useTrainings } from "@/hooks/useTrainings";
 
 const statusLabels = {
   employed: "Zaměstnaný",
@@ -159,12 +42,15 @@ export default function InactiveEmployeesReport() {
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
+  const { employees: inactiveEmployees, loading: employeesLoading } = useInactiveEmployees();
+  const { trainings: inactiveTrainings, loading: trainingsLoading } = useTrainings(false); // Get inactive trainings
+
   const filteredEmployees = useMemo(() => {
     if (statusFilter === "all") {
-      return mockInactiveEmployees;
+      return inactiveEmployees;
     }
-    return mockInactiveEmployees.filter((emp) => emp.status === statusFilter);
-  }, [statusFilter]);
+    return inactiveEmployees.filter((emp) => emp.status === statusFilter);
+  }, [statusFilter, inactiveEmployees]);
 
   const toggleEmployee = (employeeId: string) => {
     const newExpanded = new Set(expandedEmployees);
@@ -177,7 +63,7 @@ export default function InactiveEmployeesReport() {
   };
 
   const getTrainingsForEmployee = (employeeId: string) => {
-    return mockInactiveTrainings.filter((t) => t.employeeId === employeeId);
+    return inactiveTrainings.filter((t) => t.employeeId === employeeId);
   };
 
   const exportToCSV = () => {
@@ -199,7 +85,8 @@ export default function InactiveEmployeesReport() {
       const rows: string[][] = [];
       filteredEmployees.forEach((employee) => {
         const trainings = getTrainingsForEmployee(employee.id);
-        trainings.forEach((training) => {
+        if (trainings.length === 0) {
+          // Include employee even without trainings
           rows.push([
             employee.employeeNumber,
             `${employee.firstName} ${employee.lastName}`,
@@ -207,13 +94,29 @@ export default function InactiveEmployeesReport() {
             employee.position,
             employee.department,
             statusLabels[employee.status],
-            training.type,
-            new Date(training.date).toLocaleDateString("cs-CZ"),
-            new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
-            training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
-            training.note,
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
           ]);
-        });
+        } else {
+          trainings.forEach((training) => {
+            rows.push([
+              employee.employeeNumber,
+              `${employee.firstName} ${employee.lastName}`,
+              employee.email,
+              employee.position,
+              employee.department,
+              statusLabels[employee.status],
+              training.type,
+              new Date(training.date).toLocaleDateString("cs-CZ"),
+              new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
+              training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
+              training.note,
+            ]);
+          });
+        }
       });
 
       const escapeCSV = (value: string) => {
@@ -242,7 +145,7 @@ export default function InactiveEmployeesReport() {
 
       toast({
         title: "Export úspěšný",
-        description: `Exportováno ${rows.length} pozastavených školení.`,
+        description: `Exportováno ${rows.length} záznamů.`,
       });
     } catch (error) {
       toast({
@@ -253,8 +156,18 @@ export default function InactiveEmployeesReport() {
     }
   };
 
-  const totalInactiveTrainings = mockInactiveTrainings.length;
-  const totalInactiveEmployees = mockInactiveEmployees.length;
+  const totalInactiveTrainings = inactiveTrainings.length;
+  const totalInactiveEmployees = inactiveEmployees.length;
+  const parentalLeaveCount = inactiveEmployees.filter((e) => e.status === "parental_leave").length;
+
+  if (employeesLoading || trainingsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-2">Načítání dat...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -304,9 +217,7 @@ export default function InactiveEmployeesReport() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Rodičovská dovolená</p>
-              <p className="text-2xl font-bold">
-                {mockInactiveEmployees.filter((e) => e.status === "parental_leave").length}
-              </p>
+              <p className="text-2xl font-bold">{parentalLeaveCount}</p>
             </div>
           </div>
         </Card>
@@ -376,7 +287,7 @@ export default function InactiveEmployeesReport() {
                             </div>
                           </div>
                           <Badge variant="outline" className="text-orange-500 border-orange-500">
-                            {trainings.length} {trainings.length === 1 ? "školení" : "školení"}
+                            {trainings.length} školení
                           </Badge>
                         </div>
                       </div>
@@ -384,40 +295,46 @@ export default function InactiveEmployeesReport() {
 
                     <CollapsibleContent>
                       <div className="border-t">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Typ školení</TableHead>
-                              <TableHead>Školení platné do</TableHead>
-                              <TableHead>Datum školení</TableHead>
-                              <TableHead>Periodicita</TableHead>
-                              <TableHead>Školitel</TableHead>
-                              <TableHead>Firma</TableHead>
-                              <TableHead>Poznámka</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {trainings.map((training) => (
-                              <TableRow key={training.id}>
-                                <TableCell className="font-medium">{training.type}</TableCell>
-                                <TableCell className="whitespace-nowrap">
-                                  {new Date(training.date).toLocaleDateString("cs-CZ")}
-                                </TableCell>
-                                <TableCell className="whitespace-nowrap">
-                                  {new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ")}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  {formatPeriodicity(training.period)}
-                                </TableCell>
-                                <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
-                                <TableCell className="whitespace-nowrap">{training.company}</TableCell>
-                                <TableCell className="max-w-xs truncate" title={training.note}>
-                                  {training.note}
-                                </TableCell>
+                        {trainings.length === 0 ? (
+                          <p className="text-center py-4 text-muted-foreground text-sm">
+                            Žádná školení k zobrazení
+                          </p>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Typ školení</TableHead>
+                                <TableHead>Školení platné do</TableHead>
+                                <TableHead>Datum školení</TableHead>
+                                <TableHead>Periodicita</TableHead>
+                                <TableHead>Školitel</TableHead>
+                                <TableHead>Firma</TableHead>
+                                <TableHead>Poznámka</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                            </TableHeader>
+                            <TableBody>
+                              {trainings.map((training) => (
+                                <TableRow key={training.id}>
+                                  <TableCell className="font-medium">{training.type}</TableCell>
+                                  <TableCell className="whitespace-nowrap">
+                                    {new Date(training.date).toLocaleDateString("cs-CZ")}
+                                  </TableCell>
+                                  <TableCell className="whitespace-nowrap">
+                                    {new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ")}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {formatPeriodicity(training.period)}
+                                  </TableCell>
+                                  <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
+                                  <TableCell className="whitespace-nowrap">{training.company}</TableCell>
+                                  <TableCell className="max-w-xs truncate" title={training.note}>
+                                    {training.note}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
                       </div>
                     </CollapsibleContent>
                   </Card>

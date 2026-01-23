@@ -9,8 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Training } from "@/types/training";
-import { Edit, Trash2, Plus, Download, CalendarClock, FileSpreadsheet, FileDown, Upload, X, FileText, FileImage, File, Eye } from "lucide-react";
+import { Edit, Trash2, Plus, CalendarClock, FileSpreadsheet, FileDown, Upload, X, FileText, FileImage, File, Eye, Loader2 } from "lucide-react";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { Progress } from "@/components/ui/progress";
 import { useMemo, useState } from "react";
@@ -51,71 +50,12 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-
-// Mock data
-const mockTrainings: Training[] = [
-  {
-    id: "1",
-    status: "valid",
-    date: "2025-12-15",
-    type: "BOZP - Základní",
-    employeeNumber: "12345",
-    employeeName: "Jan Novák",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Výroba",
-    lastTrainingDate: "2024-12-15",
-    trainer: "Petr Svoboda",
-    company: "BOZP Servis s.r.o.",
-    requester: "Marie Procházková",
-    period: 365,
-    reminderTemplate: "Standardní",
-    calendar: "Ano",
-    note: "Pravidelné školení",
-    is_active: true,
-  },
-  {
-    id: "2",
-    status: "warning",
-    date: "2025-01-20",
-    type: "Práce ve výškách",
-    employeeNumber: "12346",
-    employeeName: "Petr Dvořák",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Údržba",
-    lastTrainingDate: "2023-01-20",
-    trainer: "Tomáš Černý",
-    company: "Výškové práce s.r.o.",
-    requester: "Marie Procházková",
-    period: 730,
-    reminderTemplate: "Urgentní",
-    calendar: "Ano",
-    note: "Prodloužená perioda",
-    is_active: true,
-  },
-  {
-    id: "3",
-    status: "expired",
-    date: "2024-11-01",
-    type: "Řidičský průkaz VZV",
-    employeeNumber: "12347",
-    employeeName: "Jana Svobodová",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Logistika",
-    lastTrainingDate: "2019-11-01",
-    trainer: "Jiří Malý",
-    company: "VZV Školení s.r.o.",
-    requester: "Marie Procházková",
-    period: 1825,
-    reminderTemplate: "Standardní",
-    calendar: "Ne",
-    note: "Nutné obnovit",
-    is_active: true,
-  },
-];
+import { useTrainings, TrainingWithDetails } from "@/hooks/useTrainings";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { trainings, loading: trainingsLoading, refetch } = useTrainings(true);
   const [selectedTrainings, setSelectedTrainings] = useState<Set<string>>(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -132,7 +72,6 @@ export default function ScheduledTrainings() {
     uploadedFiles: [] as File[],
   });
   
-  // Pomocná funkce pro formátování velikosti souboru
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -141,7 +80,6 @@ export default function ScheduledTrainings() {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  // Pomocná funkce pro ikonu podle typu souboru
   const getFileIcon = (fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     
@@ -167,30 +105,25 @@ export default function ScheduledTrainings() {
     savedFilters,
   } = useAdvancedFilters("scheduled-trainings-filters");
 
-  // Získat unikátní hodnoty pro filtry
+  // Get unique values for filters from real data
   const departments = useMemo(() => {
-    const depts = new Set(mockTrainings.map((t) => t.department));
+    const depts = new Set(trainings.map((t) => t.department).filter(Boolean));
     return Array.from(depts).sort();
-  }, []);
+  }, [trainings]);
 
   const trainingTypes = useMemo(() => {
-    const types = new Set(mockTrainings.map((t) => t.type));
+    const types = new Set(trainings.map((t) => t.type).filter(Boolean));
     return Array.from(types).sort();
-  }, []);
+  }, [trainings]);
 
   const trainers = useMemo(() => {
-    const trainerSet = new Set(mockTrainings.map((t) => t.trainer));
+    const trainerSet = new Set(trainings.map((t) => t.trainer).filter(Boolean));
     return Array.from(trainerSet).sort();
-  }, []);
+  }, [trainings]);
 
-  // Filtrovaná data - pouze aktivní školení
+  // Filter data
   const filteredTrainings = useMemo(() => {
-    return mockTrainings.filter((training) => {
-      // Zobrazit pouze aktivní školení (kde zaměstnanec má status "zaměstnáno")
-      if (training.is_active === false) {
-        return false;
-      }
-      // Vyhledávání
+    return trainings.filter((training) => {
       const searchLower = filters.searchQuery.toLowerCase();
       const matchesSearch =
         filters.searchQuery === "" ||
@@ -200,7 +133,6 @@ export default function ScheduledTrainings() {
         training.department.toLowerCase().includes(searchLower) ||
         training.trainer.toLowerCase().includes(searchLower);
 
-      // Filtry
       const matchesStatus =
         filters.statusFilter === "all" || training.status === filters.statusFilter;
       const matchesDepartment =
@@ -211,7 +143,6 @@ export default function ScheduledTrainings() {
       const matchesTrainer =
         filters.trainerFilter === "all" || training.trainer === filters.trainerFilter;
 
-      // Datum filtrování
       const trainingDate = new Date(training.date);
       const matchesDateFrom =
         !filters.dateFrom || trainingDate >= filters.dateFrom;
@@ -227,9 +158,8 @@ export default function ScheduledTrainings() {
         matchesDateTo
       );
     });
-  }, [filters]);
+  }, [filters, trainings]);
 
-  // Hromadný výběr
   const toggleSelectAll = () => {
     if (selectedTrainings.size === filteredTrainings.length) {
       setSelectedTrainings(new Set());
@@ -268,7 +198,6 @@ export default function ScheduledTrainings() {
     setLoading(true);
     
     try {
-      // Připravit data pro update - pouze pole, která mají hodnotu
       const updates: any = {};
       if (bulkEditData.trainer.trim() !== "") {
         updates.trainer = bulkEditData.trainer.trim();
@@ -281,12 +210,8 @@ export default function ScheduledTrainings() {
       }
       if (bulkEditData.lastTrainingDate) {
         updates.last_training_date = format(bulkEditData.lastTrainingDate, "yyyy-MM-dd");
-        
-        // Vypočítat next_training_date pro každé školení podle jeho periody
-        // To bude potřeba udělat jednotlivě pro každé školení
       }
 
-      // Pokud nejsou žádné změny ani soubory
       if (Object.keys(updates).length === 0 && bulkEditData.uploadedFiles.length === 0) {
         toast({
           title: "Žádné změny",
@@ -297,7 +222,6 @@ export default function ScheduledTrainings() {
         return;
       }
 
-      // Získat aktuálního uživatele
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error("Uživatel není přihlášen");
@@ -305,10 +229,8 @@ export default function ScheduledTrainings() {
 
       const selectedIds = Array.from(selectedTrainings);
 
-      // Pokud je změna data, musíme každé školení upravit individuálně (kvůli výpočtu next_training_date)
       if (bulkEditData.lastTrainingDate) {
         for (const trainingId of selectedIds) {
-          // Získat periodicitu školení
           const { data: training, error: fetchError } = await supabase
             .from("trainings")
             .select("training_types(period_days)")
@@ -334,7 +256,6 @@ export default function ScheduledTrainings() {
           if (updateError) throw updateError;
         }
       } else if (Object.keys(updates).length > 0) {
-        // Pokud není změna data, můžeme aktualizovat hromadně
         const { error } = await supabase
           .from("trainings")
           .update(updates)
@@ -343,7 +264,6 @@ export default function ScheduledTrainings() {
         if (error) throw error;
       }
 
-      // Zpracování souborů
       if (bulkEditData.uploadedFiles.length > 0) {
         setIsUploading(true);
         setUploadProgress(0);
@@ -352,9 +272,7 @@ export default function ScheduledTrainings() {
         let uploadedCount = 0;
         
         for (const trainingId of selectedIds) {
-          // Pokud NEponecháváme existující soubory, nejdříve je smažeme
           if (!bulkEditData.keepExistingFiles) {
-            // Získat stávající dokumenty
             const { data: existingDocs, error: docsError } = await supabase
               .from("training_documents")
               .select("file_path")
@@ -362,38 +280,29 @@ export default function ScheduledTrainings() {
 
             if (docsError) throw docsError;
 
-            // Smazat soubory ze storage
             if (existingDocs && existingDocs.length > 0) {
               const filePaths = existingDocs.map(doc => doc.file_path);
-              const { error: storageError } = await supabase.storage
+              await supabase.storage
                 .from("training-documents")
                 .remove(filePaths);
 
-              if (storageError) console.error("Error deleting old files:", storageError);
-
-              // Smazat záznamy z databáze
-              const { error: deleteError } = await supabase
+              await supabase
                 .from("training_documents")
                 .delete()
                 .eq("training_id", trainingId);
-
-              if (deleteError) throw deleteError;
             }
           }
 
-          // Nahrát nové soubory
           for (const file of bulkEditData.uploadedFiles) {
             const fileExt = file.name.split(".").pop();
             const fileName = `${trainingId}/${Date.now()}.${fileExt}`;
 
-            // Nahrát do storage
             const { error: uploadError } = await supabase.storage
               .from("training-documents")
               .upload(fileName, file);
 
             if (uploadError) throw uploadError;
 
-            // Vytvořit záznam v databázi
             const { error: docError } = await supabase
               .from("training_documents")
               .insert({
@@ -422,20 +331,18 @@ export default function ScheduledTrainings() {
         description: `Úspěšně aktualizováno ${selectedTrainings.size} školení${bulkEditData.uploadedFiles.length > 0 ? ` a nahráno ${bulkEditData.uploadedFiles.length} souborů` : ""}.`,
       });
 
-      // Reset stavu
       setBulkEditDialogOpen(false);
       setSelectedTrainings(new Set());
-    setBulkEditData({
-      trainer: "",
-      company: "",
-      note: "",
-      lastTrainingDate: undefined,
-      keepExistingFiles: false,
-      uploadedFiles: [],
-    });
+      setBulkEditData({
+        trainer: "",
+        company: "",
+        note: "",
+        lastTrainingDate: undefined,
+        keepExistingFiles: false,
+        uploadedFiles: [],
+      });
       
-      // Znovu načíst data
-      window.location.reload();
+      refetch();
     } catch (error: any) {
       console.error("Error in bulk edit:", error);
       toast({
@@ -486,8 +393,7 @@ export default function ScheduledTrainings() {
       setSelectedTrainings(new Set());
       setDeleteDialogOpen(false);
       
-      // Znovu načíst data
-      window.location.reload();
+      refetch();
     } catch (error: any) {
       console.error("Error in bulk delete:", error);
       toast({
@@ -500,7 +406,6 @@ export default function ScheduledTrainings() {
     }
   };
 
-  // Rychlý výběr školení expirujících do X dní
   const selectExpiringTrainings = (daysAhead: number = 30) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -524,14 +429,12 @@ export default function ScheduledTrainings() {
     });
   };
 
-  // Získat detaily vybraných školení
   const selectedTrainingDetails = useMemo(() => {
     return filteredTrainings.filter(t => selectedTrainings.has(t.id));
   }, [selectedTrainings, filteredTrainings]);
 
   const exportToCSV = () => {
     try {
-      // Exportovat vybraná školení, pokud jsou nějaká vybrána, jinak všechna filtrovaná
       const trainingsToExport = selectedTrainings.size > 0
         ? filteredTrainings.filter(t => selectedTrainings.has(t.id))
         : filteredTrainings;
@@ -545,7 +448,6 @@ export default function ScheduledTrainings() {
         return;
       }
 
-      // Hlavičky CSV
       const headers = [
         "Stav",
         "Školení platné do",
@@ -562,14 +464,12 @@ export default function ScheduledTrainings() {
         "Poznámka"
       ];
 
-      // Mapování statusu na češtinu
       const statusMap = {
         valid: "Platné",
         warning: "Brzy vyprší",
         expired: "Prošlé"
       };
 
-      // Převod dat na CSV řádky
       const rows = trainingsToExport.map(training => [
         statusMap[training.status],
         new Date(training.date).toLocaleDateString("cs-CZ"),
@@ -586,7 +486,6 @@ export default function ScheduledTrainings() {
         training.note
       ]);
 
-      // Escapování hodnot pro CSV (uvozovky kolem hodnot s čárkami)
       const escapeCSV = (value: string) => {
         if (value.includes(',') || value.includes('"') || value.includes('\n')) {
           return `"${value.replace(/"/g, '""')}"`;
@@ -594,17 +493,14 @@ export default function ScheduledTrainings() {
         return value;
       };
 
-      // Vytvoření CSV obsahu
       const csvContent = [
         headers.map(escapeCSV).join(','),
         ...rows.map(row => row.map(escapeCSV).join(','))
       ].join('\n');
 
-      // Přidání BOM pro správné zobrazení českých znaků v Excelu
       const BOM = '\uFEFF';
       const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
       
-      // Stažení souboru
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       const timestamp = new Date().toISOString().split('T')[0];
@@ -615,13 +511,9 @@ export default function ScheduledTrainings() {
       link.click();
       document.body.removeChild(link);
 
-      const exportMessage = selectedTrainings.size > 0
-        ? `Exportováno ${trainingsToExport.length} vybraných školení.`
-        : `Exportováno ${trainingsToExport.length} záznamů školení.`;
-
       toast({
         title: "Export úspěšný",
-        description: exportMessage,
+        description: `Exportováno ${trainingsToExport.length} školení.`,
       });
     } catch (error) {
       toast({
@@ -649,69 +541,57 @@ export default function ScheduledTrainings() {
 
       const wb = XLSX.utils.book_new();
 
-      // Mapování statusu
       const statusMap = {
         valid: "Platne",
         warning: "Brzy vyprsi",
         expired: "Prosle"
       };
 
-      // Příprava dat
       const data = [
         ['Stav', 'Skoleni platne do', 'Typ skoleni', 'Osobni cislo', 'Jmeno', 'Provozovna', 'Stredisko', 'Datum skoleni', 'Skolitel', 'Firma', 'Zadavatel', 'Periodicita', 'Poznamka'],
-        ...trainingsToExport.map(t => {
-          return [
-            statusMap[t.status],
-            new Date(t.date).toLocaleDateString("cs-CZ"),
-            t.type,
-            t.employeeNumber,
-            t.employeeName,
-            t.facility,
-            t.department,
-            new Date(t.lastTrainingDate).toLocaleDateString("cs-CZ"),
-            t.trainer || '',
-            t.company || '',
-            t.requester || '',
-            formatPeriodicity(t.period),
-            t.note || ''
-          ];
-        })
+        ...trainingsToExport.map(t => [
+          statusMap[t.status],
+          new Date(t.date).toLocaleDateString("cs-CZ"),
+          t.type,
+          t.employeeNumber,
+          t.employeeName,
+          t.facility,
+          t.department,
+          new Date(t.lastTrainingDate).toLocaleDateString("cs-CZ"),
+          t.trainer || '',
+          t.company || '',
+          t.requester || '',
+          formatPeriodicity(t.period),
+          t.note || ''
+        ])
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(data);
       
-      // Nastavit šířky sloupců
       ws['!cols'] = [
-        { wch: 12 }, // Stav
-        { wch: 15 }, // Skoleni platne do
-        { wch: 25 }, // Typ skoleni
-        { wch: 12 }, // Osobni cislo
-        { wch: 20 }, // Jmeno
-        { wch: 40 }, // Provozovna
-        { wch: 15 }, // Stredisko
-        { wch: 15 }, // Datum skoleni
-        { wch: 20 }, // Skolitel
-        { wch: 25 }, // Firma
-        { wch: 20 }, // Zadavatel
-        { wch: 12 }, // Perioda
-        { wch: 30 }  // Poznamka
+        { wch: 12 },
+        { wch: 15 },
+        { wch: 25 },
+        { wch: 12 },
+        { wch: 20 },
+        { wch: 40 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 20 },
+        { wch: 12 },
+        { wch: 30 }
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, 'Skoleni');
 
       const timestamp = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `skoleni_export_${timestamp}.xlsx`, {
-        bookType: 'xlsx',
-        type: 'binary'
-      });
-
-      const exportMessage = selectedTrainings.size > 0
-        ? `Exportováno ${trainingsToExport.length} vybraných školení.`
-        : `Exportováno ${trainingsToExport.length} záznamů školení.`;
+      XLSX.writeFile(wb, `skoleni_export_${timestamp}.xlsx`);
 
       toast({
         title: "Export dokončen",
-        description: exportMessage,
+        description: `Exportováno ${trainingsToExport.length} školení.`,
       });
     } catch (error) {
       console.error(error);
@@ -738,34 +618,25 @@ export default function ScheduledTrainings() {
         return;
       }
 
-      const pdf = new jsPDF('l', 'mm', 'a4'); // landscape
+      const pdf = new jsPDF('l', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       let yPosition = 20;
 
-      // Nadpis
       pdf.setFontSize(18);
       pdf.text('Seznam skoleni', pageWidth / 2, yPosition, { align: 'center' });
       yPosition += 10;
 
-      // Datum generování
       pdf.setFontSize(10);
       const date = new Date().toLocaleDateString('cs-CZ');
       pdf.text(`Vygenerovano: ${date}`, pageWidth / 2, yPosition, { align: 'center' });
-      
-      if (selectedTrainings.size > 0) {
-        pdf.text(`Exportovano: ${trainingsToExport.length} vybranych skoleni`, pageWidth / 2, yPosition + 5, { align: 'center' });
-        yPosition += 10;
-      }
       yPosition += 10;
 
-      // Mapování statusu
       const statusMap = {
         valid: "Platne",
         warning: "Brzy vyprsi",
         expired: "Prosle"
       };
 
-      // Tabulka se školením
       autoTable(pdf, {
         startY: yPosition,
         head: [['Stav', 'Platne do', 'Typ', 'Cislo', 'Jmeno', 'Stredisko', 'Skolitel', 'Firma']],
@@ -804,13 +675,9 @@ export default function ScheduledTrainings() {
       const timestamp = new Date().toISOString().split('T')[0];
       pdf.save(`skoleni_export_${timestamp}.pdf`);
 
-      const exportMessage = selectedTrainings.size > 0
-        ? `Exportováno ${trainingsToExport.length} vybraných školení.`
-        : `Exportováno ${trainingsToExport.length} záznamů školení.`;
-
       toast({
         title: "Export dokončen",
-        description: exportMessage,
+        description: `Exportováno ${trainingsToExport.length} školení.`,
       });
     } catch (error) {
       console.error(error);
@@ -821,6 +688,15 @@ export default function ScheduledTrainings() {
       });
     }
   };
+
+  if (trainingsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-2">Načítání školení...</span>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -842,580 +718,542 @@ export default function ScheduledTrainings() {
               title="Vybrat všechna školení, která vyprší do 30 dní"
             >
               <CalendarClock className="w-4 h-4 mr-2" />
-            Vybrat expirující (30 dní)
-          </Button>
-          <Button variant="outline" onClick={exportToExcel}>
-            <FileSpreadsheet className="w-4 h-4 mr-2" />
-            {selectedTrainings.size > 0 
-              ? `Export Excel (${selectedTrainings.size})`
-              : "Export Excel"
-            }
-          </Button>
-          <Button variant="outline" onClick={exportToPDF}>
-            <FileDown className="w-4 h-4 mr-2" />
-            {selectedTrainings.size > 0 
-              ? `Export PDF (${selectedTrainings.size})`
-              : "Export PDF"
-            }
-          </Button>
-          <Button onClick={() => navigate("/new-training")}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nové školení
-          </Button>
+              Vybrat expirující (30 dní)
+            </Button>
+            <Button variant="outline" onClick={exportToExcel}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              {selectedTrainings.size > 0 
+                ? `Export Excel (${selectedTrainings.size})`
+                : "Export Excel"
+              }
+            </Button>
+            <Button variant="outline" onClick={exportToPDF}>
+              <FileDown className="w-4 h-4 mr-2" />
+              {selectedTrainings.size > 0 
+                ? `Export PDF (${selectedTrainings.size})`
+                : "Export PDF"
+              }
+            </Button>
+            <Button onClick={() => navigate("/new-training")}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nové školení
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Hromadné akce */}
-      {selectedTrainings.size > 0 && (
-        <Card className="p-4 bg-primary/5 border-primary/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <p className="text-sm font-medium">
-                Vybráno {selectedTrainings.size} {selectedTrainings.size === 1 ? "školení" : "školení"}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedTrainings(new Set())}
-              >
-                Zrušit výběr
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Dialog open={bulkEditDialogOpen} onOpenChange={setBulkEditDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="default" size="sm" onClick={handleBulkEdit}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Hromadná úprava
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Hromadná úprava školení</DialogTitle>
-                    <DialogDescription>
-                      Změny budou aplikovány na {selectedTrainings.size} {selectedTrainings.size === 1 ? "školení" : "školení"}.
-                      Prázdná pole zůstanou beze změny.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Datum posledního školení</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !bulkEditData.lastTrainingDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarClock className="mr-2 h-4 w-4" />
-                            {bulkEditData.lastTrainingDate ? (
-                              format(bulkEditData.lastTrainingDate, "d. MMMM yyyy", { locale: cs })
-                            ) : (
-                              <span>Vyberte datum (ponechat prázdné pro beze změny)</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={bulkEditData.lastTrainingDate}
-                            onSelect={(date) =>
-                              setBulkEditData({ ...bulkEditData, lastTrainingDate: date })
-                            }
-                            initialFocus
-                            className={cn("p-3 pointer-events-auto")}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <p className="text-xs text-muted-foreground">
-                        Datum dalšího školení se vypočítá automaticky podle periody každého školení
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label>Školitel</Label>
-                      <Input
-                        placeholder="Nový školitel (ponechat prázdné pro beze změny)"
-                        value={bulkEditData.trainer}
-                        onChange={(e) =>
-                          setBulkEditData({ ...bulkEditData, trainer: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Firma</Label>
-                      <Input
-                        placeholder="Nová firma (ponechat prázdné pro beze změny)"
-                        value={bulkEditData.company}
-                        onChange={(e) =>
-                          setBulkEditData({ ...bulkEditData, company: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Poznámka</Label>
-                      <Textarea
-                        placeholder="Nová poznámka (ponechat prázdné pro beze změny)"
-                        value={bulkEditData.note}
-                        onChange={(e) =>
-                          setBulkEditData({ ...bulkEditData, note: e.target.value })
-                        }
-                        rows={3}
-                      />
-                    </div>
-
-                    <div className="space-y-3 border-t pt-4">
-                      <Label>Soubory (PDF, dokumenty)</Label>
+        {/* Bulk actions */}
+        {selectedTrainings.size > 0 && (
+          <Card className="p-4 bg-primary/5 border-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <p className="text-sm font-medium">
+                  Vybráno {selectedTrainings.size} školení
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedTrainings(new Set())}
+                >
+                  Zrušit výběr
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Dialog open={bulkEditDialogOpen} onOpenChange={setBulkEditDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="default" size="sm" onClick={handleBulkEdit}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Hromadná úprava
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Hromadná úprava školení</DialogTitle>
+                      <DialogDescription>
+                        Změny budou aplikovány na {selectedTrainings.size} školení.
+                        Prázdná pole zůstanou beze změny.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="file"
-                            id="bulk-file-upload"
-                            multiple
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const files = Array.from(e.target.files || []);
-                            
-                            // Validace souborů
-                            const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-                            const ALLOWED_TYPES = [
-                              'application/pdf',
-                              'application/msword',
-                              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                              'image/jpeg',
-                              'image/jpg',
-                              'image/png'
-                            ];
-                            
-                            const validFiles: File[] = [];
-                            const errors: string[] = [];
-                            
-                            files.forEach(file => {
-                              // Kontrola velikosti
-                              if (file.size > MAX_FILE_SIZE) {
-                                errors.push(`${file.name}: Velikost přesahuje 10MB`);
-                                return;
+                        <Label>Datum posledního školení</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !bulkEditData.lastTrainingDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarClock className="mr-2 h-4 w-4" />
+                              {bulkEditData.lastTrainingDate ? (
+                                format(bulkEditData.lastTrainingDate, "d. MMMM yyyy", { locale: cs })
+                              ) : (
+                                <span>Vyberte datum (ponechat prázdné pro beze změny)</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={bulkEditData.lastTrainingDate}
+                              onSelect={(date) =>
+                                setBulkEditData({ ...bulkEditData, lastTrainingDate: date })
                               }
-                              
-                              // Kontrola typu
-                              const fileExtension = file.name.split('.').pop()?.toLowerCase();
-                              const isValidType = ALLOWED_TYPES.includes(file.type) ||
-                                ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'].includes(fileExtension || '');
-                              
-                              if (!isValidType) {
-                                errors.push(`${file.name}: Nepodporovaný typ souboru`);
-                                return;
-                              }
-                              
-                              validFiles.push(file);
-                            });
-                            
-                            if (errors.length > 0) {
-                              toast({
-                                title: "Některé soubory nebyly přidány",
-                                description: errors.join(', '),
-                                variant: "destructive",
-                              });
-                            }
-                            
-                            if (validFiles.length > 0) {
-                              setBulkEditData({
-                                ...bulkEditData,
-                                uploadedFiles: [...bulkEditData.uploadedFiles, ...validFiles],
-                              });
-                              
-                              toast({
-                                title: "Soubory přidány",
-                                description: `Přidáno ${validFiles.length} souborů.`,
-                              });
-                            }
-                            
-                            // Reset input
-                            e.target.value = '';
-                          }}
-                            className="hidden"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => document.getElementById("bulk-file-upload")?.click()}
-                            className="w-full"
-                          >
-                            <Upload className="w-4 h-4 mr-2" />
-                            Nahrát soubory
-                          </Button>
-                        </div>
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <p className="text-xs text-muted-foreground">
+                          Datum dalšího školení se vypočítá automaticky podle periody každého školení
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Školitel</Label>
+                        <Input
+                          placeholder="Nový školitel (ponechat prázdné pro beze změny)"
+                          value={bulkEditData.trainer}
+                          onChange={(e) =>
+                            setBulkEditData({ ...bulkEditData, trainer: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Firma</Label>
+                        <Input
+                          placeholder="Nová firma (ponechat prázdné pro beze změny)"
+                          value={bulkEditData.company}
+                          onChange={(e) =>
+                            setBulkEditData({ ...bulkEditData, company: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Poznámka</Label>
+                        <Textarea
+                          placeholder="Nová poznámka (ponechat prázdné pro beze změny)"
+                          value={bulkEditData.note}
+                          onChange={(e) =>
+                            setBulkEditData({ ...bulkEditData, note: e.target.value })
+                          }
+                          rows={3}
+                        />
+                      </div>
 
-                        {bulkEditData.uploadedFiles.length > 0 && (
-                          <div className="space-y-3 border rounded-lg p-3 bg-muted/30">
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-semibold">
-                                Vybrané soubory ({bulkEditData.uploadedFiles.length})
-                              </p>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
+                      <div className="space-y-3 border-t pt-4">
+                        <Label>Soubory (PDF, dokumenty)</Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              id="bulk-file-upload"
+                              multiple
+                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                const MAX_FILE_SIZE = 10 * 1024 * 1024;
+                                const ALLOWED_TYPES = [
+                                  'application/pdf',
+                                  'application/msword',
+                                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                  'image/jpeg',
+                                  'image/jpg',
+                                  'image/png'
+                                ];
+                                
+                                const errors: string[] = [];
+                                const validFiles: File[] = [];
+                                
+                                files.forEach(file => {
+                                  if (file.size > MAX_FILE_SIZE) {
+                                    errors.push(`${file.name}: Příliš velký soubor (max 10MB)`);
+                                    return;
+                                  }
+                                  
+                                  const fileExtension = file.name.split('.').pop()?.toLowerCase();
+                                  const isValidType = ALLOWED_TYPES.includes(file.type) ||
+                                    ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'].includes(fileExtension || '');
+                                  
+                                  if (!isValidType) {
+                                    errors.push(`${file.name}: Nepodporovaný typ souboru`);
+                                    return;
+                                  }
+                                  
+                                  validFiles.push(file);
+                                });
+                                
+                                if (errors.length > 0) {
+                                  toast({
+                                    title: "Některé soubory nebyly přidány",
+                                    description: errors.join(', '),
+                                    variant: "destructive",
+                                  });
+                                }
+                                
+                                if (validFiles.length > 0) {
                                   setBulkEditData({
                                     ...bulkEditData,
-                                    uploadedFiles: [],
+                                    uploadedFiles: [...bulkEditData.uploadedFiles, ...validFiles],
                                   });
-                                }}
-                                className="h-7 text-xs"
-                              >
-                                Odebrat vše
-                              </Button>
-                            </div>
-                            <div className="space-y-2 max-h-64 overflow-y-auto">
-                              {bulkEditData.uploadedFiles.map((file, idx) => (
-                                <div
-                                  key={idx}
-                                  className="flex items-center gap-3 p-3 bg-background rounded-md border hover:border-primary/50 transition-colors"
+                                }
+                                
+                                e.target.value = '';
+                              }}
+                              className="hidden"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => document.getElementById("bulk-file-upload")?.click()}
+                              className="w-full"
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              Nahrát soubory
+                            </Button>
+                          </div>
+
+                          {bulkEditData.uploadedFiles.length > 0 && (
+                            <div className="space-y-3 border rounded-lg p-3 bg-muted/30">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-semibold">
+                                  Vybrané soubory ({bulkEditData.uploadedFiles.length})
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setBulkEditData({
+                                      ...bulkEditData,
+                                      uploadedFiles: [],
+                                    });
+                                  }}
+                                  className="h-7 text-xs"
                                 >
-                                  <div className="flex-shrink-0">
-                                    {getFileIcon(file.name)}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate" title={file.name}>
-                                      {file.name}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-xs text-muted-foreground">
-                                        {formatFileSize(file.size)}
-                                      </span>
-                                      <span className="text-xs text-muted-foreground">•</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {file.type || 'Neznámý typ'}
-                                      </span>
+                                  Odebrat vše
+                                </Button>
+                              </div>
+                              <div className="space-y-2 max-h-64 overflow-y-auto">
+                                {bulkEditData.uploadedFiles.map((file, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex items-center gap-3 p-3 bg-background rounded-md border hover:border-primary/50 transition-colors"
+                                  >
+                                    <div className="flex-shrink-0">
+                                      {getFileIcon(file.name)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium truncate" title={file.name}>
+                                        {file.name}
+                                      </p>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-xs text-muted-foreground">
+                                          {formatFileSize(file.size)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-1 flex-shrink-0">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => setPreviewFile(file)}
+                                        title="Náhled"
+                                      >
+                                        <Eye className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => {
+                                          const newFiles = [...bulkEditData.uploadedFiles];
+                                          newFiles.splice(idx, 1);
+                                          setBulkEditData({
+                                            ...bulkEditData,
+                                            uploadedFiles: newFiles,
+                                          });
+                                        }}
+                                        title="Odebrat"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </Button>
                                     </div>
                                   </div>
-                                  <div className="flex gap-1 flex-shrink-0">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={() => setPreviewFile(file)}
-                                      title="Náhled"
-                                    >
-                                      <Eye className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={() => {
-                                        const newFiles = [...bulkEditData.uploadedFiles];
-                                        newFiles.splice(idx, 1);
-                                        setBulkEditData({
-                                          ...bulkEditData,
-                                          uploadedFiles: newFiles,
-                                        });
-                                      }}
-                                      title="Odebrat"
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                                ))}
+                              </div>
 
-                            <div className="flex items-start space-x-2 pt-2 border-t">
-                              <Checkbox
-                                id="replace-files"
-                                checked={bulkEditData.keepExistingFiles}
-                                onCheckedChange={(checked) =>
-                                  setBulkEditData({
-                                    ...bulkEditData,
-                                    keepExistingFiles: checked as boolean,
-                                  })
-                                }
-                                className="mt-0.5"
-                              />
-                              <div className="space-y-1">
-                                <Label
-                                  htmlFor="replace-files"
-                                  className="text-sm font-medium cursor-pointer leading-none"
-                                >
-                                  Ponechat původní a nahrát nové k nim
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                  Pokud není zaškrtnuto, původní soubory budou nahrazeny novými
-                                </p>
+                              <div className="flex items-start space-x-2 pt-2 border-t">
+                                <Checkbox
+                                  id="replace-files"
+                                  checked={bulkEditData.keepExistingFiles}
+                                  onCheckedChange={(checked) =>
+                                    setBulkEditData({
+                                      ...bulkEditData,
+                                      keepExistingFiles: checked as boolean,
+                                    })
+                                  }
+                                  className="mt-0.5"
+                                />
+                                <div className="space-y-1">
+                                  <Label
+                                    htmlFor="replace-files"
+                                    className="text-sm font-medium cursor-pointer leading-none"
+                                  >
+                                    Ponechat původní a nahrát nové k nim
+                                  </Label>
+                                  <p className="text-xs text-muted-foreground">
+                                    Pokud není zaškrtnuto, původní soubory budou nahrazeny novými
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
-                        
-                        {isUploading && (
-                          <div className="space-y-2 border-t pt-4">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">Nahrávání souborů...</span>
-                              <span className="font-medium">{uploadProgress}%</span>
+                          )}
+                          
+                          {isUploading && (
+                            <div className="space-y-2 border-t pt-4">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Nahrávání souborů...</span>
+                                <span className="font-medium">{uploadProgress}%</span>
+                              </div>
+                              <Progress value={uploadProgress} className="h-2" />
                             </div>
-                            <Progress value={uploadProgress} className="h-2" />
-                          </div>
+                          )}
+                          
+                          <p className="text-xs text-muted-foreground">
+                            Soubory budou nahrány ke všem vybraným školením
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setBulkEditDialogOpen(false);
+                          setBulkEditData({ 
+                            trainer: "", 
+                            company: "", 
+                            note: "",
+                            lastTrainingDate: undefined,
+                            keepExistingFiles: false,
+                            uploadedFiles: [],
+                          });
+                        }}
+                        disabled={loading || isUploading}
+                      >
+                        Zrušit
+                      </Button>
+                      <Button onClick={applyBulkEdit} disabled={loading || isUploading}>
+                        {isUploading ? (
+                          <>
+                            <Upload className="w-4 h-4 mr-2 animate-bounce" />
+                            Nahrávání... {uploadProgress}%
+                          </>
+                        ) : loading ? (
+                          "Ukládám..."
+                        ) : (
+                          "Aplikovat změny"
                         )}
-                        
-                        <p className="text-xs text-muted-foreground">
-                          Soubory budou nahrány ke všem vybraným školením
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Smazat vybrané
+                  </Button>
+                  <AlertDialogContent className="max-w-2xl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Potvrzení smazání školení</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Opravdu chcete smazat následující školení? Tato akce je nevratná.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="max-h-96 overflow-y-auto">
+                      <div className="space-y-3 py-4">
+                        <div className="grid grid-cols-4 gap-2 text-xs font-medium text-muted-foreground border-b pb-2">
+                          <div>Zaměstnanec</div>
+                          <div>Typ školení</div>
+                          <div>Datum</div>
+                          <div>Stav</div>
+                        </div>
+                        {selectedTrainingDetails.map((training) => (
+                          <div key={training.id} className="grid grid-cols-4 gap-2 text-sm border-b pb-2">
+                            <div className="font-medium">
+                              {training.employeeName}
+                              <span className="text-xs text-muted-foreground block">
+                                {training.employeeNumber}
+                              </span>
+                            </div>
+                            <div>{training.type}</div>
+                            <div className="text-xs">
+                              {new Date(training.date).toLocaleDateString("cs-CZ")}
+                            </div>
+                            <div>
+                              <StatusBadge status={training.status} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                        <p className="text-sm font-medium text-destructive">
+                          Celkem bude smazáno: {selectedTrainings.size} školení
                         </p>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setBulkEditDialogOpen(false);
-                        setBulkEditData({ 
-                          trainer: "", 
-                          company: "", 
-                          note: "",
-                          lastTrainingDate: undefined,
-                          keepExistingFiles: false,
-                          uploadedFiles: [],
-                        });
-                      }}
-                      disabled={loading || isUploading}
-                    >
-                      Zrušit
-                    </Button>
-                    <Button onClick={applyBulkEdit} disabled={loading || isUploading}>
-                      {isUploading ? (
-                        <>
-                          <Upload className="w-4 h-4 mr-2 animate-bounce" />
-                          Nahrávání... {uploadProgress}%
-                        </>
-                      ) : loading ? (
-                        "Ukládám..."
-                      ) : (
-                        "Aplikovat změny"
-                      )}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-              <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Smazat vybrané
-                </Button>
-                <AlertDialogContent className="max-w-2xl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Potvrzení smazání školení</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Opravdu chcete smazat následující školení? Tato akce je nevratná.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <div className="max-h-96 overflow-y-auto">
-                    <div className="space-y-3 py-4">
-                      <div className="grid grid-cols-4 gap-2 text-xs font-medium text-muted-foreground border-b pb-2">
-                        <div>Zaměstnanec</div>
-                        <div>Typ školení</div>
-                        <div>Datum</div>
-                        <div>Stav</div>
-                      </div>
-                      {selectedTrainingDetails.map((training) => (
-                        <div key={training.id} className="grid grid-cols-4 gap-2 text-sm border-b pb-2">
-                          <div className="font-medium">
-                            {training.employeeName}
-                            <span className="text-xs text-muted-foreground block">
-                              {training.employeeNumber}
-                            </span>
-                          </div>
-                          <div>{training.type}</div>
-                          <div className="text-xs">
-                            {new Date(training.date).toLocaleDateString("cs-CZ")}
-                          </div>
-                          <div>
-                            <StatusBadge status={training.status} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                      <p className="text-sm font-medium text-destructive">
-                        Celkem bude smazáno: {selectedTrainings.size} {selectedTrainings.size === 1 ? "školení" : "školení"}
-                      </p>
-                      <ul className="mt-2 text-xs text-muted-foreground space-y-1">
-                        <li>• Všechna data o školení budou trvale odstraněna</li>
-                        <li>• Nahrané dokumenty zůstanou zachovány</li>
-                        <li>• Historie školení bude aktualizována</li>
-                      </ul>
-                    </div>
-                  </div>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={confirmBulkDelete}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Smazat {selectedTrainings.size} {selectedTrainings.size === 1 ? "školení" : "školení"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={confirmBulkDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Smazat {selectedTrainings.size} školení
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
+          </Card>
+        )}
+
+        {/* Advanced filters */}
+        <AdvancedFilters
+          filters={filters}
+          onFilterChange={updateFilter}
+          onClearFilters={clearFilters}
+          onSaveFilters={saveCurrentFilters}
+          onLoadFilter={loadSavedFilter}
+          onDeleteFilter={deleteSavedFilter}
+          savedFilters={savedFilters}
+          hasActiveFilters={hasActiveFilters}
+          departments={departments}
+          trainingTypes={trainingTypes}
+          trainers={trainers}
+          resultCount={filteredTrainings.length}
+          totalCount={trainings.length}
+        />
+
+        <Card className="p-6">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        filteredTrainings.length > 0 &&
+                        selectedTrainings.size === filteredTrainings.length
+                      }
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead>Stav</TableHead>
+                  <TableHead>Školení platné do</TableHead>
+                  <TableHead>Typ školení</TableHead>
+                  <TableHead>Osobní číslo</TableHead>
+                  <TableHead>Jméno</TableHead>
+                  <TableHead>Provozovna</TableHead>
+                  <TableHead>Středisko</TableHead>
+                  <TableHead>Datum školení</TableHead>
+                  <TableHead>Školitel</TableHead>
+                  <TableHead>Firma</TableHead>
+                  <TableHead>Zadavatel</TableHead>
+                  <TableHead>Periodicita</TableHead>
+                  <TableHead>Poznámka</TableHead>
+                  <TableHead className="text-center">Aktuální protokol</TableHead>
+                  <TableHead className="text-right">Akce</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTrainings.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
+                      Žádná školení nenalezena
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredTrainings.map((training) => (
+                    <TableRow key={training.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedTrainings.has(training.id)}
+                          onCheckedChange={() => toggleSelectTraining(training.id)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={training.status} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {new Date(training.date).toLocaleDateString("cs-CZ")}
+                      </TableCell>
+                      <TableCell className="font-medium">{training.type}</TableCell>
+                      <TableCell>{training.employeeNumber}</TableCell>
+                      <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
+                      <TableCell className="max-w-xs truncate" title={training.facility}>
+                        {training.facility}
+                      </TableCell>
+                      <TableCell>{training.department}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ")}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
+                      <TableCell className="whitespace-nowrap">{training.company}</TableCell>
+                      <TableCell className="whitespace-nowrap">{training.requester}</TableCell>
+                      <TableCell className="text-center">
+                        {formatPeriodicity(training.period)}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate" title={training.note}>
+                        {training.note || "-"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <TrainingProtocolCell trainingId={training.id} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/edit-training/${training.id}`)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
         </Card>
-      )}
 
-      {/* Pokročilé filtry */}
-      <AdvancedFilters
-        filters={filters}
-        onFilterChange={updateFilter}
-        onClearFilters={clearFilters}
-        onSaveFilters={saveCurrentFilters}
-        onLoadFilter={loadSavedFilter}
-        onDeleteFilter={deleteSavedFilter}
-        savedFilters={savedFilters}
-        hasActiveFilters={hasActiveFilters}
-        departments={departments}
-        trainingTypes={trainingTypes}
-        trainers={trainers}
-        resultCount={filteredTrainings.length}
-        totalCount={mockTrainings.length}
-      />
-
-      <Card className="p-6">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={
-                      filteredTrainings.length > 0 &&
-                      selectedTrainings.size === filteredTrainings.length
-                    }
-                    onCheckedChange={toggleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Stav</TableHead>
-                <TableHead>Školení platné do</TableHead>
-                <TableHead>Typ školení</TableHead>
-                <TableHead>Osobní číslo</TableHead>
-                <TableHead>Jméno</TableHead>
-                <TableHead>Provozovna</TableHead>
-                <TableHead>Středisko</TableHead>
-                <TableHead>Datum školení</TableHead>
-                <TableHead>Školitel</TableHead>
-                <TableHead>Firma</TableHead>
-                <TableHead>Zadavatel</TableHead>
-                <TableHead>Periodicita</TableHead>
-                <TableHead>Poznámka</TableHead>
-                <TableHead className="text-center">Aktuální protokol</TableHead>
-                <TableHead className="text-right">Akce</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTrainings.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
-                    Žádná školení nenalezena
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredTrainings.map((training) => (
-                <TableRow key={training.id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedTrainings.has(training.id)}
-                      onCheckedChange={() => toggleSelectTraining(training.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={training.status} />
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {new Date(training.date).toLocaleDateString("cs-CZ")}
-                  </TableCell>
-                  <TableCell className="font-medium">{training.type}</TableCell>
-                  <TableCell>{training.employeeNumber}</TableCell>
-                  <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
-                  <TableCell className="max-w-xs truncate" title={training.facility}>
-                    {training.facility}
-                  </TableCell>
-                  <TableCell>{training.department}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ")}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
-                  <TableCell className="whitespace-nowrap">{training.company}</TableCell>
-                  <TableCell className="whitespace-nowrap">{training.requester}</TableCell>
-                  <TableCell className="text-center">
-                    {(() => {
-                      if (training.period % 365 === 0) {
-                        const years = Math.round(training.period / 365);
-                        const yearWord = years === 1 ? "rok" : years < 5 ? "roky" : "roků";
-                        const prefix = years === 1 ? "každý" : years < 5 ? "každé" : "každých";
-                        return `${prefix} ${years} ${yearWord}`;
-                      } else if (training.period % 30 === 0) {
-                        const months = Math.round(training.period / 30);
-                        const monthWord = months === 1 ? "měsíc" : months < 5 ? "měsíce" : "měsíců";
-                        const prefix = months === 1 ? "každý" : months < 5 ? "každé" : "každých";
-                        return `${prefix} ${months} ${monthWord}`;
-                      } else {
-                        const days = training.period;
-                        const dayWord = days === 1 ? "den" : days < 5 ? "dny" : "dní";
-                        const prefix = days === 1 ? "každý" : days < 5 ? "každé" : "každých";
-                        return `${prefix} ${days} ${dayWord}`;
-                      }
-                    })()}
-                  </TableCell>
-                  <TableCell className="max-w-xs truncate" title={training.note}>
-                    {training.note}
-                  </TableCell>
-                  <TableCell>
-                    <TrainingProtocolCell trainingId={training.id} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => navigate(`/edit-training/${training.id}`)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
-
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-status-valid" />
-          <span>Platné školení (v termínu)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-status-warning" />
-          <span>Brzy vyprší (méně než měsíc)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-status-expired" />
-          <span>Prošlé (po datu platnosti)</span>
+        {/* Legend */}
+        <div className="flex items-center gap-6 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-3 h-3 rounded-full bg-green-500" />
+            <span>Platné školení</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-3 h-3 rounded-full bg-orange-500" />
+            <span>Školení brzy vyprší (do 30 dní)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-3 h-3 rounded-full bg-red-500" />
+            <span>Prošlé školení</span>
+          </div>
         </div>
       </div>
-    </div>
     </>
   );
 }
