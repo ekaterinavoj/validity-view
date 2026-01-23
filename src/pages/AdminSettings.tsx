@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History } from "lucide-react";
+import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus } from "lucide-react";
 import { RolePermissionsInfo } from "@/components/RolePermissionsInfo";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
 import { SendSingleTestEmail } from "@/components/SendSingleTestEmail";
@@ -23,6 +23,9 @@ import { EmailHistory } from "@/components/EmailHistory";
 import { EmailTemplatePreview } from "@/components/EmailTemplatePreview";
 import { NextSendPreview } from "@/components/NextSendPreview";
 import { UserManagementPanel } from "@/components/UserManagementPanel";
+import { OnboardingSettings } from "@/components/OnboardingSettings";
+import { PendingUsersPanel } from "@/components/PendingUsersPanel";
+import { UserInvitePanel } from "@/components/UserInvitePanel";
 
 interface SystemSetting {
   id: string;
@@ -370,8 +373,12 @@ export default function AdminSettings() {
         </Button>
       </div>
 
-      <Tabs defaultValue="reminders" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+      <Tabs defaultValue="onboarding" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="onboarding" className="flex items-center gap-2">
+            <UserPlus className="w-4 h-4" />
+            Onboarding
+          </TabsTrigger>
           <TabsTrigger value="reminders" className="flex items-center gap-2">
             <Clock className="w-4 h-4" />
             Připomínky
@@ -393,6 +400,13 @@ export default function AdminSettings() {
             Data
           </TabsTrigger>
         </TabsList>
+
+        {/* Onboarding Tab */}
+        <TabsContent value="onboarding" className="space-y-6">
+          <OnboardingSettings />
+          <PendingUsersPanel />
+          <UserInvitePanel />
+        </TabsContent>
 
         {/* Reminders Tab */}
         <TabsContent value="reminders" className="space-y-6">

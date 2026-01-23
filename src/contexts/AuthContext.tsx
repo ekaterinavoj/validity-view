@@ -10,6 +10,7 @@ interface Profile {
   email: string;
   position?: string;
   department_id?: string;
+  approval_status?: string;
 }
 
 type UserRole = "admin" | "manager" | "user";
@@ -20,6 +21,8 @@ interface AuthContextType {
   profile: Profile | null;
   roles: UserRole[];
   loading: boolean;
+  isPending: boolean;
+  isApproved: boolean;
   hasRole: (role: UserRole) => boolean;
   isAdmin: boolean;
   isManager: boolean;
@@ -82,6 +85,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isAdmin = roles.includes("admin");
   const isManager = roles.includes("manager");
+  const isPending = profile?.approval_status === 'pending';
+  const isApproved = profile?.approval_status === 'approved';
 
   const refreshProfile = async () => {
     if (user?.id) {
@@ -206,6 +211,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         profile,
         roles,
         loading,
+        isPending,
+        isApproved,
         hasRole,
         isAdmin,
         isManager,
