@@ -66,6 +66,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const loadRoles = async (userId: string): Promise<UserRole[]> => {
+    // IMPORTANT: roles are fetched async; never let rolesLoaded stay false forever.
+    setRolesLoaded(false);
     try {
       const { data, error } = await supabase
         .from("user_roles")
@@ -83,19 +85,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error loading roles:", error);
       return [];
+    } finally {
+      setRolesLoaded(true);
     }
   };
 
   const loadUserData = async (userId: string) => {
-    setRolesLoaded(false);
-    try {
-      await Promise.all([
-        loadProfile(userId),
-        loadRoles(userId)
-      ]);
-    } finally {
-      setRolesLoaded(true);
-    }
+    await Promise.all([loadProfile(userId), loadRoles(userId)]);
   };
 
   const hasRole = (role: UserRole): boolean => {
