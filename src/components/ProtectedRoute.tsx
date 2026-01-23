@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Clock, AlertTriangle, LogOut, ShieldX } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Layout } from "./Layout";
 
 type RequiredRole = "admin" | "manager" | "user";
 
@@ -122,32 +123,34 @@ export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps)
     
     if (!hasRequiredRole) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-destructive/5 p-4">
-          <Card className="w-full max-w-md border-destructive/20">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
-                <ShieldX className="w-8 h-8 text-destructive" />
-              </div>
-              <CardTitle className="text-xl">Nedostatečná oprávnění</CardTitle>
-              <CardDescription className="text-base">
-                Nemáte oprávnění k přístupu na tuto stránku
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground text-center">
-                Tato stránka vyžaduje vyšší úroveň oprávnění. Kontaktujte administrátora, pokud potřebujete přístup.
-              </p>
+        <Layout>
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <Card className="w-full max-w-md border-destructive/20">
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <ShieldX className="w-8 h-8 text-destructive" />
+                </div>
+                <CardTitle className="text-xl">Nedostatečná oprávnění</CardTitle>
+                <CardDescription className="text-base">
+                  Nemáte oprávnění k přístupu na tuto stránku
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground text-center">
+                  Tato stránka vyžaduje vyšší úroveň oprávnění. Kontaktujte administrátora, pokud potřebujete přístup.
+                </p>
 
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => window.history.back()}
-              >
-                Zpět
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => window.history.back()}
+                >
+                  Zpět
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </Layout>
       );
     }
   }

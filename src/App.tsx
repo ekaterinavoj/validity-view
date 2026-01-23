@@ -25,6 +25,12 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
+const ProtectedLayout = ({ children, requiredRoles }: { children: React.ReactNode; requiredRoles?: Array<"admin" | "manager" | "user"> }) => (
+  <ProtectedRoute requiredRoles={requiredRoles}>
+    <Layout>{children}</Layout>
+  </ProtectedRoute>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -35,150 +41,24 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             {/* Primary navigation - accessible to all approved users */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <ScheduledTrainings />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/history"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <History />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/new-training"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <NewTraining />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/edit-training/:id"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <EditTraining />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/statistics"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Statistics />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/" element={<ProtectedLayout><ScheduledTrainings /></ProtectedLayout>} />
+            <Route path="/history" element={<ProtectedLayout><History /></ProtectedLayout>} />
+            <Route path="/new-training" element={<ProtectedLayout><NewTraining /></ProtectedLayout>} />
+            <Route path="/edit-training/:id" element={<ProtectedLayout><EditTraining /></ProtectedLayout>} />
+            <Route path="/statistics" element={<ProtectedLayout><Statistics /></ProtectedLayout>} />
             {/* Ostatní dropdown routes - accessible to all approved users */}
-            <Route
-              path="/employees"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Employees />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/training-types"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <TrainingTypes />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/departments"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Departments />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/inactive"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <InactiveEmployeesReport />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/employees" element={<ProtectedLayout><Employees /></ProtectedLayout>} />
+            <Route path="/training-types" element={<ProtectedLayout><TrainingTypes /></ProtectedLayout>} />
+            <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
+            <Route path="/inactive" element={<ProtectedLayout><InactiveEmployeesReport /></ProtectedLayout>} />
             {/* Audit log - admin and manager only */}
-            <Route
-              path="/audit-log"
-              element={
-                <ProtectedRoute requiredRoles={["admin", "manager"]}>
-                  <Layout>
-                    <AuditLog />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/audit-log" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><AuditLog /></ProtectedLayout>} />
             {/* Profile - all approved users */}
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Profile />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/profile" element={<ProtectedLayout><Profile /></ProtectedLayout>} />
             {/* Admin-only routes */}
-            <Route
-              path="/admin/settings"
-              element={
-                <ProtectedRoute requiredRoles={["admin"]}>
-                  <Layout>
-                    <AdminSettings />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/status"
-              element={
-                <ProtectedRoute requiredRoles={["admin"]}>
-                  <Layout>
-                    <SystemStatus />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/user-management"
-              element={
-                <ProtectedRoute requiredRoles={["admin"]}>
-                  <Layout>
-                    <UserManagement />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/admin/settings" element={<ProtectedLayout requiredRoles={["admin"]}><AdminSettings /></ProtectedLayout>} />
+            <Route path="/admin/status" element={<ProtectedLayout requiredRoles={["admin"]}><SystemStatus /></ProtectedLayout>} />
+            <Route path="/user-management" element={<ProtectedLayout requiredRoles={["admin"]}><UserManagement /></ProtectedLayout>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
