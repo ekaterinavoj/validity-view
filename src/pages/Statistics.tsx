@@ -1,234 +1,174 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Training } from "@/types/training";
-import { Calendar, CheckCircle, XCircle, Clock, Activity, FileDown, FileSpreadsheet, TrendingUp, Users } from "lucide-react";
+import { Calendar, CheckCircle, XCircle, Clock, Activity, FileDown, FileSpreadsheet, TrendingUp, Users, AlertTriangle, Loader2 } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, PieChart, Pie, Cell } from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { EmailDeliveryStats } from "@/components/EmailDeliveryStats";
-
-// Mock data
-const mockTrainings: Training[] = [
-  {
-    id: "1",
-    status: "valid",
-    date: "2025-12-15",
-    type: "BOZP - Základní",
-    employeeNumber: "12345",
-    employeeName: "Jan Novák",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Výroba",
-    lastTrainingDate: "2024-12-15",
-    trainer: "Petr Svoboda",
-    company: "BOZP Servis s.r.o.",
-    requester: "Marie Procházková",
-    period: 365,
-    reminderTemplate: "Standardní",
-    calendar: "Ano",
-    note: "Pravidelné školení",
-    is_active: true,
-  },
-  {
-    id: "2",
-    status: "warning",
-    date: "2025-01-20",
-    type: "Práce ve výškách",
-    employeeNumber: "12346",
-    employeeName: "Petr Dvořák",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Údržba",
-    lastTrainingDate: "2023-01-20",
-    trainer: "Tomáš Černý",
-    company: "Výškové práce s.r.o.",
-    requester: "Marie Procházková",
-    period: 730,
-    reminderTemplate: "Urgentní",
-    calendar: "Ano",
-    note: "Prodloužená perioda",
-    is_active: true,
-  },
-  {
-    id: "3",
-    status: "expired",
-    date: "2024-11-01",
-    type: "Řidičský průkaz VZV",
-    employeeNumber: "12347",
-    employeeName: "Jana Svobodová",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Logistika",
-    lastTrainingDate: "2019-11-01",
-    trainer: "Jiří Malý",
-    company: "VZV Školení s.r.o.",
-    requester: "Marie Procházková",
-    period: 1825,
-    reminderTemplate: "Standardní",
-    calendar: "Ne",
-    note: "Nutné obnovit",
-    is_active: true,
-  },
-  {
-    id: "4",
-    status: "valid",
-    date: "2025-06-10",
-    type: "BOZP - Základní",
-    employeeNumber: "12348",
-    employeeName: "Martin Kučera",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Výroba",
-    lastTrainingDate: "2024-06-10",
-    trainer: "Petr Svoboda",
-    company: "BOZP Servis s.r.o.",
-    requester: "Marie Procházková",
-    period: 365,
-    reminderTemplate: "Standardní",
-    calendar: "Ano",
-    note: "",
-    is_active: true,
-  },
-  {
-    id: "5",
-    status: "warning",
-    date: "2025-01-25",
-    type: "HSE - REA/RR",
-    employeeNumber: "12349",
-    employeeName: "Eva Nováková",
-    facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3",
-    department: "Administrativa",
-    lastTrainingDate: "2024-01-25",
-    trainer: "Blanka Hodková",
-    company: "Schenck Process",
-    requester: "Marie Procházková",
-    period: 365,
-    reminderTemplate: "Urgentní",
-    calendar: "Ano",
-    note: "",
-    is_active: true,
-  },
-];
+import { useTrainings } from "@/hooks/useTrainings";
+import { useTrainingTypes } from "@/hooks/useTrainingTypes";
+import { TableSkeleton } from "@/components/LoadingSkeletons";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
 
 export default function Statistics() {
   const { toast } = useToast();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   
-  // Filtrovat pouze aktivní školení
-  const activeTrainings = mockTrainings.filter(t => t.is_active !== false);
+  // Fetch real data from database
+  const { trainings: activeTrainings, loading: trainingsLoading, error: trainingsError, refetch } = useTrainings(true);
+  const { trainings: inactiveTrainings } = useTrainings(false);
+  const { trainingTypes, loading: typesLoading } = useTrainingTypes();
   
-  // Základní statistiky školení
+  // Combine all trainings for complete statistics
+  const allTrainings = useMemo(() => [...activeTrainings, ...inactiveTrainings], [activeTrainings, inactiveTrainings]);
+  
+  // Basic training statistics - computed from real data
   const totalTrainings = activeTrainings.length;
   const validTrainings = activeTrainings.filter(t => t.status === "valid").length;
   const warningTrainings = activeTrainings.filter(t => t.status === "warning").length;
   const expiredTrainings = activeTrainings.filter(t => t.status === "expired").length;
-  const uniqueEmployees = new Set(mockTrainings.map(t => t.employeeNumber)).size;
+  const uniqueEmployees = new Set(activeTrainings.map(t => t.employeeNumber)).size;
   
-  // Školení expirující v příštích 30/60/90 dnech
-  const today = new Date();
-  const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const in60Days = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
-  const in90Days = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+  // Trainings expiring in next 30/60/90 days
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
   
-  const expiring30 = activeTrainings.filter(t => {
+  const expiring30 = useMemo(() => activeTrainings.filter(t => {
     const date = new Date(t.date);
-    return date >= today && date <= in30Days;
-  }).length;
+    date.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 30;
+  }).length, [activeTrainings, today]);
   
-  const expiring60 = activeTrainings.filter(t => {
+  const expiring60 = useMemo(() => activeTrainings.filter(t => {
     const date = new Date(t.date);
-    return date >= today && date <= in60Days;
-  }).length;
+    date.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 60;
+  }).length, [activeTrainings, today]);
   
-  const expiring90 = activeTrainings.filter(t => {
+  const expiring90 = useMemo(() => activeTrainings.filter(t => {
     const date = new Date(t.date);
-    return date >= today && date <= in90Days;
-  }).length;
+    date.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 90;
+  }).length, [activeTrainings, today]);
 
-  // Data pro trendy
-  const trendData = [
-    { month: "Červen", dokončeno: 12, naplánováno: 8 },
-    { month: "Červenec", dokončeno: 15, naplánováno: 10 },
-    { month: "Srpen", dokončeno: 8, naplánováno: 6 },
-    { month: "Září", dokončeno: 18, naplánováno: 12 },
-    { month: "Říjen", dokončeno: 14, naplánováno: 9 },
-    { month: "Listopad", dokončeno: 20, naplánováno: 15 },
-  ];
+  // Department statistics - computed from real data
+  const departmentStats = useMemo(() => {
+    return activeTrainings.reduce((acc, training) => {
+      const dept = training.department || "Nezařazeno";
+      if (!acc[dept]) {
+        acc[dept] = { valid: 0, warning: 0, expired: 0 };
+      }
+      acc[dept][training.status]++;
+      return acc;
+    }, {} as Record<string, { valid: number; warning: number; expired: number }>);
+  }, [activeTrainings]);
 
-  // Data pro bar chart - školení podle oddělení
-  const departmentStats = mockTrainings.reduce((acc, training) => {
-    const dept = training.department;
-    if (!acc[dept]) {
-      acc[dept] = { valid: 0, warning: 0, expired: 0 };
-    }
-    acc[dept][training.status]++;
-    return acc;
-  }, {} as Record<string, { valid: number; warning: number; expired: number }>);
-
-  const barData = Object.entries(departmentStats).map(([dept, stats]) => ({
-    department: dept,
+  const barData = useMemo(() => Object.entries(departmentStats).map(([dept, stats]) => ({
+    department: dept || "Nezařazeno",
     platné: stats.valid,
     "brzy vyprší": stats.warning,
     prošlé: stats.expired,
-  }));
+  })), [departmentStats]);
 
-  // Statistiky odškolených hodin
-  const monthlyData = [
-    { měsíc: "Leden", hodiny: 42, počet: 21 },
-    { měsíc: "Únor", hodiny: 38, počet: 19 },
-    { měsíc: "Březen", hodiny: 56, počet: 28 },
-    { měsíc: "Duben", hodiny: 48, počet: 24 },
-    { měsíc: "Květen", hodiny: 64, počet: 32 },
-    { měsíc: "Červen", hodiny: 52, počet: 26 },
-    { měsíc: "Červenec", hodiny: 36, počet: 18 },
-    { měsíc: "Srpen", hodiny: 40, počet: 20 },
-    { měsíc: "Září", hodiny: 72, počet: 36 },
-    { měsíc: "Říjen", hodiny: 58, počet: 29 },
-    { měsíc: "Listopad", hodiny: 66, počet: 33 },
-    { měsíc: "Prosinec", hodiny: 44, počet: 22 },
-  ];
+  // Training type statistics - computed from real data
+  const trainingTypeStats = useMemo(() => {
+    const stats = activeTrainings.reduce((acc, training) => {
+      const type = training.type || "Neznámý typ";
+      if (!acc[type]) {
+        acc[type] = { count: 0, valid: 0, warning: 0, expired: 0, period: training.period };
+      }
+      acc[type].count++;
+      acc[type][training.status]++;
+      return acc;
+    }, {} as Record<string, { count: number; valid: number; warning: number; expired: number; period: number }>);
 
-  const trainingTypeStats = [
-    { typ: "BOZP - Základní", hodiny: 84, počet: 42, prům_délka: 2 },
-    { typ: "HSE - REA/RR", hodiny: 120, počet: 30, prům_délka: 4 },
-    { typ: "Práce ve výškách", hodiny: 64, počet: 8, prům_délka: 8 },
-    { typ: "Řidičský průkaz VZV", hodiny: 96, počet: 6, prům_délka: 16 },
-    { typ: "ATEX", hodiny: 48, počet: 24, prům_délka: 2 },
-  ];
+    return Object.entries(stats).map(([typ, data]) => ({
+      typ,
+      počet: data.count,
+      platné: data.valid,
+      varování: data.warning,
+      prošlé: data.expired,
+      periodicita: data.period,
+    })).sort((a, b) => b.počet - a.počet);
+  }, [activeTrainings]);
 
-  const totalHours = monthlyData.reduce((sum, item) => sum + item.hodiny, 0);
-  const totalHoursTrainings = monthlyData.reduce((sum, item) => sum + item.počet, 0);
-  const avgHoursPerTraining = (totalHours / totalHoursTrainings).toFixed(1);
+  // Trainer statistics - computed from real data
+  const trainerStats = useMemo(() => {
+    return activeTrainings.reduce((acc, training) => {
+      const trainer = training.trainer || "Neurčeno";
+      if (!acc[trainer]) {
+        acc[trainer] = {
+          total: 0,
+          valid: 0,
+          warning: 0,
+          expired: 0,
+          employees: new Set<string>(),
+          types: new Set<string>(),
+        };
+      }
+      acc[trainer].total++;
+      acc[trainer][training.status]++;
+      acc[trainer].employees.add(training.employeeNumber);
+      acc[trainer].types.add(training.type);
+      return acc;
+    }, {} as Record<string, { total: number; valid: number; warning: number; expired: number; employees: Set<string>; types: Set<string> }>);
+  }, [activeTrainings]);
 
-  // Statistiky školitelů
-  const trainerStats = mockTrainings.reduce((acc, training) => {
-    const trainer = training.trainer;
-    if (!acc[trainer]) {
-      acc[trainer] = {
-        total: 0,
-        valid: 0,
-        expired: 0,
-        employees: new Set(),
-        types: new Set(),
-      };
-    }
-    acc[trainer].total++;
-    if (training.status === "valid") acc[trainer].valid++;
-    if (training.status === "expired") acc[trainer].expired++;
-    acc[trainer].employees.add(training.employeeNumber);
-    acc[trainer].types.add(training.type);
-    return acc;
-  }, {} as Record<string, { total: number; valid: number; expired: number; employees: Set<string>; types: Set<string> }>);
+  const trainerData = useMemo(() => Object.entries(trainerStats)
+    .map(([name, stats]) => ({
+      name,
+      total: stats.total,
+      valid: stats.valid,
+      warning: stats.warning,
+      expired: stats.expired,
+      employees: stats.employees.size,
+      types: stats.types.size,
+    }))
+    .filter(t => t.name !== "Neurčeno" || t.total > 0)
+    .sort((a, b) => b.total - a.total), [trainerStats]);
 
-  const trainerData = Object.entries(trainerStats).map(([name, stats]) => ({
-    name,
-    total: stats.total,
-    valid: stats.valid,
-    expired: stats.expired,
-    employees: stats.employees.size,
-    types: stats.types.size,
-  }));
+  // Monthly distribution - based on next_training_date
+  const monthlyDistribution = useMemo(() => {
+    const months = [
+      "Leden", "Únor", "Březen", "Duben", "Květen", "Červen",
+      "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"
+    ];
+    
+    const distribution = months.map(m => ({ měsíc: m, naplánováno: 0, prošlé: 0 }));
+    
+    activeTrainings.forEach(training => {
+      const date = new Date(training.date);
+      const year = date.getFullYear().toString();
+      if (year === selectedYear) {
+        const monthIndex = date.getMonth();
+        if (training.status === "expired") {
+          distribution[monthIndex].prošlé++;
+        } else {
+          distribution[monthIndex].naplánováno++;
+        }
+      }
+    });
+    
+    return distribution;
+  }, [activeTrainings, selectedYear]);
+
+  // Pie chart data for status distribution
+  const statusPieData = useMemo(() => [
+    { name: "Platné", value: validTrainings, color: "hsl(var(--status-valid))" },
+    { name: "Brzy vyprší", value: warningTrainings, color: "hsl(var(--status-warning))" },
+    { name: "Prošlé", value: expiredTrainings, color: "hsl(var(--status-expired))" },
+  ].filter(d => d.value > 0), [validTrainings, warningTrainings, expiredTrainings]);
 
   const chartConfig = {
     valid: {
@@ -248,52 +188,52 @@ export default function Statistics() {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
 
-  // Export do Excel
+  // Export to Excel
   const exportToExcel = () => {
     try {
       const wb = XLSX.utils.book_new();
 
-      // List 1: Celkové statistiky
+      // Sheet 1: Overall statistics
       const statsData = [
         ['Statistika', 'Hodnota'],
-        ['Celkem skoleni', totalTrainings],
+        ['Celkem aktivnich skoleni', totalTrainings],
         ['Platne skoleni', validTrainings],
+        ['Brzy vyprsi', warningTrainings],
         ['Prosle skoleni', expiredTrainings],
         ['Vyprsi do 30 dni', expiring30],
         ['Vyprsi do 60 dni', expiring60],
         ['Vyprsi do 90 dni', expiring90],
-        ['Celkem hodin', totalHours],
-        ['Prumer hodin na skoleni', avgHoursPerTraining],
+        ['Unikatni zamestnanci', uniqueEmployees],
       ];
       const ws1 = XLSX.utils.aoa_to_sheet(statsData);
       ws1['!cols'] = [{ wch: 25 }, { wch: 15 }];
       XLSX.utils.book_append_sheet(wb, ws1, 'Statistiky');
 
-      // List 2: Školení podle oddělení
+      // Sheet 2: By department
       const deptData = [
-        ['Oddeleni', 'Platne', 'Prosle'],
-        ...barData.map(d => [d.department, d.platné, d.prošlé])
+        ['Oddeleni', 'Platne', 'Brzy vyprsi', 'Prosle'],
+        ...barData.map(d => [d.department, d.platné, d["brzy vyprší"], d.prošlé])
       ];
       const ws2 = XLSX.utils.aoa_to_sheet(deptData);
-      ws2['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 12 }];
+      ws2['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
       XLSX.utils.book_append_sheet(wb, ws2, 'Podle oddeleni');
 
-      // List 3: Odškolené hodiny podle typu
+      // Sheet 3: By training type
       const typeData = [
-        ['Typ skoleni', 'Hodiny', 'Pocet skoleni', 'Prumerna delka'],
-        ...trainingTypeStats.map(d => [d.typ, d.hodiny, d.počet, d.prům_délka])
+        ['Typ skoleni', 'Pocet', 'Platne', 'Varovani', 'Prosle', 'Periodicita (dni)'],
+        ...trainingTypeStats.map(d => [d.typ, d.počet, d.platné, d.varování, d.prošlé, d.periodicita])
       ];
       const ws3 = XLSX.utils.aoa_to_sheet(typeData);
-      ws3['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
+      ws3['!cols'] = [{ wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 15 }];
       XLSX.utils.book_append_sheet(wb, ws3, 'Podle typu');
 
-      // List 4: Školitelé
+      // Sheet 4: Trainers
       const trainerExportData = [
-        ['Skolitel', 'Celkem skoleni', 'Platne', 'Prosle', 'Zamestnanci', 'Typy skoleni'],
-        ...trainerData.map(d => [d.name, d.total, d.valid, d.expired, d.employees, d.types])
+        ['Skolitel', 'Celkem skoleni', 'Platne', 'Varovani', 'Prosle', 'Zamestnanci', 'Typy skoleni'],
+        ...trainerData.map(d => [d.name, d.total, d.valid, d.warning, d.expired, d.employees, d.types])
       ];
       const ws4 = XLSX.utils.aoa_to_sheet(trainerExportData);
-      ws4['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
+      ws4['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
       XLSX.utils.book_append_sheet(wb, ws4, 'Skolitele');
 
       const timestamp = new Date().toISOString().split('T')[0];
@@ -316,7 +256,7 @@ export default function Statistics() {
     }
   };
 
-  // Export do PDF
+  // Export to PDF
   const exportToPDF = async () => {
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -340,12 +280,12 @@ export default function Statistics() {
         startY: yPosition,
         head: [['Statistika', 'Hodnota']],
         body: [
-          ['Celkem skoleni', totalTrainings.toString()],
+          ['Celkem aktivnich skoleni', totalTrainings.toString()],
           ['Platne skoleni', validTrainings.toString()],
+          ['Brzy vyprsi', warningTrainings.toString()],
           ['Prosle skoleni', expiredTrainings.toString()],
           ['Vyprsi do 30 dni', expiring30.toString()],
-          ['Celkem hodin', totalHours.toString()],
-          ['Prumer hodin/skoleni', avgHoursPerTraining],
+          ['Unikatni zamestnanci', uniqueEmployees.toString()],
         ],
         theme: 'striped',
         headStyles: { fillColor: [66, 66, 66] },
@@ -360,10 +300,11 @@ export default function Statistics() {
 
       autoTable(pdf, {
         startY: yPosition,
-        head: [['Oddeleni', 'Platne', 'Prosle']],
+        head: [['Oddeleni', 'Platne', 'Brzy vyprsi', 'Prosle']],
         body: barData.map(d => [
           d.department,
           d.platné.toString(),
+          d["brzy vyprší"].toString(),
           d.prošlé.toString()
         ]),
         theme: 'striped',
@@ -387,6 +328,33 @@ export default function Statistics() {
       });
     }
   };
+
+  // Loading state
+  if (trainingsLoading || typesLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold text-foreground">Statistika</h2>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 text-muted-foreground">Načítám statistiky...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (trainingsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold text-foreground">Statistika</h2>
+        </div>
+        <ErrorDisplay message={trainingsError} onRetry={refetch} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -414,296 +382,309 @@ export default function Statistics() {
         </div>
       </div>
 
-      {/* Statistiky */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <Calendar className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Celkem školení</p>
-              <p className="text-2xl font-bold">{totalTrainings}</p>
-            </div>
+      {/* Empty state */}
+      {totalTrainings === 0 && (
+        <Card className="p-8">
+          <div className="flex flex-col items-center justify-center text-center">
+            <AlertTriangle className="w-12 h-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Žádná data k zobrazení</h3>
+            <p className="text-muted-foreground">
+              Zatím nejsou k dispozici žádná aktivní školení. Přidejte školení pro zobrazení statistik.
+            </p>
           </div>
         </Card>
+      )}
 
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-status-valid/10 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-status-valid" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Platné školení</p>
-              <p className="text-2xl font-bold">{validTrainings}</p>
-            </div>
+      {/* Statistics cards */}
+      {totalTrainings > 0 && (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Calendar className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Celkem aktivních školení</p>
+                  <p className="text-2xl font-bold">{totalTrainings}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-status-valid/10 rounded-lg">
+                  <CheckCircle className="w-6 h-6 text-status-valid" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Platné školení</p>
+                  <p className="text-2xl font-bold">{validTrainings}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-status-warning/10 rounded-lg">
+                  <AlertTriangle className="w-6 h-6 text-status-warning" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Brzy vyprší</p>
+                  <p className="text-2xl font-bold">{warningTrainings}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-status-expired/10 rounded-lg">
+                  <XCircle className="w-6 h-6 text-status-expired" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Prošlé školení</p>
+                  <p className="text-2xl font-bold">{expiredTrainings}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-orange-500/10 rounded-lg">
+                  <Clock className="w-6 h-6 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Vyprší do 30 dní</p>
+                  <p className="text-2xl font-bold">{expiring30}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-yellow-500/10 rounded-lg">
+                  <Clock className="w-6 h-6 text-yellow-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Vyprší do 60 dní</p>
+                  <p className="text-2xl font-bold">{expiring60}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-500/10 rounded-lg">
+                  <Activity className="w-6 h-6 text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Vyprší do 90 dní</p>
+                  <p className="text-2xl font-bold">{expiring90}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-500/10 rounded-lg">
+                  <Users className="w-6 h-6 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Unikátní zaměstnanci</p>
+                  <p className="text-2xl font-bold">{uniqueEmployees}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-teal-500/10 rounded-lg">
+                  <TrendingUp className="w-6 h-6 text-teal-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Typy školení</p>
+                  <p className="text-2xl font-bold">{trainingTypeStats.length}</p>
+                </div>
+              </div>
+            </Card>
           </div>
-        </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-status-expired/10 rounded-lg">
-              <XCircle className="w-6 h-6 text-status-expired" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Prošlé školení</p>
-              <p className="text-2xl font-bold">{expiredTrainings}</p>
-            </div>
+          {/* Charts */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Bar Chart - By department */}
+            {barData.length > 0 && (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Školení podle oddělení</h3>
+                <ChartContainer config={chartConfig} className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={barData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis 
+                        dataKey="department" 
+                        stroke="hsl(var(--foreground))"
+                        fontSize={12}
+                      />
+                      <YAxis stroke="hsl(var(--foreground))" />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="platné" fill="hsl(var(--status-valid))" />
+                      <Bar dataKey="brzy vyprší" fill="hsl(var(--status-warning))" />
+                      <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </Card>
+            )}
+
+            {/* Pie Chart - Status distribution */}
+            {statusPieData.length > 0 && (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Rozdělení podle stavu</h3>
+                <ChartContainer config={chartConfig} className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={statusPieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {statusPieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </Card>
+            )}
+
+            {/* Monthly distribution */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Měsíční přehled ({selectedYear})</h3>
+              <ChartContainer config={{
+                naplánováno: { label: "Aktivní", color: "hsl(var(--chart-1))" },
+                prošlé: { label: "Prošlé", color: "hsl(var(--status-expired))" },
+              }} className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyDistribution}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="měsíc" 
+                      stroke="hsl(var(--foreground))"
+                      fontSize={11}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis stroke="hsl(var(--foreground))" />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Legend />
+                    <Bar dataKey="naplánováno" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </Card>
+
+            {/* Training types trend */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Top typy školení</h3>
+              <ChartContainer config={{
+                počet: { label: "Počet školení", color: "hsl(var(--chart-2))" },
+              }} className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={trainingTypeStats.slice(0, 8)} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" stroke="hsl(var(--foreground))" />
+                    <YAxis 
+                      dataKey="typ" 
+                      type="category"
+                      stroke="hsl(var(--foreground))"
+                      fontSize={11}
+                      width={150}
+                      tickFormatter={(value) => value.length > 20 ? value.substring(0, 20) + '...' : value}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="počet" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </Card>
           </div>
-        </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-orange-500/10 rounded-lg">
-              <Clock className="w-6 h-6 text-orange-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Vyprší do 30 dní</p>
-              <p className="text-2xl font-bold">{expiring30}</p>
-            </div>
-          </div>
-        </Card>
+          {/* Training types table */}
+          {trainingTypeStats.length > 0 && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Přehled podle typu školení</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Typ školení</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Celkem</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Platné</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Varování</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Prošlé</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Periodicita</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trainingTypeStats.map((stat, index) => (
+                      <tr key={index} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
+                        <td className="py-3 px-4 font-medium">{stat.typ}</td>
+                        <td className="py-3 px-4 text-right font-semibold text-primary">{stat.počet}</td>
+                        <td className="py-3 px-4 text-right text-status-valid">{stat.platné}</td>
+                        <td className="py-3 px-4 text-right text-status-warning">{stat.varování}</td>
+                        <td className="py-3 px-4 text-right text-status-expired">{stat.prošlé}</td>
+                        <td className="py-3 px-4 text-right text-muted-foreground">{stat.periodicita} dní</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
 
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-yellow-500/10 rounded-lg">
-              <Clock className="w-6 h-6 text-yellow-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Vyprší do 60 dní</p>
-              <p className="text-2xl font-bold">{expiring60}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-500/10 rounded-lg">
-              <Activity className="w-6 h-6 text-purple-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Vyprší do 90 dní</p>
-              <p className="text-2xl font-bold">{expiring90}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 rounded-lg">
-              <Users className="w-6 h-6 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Unikátní zaměstnanci</p>
-              <p className="text-2xl font-bold">{uniqueEmployees}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-500/10 rounded-lg">
-              <Clock className="w-6 h-6 text-green-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Celkem odškoleno hodin</p>
-              <p className="text-2xl font-bold">{totalHours}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-teal-500/10 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-teal-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Průměr hodin/školení</p>
-              <p className="text-2xl font-bold">{avgHoursPerTraining}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Grafy */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Bar Chart - Podle oddělení */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Školení podle oddělení</h3>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="department" 
-                  stroke="hsl(var(--foreground))"
-                  fontSize={12}
-                />
-                <YAxis stroke="hsl(var(--foreground))" />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="platné" fill="hsl(var(--status-valid))" />
-                <Bar dataKey="brzy vyprší" fill="hsl(var(--status-warning))" />
-                <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
-
-        {/* Line Chart - Trendy aktivit */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            <h3 className="text-lg font-semibold">Trendy školení (6 měsíců)</h3>
-          </div>
-          <ChartContainer config={{
-            dokončeno: { label: "Dokončeno", color: "hsl(var(--chart-1))" },
-            naplánováno: { label: "Naplánováno", color: "hsl(var(--chart-2))" }
-          }} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="hsl(var(--foreground))"
-                  fontSize={12}
-                />
-                <YAxis stroke="hsl(var(--foreground))" />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="dokončeno" 
-                  stroke="hsl(var(--chart-1))" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="naplánováno" 
-                  stroke="hsl(var(--chart-2))" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
-
-        {/* Měsíční přehled odškolených hodin */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Měsíční přehled odškolených hodin</h3>
-          <ChartContainer config={{
-            hodiny: { label: "Hodiny", color: "hsl(var(--chart-1))" },
-          }} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="měsíc" 
-                  stroke="hsl(var(--foreground))"
-                  fontSize={11}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis stroke="hsl(var(--foreground))" />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="hodiny" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
-
-        {/* Trend počtu školení */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Trend počtu školení</h3>
-          <ChartContainer config={{
-            počet: { label: "Počet školení", color: "hsl(var(--chart-2))" },
-          }} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="měsíc" 
-                  stroke="hsl(var(--foreground))"
-                  fontSize={11}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis stroke="hsl(var(--foreground))" />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="počet" 
-                  stroke="hsl(var(--chart-2))" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
-      </div>
-
-      {/* Statistiky podle typu školení */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Odškolené hodiny podle typu školení</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Typ školení</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Celkem hodin</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Počet školení</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Průměrná délka</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trainingTypeStats.map((stat, index) => (
-                <tr key={index} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
-                  <td className="py-3 px-4 font-medium">{stat.typ}</td>
-                  <td className="py-3 px-4 text-right font-semibold text-primary">{stat.hodiny} h</td>
-                  <td className="py-3 px-4 text-right">{stat.počet}</td>
-                  <td className="py-3 px-4 text-right text-muted-foreground">{stat.prům_délka} h</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Statistiky školitelů */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Přehled školitelů</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Školitel</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Celkem školení</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Platná</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Prošlá</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Zaměstnanci</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Typy školení</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trainerData.map((trainer, index) => (
-                <tr key={index} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
-                  <td className="py-3 px-4 font-medium">{trainer.name}</td>
-                  <td className="py-3 px-4 text-right font-semibold text-primary">{trainer.total}</td>
-                  <td className="py-3 px-4 text-right text-status-valid">{trainer.valid}</td>
-                  <td className="py-3 px-4 text-right text-status-expired">{trainer.expired}</td>
-                  <td className="py-3 px-4 text-right">{trainer.employees}</td>
-                  <td className="py-3 px-4 text-right text-muted-foreground">{trainer.types}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+          {/* Trainers table */}
+          {trainerData.length > 0 && trainerData.some(t => t.name !== "Neurčeno") && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Přehled školitelů</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Školitel</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Celkem školení</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Platná</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Varování</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Prošlá</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Zaměstnanci</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Typy školení</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trainerData.filter(t => t.name !== "Neurčeno").map((trainer, index) => (
+                      <tr key={index} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
+                        <td className="py-3 px-4 font-medium">{trainer.name}</td>
+                        <td className="py-3 px-4 text-right font-semibold text-primary">{trainer.total}</td>
+                        <td className="py-3 px-4 text-right text-status-valid">{trainer.valid}</td>
+                        <td className="py-3 px-4 text-right text-status-warning">{trainer.warning}</td>
+                        <td className="py-3 px-4 text-right text-status-expired">{trainer.expired}</td>
+                        <td className="py-3 px-4 text-right">{trainer.employees}</td>
+                        <td className="py-3 px-4 text-right text-muted-foreground">{trainer.types}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
+      )}
 
       {/* Email Delivery Statistics */}
       <div className="border-t pt-6">
