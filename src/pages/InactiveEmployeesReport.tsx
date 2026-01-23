@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, UserX, Calendar, Loader2 } from "lucide-react";
+import { Download, UserX, Calendar, Loader2, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatPeriodicity } from "@/lib/utils";
 import { useInactiveEmployees } from "@/hooks/useEmployees";
 import { useTrainings } from "@/hooks/useTrainings";
+import { CardsSkeleton, TableSkeleton } from "@/components/LoadingSkeletons";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
 
 const statusLabels = {
   employed: "Zaměstnaný",
@@ -42,8 +44,8 @@ export default function InactiveEmployeesReport() {
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const { employees: inactiveEmployees, loading: employeesLoading } = useInactiveEmployees();
-  const { trainings: inactiveTrainings, loading: trainingsLoading } = useTrainings(false); // Get inactive trainings
+  const { employees: inactiveEmployees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useInactiveEmployees();
+  const { trainings: inactiveTrainings, loading: trainingsLoading, error: trainingsError, refetch: refetchTrainings } = useTrainings(false);
 
   const filteredEmployees = useMemo(() => {
     if (statusFilter === "all") {
@@ -160,11 +162,34 @@ export default function InactiveEmployeesReport() {
   const totalInactiveEmployees = inactiveEmployees.length;
   const parentalLeaveCount = inactiveEmployees.filter((e) => e.status === "parental_leave").length;
 
+  const refetch = () => {
+    refetchEmployees();
+    refetchTrainings();
+  };
+
+  if (employeesError || trainingsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold text-foreground">Pozastavená školení</h2>
+        </div>
+        <ErrorDisplay
+          title="Nepodařilo se načíst data"
+          message={employeesError || trainingsError || "Zkuste to prosím znovu."}
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
+
   if (employeesLoading || trainingsLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <span className="ml-2">Načítání dat...</span>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold text-foreground">Pozastavená školení</h2>
+        </div>
+        <CardsSkeleton count={3} />
+        <TableSkeleton columns={7} rows={5} />
       </div>
     );
   }

@@ -9,6 +9,7 @@ export interface TrainingWithDetails {
   employeeNumber: string;
   employeeName: string;
   employeeId: string;
+  employeeStatus: "employed" | "parental_leave" | "sick_leave" | "terminated";
   facility: string;
   department: string;
   departmentId: string | null;
@@ -37,8 +38,8 @@ export function useTrainings(activeOnly: boolean = true) {
     setError(null);
     
     try {
-      // Build query with joins
-      let query = supabase
+      // First fetch all trainings with joins
+      const { data, error: fetchError } = await supabase
         .from("trainings")
         .select(`
           id,
@@ -56,7 +57,7 @@ export function useTrainings(activeOnly: boolean = true) {
           reminder_template_id,
           employee_id,
           training_type_id,
-          employees!inner (
+          employees (
             id,
             employee_number,
             first_name,
@@ -69,7 +70,7 @@ export function useTrainings(activeOnly: boolean = true) {
               name
             )
           ),
-          training_types!inner (
+          training_types (
             id,
             name,
             period_days,
@@ -82,50 +83,50 @@ export function useTrainings(activeOnly: boolean = true) {
         `)
         .order("next_training_date", { ascending: true });
 
-      // Filter based on activeOnly parameter
-      if (activeOnly) {
-        query = query
-          .eq("is_active", true)
-          .eq("employees.status", "employed");
-      } else {
-        // For inactive/paused trainings, get trainings where employee is NOT employed
-        query = query.neq("employees.status", "employed");
-      }
-
-      const { data, error: fetchError } = await query;
-
       if (fetchError) throw fetchError;
 
-      // Transform data to match our interface
-      const transformedData: TrainingWithDetails[] = (data || []).map((t: any) => ({
-        id: t.id,
-        status: t.status as "valid" | "warning" | "expired",
-        date: t.next_training_date,
-        type: t.training_types?.name || "",
-        employeeNumber: t.employees?.employee_number || "",
-        employeeName: `${t.employees?.first_name || ""} ${t.employees?.last_name || ""}`.trim(),
-        employeeId: t.employee_id,
-        facility: t.facility || t.training_types?.facility || "",
-        department: t.employees?.departments?.code || "",
-        departmentId: t.employees?.department_id,
-        lastTrainingDate: t.last_training_date,
-        trainer: t.trainer || "",
-        company: t.company || "",
-        requester: t.requester || "",
-        period: t.training_types?.period_days || 365,
-        reminderTemplate: t.reminder_templates?.name || "",
-        calendar: "Ano",
-        note: t.note || "",
-        is_active: t.is_active,
-        remindDaysBefore: t.remind_days_before || 30,
-        repeatDaysAfter: t.repeat_days_after || 30,
-        trainingTypeId: t.training_type_id,
-      }));
+      // Transform and filter data based on activeOnly parameter
+      const transformedData: TrainingWithDetails[] = (data || [])
+        .filter((t: any) => {
+          const employeeStatus = t.employees?.status;
+          if (activeOnly) {
+            // Active trainings: employee is employed
+            return employeeStatus === "employed";
+          } else {
+            // Inactive trainings: employee is NOT employed
+            return employeeStatus !== "employed";
+          }
+        })
+        .map((t: any) => ({
+          id: t.id,
+          status: t.status as "valid" | "warning" | "expired",
+          date: t.next_training_date,
+          type: t.training_types?.name || "",
+          employeeNumber: t.employees?.employee_number || "",
+          employeeName: `${t.employees?.first_name || ""} ${t.employees?.last_name || ""}`.trim(),
+          employeeId: t.employee_id,
+          employeeStatus: t.employees?.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
+          facility: t.facility || t.training_types?.facility || "",
+          department: t.employees?.departments?.code || "",
+          departmentId: t.employees?.department_id,
+          lastTrainingDate: t.last_training_date,
+          trainer: t.trainer || "",
+          company: t.company || "",
+          requester: t.requester || "",
+          period: t.training_types?.period_days || 365,
+          reminderTemplate: t.reminder_templates?.name || "",
+          calendar: "Ano",
+          note: t.note || "",
+          is_active: t.is_active,
+          remindDaysBefore: t.remind_days_before || 30,
+          repeatDaysAfter: t.repeat_days_after || 30,
+          trainingTypeId: t.training_type_id,
+        }));
 
       setTrainings(transformedData);
     } catch (err: any) {
       console.error("Error fetching trainings:", err);
-      setError(err.message || "Nepodařilo se načíst školení");
+      setError("Nepodařilo se načíst školení. Zkuste to prosím znovu.");
     } finally {
       setLoading(false);
     }

@@ -51,11 +51,14 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useTrainings, TrainingWithDetails } from "@/hooks/useTrainings";
+import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { RefreshCw } from "lucide-react";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { trainings, loading: trainingsLoading, refetch } = useTrainings(true);
+  const { trainings, loading: trainingsLoading, error: trainingsError, refetch } = useTrainings(true);
   const [selectedTrainings, setSelectedTrainings] = useState<Set<string>>(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -689,11 +692,26 @@ export default function ScheduledTrainings() {
     }
   };
 
+  if (trainingsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold text-foreground">Naplánovaná školení</h2>
+        </div>
+        <ErrorDisplay
+          title="Nepodařilo se načíst školení"
+          message={trainingsError}
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
+
   if (trainingsLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <span className="ml-2">Načítání školení...</span>
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <TableSkeleton columns={10} rows={8} />
       </div>
     );
   }
@@ -712,6 +730,10 @@ export default function ScheduledTrainings() {
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold text-foreground">Naplánovaná školení</h2>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={refetch}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Obnovit
+            </Button>
             <Button 
               variant="outline" 
               onClick={() => selectExpiringTrainings(30)}
