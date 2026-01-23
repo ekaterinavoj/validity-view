@@ -52,7 +52,7 @@ export const Layout = ({ children }: LayoutProps) => {
     return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-500/20 text-green-700 dark:text-green-300">Uživatel</span>;
   };
 
-  const isOstatniActive = ["/employees", "/training-types", "/departments", "/inactive"].some(
+  const isOstatniActive = ["/employees", "/training-types", "/departments", "/facilities", "/inactive"].some(
     path => location.pathname === path
   );
 
@@ -169,6 +169,12 @@ export const Layout = ({ children }: LayoutProps) => {
                     <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
                       <Building2 className="w-4 h-4" />
                       Střediska
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
+                      <Building2 className="w-4 h-4" />
+                      Provozovny
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -346,6 +352,17 @@ export const Layout = ({ children }: LayoutProps) => {
               >
                 <UserX className="w-4 h-4" />
                 Pozastavená
+              </Link>
+              <Link 
+                to="/facilities" 
+                onClick={closeMobileMenu}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                  location.pathname === "/facilities" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+              >
+                <Building2 className="w-4 h-4" />
+                Provozovny
               </Link>
             </div>
 
