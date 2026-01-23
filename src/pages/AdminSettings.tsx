@@ -71,13 +71,15 @@ export default function AdminSettings() {
   });
   
   const [emailProvider, setEmailProvider] = useState({
-    provider: "resend",
+    provider: "resend", // resend, smtp, smtp_with_resend_fallback
     smtp_host: "",
     smtp_port: 587,
     smtp_user: "",
     smtp_from_email: "",
     smtp_from_name: "Training System",
     smtp_secure: true,
+    smtp_tls_mode: "starttls", // starttls, smtps
+    smtp_ignore_tls: false,
   });
   
   const [emailTemplate, setEmailTemplate] = useState({
@@ -443,8 +445,13 @@ export default function AdminSettings() {
                   <SelectContent>
                     <SelectItem value="resend">Resend API</SelectItem>
                     <SelectItem value="smtp">SMTP Server</SelectItem>
+                    <SelectItem value="smtp_with_resend_fallback">SMTP s fallbackem na Resend</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {emailProvider.provider === "smtp_with_resend_fallback" && 
+                    "Použije SMTP jako primární, při selhání automaticky přepne na Resend"}
+                </p>
               </div>
 
               {emailProvider.provider === "resend" && (
@@ -461,8 +468,22 @@ export default function AdminSettings() {
                 </div>
               )}
 
-              {emailProvider.provider === "smtp" && (
+              {(emailProvider.provider === "smtp" || emailProvider.provider === "smtp_with_resend_fallback") && (
                 <div className="space-y-4">
+                  {emailProvider.provider === "smtp_with_resend_fallback" && (
+                    <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium">SMTP s fallbackem</p>
+                          <p className="text-sm text-muted-foreground">
+                            Při selhání SMTP se automaticky použije Resend. Vyžaduje nastavení RESEND_API_KEY.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>SMTP Host</Label>
@@ -480,9 +501,12 @@ export default function AdminSettings() {
                         type="number"
                         value={emailProvider.smtp_port}
                         onChange={(e) => 
-                          setEmailProvider({ ...emailProvider, smtp_port: parseInt(e.target.value) })
+                          setEmailProvider({ ...emailProvider, smtp_port: parseInt(e.target.value) || 587 })
                         }
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Obvykle 587 (STARTTLS) nebo 465 (SMTPS)
+                      </p>
                     </div>
                   </div>
 
@@ -542,19 +566,65 @@ export default function AdminSettings() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Zabezpečené připojení (TLS)</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Použít šifrované připojení k SMTP serveru
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <p className="text-sm font-medium">Nastavení TLS</p>
+                    
+                    <div className="space-y-2">
+                      <Label>Režim TLS</Label>
+                      <Select
+                        value={emailProvider.smtp_tls_mode || "starttls"}
+                        onValueChange={(value) => 
+                          setEmailProvider({ 
+                            ...emailProvider, 
+                            smtp_tls_mode: value,
+                            smtp_port: value === "smtps" ? 465 : 587
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="starttls">STARTTLS (port 587)</SelectItem>
+                          <SelectItem value="smtps">SMTPS / Implicit TLS (port 465)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        STARTTLS upgraduje na TLS po připojení, SMTPS používá TLS od začátku
                       </p>
                     </div>
-                    <Switch
-                      checked={emailProvider.smtp_secure}
-                      onCheckedChange={(checked) => 
-                        setEmailProvider({ ...emailProvider, smtp_secure: checked })
-                      }
-                    />
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Zabezpečené připojení (TLS)</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Použít šifrované připojení k SMTP serveru
+                        </p>
+                      </div>
+                      <Switch
+                        checked={emailProvider.smtp_secure}
+                        onCheckedChange={(checked) => 
+                          setEmailProvider({ ...emailProvider, smtp_secure: checked })
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Ignorovat TLS chyby</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Povolit self-signed certifikáty (pouze pro testování)
+                        </p>
+                      </div>
+                      <Switch
+                        checked={emailProvider.smtp_ignore_tls || false}
+                        onCheckedChange={(checked) => 
+                          setEmailProvider({ ...emailProvider, smtp_ignore_tls: checked })
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               )}

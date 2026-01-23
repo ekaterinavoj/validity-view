@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
 import {
   Table,
   TableBody,
@@ -17,7 +18,8 @@ import {
   FlaskConical,
   Mail,
   User,
-  GraduationCap
+  GraduationCap,
+  Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -28,6 +30,7 @@ interface ReminderLogDetail {
   template_name: string;
   recipient_emails: string[];
   email_subject: string;
+  email_body: string;
   sent_at: string;
   status: string;
   error_message: string | null;
@@ -73,6 +76,7 @@ export function RunDetailLogs({ runId, weekStart, isTest }: RunDetailLogsProps) 
           template_name,
           recipient_emails,
           email_subject,
+          email_body,
           sent_at,
           status,
           error_message,
@@ -131,6 +135,7 @@ export function RunDetailLogs({ runId, weekStart, isTest }: RunDetailLogsProps) 
             <TableHead>Příjemci</TableHead>
             <TableHead>Provider</TableHead>
             <TableHead className="text-right">Čas</TableHead>
+            <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -195,6 +200,9 @@ export function RunDetailLogs({ runId, weekStart, isTest }: RunDetailLogsProps) 
               </TableCell>
               <TableCell className="text-right text-sm text-muted-foreground">
                 {format(new Date(log.sent_at), "HH:mm:ss", { locale: cs })}
+              </TableCell>
+              <TableCell>
+                <EmailPreviewDialog log={log} />
               </TableCell>
             </TableRow>
           ))}

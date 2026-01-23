@@ -1,18 +1,90 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Send email via Resend
+async function sendViaResend(to: string, subject: string, body: string, fromEmail: string, fromName: string): Promise<{ success: boolean; error?: string }> {
+  const apiKey = Deno.env.get("RESEND_API_KEY");
+  if (!apiKey) {
+    return { success: false, error: "RESEND_API_KEY not configured" };
+  }
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail || "onboarding@resend.dev"}>`,
+        to: [to],
+        subject,
+        html: body,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Send email via SMTP
+async function sendViaSMTP(
+  to: string,
+  subject: string,
+  body: string,
+  config: any
+): Promise<{ success: boolean; error?: string }> {
+  const smtpPassword = Deno.env.get("SMTP_PASSWORD");
+  if (!smtpPassword) {
+    return { success: false, error: "SMTP_PASSWORD not configured" };
+  }
+
+  try {
+    const client = new SMTPClient({
+      connection: {
+        hostname: config.smtp_host,
+        port: config.smtp_port || 587,
+        tls: config.smtp_tls_mode === "smtps",
+        auth: {
+          username: config.smtp_user,
+          password: smtpPassword,
+        },
+      },
+    });
+
+    await client.send({
+      from: `${config.smtp_from_name || "Training System"} <${config.smtp_from_email}>`,
+      to: to,
+      subject: subject,
+      html: body,
+    });
+
+    await client.close();
+    return { success: true };
+  } catch (error: any) {
+    console.error("SMTP error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Verify authorization
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(
@@ -27,7 +99,6 @@ const handler = async (req: Request): Promise<Response> => {
     global: { headers: { Authorization: authHeader } },
   });
 
-  // Verify user is admin
   const token = authHeader.replace("Bearer ", "");
   const { data: claimsData, error: claimsError } = await supabase.auth.getUser(token);
   
@@ -38,7 +109,6 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
-  // Check if user has admin role
   const { data: roles } = await supabase
     .from("user_roles")
     .select("role")
@@ -63,7 +133,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Load email provider settings
     const supabaseService = createClient(
       supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -76,56 +145,47 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     const emailProvider = settings?.value || { provider: "resend" };
+    const subject = "Testovací email - Systém správy školení";
+    const htmlBody = `
+      <h1>Testovací email</h1>
+      <p>Tento email potvrzuje, že konfigurace emailů funguje správně.</p>
+      <p>Poskytovatel: <strong>${emailProvider.provider}</strong></p>
+      <p>Datum a čas: ${new Date().toLocaleString("cs-CZ")}</p>
+      <hr>
+      <p><small>Systém správy školení</small></p>
+    `;
 
-    // Send test email
-    if (emailProvider.provider === "resend") {
-      const apiKey = Deno.env.get("RESEND_API_KEY");
-      if (!apiKey) {
-        return new Response(
-          JSON.stringify({ error: "RESEND_API_KEY not configured" }),
-          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
+    let result: { success: boolean; error?: string };
+    let providerUsed = emailProvider.provider;
+
+    if (emailProvider.provider === "smtp" || emailProvider.provider === "smtp_with_resend_fallback") {
+      result = await sendViaSMTP(email, subject, htmlBody, emailProvider);
+      providerUsed = "smtp";
+      
+      // Fallback to Resend if SMTP fails
+      if (!result.success && emailProvider.provider === "smtp_with_resend_fallback") {
+        console.log("SMTP failed, falling back to Resend:", result.error);
+        result = await sendViaResend(email, subject, htmlBody, emailProvider.smtp_from_email, emailProvider.smtp_from_name);
+        if (result.success) {
+          providerUsed = "resend (fallback)";
+        }
       }
-
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          from: "Training System <onboarding@resend.dev>",
-          to: [email],
-          subject: "Testovací email - Systém správy školení",
-          html: `
-            <h1>Testovací email</h1>
-            <p>Tento email potvrzuje, že konfigurace emailů funguje správně.</p>
-            <p>Datum a čas: ${new Date().toLocaleString("cs-CZ")}</p>
-            <hr>
-            <p><small>Systém správy školení</small></p>
-          `,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        return new Response(
-          JSON.stringify({ error: `Failed to send email: ${error}` }),
-          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ success: true, message: "Test email sent successfully" }),
-        { headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
     } else {
-      // SMTP
+      result = await sendViaResend(email, subject, htmlBody, "onboarding@resend.dev", "Training System");
+      providerUsed = "resend";
+    }
+
+    if (!result.success) {
       return new Response(
-        JSON.stringify({ error: "SMTP sending not yet implemented" }),
-        { status: 501, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ error: `Failed to send: ${result.error}`, provider: providerUsed }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    return new Response(
+      JSON.stringify({ success: true, message: `Test email sent via ${providerUsed}`, provider: providerUsed }),
+      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
   } catch (error: any) {
     console.error("Error in send-test-email:", error);
     return new Response(
