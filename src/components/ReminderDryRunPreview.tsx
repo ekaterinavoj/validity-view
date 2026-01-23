@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -32,21 +33,27 @@ import {
   CalendarOff,
   Check,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Users,
+  FileText
 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 
-interface PendingReminder {
-  trainingId: string;
-  employeeId: string;
+interface TrainingItem {
+  id: string;
   employeeName: string;
   employeeEmail: string;
   trainingType: string;
   expiresOn: string;
   daysUntil: number;
-  daysBefore: number;
-  alreadySentThisWeek: boolean;
+}
+
+interface Recipient {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
 }
 
 interface ReminderSchedule {
@@ -54,141 +61,181 @@ interface ReminderSchedule {
   skip_weekends: boolean;
 }
 
+interface ReminderFrequency {
+  type: string;
+  interval_days: number;
+  start_time: string;
+  timezone: string;
+}
+
+interface ReminderRecipients {
+  user_ids: string[];
+  delivery_mode: string;
+}
+
 const ITEMS_PER_PAGE = 10;
+
+const DELIVERY_MODE_LABELS: Record<string, string> = {
+  bcc: "BCC (skrytá kopie)",
+  to: "To (příjemci viditelní)",
+  cc: "CC (kopie)",
+};
+
+const FREQUENCY_LABELS: Record<string, string> = {
+  daily: "Denně",
+  weekly: "Týdně",
+  biweekly: "Každé 2 týdny",
+  monthly: "Měsíčně",
+  custom: "Vlastní interval",
+};
 
 export function ReminderDryRunPreview() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [pendingReminders, setPendingReminders] = useState<PendingReminder[]>([]);
+  const [trainings, setTrainings] = useState<TrainingItem[]>([]);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [reminderSchedule, setReminderSchedule] = useState<ReminderSchedule>({ enabled: true, skip_weekends: true });
-  const [pendingPage, setPendingPage] = useState(1);
-  const [sentPage, setSentPage] = useState(1);
+  const [reminderFrequency, setReminderFrequency] = useState<ReminderFrequency>({ type: "weekly", interval_days: 7, start_time: "08:00", timezone: "Europe/Prague" });
+  const [reminderRecipients, setReminderRecipients] = useState<ReminderRecipients>({ user_ids: [], delivery_mode: "bcc" });
+  const [emailTemplate, setEmailTemplate] = useState({ subject: "", body: "" });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadPreview = async () => {
     setLoading(true);
-    setPendingPage(1);
-    setSentPage(1);
+    setCurrentPage(1);
     try {
-      // Load settings for days_before and reminder_schedule (matches real sender)
+      // Load all settings
       const { data: settingsData } = await supabase
         .from("system_settings")
         .select("key, value")
-        .in("key", ["reminder_days", "reminder_schedule"]);
+        .in("key", ["reminder_days", "reminder_schedule", "reminder_frequency", "reminder_recipients", "email_template"]);
 
-      const reminderDaysSetting = settingsData?.find(s => s.key === "reminder_days");
-      const reminderScheduleSetting = settingsData?.find(s => s.key === "reminder_schedule");
-      
-      // Match real sender: settingsMap.reminder_schedule || { enabled: true, skip_weekends: true }
-      const scheduleValue = reminderScheduleSetting?.value as { enabled?: boolean; skip_weekends?: boolean } | undefined;
-      const schedule: ReminderSchedule = {
-        enabled: scheduleValue?.enabled ?? true,
-        skip_weekends: scheduleValue?.skip_weekends ?? true,
-      };
+      const settingsMap: Record<string, any> = {};
+      settingsData?.forEach(s => {
+        settingsMap[s.key] = s.value;
+      });
+
+      const schedule: ReminderSchedule = settingsMap.reminder_schedule || { enabled: true, skip_weekends: true };
+      const frequency: ReminderFrequency = settingsMap.reminder_frequency || { type: "weekly", interval_days: 7, start_time: "08:00", timezone: "Europe/Prague" };
+      const recipientSettings: ReminderRecipients = settingsMap.reminder_recipients || { user_ids: [], delivery_mode: "bcc" };
+      const template = settingsMap.email_template || { subject: "Souhrn školení k obnovení - {reportDate}", body: "" };
+      const reminderDays = settingsMap.reminder_days || { days_before: [30, 14, 7] };
+
       setReminderSchedule(schedule);
-      
-      // Match real sender: settingsMap.reminder_days || { days_before: [30, 14, 7] }
-      const reminderDays = (reminderDaysSetting?.value as { days_before?: number[] }) || 
-        { days_before: [30, 14, 7] };
-      const daysBeforeList: number[] = reminderDays.days_before || [30, 14, 7];
-      
-      // Check if reminders are enabled (matches real sender)
+      setReminderFrequency(frequency);
+      setReminderRecipients(recipientSettings);
+      setEmailTemplate(template);
+
+      // Check if reminders are enabled
       if (!schedule.enabled) {
-        setPendingReminders([]);
-        setLoading(false);
+        setTrainings([]);
+        setRecipients([]);
         toast({
           title: "Připomínky jsou vypnuté",
           description: "V nastavení jsou připomínky deaktivovány.",
         });
+        setLoading(false);
         return;
       }
 
-      // Check if today is weekend and skip_weekends is enabled (matches real sender exactly)
+      // Check if today is weekend and skip_weekends is enabled
       const today = new Date().getDay();
       const isWeekend = today === 0 || today === 6;
 
       if (schedule.skip_weekends && isWeekend) {
-        setPendingReminders([]);
-        setLoading(false);
+        setTrainings([]);
+        setRecipients([]);
         toast({
           title: "Víkend - odesílání přeskočeno",
-          description: "Nastavení 'Přeskočit víkendy' je aktivní. Připomínky se o víkendech neodesílají.",
+          description: "Nastavení 'Přeskočit víkendy' je aktivní.",
         });
+        setLoading(false);
         return;
       }
 
-      // Get current week start (Monday) - matches real sender
-      const now = new Date();
-      const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(now);
-      monday.setDate(diff);
-      monday.setHours(0, 0, 0, 0);
-      const weekStart = monday.toISOString().split("T")[0];
+      // Load recipients
+      if (recipientSettings.user_ids && recipientSettings.user_ids.length > 0) {
+        const { data: recipientProfiles } = await supabase
+          .from("profiles")
+          .select("id, email, first_name, last_name")
+          .in("id", recipientSettings.user_ids);
 
-      const reminders: PendingReminder[] = [];
-
-      for (const daysBefore of daysBeforeList) {
-        // Calculate target date
-        const targetDate = new Date();
-        targetDate.setDate(targetDate.getDate() + daysBefore);
-        const targetDateStr = targetDate.toISOString().split("T")[0];
-
-        // Get trainings expiring on target date (matches real sender: only is_active=true filter)
-        const { data: trainings, error } = await supabase
-          .from("trainings")
-          .select(`
-            id,
-            next_training_date,
-            employee_id,
-            employees (id, first_name, last_name, email),
-            training_types (name)
-          `)
-          .eq("next_training_date", targetDateStr)
-          .eq("is_active", true);
-
-        if (error) {
-          console.error("Error fetching trainings:", error);
-          continue;
-        }
-        
-        // Real sender does NOT filter by employees.status - it sends to all employees
-        // with is_active=true trainings. Matching that behavior here.
-
-        for (const training of trainings || []) {
-          if (!training.employees || !training.training_types) continue;
-
-          // Check if already sent this week
-          const { data: existingLog } = await supabase
-            .from("reminder_logs")
-            .select("id")
-            .eq("training_id", training.id)
-            .eq("employee_id", training.employee_id)
-            .eq("days_before", daysBefore)
-            .eq("week_start", weekStart)
-            .eq("is_test", false)
-            .maybeSingle();
-
-          const employee = training.employees as unknown as { id: string; first_name: string; last_name: string; email: string };
-          const trainingType = training.training_types as unknown as { name: string };
-
-          reminders.push({
-            trainingId: training.id,
-            employeeId: employee.id,
-            employeeName: `${employee.first_name} ${employee.last_name}`,
-            employeeEmail: employee.email,
-            trainingType: trainingType.name,
-            expiresOn: training.next_training_date,
-            daysUntil: daysBefore,
-            daysBefore,
-            alreadySentThisWeek: !!existingLog,
-          });
-        }
+        setRecipients(recipientProfiles || []);
+      } else {
+        setRecipients([]);
       }
 
-      // Sort by days until expiration
-      reminders.sort((a, b) => a.daysUntil - b.daysUntil);
-      setPendingReminders(reminders);
+      // Load trainings that would be included
+      const daysBeforeList: number[] = reminderDays.days_before || [30, 14, 7];
+      const maxDays = Math.max(...daysBeforeList);
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + maxDays);
+      const targetDateStr = targetDate.toISOString().split("T")[0];
+
+      const { data: trainingsRaw, error } = await supabase
+        .from("trainings")
+        .select(`
+          id,
+          next_training_date,
+          employee_id,
+          employees (id, first_name, last_name, email, status),
+          training_types (name)
+        `)
+        .eq("is_active", true)
+        .lte("next_training_date", targetDateStr);
+
+      if (error) {
+        console.error("Error fetching trainings:", error);
+        toast({
+          title: "Chyba při načítání",
+          description: error.message,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      const items: TrainingItem[] = [];
+
+      for (const training of trainingsRaw || []) {
+        if (!training.employees || !training.training_types) continue;
+
+        const employee = training.employees as unknown as { id: string; first_name: string; last_name: string; email: string; status: string };
+        const trainingType = training.training_types as unknown as { name: string };
+
+        // Only include active employees
+        if (employee.status !== "employed") continue;
+
+        const expiresDate = new Date(training.next_training_date);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        expiresDate.setHours(0, 0, 0, 0);
+        const daysUntil = Math.ceil((expiresDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Include if expired or within any threshold
+        const shouldInclude = daysUntil < 0 || daysBeforeList.some(d => daysUntil <= d);
+        if (!shouldInclude) continue;
+
+        items.push({
+          id: training.id,
+          employeeName: `${employee.first_name} ${employee.last_name}`,
+          employeeEmail: employee.email,
+          trainingType: trainingType.name,
+          expiresOn: training.next_training_date,
+          daysUntil,
+        });
+      }
+
+      // Sort by soonest expiration first, then by employee name
+      items.sort((a, b) => {
+        if (a.daysUntil !== b.daysUntil) {
+          return a.daysUntil - b.daysUntil;
+        }
+        return a.employeeName.localeCompare(b.employeeName, "cs");
+      });
+
+      setTrainings(items);
 
     } catch (error: any) {
       toast({
@@ -207,46 +254,47 @@ export function ReminderDryRunPreview() {
     }
   }, [isOpen]);
 
-  const pendingToSend = useMemo(() => pendingReminders.filter(r => !r.alreadySentThisWeek), [pendingReminders]);
-  const alreadySent = useMemo(() => pendingReminders.filter(r => r.alreadySentThisWeek), [pendingReminders]);
+  const expiredCount = useMemo(() => trainings.filter(t => t.daysUntil < 0).length, [trainings]);
+  const expiringCount = useMemo(() => trainings.filter(t => t.daysUntil >= 0).length, [trainings]);
 
-  // Pagination logic
-  const pendingTotalPages = Math.ceil(pendingToSend.length / ITEMS_PER_PAGE);
-  const sentTotalPages = Math.ceil(alreadySent.length / ITEMS_PER_PAGE);
+  // Pagination
+  const totalPages = Math.ceil(trainings.length / ITEMS_PER_PAGE);
+  const paginatedTrainings = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return trainings.slice(start, start + ITEMS_PER_PAGE);
+  }, [trainings, currentPage]);
 
-  const paginatedPending = useMemo(() => {
-    const start = (pendingPage - 1) * ITEMS_PER_PAGE;
-    return pendingToSend.slice(start, start + ITEMS_PER_PAGE);
-  }, [pendingToSend, pendingPage]);
+  // Generate email preview
+  const emailPreview = useMemo(() => {
+    const today = format(new Date(), "d. M. yyyy", { locale: cs });
+    let subject = emailTemplate.subject
+      .replace(/{totalCount}/g, String(trainings.length))
+      .replace(/{expiringCount}/g, String(expiringCount))
+      .replace(/{expiredCount}/g, String(expiredCount))
+      .replace(/{reportDate}/g, today);
 
-  const paginatedSent = useMemo(() => {
-    const start = (sentPage - 1) * ITEMS_PER_PAGE;
-    return alreadySent.slice(start, start + ITEMS_PER_PAGE);
-  }, [alreadySent, sentPage]);
+    let body = emailTemplate.body
+      .replace(/{totalCount}/g, String(trainings.length))
+      .replace(/{expiringCount}/g, String(expiringCount))
+      .replace(/{expiredCount}/g, String(expiredCount))
+      .replace(/{reportDate}/g, today);
 
-  const PaginationControls = ({ 
-    currentPage, 
-    totalPages, 
-    onPageChange,
-    totalItems
-  }: { 
-    currentPage: number; 
-    totalPages: number; 
-    onPageChange: (page: number) => void;
-    totalItems: number;
-  }) => {
+    return { subject, body };
+  }, [emailTemplate, trainings.length, expiringCount, expiredCount]);
+
+  const PaginationControls = () => {
     if (totalPages <= 1) return null;
     
     return (
       <div className="flex items-center justify-between pt-2 border-t">
         <span className="text-sm text-muted-foreground">
-          Celkem {totalItems} záznamů
+          Celkem {trainings.length} záznamů
         </span>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onPageChange(currentPage - 1)}
+            onClick={() => setCurrentPage(p => p - 1)}
             disabled={currentPage === 1}
           >
             <ChevronLeft className="w-4 h-4" />
@@ -257,7 +305,7 @@ export function ReminderDryRunPreview() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onPageChange(currentPage + 1)}
+            onClick={() => setCurrentPage(p => p + 1)}
             disabled={currentPage === totalPages}
           >
             <ChevronRight className="w-4 h-4" />
@@ -275,14 +323,14 @@ export function ReminderDryRunPreview() {
           Náhled připomínek
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Eye className="w-5 h-5" />
-            Náhled připomínek k odeslání
+            Náhled souhrnného emailu
           </DialogTitle>
           <DialogDescription>
-            Přehled školení, která by obdržela připomínku při spuštění
+            Přehled školení a příjemců, kteří by obdrželi souhrnný email při spuštění
           </DialogDescription>
         </DialogHeader>
 
@@ -295,7 +343,7 @@ export function ReminderDryRunPreview() {
             </div>
           ) : (
             <>
-              {/* Settings Status Indicator */}
+              {/* Settings Status */}
               <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
                 <Badge 
                   variant={reminderSchedule.enabled ? "default" : "secondary"}
@@ -308,6 +356,11 @@ export function ReminderDryRunPreview() {
                   )}
                   Připomínky: {reminderSchedule.enabled ? "zapnuté" : "vypnuté"}
                 </Badge>
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {FREQUENCY_LABELS[reminderFrequency.type] || reminderFrequency.type}
+                  {reminderFrequency.type === "custom" && ` (${reminderFrequency.interval_days} dní)`}
+                </Badge>
                 <Badge 
                   variant={reminderSchedule.skip_weekends ? "outline" : "secondary"}
                   className="flex items-center gap-1"
@@ -317,40 +370,104 @@ export function ReminderDryRunPreview() {
                 </Badge>
               </div>
 
-              {/* Summary */}
-              <div className="flex gap-4">
-                <Card className="flex-1">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-3 gap-4">
+                <Card>
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <Mail className="w-5 h-5 text-primary" />
+                      <GraduationCap className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="text-2xl font-bold">{pendingToSend.length}</p>
-                        <p className="text-sm text-muted-foreground">K odeslání</p>
+                        <p className="text-2xl font-bold">{trainings.length}</p>
+                        <p className="text-sm text-muted-foreground">Školení celkem</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="flex-1">
+                <Card>
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <AlertCircle className="w-5 h-5 text-muted-foreground" />
+                      <AlertCircle className="w-5 h-5 text-destructive" />
                       <div>
-                        <p className="text-2xl font-bold">{alreadySent.length}</p>
-                        <p className="text-sm text-muted-foreground">Již odesláno tento týden</p>
+                        <p className="text-2xl font-bold">{expiredCount}</p>
+                        <p className="text-sm text-muted-foreground">Prošlé</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Button variant="outline" size="icon" onClick={loadPreview}>
-                  <RefreshCw className="w-4 h-4" />
-                </Button>
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-primary" />
+                      <div>
+                        <p className="text-2xl font-bold">{recipients.length}</p>
+                        <p className="text-sm text-muted-foreground">Příjemců</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
-              {/* Pending reminders */}
-              {pendingToSend.length > 0 ? (
+              {/* Recipients */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Příjemci emailu
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {recipients.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {recipients.map((recipient) => (
+                          <Badge key={recipient.id} variant="secondary">
+                            {recipient.first_name} {recipient.last_name} ({recipient.email})
+                          </Badge>
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Způsob doručení: {DELIVERY_MODE_LABELS[reminderRecipients.delivery_mode] || reminderRecipients.delivery_mode}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">
+                      Nejsou vybráni žádní příjemci. Nastavte je v Administraci.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Email Preview */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Náhled emailu
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Předmět:</p>
+                    <p className="font-medium">{emailPreview.subject}</p>
+                  </div>
+                  <Separator />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Tělo emailu:</p>
+                    <div className="p-3 bg-muted/50 rounded-md text-sm whitespace-pre-wrap">
+                      {emailPreview.body || "(prázdné)"}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Trainings List */}
+              {trainings.length > 0 ? (
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Připomínky k odeslání</CardTitle>
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-base">Školení v souhrnném emailu</CardTitle>
+                    <Button variant="outline" size="icon" onClick={loadPreview}>
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <Table>
@@ -359,113 +476,55 @@ export function ReminderDryRunPreview() {
                           <TableHead>Zaměstnanec</TableHead>
                           <TableHead>Školení</TableHead>
                           <TableHead>Vyprší</TableHead>
-                          <TableHead>Dnů předem</TableHead>
+                          <TableHead>Stav</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paginatedPending.map((reminder, idx) => (
-                          <TableRow key={`${reminder.trainingId}-${reminder.daysBefore}-${idx}`}>
+                        {paginatedTrainings.map((training, idx) => (
+                          <TableRow key={`${training.id}-${idx}`}>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <User className="w-4 h-4 text-muted-foreground" />
                                 <div>
-                                  <p className="font-medium">{reminder.employeeName}</p>
-                                  <p className="text-xs text-muted-foreground">{reminder.employeeEmail}</p>
+                                  <p className="font-medium">{training.employeeName}</p>
+                                  <p className="text-xs text-muted-foreground">{training.employeeEmail}</p>
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <GraduationCap className="w-4 h-4 text-muted-foreground" />
-                                <span>{reminder.trainingType}</span>
+                                <span>{training.trainingType}</span>
                               </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4 text-muted-foreground" />
-                                <span>{format(new Date(reminder.expiresOn), "d. M. yyyy", { locale: cs })}</span>
+                                <span>{format(new Date(training.expiresOn), "d. M. yyyy", { locale: cs })}</span>
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={reminder.daysUntil <= 7 ? "destructive" : reminder.daysUntil <= 14 ? "secondary" : "outline"}>
-                                {reminder.daysBefore} dní
+                              <Badge 
+                                variant={training.daysUntil < 0 ? "destructive" : training.daysUntil <= 7 ? "secondary" : "outline"}
+                              >
+                                {training.daysUntil < 0 
+                                  ? `Prošlé (${Math.abs(training.daysUntil)} dní)` 
+                                  : `${training.daysUntil} dní`}
                               </Badge>
                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
-                    <PaginationControls
-                      currentPage={pendingPage}
-                      totalPages={pendingTotalPages}
-                      onPageChange={setPendingPage}
-                      totalItems={pendingToSend.length}
-                    />
+                    <PaginationControls />
                   </CardContent>
                 </Card>
               ) : (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
-                    <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Žádné připomínky k odeslání</p>
-                    <p className="text-sm">Všechny připomínky pro tento týden již byly odeslány</p>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Already sent this week */}
-              {alreadySent.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base text-muted-foreground">Již odesláno tento týden</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Zaměstnanec</TableHead>
-                          <TableHead>Školení</TableHead>
-                          <TableHead>Vyprší</TableHead>
-                          <TableHead>Dnů předem</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedSent.map((reminder, idx) => (
-                          <TableRow key={`${reminder.trainingId}-${reminder.daysBefore}-${idx}`} className="opacity-50">
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <User className="w-4 h-4 text-muted-foreground" />
-                                <div>
-                                  <p className="font-medium">{reminder.employeeName}</p>
-                                  <p className="text-xs text-muted-foreground">{reminder.employeeEmail}</p>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <GraduationCap className="w-4 h-4 text-muted-foreground" />
-                                <span>{reminder.trainingType}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-muted-foreground" />
-                                <span>{format(new Date(reminder.expiresOn), "d. M. yyyy", { locale: cs })}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{reminder.daysBefore} dní</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    <PaginationControls
-                      currentPage={sentPage}
-                      totalPages={sentTotalPages}
-                      onPageChange={setSentPage}
-                      totalItems={alreadySent.length}
-                    />
+                    <GraduationCap className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Žádná školení k odeslání</p>
+                    <p className="text-sm">Všechna aktivní školení jsou v pořádku</p>
                   </CardContent>
                 </Card>
               )}
