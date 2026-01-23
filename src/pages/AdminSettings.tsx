@@ -19,6 +19,7 @@ import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, Ey
 import { RolePermissionsInfo } from "@/components/RolePermissionsInfo";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
 import { EmailHistory } from "@/components/EmailHistory";
+import { EmailTemplatePreview } from "@/components/EmailTemplatePreview";
 
 interface SystemSetting {
   id: string;
@@ -957,20 +958,14 @@ export default function AdminSettings() {
                   placeholder="Dobrý den,\n\nzasíláme přehled školení..."
                 />
               </div>
-
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-2">Dostupné proměnné:</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {TEMPLATE_VARIABLES.map((v) => (
-                    <div key={v.var} className="flex items-center gap-2 text-sm">
-                      <code className="bg-background px-2 py-0.5 rounded">{v.var}</code>
-                      <span className="text-muted-foreground">- {v.desc}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </CardContent>
           </Card>
+
+          {/* Live Email Preview */}
+          <EmailTemplatePreview 
+            subject={emailTemplate.subject}
+            body={emailTemplate.body}
+          />
         </TabsContent>
 
         {/* Users Tab */}
