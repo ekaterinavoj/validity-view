@@ -175,6 +175,7 @@ export type Database = {
         Row: {
           created_at: string
           days_before: number | null
+          delivery_mode: string | null
           email_body: string
           email_subject: string
           employee_id: string | null
@@ -193,6 +194,7 @@ export type Database = {
         Insert: {
           created_at?: string
           days_before?: number | null
+          delivery_mode?: string | null
           email_body: string
           email_subject: string
           employee_id?: string | null
@@ -211,6 +213,7 @@ export type Database = {
         Update: {
           created_at?: string
           days_before?: number | null
+          delivery_mode?: string | null
           email_body?: string
           email_subject?: string
           employee_id?: string | null
