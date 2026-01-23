@@ -1,7 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -15,60 +14,69 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Edit, Plus, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useDepartments, Department } from "@/hooks/useDepartments";
 
 const formSchema = z.object({
-  facility: z.string().min(1, "Vyberte provozovnu"),
   code: z.string().min(1, "Zadejte číslo střediska"),
+  name: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-const mockDepartments = [
-  { id: "1", facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3", code: "2002000001" },
-  { id: "2", facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3", code: "2002000002" },
-  { id: "3", facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3", code: "2002000003" },
-  { id: "4", facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3", code: "2002100001" },
-  { id: "5", facility: "Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3", code: "2002100002" },
-];
-
 export default function Departments() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingDepartment, setEditingDepartment] = useState<typeof mockDepartments[0] | null>(null);
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [departmentToDelete, setDepartmentToDelete] = useState<typeof mockDepartments[0] | null>(null);
+  const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+
+  const { departments, loading, createDepartment, updateDepartment, deleteDepartment, refetch } = useDepartments();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      code: "",
+      name: "",
+    },
   });
 
-  const handleEdit = (dept: typeof mockDepartments[0]) => {
+  const handleEdit = (dept: Department) => {
     setEditingDepartment(dept);
     form.reset({
-      facility: "qlar-jenec-dc3",
       code: dept.code,
+      name: dept.name || "",
     });
     setDialogOpen(true);
   };
 
-  const openDeleteDialog = (dept: typeof mockDepartments[0]) => {
+  const openDeleteDialog = (dept: Department) => {
     setDepartmentToDelete(dept);
     setDeleteDialogOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!departmentToDelete) return;
     
-    toast({
-      title: "Středisko smazáno",
-      description: `Středisko ${departmentToDelete.code} bylo úspěšně odstraněno.`,
-    });
+    try {
+      await deleteDepartment(departmentToDelete.id);
+      toast({
+        title: "Středisko smazáno",
+        description: `Středisko ${departmentToDelete.code} bylo úspěšně odstraněno.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Chyba při mazání",
+        description: error.message || "Nepodařilo se smazat středisko.",
+        variant: "destructive",
+      });
+    }
     
     setDeleteDialogOpen(false);
     setDepartmentToDelete(null);
@@ -78,24 +86,47 @@ export default function Departments() {
     setDialogOpen(open);
     if (!open) {
       setEditingDepartment(null);
-      form.reset();
+      form.reset({ code: "", name: "" });
     }
   };
 
-  const onSubmit = (data: FormValues) => {
-    if (editingDepartment) {
+  const onSubmit = async (data: FormValues) => {
+    setSaving(true);
+    
+    try {
+      if (editingDepartment) {
+        await updateDepartment(editingDepartment.id, data.code, data.name || "");
+        toast({
+          title: "Středisko aktualizováno",
+          description: "Středisko bylo úspěšně upraveno.",
+        });
+      } else {
+        await createDepartment(data.code, data.name || "");
+        toast({
+          title: "Středisko vytvořeno",
+          description: "Nové středisko bylo úspěšně přidáno.",
+        });
+      }
+      handleDialogClose(false);
+    } catch (error: any) {
       toast({
-        title: "Středisko aktualizováno",
-        description: "Středisko bylo úspěšně upraveno.",
+        title: "Chyba",
+        description: error.message || "Nepodařilo se uložit středisko.",
+        variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Středisko vytvořeno",
-        description: "Nové středisko bylo úspěšně přidáno.",
-      });
+    } finally {
+      setSaving(false);
     }
-    handleDialogClose(false);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-2">Načítání středisek...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -117,29 +148,6 @@ export default function Departments() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="facility"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Provozovna *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Vyberte provozovnu" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="qlar-jenec-dc3">
-                            Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="code"
                   render={({ field }) => (
                     <FormItem>
@@ -152,8 +160,25 @@ export default function Departments() {
                   )}
                 />
 
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Název (volitelné)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="např. Výroba" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="flex gap-4 pt-4">
-                  <Button type="submit">Uložit</Button>
+                  <Button type="submit" disabled={saving}>
+                    {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {saving ? "Ukládání..." : "Uložit"}
+                  </Button>
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                     Zrušit
                   </Button>
@@ -168,28 +193,36 @@ export default function Departments() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Provozovna</TableHead>
+              <TableHead>Číslo střediska</TableHead>
               <TableHead>Název</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockDepartments.map((dept) => (
-              <TableRow key={dept.id}>
-                <TableCell className="text-sm">{dept.facility}</TableCell>
-                <TableCell className="font-medium">{dept.code}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(dept)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(dept)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
+            {departments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                  Žádná střediska nenalezena
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              departments.map((dept) => (
+                <TableRow key={dept.id}>
+                  <TableCell className="font-medium">{dept.code}</TableCell>
+                  <TableCell className="text-sm">{dept.name || "-"}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(dept)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(dept)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>

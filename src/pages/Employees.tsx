@@ -17,17 +17,20 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download } from "lucide-react";
+import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download, Loader2 } from "lucide-react";
 import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import * as XLSX from 'xlsx';
+import { useEmployees, EmployeeWithDepartment } from "@/hooks/useEmployees";
+import { useDepartments } from "@/hooks/useDepartments";
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),
@@ -43,20 +46,6 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const mockEmployees = [
-  {
-    id: "1",
-    employeeNumber: "102756",
-    firstName: "Petra",
-    lastName: "Ongerová",
-    email: "petra.ongerova@qlar.cz",
-    position: "Operátor výroby",
-    department: "2002000003",
-    status: "employed" as const,
-    notes: "",
-  },
-];
-
 const statusLabels = {
   employed: "Aktivní",
   parental_leave: "Mateřská/rodičovská",
@@ -66,21 +55,25 @@ const statusLabels = {
 
 export default function Employees() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<typeof mockEmployees[0] | null>(null);
+  const [editingEmployee, setEditingEmployee] = useState<EmployeeWithDepartment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [employeeToDelete, setEmployeeToDelete] = useState<typeof mockEmployees[0] | null>(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeWithDepartment | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  const departments = useMemo(() => {
-    const depts = new Set(mockEmployees.map((e) => e.department));
+  const { employees, loading: employeesLoading, refetch } = useEmployees();
+  const { departments, loading: departmentsLoading } = useDepartments();
+
+  const uniqueDepartments = useMemo(() => {
+    const depts = new Set(employees.map((e) => e.department).filter(Boolean));
     return Array.from(depts).sort();
-  }, []);
+  }, [employees]);
 
   const filteredEmployees = useMemo(() => {
-    return mockEmployees.filter((employee) => {
+    return employees.filter((employee) => {
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch =
         searchQuery === "" ||
@@ -96,7 +89,7 @@ export default function Employees() {
 
       return matchesSearch && matchesDepartment && matchesStatus;
     });
-  }, [searchQuery, departmentFilter, statusFilter]);
+  }, [searchQuery, departmentFilter, statusFilter, employees]);
 
   const hasActiveFilters =
     searchQuery !== "" || departmentFilter !== "all" || statusFilter !== "all";
@@ -175,7 +168,7 @@ export default function Employees() {
 
   const selectedStatus = form.watch("status");
 
-  const handleEdit = (employee: typeof mockEmployees[0]) => {
+  const handleEdit = (employee: EmployeeWithDepartment) => {
     setEditingEmployee(employee);
     form.reset({
       firstName: employee.firstName,
@@ -183,25 +176,47 @@ export default function Employees() {
       email: employee.email,
       employeeNumber: employee.employeeNumber,
       position: employee.position,
-      departmentId: employee.department,
+      departmentId: employee.departmentId || "",
       status: employee.status,
       notes: employee.notes || "",
     });
     setDialogOpen(true);
   };
 
-  const openDeleteDialog = (employee: typeof mockEmployees[0]) => {
+  const openDeleteDialog = (employee: EmployeeWithDepartment) => {
     setEmployeeToDelete(employee);
     setDeleteDialogOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!employeeToDelete) return;
     
-    toast({
-      title: "Zaměstnanec smazán",
-      description: `${employeeToDelete.firstName} ${employeeToDelete.lastName} byl úspěšně odstraněn.`,
-    });
+    // Note: DELETE is forbidden by RLS policy, so we just update status to terminated
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({ 
+          status: "terminated",
+          termination_date: new Date().toISOString().split("T")[0],
+          notes: `Ukončen ke dni ${format(new Date(), "dd.MM.yyyy", { locale: cs })}`
+        })
+        .eq("id", employeeToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Zaměstnanec deaktivován",
+        description: `${employeeToDelete.firstName} ${employeeToDelete.lastName} byl označen jako ukončený.`,
+      });
+      
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Chyba",
+        description: error.message || "Nepodařilo se deaktivovat zaměstnance.",
+        variant: "destructive",
+      });
+    }
     
     setDeleteDialogOpen(false);
     setEmployeeToDelete(null);
@@ -215,26 +230,74 @@ export default function Employees() {
     }
   };
 
-  const onSubmit = (data: FormValues) => {
-    // Automaticky nastavit poznámku pro ukončené zaměstnance
-    if (data.status === "terminated" && data.terminationDate) {
-      data.notes = `Ukončen ke dni ${format(data.terminationDate, "dd.MM.yyyy", { locale: cs })}`;
-    }
+  const onSubmit = async (data: FormValues) => {
+    setSaving(true);
     
-    if (editingEmployee) {
+    try {
+      // Automaticky nastavit poznámku pro ukončené zaměstnance
+      let notes = data.notes;
+      if (data.status === "terminated" && data.terminationDate) {
+        notes = `Ukončen ke dni ${format(data.terminationDate, "dd.MM.yyyy", { locale: cs })}`;
+      }
+      
+      const employeeData = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email,
+        employee_number: data.employeeNumber,
+        position: data.position,
+        department_id: data.departmentId,
+        status: data.status,
+        termination_date: data.terminationDate ? format(data.terminationDate, "yyyy-MM-dd") : null,
+        notes: notes || null,
+      };
+
+      if (editingEmployee) {
+        const { error } = await supabase
+          .from("employees")
+          .update(employeeData)
+          .eq("id", editingEmployee.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Zaměstnanec aktualizován",
+          description: "Údaje zaměstnance byly úspěšně upraveny.",
+        });
+      } else {
+        const { error } = await supabase
+          .from("employees")
+          .insert(employeeData);
+
+        if (error) throw error;
+
+        toast({
+          title: "Zaměstnanec přidán",
+          description: "Nový zaměstnanec byl úspěšně přidán do systému.",
+        });
+      }
+      
+      refetch();
+      handleDialogClose(false);
+    } catch (error: any) {
       toast({
-        title: "Zaměstnanec aktualizován",
-        description: "Údaje zaměstnance byly úspěšně upraveny.",
+        title: "Chyba",
+        description: error.message || "Nepodařilo se uložit zaměstnance.",
+        variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Zaměstnanec přidán",
-        description: "Nový zaměstnanec byl úspěšně přidán do systému.",
-      });
+    } finally {
+      setSaving(false);
     }
-    
-    handleDialogClose(false);
   };
+
+  if (employeesLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-2">Načítání zaměstnanců...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -338,16 +401,18 @@ export default function Employees() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Středisko *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Vyberte středisko" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="dept1">2002000001</SelectItem>
-                          <SelectItem value="dept2">2002000002</SelectItem>
-                          <SelectItem value="dept3">2002000003</SelectItem>
+                          {departments.map((dept) => (
+                            <SelectItem key={dept.id} value={dept.id}>
+                              {dept.code} {dept.name && `- ${dept.name}`}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -361,7 +426,7 @@ export default function Employees() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Stav *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
@@ -414,7 +479,10 @@ export default function Employees() {
                 )}
 
                 <div className="flex gap-4 pt-4">
-                  <Button type="submit">Uložit</Button>
+                  <Button type="submit" disabled={saving}>
+                    {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {saving ? "Ukládání..." : "Uložit"}
+                  </Button>
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                     Zrušit
                   </Button>
@@ -447,7 +515,7 @@ export default function Employees() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Všechna střediska</SelectItem>
-              {departments.map((dept) => (
+              {uniqueDepartments.map((dept) => (
                 <SelectItem key={dept} value={dept}>
                   {dept}
                 </SelectItem>
@@ -472,7 +540,7 @@ export default function Employees() {
         {hasActiveFilters && (
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
             <p className="text-sm text-muted-foreground">
-              Zobrazeno {filteredEmployees.length} z {mockEmployees.length} zaměstnanců
+              Zobrazeno {filteredEmployees.length} z {employees.length} zaměstnanců
             </p>
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <X className="w-4 h-4 mr-2" />
@@ -535,15 +603,16 @@ export default function Employees() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Opravdu chcete smazat zaměstnance?</AlertDialogTitle>
+            <AlertDialogTitle>Opravdu chcete deaktivovat zaměstnance?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tato akce je nevratná. Zaměstnanec "{employeeToDelete?.firstName} {employeeToDelete?.lastName}" bude trvale odstraněn z databáze.
+              Zaměstnanec "{employeeToDelete?.firstName} {employeeToDelete?.lastName}" bude označen jako ukončený.
+              Všechna jeho školení budou automaticky pozastavena.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušit</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Smazat
+              Deaktivovat
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
