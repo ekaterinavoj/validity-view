@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -27,9 +27,12 @@ import {
   User, 
   GraduationCap, 
   Calendar,
-  Loader2,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  CalendarOff,
+  Check,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -46,14 +49,26 @@ interface PendingReminder {
   alreadySentThisWeek: boolean;
 }
 
+interface ReminderSchedule {
+  enabled: boolean;
+  skip_weekends: boolean;
+}
+
+const ITEMS_PER_PAGE = 10;
+
 export function ReminderDryRunPreview() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [pendingReminders, setPendingReminders] = useState<PendingReminder[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [reminderSchedule, setReminderSchedule] = useState<ReminderSchedule>({ enabled: true, skip_weekends: true });
+  const [pendingPage, setPendingPage] = useState(1);
+  const [sentPage, setSentPage] = useState(1);
 
   const loadPreview = async () => {
     setLoading(true);
+    setPendingPage(1);
+    setSentPage(1);
     try {
       // Load settings for days_before and reminder_schedule (matches real sender)
       const { data: settingsData } = await supabase
@@ -65,8 +80,12 @@ export function ReminderDryRunPreview() {
       const reminderScheduleSetting = settingsData?.find(s => s.key === "reminder_schedule");
       
       // Match real sender: settingsMap.reminder_schedule || { enabled: true, skip_weekends: true }
-      const reminderSchedule = (reminderScheduleSetting?.value as { enabled?: boolean; skip_weekends?: boolean }) || 
-        { enabled: true, skip_weekends: true };
+      const scheduleValue = reminderScheduleSetting?.value as { enabled?: boolean; skip_weekends?: boolean } | undefined;
+      const schedule: ReminderSchedule = {
+        enabled: scheduleValue?.enabled ?? true,
+        skip_weekends: scheduleValue?.skip_weekends ?? true,
+      };
+      setReminderSchedule(schedule);
       
       // Match real sender: settingsMap.reminder_days || { days_before: [30, 14, 7] }
       const reminderDays = (reminderDaysSetting?.value as { days_before?: number[] }) || 
@@ -74,7 +93,7 @@ export function ReminderDryRunPreview() {
       const daysBeforeList: number[] = reminderDays.days_before || [30, 14, 7];
       
       // Check if reminders are enabled (matches real sender)
-      if (!reminderSchedule.enabled) {
+      if (!schedule.enabled) {
         setPendingReminders([]);
         setLoading(false);
         toast({
@@ -88,7 +107,7 @@ export function ReminderDryRunPreview() {
       const today = new Date().getDay();
       const isWeekend = today === 0 || today === 6;
 
-      if (reminderSchedule.skip_weekends && isWeekend) {
+      if (schedule.skip_weekends && isWeekend) {
         setPendingReminders([]);
         setLoading(false);
         toast({
@@ -188,8 +207,65 @@ export function ReminderDryRunPreview() {
     }
   }, [isOpen]);
 
-  const pendingToSend = pendingReminders.filter(r => !r.alreadySentThisWeek);
-  const alreadySent = pendingReminders.filter(r => r.alreadySentThisWeek);
+  const pendingToSend = useMemo(() => pendingReminders.filter(r => !r.alreadySentThisWeek), [pendingReminders]);
+  const alreadySent = useMemo(() => pendingReminders.filter(r => r.alreadySentThisWeek), [pendingReminders]);
+
+  // Pagination logic
+  const pendingTotalPages = Math.ceil(pendingToSend.length / ITEMS_PER_PAGE);
+  const sentTotalPages = Math.ceil(alreadySent.length / ITEMS_PER_PAGE);
+
+  const paginatedPending = useMemo(() => {
+    const start = (pendingPage - 1) * ITEMS_PER_PAGE;
+    return pendingToSend.slice(start, start + ITEMS_PER_PAGE);
+  }, [pendingToSend, pendingPage]);
+
+  const paginatedSent = useMemo(() => {
+    const start = (sentPage - 1) * ITEMS_PER_PAGE;
+    return alreadySent.slice(start, start + ITEMS_PER_PAGE);
+  }, [alreadySent, sentPage]);
+
+  const PaginationControls = ({ 
+    currentPage, 
+    totalPages, 
+    onPageChange,
+    totalItems
+  }: { 
+    currentPage: number; 
+    totalPages: number; 
+    onPageChange: (page: number) => void;
+    totalItems: number;
+  }) => {
+    if (totalPages <= 1) return null;
+    
+    return (
+      <div className="flex items-center justify-between pt-2 border-t">
+        <span className="text-sm text-muted-foreground">
+          Celkem {totalItems} záznamů
+        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <span className="text-sm">
+            {currentPage} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -219,6 +295,28 @@ export function ReminderDryRunPreview() {
             </div>
           ) : (
             <>
+              {/* Settings Status Indicator */}
+              <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
+                <Badge 
+                  variant={reminderSchedule.enabled ? "default" : "secondary"}
+                  className="flex items-center gap-1"
+                >
+                  {reminderSchedule.enabled ? (
+                    <Check className="w-3 h-3" />
+                  ) : (
+                    <AlertCircle className="w-3 h-3" />
+                  )}
+                  Připomínky: {reminderSchedule.enabled ? "zapnuté" : "vypnuté"}
+                </Badge>
+                <Badge 
+                  variant={reminderSchedule.skip_weekends ? "outline" : "secondary"}
+                  className="flex items-center gap-1"
+                >
+                  <CalendarOff className="w-3 h-3" />
+                  Víkendy: {reminderSchedule.skip_weekends ? "přeskakovat" : "odesílat"}
+                </Badge>
+              </div>
+
               {/* Summary */}
               <div className="flex gap-4">
                 <Card className="flex-1">
@@ -254,7 +352,7 @@ export function ReminderDryRunPreview() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">Připomínky k odeslání</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-2">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -265,7 +363,7 @@ export function ReminderDryRunPreview() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {pendingToSend.map((reminder, idx) => (
+                        {paginatedPending.map((reminder, idx) => (
                           <TableRow key={`${reminder.trainingId}-${reminder.daysBefore}-${idx}`}>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -297,6 +395,12 @@ export function ReminderDryRunPreview() {
                         ))}
                       </TableBody>
                     </Table>
+                    <PaginationControls
+                      currentPage={pendingPage}
+                      totalPages={pendingTotalPages}
+                      onPageChange={setPendingPage}
+                      totalItems={pendingToSend.length}
+                    />
                   </CardContent>
                 </Card>
               ) : (
@@ -315,7 +419,7 @@ export function ReminderDryRunPreview() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base text-muted-foreground">Již odesláno tento týden</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-2">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -326,7 +430,7 @@ export function ReminderDryRunPreview() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {alreadySent.map((reminder, idx) => (
+                        {paginatedSent.map((reminder, idx) => (
                           <TableRow key={`${reminder.trainingId}-${reminder.daysBefore}-${idx}`} className="opacity-50">
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -356,6 +460,12 @@ export function ReminderDryRunPreview() {
                         ))}
                       </TableBody>
                     </Table>
+                    <PaginationControls
+                      currentPage={sentPage}
+                      totalPages={sentTotalPages}
+                      onPageChange={setSentPage}
+                      totalItems={alreadySent.length}
+                    />
                   </CardContent>
                 </Card>
               )}
