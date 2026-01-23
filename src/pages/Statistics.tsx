@@ -10,6 +10,7 @@ import { useState } from "react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { EmailDeliveryStats } from "@/components/EmailDeliveryStats";
 
 // Mock data
 const mockTrainings: Training[] = [
@@ -703,6 +704,11 @@ export default function Statistics() {
           </table>
         </div>
       </Card>
+
+      {/* Email Delivery Statistics */}
+      <div className="border-t pt-6">
+        <EmailDeliveryStats />
+      </div>
     </div>
   );
 }
