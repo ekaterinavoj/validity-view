@@ -39,6 +39,7 @@ interface AdvancedFiltersProps {
   savedFilters: SavedFilter[];
   hasActiveFilters: boolean;
   departments: string[];
+  facilities: string[];
   trainingTypes: string[];
   trainers: string[];
   resultCount?: number;
@@ -55,6 +56,7 @@ export function AdvancedFilters({
   savedFilters,
   hasActiveFilters,
   departments,
+  facilities,
   trainingTypes,
   trainers,
   resultCount,
@@ -101,9 +103,9 @@ export function AdvancedFilters({
         )}
 
         {/* Filter Controls */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           {/* Search */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 xl:col-span-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -128,6 +130,24 @@ export function AdvancedFilters({
               <SelectItem value="valid">Platné</SelectItem>
               <SelectItem value="warning">Brzy vyprší</SelectItem>
               <SelectItem value="expired">Prošlé</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Facility Filter */}
+          <Select
+            value={filters.facilityFilter}
+            onValueChange={(value) => onFilterChange("facilityFilter", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Provozovna" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všechny provozovny</SelectItem>
+              {facilities.map((facility) => (
+                <SelectItem key={facility} value={facility}>
+                  {facility}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 

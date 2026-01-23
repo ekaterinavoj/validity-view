@@ -5,6 +5,7 @@ export interface FilterState {
   searchQuery: string;
   statusFilter: string;
   departmentFilter: string;
+  facilityFilter: string;
   typeFilter: string;
   trainerFilter: string;
   dateFrom: Date | undefined;
@@ -22,6 +23,7 @@ const DEFAULT_FILTERS: FilterState = {
   searchQuery: "",
   statusFilter: "all",
   departmentFilter: "all",
+  facilityFilter: "all",
   typeFilter: "all",
   trainerFilter: "all",
   dateFrom: undefined,
@@ -80,6 +82,7 @@ export function useAdvancedFilters(storageKey: string = "training-filters") {
       filters.searchQuery !== "" ||
       filters.statusFilter !== "all" ||
       filters.departmentFilter !== "all" ||
+      filters.facilityFilter !== "all" ||
       filters.typeFilter !== "all" ||
       filters.trainerFilter !== "all" ||
       filters.dateFrom !== undefined ||
