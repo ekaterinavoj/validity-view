@@ -55,16 +55,28 @@ export function ReminderDryRunPreview() {
   const loadPreview = async () => {
     setLoading(true);
     try {
-      // Load settings for days_before
+      // Load settings for days_before and skip_weekends
       const { data: settingsData } = await supabase
         .from("system_settings")
-        .select("value")
-        .eq("key", "reminder_days")
-        .single();
+        .select("key, value")
+        .in("key", ["reminder_days", "skip_weekends"]);
 
-      const settingsValue = settingsData?.value as { days_before?: number[] } | null;
+      const reminderDaysSetting = settingsData?.find(s => s.key === "reminder_days");
+      const skipWeekendsSetting = settingsData?.find(s => s.key === "skip_weekends");
+      
+      const settingsValue = reminderDaysSetting?.value as { days_before?: number[] } | null;
       const reminderDays = settingsValue || { days_before: [30, 14, 7] };
       const daysBeforeList: number[] = reminderDays.days_before || [30, 14, 7];
+      
+      // Parse skip_weekends setting (default: true)
+      const skipWeekends = skipWeekendsSetting?.value === true || 
+        (typeof skipWeekendsSetting?.value === 'object' && (skipWeekendsSetting.value as any)?.enabled === true) ||
+        skipWeekendsSetting?.value === undefined; // default to true if not set
+
+      // Check if today is a weekend and skip_weekends is enabled
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
       // Get current week start (Monday)
       const now = new Date();
@@ -76,6 +88,17 @@ export function ReminderDryRunPreview() {
       const weekStart = monday.toISOString().split("T")[0];
 
       const reminders: PendingReminder[] = [];
+
+      // If it's weekend and skip_weekends is enabled, show empty preview with note
+      if (isWeekend && skipWeekends) {
+        setPendingReminders([]);
+        setLoading(false);
+        toast({
+          title: "Víkend - odesílání přeskočeno",
+          description: "Nastavení 'Přeskočit víkendy' je aktivní. Připomínky se o víkendech neodesílají.",
+        });
+        return;
+      }
 
       for (const daysBefore of daysBeforeList) {
         // Calculate target date
@@ -90,7 +113,7 @@ export function ReminderDryRunPreview() {
             id,
             next_training_date,
             employee_id,
-            employees (id, first_name, last_name, email),
+            employees (id, first_name, last_name, email, status),
             training_types (name)
           `)
           .eq("next_training_date", targetDateStr)
@@ -100,8 +123,14 @@ export function ReminderDryRunPreview() {
           console.error("Error fetching trainings:", error);
           continue;
         }
+        
+        // Filter only active employees (matching real sender logic)
+        const activeTrainings = (trainings || []).filter(t => {
+          const emp = t.employees as any;
+          return emp && emp.status === 'employed';
+        });
 
-        for (const training of trainings || []) {
+        for (const training of activeTrainings) {
           if (!training.employees || !training.training_types) continue;
 
           // Check if already sent this week
