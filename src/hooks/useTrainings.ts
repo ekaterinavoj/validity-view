@@ -26,6 +26,7 @@ export interface TrainingWithDetails {
   remindDaysBefore: number;
   repeatDaysAfter: number;
   trainingTypeId: string;
+  deletedAt: string | null; // Soft-delete timestamp
 }
 
 export function useTrainings(activeOnly: boolean = true) {
@@ -38,7 +39,7 @@ export function useTrainings(activeOnly: boolean = true) {
     setError(null);
     
     try {
-      // First fetch all trainings with joins
+      // First fetch all trainings with joins - exclude archived (deleted_at IS NOT NULL)
       const { data, error: fetchError } = await supabase
         .from("trainings")
         .select(`
@@ -57,6 +58,7 @@ export function useTrainings(activeOnly: boolean = true) {
           reminder_template_id,
           employee_id,
           training_type_id,
+          deleted_at,
           employees (
             id,
             employee_number,
@@ -81,6 +83,7 @@ export function useTrainings(activeOnly: boolean = true) {
             name
           )
         `)
+        .is("deleted_at", null) // Exclude archived trainings
         .order("next_training_date", { ascending: true });
 
       if (fetchError) throw fetchError;
@@ -136,6 +139,7 @@ export function useTrainings(activeOnly: boolean = true) {
           remindDaysBefore: t.remind_days_before || 30,
           repeatDaysAfter: t.repeat_days_after || 30,
           trainingTypeId: t.training_type_id,
+          deletedAt: t.deleted_at,
         }));
 
       setTrainings(transformedData);

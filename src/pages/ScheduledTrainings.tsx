@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Trash2, Plus, CalendarClock, FileSpreadsheet, FileDown, Upload, X, FileText, FileImage, File, Eye, Loader2 } from "lucide-react";
+import { Edit, Trash2, Plus, CalendarClock, FileSpreadsheet, FileDown, Upload, X, FileText, FileImage, File, Eye, Loader2, Archive, ArchiveRestore } from "lucide-react";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { Progress } from "@/components/ui/progress";
 import { useMemo, useState } from "react";
@@ -358,11 +358,11 @@ export default function ScheduledTrainings() {
     }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkArchive = () => {
     if (selectedTrainings.size === 0) {
       toast({
         title: "Žádná školení vybrána",
-        description: "Vyberte alespoň jedno školení pro smazání.",
+        description: "Vyberte alespoň jedno školení pro archivaci.",
         variant: "destructive",
       });
       return;
@@ -371,7 +371,7 @@ export default function ScheduledTrainings() {
     setDeleteDialogOpen(true);
   };
 
-  const confirmBulkDelete = async () => {
+  const confirmBulkArchive = async () => {
     if (selectedTrainings.size === 0) {
       return;
     }
@@ -381,16 +381,17 @@ export default function ScheduledTrainings() {
     try {
       const selectedIds = Array.from(selectedTrainings);
       
+      // Soft-delete: set deleted_at timestamp instead of hard delete
       const { error } = await supabase
         .from("trainings")
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .in("id", selectedIds);
 
       if (error) throw error;
       
       toast({
-        title: "Školení smazána",
-        description: `Úspěšně smazáno ${selectedTrainings.size} školení.`,
+        title: "Školení archivována",
+        description: `Úspěšně archivováno ${selectedTrainings.size} školení. Jsou stále dostupná v Historii školení.`,
       });
 
       setSelectedTrainings(new Set());
@@ -398,10 +399,10 @@ export default function ScheduledTrainings() {
       
       refetch();
     } catch (error: any) {
-      console.error("Error in bulk delete:", error);
+      console.error("Error in bulk archive:", error);
       toast({
-        title: "Chyba při mazání",
-        description: error.message || "Nepodařilo se smazat školení.",
+        title: "Chyba při archivaci",
+        description: error.message || "Nepodařilo se archivovat školení.",
         variant: "destructive",
       });
     } finally {
@@ -1087,18 +1088,19 @@ export default function ScheduledTrainings() {
                 </Dialog>
                 <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                   <Button
-                    variant="destructive"
+                    variant="outline"
                     size="sm"
-                    onClick={handleBulkDelete}
+                    onClick={handleBulkArchive}
+                    className="border-amber-500 text-amber-700 hover:bg-amber-50"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Smazat vybrané
+                    <Archive className="w-4 h-4 mr-2" />
+                    Archivovat vybrané
                   </Button>
                   <AlertDialogContent className="max-w-2xl">
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Potvrzení smazání školení</AlertDialogTitle>
+                      <AlertDialogTitle>Potvrzení archivace školení</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Opravdu chcete smazat následující školení? Tato akce je nevratná.
+                        Vybraná školení budou archivována. Zůstanou dostupná v Historii školení s možností obnovení.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="max-h-96 overflow-y-auto">
@@ -1127,19 +1129,22 @@ export default function ScheduledTrainings() {
                           </div>
                         ))}
                       </div>
-                      <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                        <p className="text-sm font-medium text-destructive">
-                          Celkem bude smazáno: {selectedTrainings.size} školení
+                      <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-sm font-medium text-amber-700">
+                          Celkem bude archivováno: {selectedTrainings.size} školení
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Archivovaná školení lze zobrazit a obnovit v Historii školení.
                         </p>
                       </div>
                     </div>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Zrušit</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={confirmBulkDelete}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={confirmBulkArchive}
+                        className="bg-amber-600 text-white hover:bg-amber-700"
                       >
-                        Smazat {selectedTrainings.size} školení
+                        Archivovat {selectedTrainings.size} školení
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
