@@ -130,6 +130,16 @@ export default function SystemStatus() {
         },
       });
 
+      // Handle configuration errors (returned in data even with error)
+      if (data?.error === "No recipients configured") {
+        toast({
+          title: "Chybí konfigurace příjemců",
+          description: "Přejděte do Nastavení a nakonfigurujte příjemce připomínek.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (error) throw error;
 
       if (testMode) {
@@ -147,11 +157,21 @@ export default function SystemStatus() {
       // Reload runs after a short delay
       setTimeout(loadRuns, 2000);
     } catch (error: any) {
-      toast({
-        title: "Chyba při spouštění",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Parse error message for configuration issues
+      const errorMsg = error.message || "";
+      if (errorMsg.includes("No recipients configured") || errorMsg.includes("recipients")) {
+        toast({
+          title: "Chybí konfigurace příjemců",
+          description: "Přejděte do Nastavení a nakonfigurujte příjemce připomínek.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Chyba při spouštění",
+          description: errorMsg,
+          variant: "destructive",
+        });
+      }
     } finally {
       setRunningReminders(false);
     }
