@@ -19,6 +19,7 @@ import AuditLog from "./pages/AuditLog";
 import Profile from "./pages/Profile";
 import AdminSettings from "./pages/AdminSettings";
 import SystemStatus from "./pages/SystemStatus";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -164,6 +165,16 @@ const App = () => (
                 <ProtectedRoute requiredRoles={["admin"]}>
                   <Layout>
                     <SystemStatus />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/user-management"
+              element={
+                <ProtectedRoute requiredRoles={["admin"]}>
+                  <Layout>
+                    <UserManagement />
                   </Layout>
                 </ProtectedRoute>
               }
