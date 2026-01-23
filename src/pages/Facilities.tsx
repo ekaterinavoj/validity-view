@@ -17,11 +17,21 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
-  code: z.string().min(1, "Zadejte kód provozovny"),
   name: z.string().min(1, "Zadejte název provozovny"),
   description: z.string().optional(),
   is_active: z.boolean().default(true),
 });
+
+// Generate a simple code from name (lowercase, no diacritics, hyphens)
+const generateCodeFromName = (name: string): string => {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .substring(0, 50);
+};
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -48,7 +58,6 @@ export default function Facilities() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      code: "",
       name: "",
       description: "",
       is_active: true,
@@ -85,7 +94,7 @@ export default function Facilities() {
     setIsSubmitting(true);
     try {
       const facilityData = {
-        code: data.code,
+        code: generateCodeFromName(data.name),
         name: data.name,
         description: data.description || null,
         is_active: data.is_active,
@@ -137,7 +146,6 @@ export default function Facilities() {
   const handleEdit = (facility: Facility) => {
     setEditingFacility(facility);
     form.reset({
-      code: facility.code,
       name: facility.name,
       description: facility.description || "",
       is_active: facility.is_active,
@@ -209,20 +217,6 @@ export default function Facilities() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kód provozovny *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="např. qlar-jenec-dc3" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <FormField
                   control={form.control}
                   name="name"
@@ -305,7 +299,6 @@ export default function Facilities() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Kód</TableHead>
                 <TableHead>Název</TableHead>
                 <TableHead>Popis</TableHead>
                 <TableHead>Stav</TableHead>
@@ -315,14 +308,13 @@ export default function Facilities() {
             <TableBody>
               {facilities.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                     Žádné provozovny nenalezeny. Přidejte novou provozovnu.
                   </TableCell>
                 </TableRow>
               ) : (
                 facilities.map((facility) => (
                   <TableRow key={facility.id}>
-                    <TableCell className="font-mono text-sm">{facility.code}</TableCell>
                     <TableCell className="font-medium">{facility.name}</TableCell>
                     <TableCell className="max-w-xs truncate" title={facility.description || ""}>
                       {facility.description || "-"}
