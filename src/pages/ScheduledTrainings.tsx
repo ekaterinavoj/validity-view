@@ -1261,7 +1261,7 @@ export default function ScheduledTrainings() {
                   <TableHead>Stav</TableHead>
                   <TableHead>Školení platné do</TableHead>
                   <TableHead>Typ školení</TableHead>
-                  <TableHead>Osobní číslo</TableHead>
+                  
                   <TableHead>Jméno</TableHead>
                   <TableHead>Provozovna</TableHead>
                   <TableHead>Středisko</TableHead>
@@ -1278,7 +1278,7 @@ export default function ScheduledTrainings() {
               <TableBody>
                 {filteredTrainings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
                       Žádná školení nenalezena
                     </TableCell>
                   </TableRow>
@@ -1298,7 +1298,7 @@ export default function ScheduledTrainings() {
                         {new Date(training.date).toLocaleDateString("cs-CZ")}
                       </TableCell>
                       <TableCell className="font-medium">{training.type}</TableCell>
-                      <TableCell>{training.employeeNumber}</TableCell>
+                      
                       <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
                       <TableCell className="max-w-xs truncate" title={getFacilityName(training.facility)}>
                         {getFacilityName(training.facility)}
