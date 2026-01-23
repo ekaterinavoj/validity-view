@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -83,8 +83,15 @@ const TEMPLATE_VARIABLES = [
 
 export default function AdminSettings() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
+  
+  // Get initial tab from URL query param, default to "onboarding"
+  const tabParam = searchParams.get("tab");
+  const validTabs = ["onboarding", "reminders", "email", "user-management", "recipients", "data"];
+  const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
+  const [activeTab, setActiveTab] = useState(initialTab);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -137,6 +144,20 @@ export default function AdminSettings() {
   // Users state
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+
+  // Sync tab with URL params
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && validTabs.includes(tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  // Update URL when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setSearchParams({ tab: value });
+  };
 
   useEffect(() => {
     if (!isAdmin) {
@@ -373,7 +394,7 @@ export default function AdminSettings() {
         </Button>
       </div>
 
-      <Tabs defaultValue="onboarding" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
@@ -391,7 +412,7 @@ export default function AdminSettings() {
             <Shield className="w-4 h-4" />
             Správa uživatelů
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-2">
+          <TabsTrigger value="recipients" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             Příjemci
           </TabsTrigger>
@@ -1003,7 +1024,7 @@ export default function AdminSettings() {
         </TabsContent>
 
         {/* Users (Recipients) Tab */}
-        <TabsContent value="users" className="space-y-6">
+        <TabsContent value="recipients" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Přehled uživatelů a rolí</CardTitle>

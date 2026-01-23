@@ -1,16 +1,20 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Clock, AlertTriangle, LogOut } from "lucide-react";
+import { Loader2, Clock, AlertTriangle, LogOut, ShieldX } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+type RequiredRole = "admin" | "manager" | "user";
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** If specified, user must have at least one of these roles */
+  requiredRoles?: RequiredRole[];
 }
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading, profile, isPending, signOut } = useAuth();
+export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps) => {
+  const { user, loading, profile, isPending, isAdmin, isManager, roles, signOut } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -108,6 +112,42 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         </Card>
       </div>
     );
+  }
+
+  // Check role-based access if requiredRoles is specified
+  if (requiredRoles && requiredRoles.length > 0) {
+    const hasRequiredRole = requiredRoles.some(role => roles.includes(role));
+    
+    if (!hasRequiredRole) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-destructive/5 p-4">
+          <Card className="w-full max-w-md border-destructive/20">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                <ShieldX className="w-8 h-8 text-destructive" />
+              </div>
+              <CardTitle className="text-xl">Nedostatečná oprávnění</CardTitle>
+              <CardDescription className="text-base">
+                Nemáte oprávnění k přístupu na tuto stránku
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground text-center">
+                Tato stránka vyžaduje vyšší úroveň oprávnění. Kontaktujte administrátora, pokud potřebujete přístup.
+              </p>
+
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate("/")}
+              >
+                Zpět na hlavní stránku
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
   }
 
   return <>{children}</>;
