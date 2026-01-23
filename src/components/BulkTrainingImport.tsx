@@ -29,21 +29,109 @@ interface ImportRow {
 interface ParsedRow {
   rowNumber: number;
   data: ImportRow;
-  status: 'valid' | 'error' | 'duplicate';
+  status: 'valid' | 'error' | 'duplicate' | 'fuzzy_matched';
   error?: string;
+  warning?: string;
   employeeId?: string;
   employeeName?: string;
   trainingTypeId?: string;
+  trainingTypeName?: string;
+  matchedTrainingTypeName?: string;
+  matchConfidence?: number;
   periodDays?: number;
   existingTrainingId?: string;
   existingTrainingDate?: string;
 }
+
+interface FuzzyMatch {
+  item: any;
+  score: number;
+  normalizedScore: number;
+}
+
+// Levenshtein distance for fuzzy matching
+const levenshteinDistance = (str1: string, str2: string): number => {
+  const m = str1.length;
+  const n = str2.length;
+  
+  if (m === 0) return n;
+  if (n === 0) return m;
+  
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+  
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,      // deletion
+        dp[i][j - 1] + 1,      // insertion
+        dp[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+  
+  return dp[m][n];
+};
+
+// Calculate similarity score (0-100%)
+const calculateSimilarity = (str1: string, str2: string): number => {
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+  
+  if (s1 === s2) return 100;
+  
+  const maxLen = Math.max(s1.length, s2.length);
+  if (maxLen === 0) return 100;
+  
+  const distance = levenshteinDistance(s1, s2);
+  return Math.round((1 - distance / maxLen) * 100);
+};
+
+// Find best fuzzy match for training type
+const findBestTrainingTypeMatch = (
+  searchName: string, 
+  facilityCode: string,
+  trainingTypes: Array<{ id: string; name: string; facility: string; period_days: number }> | null,
+  minSimilarity: number = 70
+): FuzzyMatch | null => {
+  if (!trainingTypes || trainingTypes.length === 0) return null;
+  
+  const normalizedSearch = searchName.toLowerCase().trim();
+  
+  // Filter by facility first
+  const facilityTypes = trainingTypes.filter(t => t.facility === facilityCode);
+  
+  // If no types for this facility, try all types
+  const typesToSearch = facilityTypes.length > 0 ? facilityTypes : trainingTypes;
+  
+  let bestMatch: FuzzyMatch | null = null;
+  
+  for (const type of typesToSearch) {
+    const similarity = calculateSimilarity(searchName, type.name);
+    
+    if (similarity >= minSimilarity) {
+      if (!bestMatch || similarity > bestMatch.normalizedScore) {
+        bestMatch = {
+          item: type,
+          score: similarity,
+          normalizedScore: similarity
+        };
+      }
+    }
+  }
+  
+  return bestMatch;
+};
 
 interface ImportPreview {
   totalRows: number;
   validRows: ParsedRow[];
   errorRows: ParsedRow[];
   duplicateRows: ParsedRow[];
+  fuzzyMatchedRows: ParsedRow[];
 }
 
 type DuplicateAction = 'skip' | 'overwrite' | 'import';
@@ -174,6 +262,7 @@ export const BulkTrainingImport = () => {
       const validRows: ParsedRow[] = [];
       const errorRows: ParsedRow[] = [];
       const duplicateRows: ParsedRow[] = [];
+      const fuzzyMatchedRows: ParsedRow[] = [];
 
       // Fetch all employees for matching
       const { data: employees } = await supabase
@@ -262,11 +351,32 @@ export const BulkTrainingImport = () => {
         parsedRow.employeeId = employee.id;
         parsedRow.employeeName = `${employee.first_name} ${employee.last_name}`;
 
-        // Validate training type
-        const trainingType = trainingTypes?.find(
+        // Validate training type - exact match first
+        let trainingType = trainingTypes?.find(
           t => t.name.toLowerCase() === row.training_type_name.toLowerCase().trim() && 
                t.facility === row.facility_code.trim()
         );
+
+        let isFuzzyMatch = false;
+        let matchConfidence = 100;
+
+        // If no exact match, try fuzzy matching
+        if (!trainingType) {
+          const fuzzyMatch = findBestTrainingTypeMatch(
+            row.training_type_name,
+            row.facility_code.trim(),
+            trainingTypes
+          );
+
+          if (fuzzyMatch) {
+            trainingType = fuzzyMatch.item;
+            isFuzzyMatch = true;
+            matchConfidence = fuzzyMatch.normalizedScore;
+            parsedRow.matchedTrainingTypeName = trainingType.name;
+            parsedRow.matchConfidence = matchConfidence;
+            parsedRow.warning = `Fuzzy match: "${row.training_type_name}" → "${trainingType.name}" (${matchConfidence}% shoda)`;
+          }
+        }
 
         if (!trainingType) {
           parsedRow.status = 'error';
@@ -276,12 +386,13 @@ export const BulkTrainingImport = () => {
         }
 
         parsedRow.trainingTypeId = trainingType.id;
+        parsedRow.trainingTypeName = trainingType.name;
         parsedRow.periodDays = trainingType.period_days;
 
         // Check for duplicates (same employee + training type + training date)
         const existingTraining = existingTrainings?.find(
           t => t.employee_id === employee.id && 
-               t.training_type_id === trainingType.id
+               t.training_type_id === trainingType!.id
         );
 
         if (existingTraining) {
@@ -289,6 +400,13 @@ export const BulkTrainingImport = () => {
           parsedRow.existingTrainingId = existingTraining.id;
           parsedRow.existingTrainingDate = existingTraining.last_training_date;
           duplicateRows.push(parsedRow);
+          continue;
+        }
+
+        // If fuzzy matched, add to fuzzy matched rows for review
+        if (isFuzzyMatch) {
+          parsedRow.status = 'fuzzy_matched';
+          fuzzyMatchedRows.push(parsedRow);
           continue;
         }
 
@@ -300,6 +418,7 @@ export const BulkTrainingImport = () => {
         validRows,
         errorRows,
         duplicateRows,
+        fuzzyMatchedRows,
       });
       setShowPreviewDialog(true);
 
@@ -380,7 +499,7 @@ export const BulkTrainingImport = () => {
     let skipped = 0;
     let failed = 0;
 
-    const rowsToProcess = [...preview.validRows];
+    const rowsToProcess = [...preview.validRows, ...preview.fuzzyMatchedRows];
     
     // Handle duplicates based on action
     if (duplicateAction === 'overwrite' || duplicateAction === 'import') {
@@ -593,6 +712,9 @@ export const BulkTrainingImport = () => {
                 <p className="text-sm mt-2">
                   <strong>Duplicita:</strong> Stejný zaměstnanec + typ školení = duplicita. Můžete přeskočit, přepsat nebo importovat jako nový.
                 </p>
+                <p className="text-sm mt-2">
+                  <strong>Fuzzy matching:</strong> Pokud přesný název školení nenajde shodu, systém automaticky najde podobný název (min. 70% shoda).
+                </p>
                 <p className="text-sm mt-2 text-muted-foreground">
                   <strong>CSV formát:</strong> Delimiter: středník (;), kódování: UTF-8 s BOM
                 </p>
@@ -657,24 +779,75 @@ export const BulkTrainingImport = () => {
           {preview && (
             <div className="space-y-4">
               {/* Summary */}
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-5 gap-3">
                 <Card className="p-4">
                   <div className="text-2xl font-bold">{preview.totalRows}</div>
-                  <div className="text-sm text-muted-foreground">Celkem řádků</div>
+                  <div className="text-sm text-muted-foreground">Celkem</div>
                 </Card>
                 <Card className="p-4 border-primary/50 bg-primary/10">
                   <div className="text-2xl font-bold text-primary">{preview.validRows.length}</div>
-                  <div className="text-sm text-muted-foreground">Validních</div>
+                  <div className="text-sm text-muted-foreground">Přesná shoda</div>
+                </Card>
+                <Card className="p-4 border-secondary/50 bg-secondary/10">
+                  <div className="text-2xl font-bold text-secondary-foreground">{preview.fuzzyMatchedRows.length}</div>
+                  <div className="text-sm text-muted-foreground">Fuzzy shoda</div>
                 </Card>
                 <Card className="p-4 border-accent/50 bg-accent/10">
                   <div className="text-2xl font-bold text-accent-foreground">{preview.duplicateRows.length}</div>
-                  <div className="text-sm text-muted-foreground">Duplicitních</div>
+                  <div className="text-sm text-muted-foreground">Duplicity</div>
                 </Card>
                 <Card className="p-4 border-destructive/50 bg-destructive/10">
                   <div className="text-2xl font-bold text-destructive">{preview.errorRows.length}</div>
-                  <div className="text-sm text-muted-foreground">Chybných</div>
+                  <div className="text-sm text-muted-foreground">Chyby</div>
                 </Card>
               </div>
+
+              {/* Fuzzy matched rows info */}
+              {preview.fuzzyMatchedRows.length > 0 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-semibold">Fuzzy shoda ({preview.fuzzyMatchedRows.length} záznamů)</p>
+                      <p className="text-sm">
+                        Tyto záznamy byly automaticky spárovány s podobnými typy školení. 
+                        Zkontrolujte správnost párování před importem.
+                      </p>
+                      <div className="max-h-32 overflow-y-auto border rounded-lg mt-2">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-16">Řádek</TableHead>
+                              <TableHead>Původní název</TableHead>
+                              <TableHead>Spárováno s</TableHead>
+                              <TableHead className="w-20">Shoda</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {preview.fuzzyMatchedRows.slice(0, 5).map((row) => (
+                              <TableRow key={row.rowNumber}>
+                                <TableCell className="font-mono">{row.rowNumber}</TableCell>
+                                <TableCell className="text-sm">{row.data.training_type_name}</TableCell>
+                                <TableCell className="text-sm font-medium">{row.matchedTrainingTypeName}</TableCell>
+                                <TableCell>
+                                  <Badge variant={row.matchConfidence && row.matchConfidence >= 90 ? "default" : "secondary"}>
+                                    {row.matchConfidence}%
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        {preview.fuzzyMatchedRows.length > 5 && (
+                          <div className="p-2 text-center text-sm text-muted-foreground bg-muted">
+                            ... a dalších {preview.fuzzyMatchedRows.length - 5} záznamů
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Duplicate handling */}
               {preview.duplicateRows.length > 0 && (
@@ -803,7 +976,7 @@ export const BulkTrainingImport = () => {
             <Button variant="outline" onClick={closePreview}>
               {importResult ? "Zavřít" : "Zrušit"}
             </Button>
-            {!importResult && preview && (preview.validRows.length > 0 || (preview.duplicateRows.length > 0 && duplicateAction !== 'skip')) && (
+            {!importResult && preview && (preview.validRows.length > 0 || preview.fuzzyMatchedRows.length > 0 || (preview.duplicateRows.length > 0 && duplicateAction !== 'skip')) && (
               <Button onClick={executeImport} disabled={importing}>
                 {importing ? (
                   <>
