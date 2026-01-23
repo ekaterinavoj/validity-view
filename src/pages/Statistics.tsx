@@ -394,13 +394,21 @@ export default function Statistics() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={exportToExcel}>
+          <Button 
+            variant="outline" 
+            onClick={exportToExcel}
+            disabled={trainingsLoading || typesLoading || totalTrainings === 0}
+          >
             <FileSpreadsheet className="w-4 h-4 mr-2" />
-            Export do Excel
+            {trainingsLoading ? "Načítám..." : "Export do Excel"}
           </Button>
-          <Button variant="outline" onClick={exportToPDF}>
+          <Button 
+            variant="outline" 
+            onClick={exportToPDF}
+            disabled={trainingsLoading || typesLoading || totalTrainings === 0}
+          >
             <FileDown className="w-4 h-4 mr-2" />
-            Export do PDF
+            {trainingsLoading ? "Načítám..." : "Export do PDF"}
           </Button>
         </div>
       </div>

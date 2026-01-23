@@ -158,7 +158,7 @@ export default function EditTraining() {
           : "Změny byly úspěšně uloženy.",
       });
       
-      navigate("/scheduled-trainings");
+      navigate("/");
     } catch (error) {
       console.error("Chyba při aktualizaci školení:", error);
       toast({
@@ -182,7 +182,7 @@ export default function EditTraining() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/scheduled-trainings")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
