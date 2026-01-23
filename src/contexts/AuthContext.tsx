@@ -43,8 +43,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rolesLoaded, setRolesLoaded] = useState(false);
-  const [profileLoaded, setProfileLoaded] = useState(false);
+  // Start with true so we don't show spinner on initial load before we know if there's a user
+  const [rolesLoaded, setRolesLoaded] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -124,25 +125,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    const handleSession = (newSession: Session | null) => {
+    const handleSession = async (newSession: Session | null) => {
       if (!mounted) return;
 
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
       if (newSession?.user) {
-        // Clear stale data immediately; load fresh data asynchronously.
+        // Clear stale data immediately
         setProfile(null);
         setRoles([]);
         setProfileLoaded(false);
         setRolesLoaded(false);
         setProfileError(null);
 
-        // IMPORTANT: do not await any backend calls inside auth callback.
-        setTimeout(() => {
-          if (!mounted) return;
-          void loadUserData(newSession.user.id);
-        }, 0);
+        // Load user data and WAIT for it before setting loading=false
+        try {
+          await loadUserData(newSession.user.id);
+        } catch (error) {
+          console.error("Error loading user data:", error);
+          setProfileLoaded(true);
+          setRolesLoaded(true);
+        }
       } else {
         setProfile(null);
         setRoles([]);
@@ -151,7 +155,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setRolesLoaded(true);
       }
 
-      setLoading(false);
+      if (mounted) {
+        setLoading(false);
+      }
     };
 
     // Listener FIRST (prevents missing events during init)
@@ -159,14 +165,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
       void event;
-      handleSession(newSession);
+      // Don't await - the callback cannot be async, but handleSession manages loading state
+      void handleSession(newSession);
     });
 
     // THEN resolve initial session
     supabase.auth
       .getSession()
       .then(({ data: { session: initialSession } }) => {
-        handleSession(initialSession);
+        void handleSession(initialSession);
       })
       .catch((error) => {
         console.error("Error initializing auth:", error);
