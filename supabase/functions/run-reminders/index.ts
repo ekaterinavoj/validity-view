@@ -293,13 +293,14 @@ const handler = async (req: Request): Promise<Response> => {
   let triggeredBy = "cron";
   let testMode = false;
   let forceRun = false; // Manual runs bypass "due now" check
+  let resendLogId: string | null = null;
 
   try {
     const body = await req.json().catch(() => ({}));
     if (body.triggered_by) {
       triggeredBy = body.triggered_by;
       // Manual triggers bypass the "due now" check
-      if (triggeredBy === "manual" || triggeredBy.startsWith("manual")) {
+      if (triggeredBy === "manual" || triggeredBy.startsWith("manual") || triggeredBy === "resend") {
         forceRun = true;
       }
     }
@@ -310,11 +311,14 @@ const handler = async (req: Request): Promise<Response> => {
     if (body.force === true) {
       forceRun = true;
     }
+    if (body.resend_log_id) {
+      resendLogId = body.resend_log_id;
+    }
   } catch {
     // No body or invalid JSON, use default
   }
 
-  console.log(`Starting reminder run: triggered_by=${triggeredBy}, test_mode=${testMode}, force=${forceRun}`);
+  console.log(`Starting reminder run: triggered_by=${triggeredBy}, test_mode=${testMode}, force=${forceRun}, resend_log_id=${resendLogId}`);
 
   // Load all settings
   const { data: settings, error: settingsError } = await supabase
@@ -358,6 +362,73 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Reminders are disabled");
     return new Response(
       JSON.stringify({ message: "Reminders are disabled", emailsSent: 0 }),
+      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+
+  // Handle resend of a failed email
+  if (resendLogId) {
+    console.log(`Resending failed email from log: ${resendLogId}`);
+    
+    // Fetch the original log entry
+    const { data: originalLog, error: logError } = await supabase
+      .from("reminder_logs")
+      .select("*")
+      .eq("id", resendLogId)
+      .single();
+    
+    if (logError || !originalLog) {
+      console.error("Failed to fetch original log:", logError);
+      return new Response(
+        JSON.stringify({ error: "Original log not found" }),
+        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
+    // Only allow resending failed emails
+    if (originalLog.status !== "failed") {
+      return new Response(
+        JSON.stringify({ error: "Only failed emails can be resent" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
+    // Send the email using the original content
+    const deliveryMode = originalLog.delivery_mode || "bcc";
+    const result = await sendEmail(
+      originalLog.recipient_emails,
+      originalLog.email_subject,
+      originalLog.email_body,
+      deliveryMode,
+      emailProvider
+    );
+    
+    // Log the resend attempt
+    await supabase.from("reminder_logs").insert({
+      training_id: null,
+      employee_id: null,
+      days_before: null,
+      week_start: originalLog.week_start,
+      is_test: false,
+      provider_used: result.provider,
+      recipient_emails: originalLog.recipient_emails,
+      email_subject: originalLog.email_subject,
+      email_body: originalLog.email_body,
+      status: result.success ? "resent" : "failed",
+      error_message: result.error || null,
+      template_name: `Resend of ${originalLog.id}`,
+      delivery_mode: deliveryMode,
+    });
+    
+    return new Response(
+      JSON.stringify({
+        success: result.success,
+        emailsSent: result.success ? originalLog.recipient_emails.length : 0,
+        emailsFailed: result.success ? 0 : originalLog.recipient_emails.length,
+        resent: true,
+        originalLogId: resendLogId,
+        error: result.error,
+      }),
       { headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

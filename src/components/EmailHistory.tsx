@@ -30,7 +30,9 @@ import {
   Users,
   RefreshCw,
   FlaskConical,
-  Eye
+  Eye,
+  RotateCcw,
+  Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -59,6 +61,7 @@ const DELIVERY_MODE_LABELS: Record<string, string> = {
 export function EmailHistory() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState<string | null>(null);
   const [logs, setLogs] = useState<ReminderLogEntry[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
@@ -110,8 +113,49 @@ export function EmailHistory() {
         return <Badge className="bg-primary/20 text-primary"><CheckCircle2 className="w-3 h-3 mr-1" />Odesláno</Badge>;
       case "failed":
         return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Chyba</Badge>;
+      case "resent":
+        return <Badge className="bg-blue-100 text-blue-800"><RotateCcw className="w-3 h-3 mr-1" />Přeposláno</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const handleResend = async (log: ReminderLogEntry) => {
+    setResending(log.id);
+    try {
+      // Call the edge function to resend the email with the same content
+      const { data, error } = await supabase.functions.invoke("run-reminders", {
+        body: { 
+          triggered_by: "resend",
+          force: true,
+          resend_log_id: log.id,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        toast({
+          title: "Chyba při přeposlání",
+          description: data.error,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Email přeposlán",
+          description: `Email byl úspěšně přeposlán ${data?.emailsSent || log.recipient_emails?.length || 0} příjemcům.`,
+        });
+        // Reload logs to show the new resend entry
+        await loadLogs();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Chyba při přeposlání",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setResending(null);
     }
   };
 
@@ -236,6 +280,32 @@ export function EmailHistory() {
                             {log.error_message && (
                               <div className="p-2 bg-destructive/10 border border-destructive/30 rounded-md">
                                 <p className="text-sm text-destructive">{log.error_message}</p>
+                              </div>
+                            )}
+                            {/* Resend button - only for failed emails */}
+                            {log.status === "failed" && (
+                              <div className="pt-2 border-t">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleResend(log);
+                                  }}
+                                  disabled={resending === log.id}
+                                >
+                                  {resending === log.id ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Přeposílám...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <RotateCcw className="w-4 h-4 mr-2" />
+                                      Přeposlat email
+                                    </>
+                                  )}
+                                </Button>
                               </div>
                             )}
                           </div>
