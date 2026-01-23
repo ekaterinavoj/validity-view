@@ -28,7 +28,77 @@ interface Recipient {
   last_name: string;
 }
 
-// Get the start of the current week (Monday) or run period
+// Check if it's time to send based on frequency settings
+function isDueNow(frequency: any, schedule: any): { isDue: boolean; reason: string } {
+  const timezone = frequency.timezone || "Europe/Prague";
+  const startTime = frequency.start_time || "08:00";
+  const frequencyType = frequency.type || "weekly";
+  const intervalDays = frequency.interval_days || 7;
+  const enabled = frequency.enabled !== false; // Default to true if not set
+  
+  // Check if enabled
+  if (!enabled) {
+    return { isDue: false, reason: "Frequency is disabled" };
+  }
+  
+  // Check if schedule is enabled
+  if (schedule.enabled === false) {
+    return { isDue: false, reason: "Schedule is disabled" };
+  }
+  
+  // Get current time in configured timezone
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    weekday: "long",
+  });
+  const parts = formatter.formatToParts(now);
+  const currentHour = parseInt(parts.find(p => p.type === "hour")?.value || "0");
+  const currentMinute = parseInt(parts.find(p => p.type === "minute")?.value || "0");
+  const currentWeekday = parts.find(p => p.type === "weekday")?.value || "";
+  
+  // Parse start time
+  const [targetHour, targetMinute] = startTime.split(":").map(Number);
+  
+  // Check if within the send window (within 1 hour of start time)
+  const currentMinutes = currentHour * 60 + currentMinute;
+  const targetMinutes = targetHour * 60 + targetMinute;
+  const minutesDiff = currentMinutes - targetMinutes;
+  
+  // Only send within 59 minutes after start time
+  if (minutesDiff < 0 || minutesDiff > 59) {
+    return { isDue: false, reason: `Not within send window (current: ${currentHour}:${currentMinute}, target: ${startTime})` };
+  }
+  
+  // Check skip_weekends
+  if (schedule.skip_weekends) {
+    const weekdayNames = ["Sunday", "Saturday"];
+    if (weekdayNames.includes(currentWeekday)) {
+      return { isDue: false, reason: "Weekend - skipped" };
+    }
+  }
+  
+  // For weekly frequency, check day of week
+  if (frequencyType === "weekly" || frequencyType === "biweekly") {
+    const dayOfWeek = schedule.day_of_week ?? 1; // Default Monday
+    const weekdayMap: Record<number, string> = {
+      0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
+      4: "Thursday", 5: "Friday", 6: "Saturday"
+    };
+    const targetWeekday = weekdayMap[dayOfWeek];
+    if (currentWeekday !== targetWeekday) {
+      return { isDue: false, reason: `Not the configured day (current: ${currentWeekday}, target: ${targetWeekday})` };
+    }
+  }
+  
+  // For daily, monthly, custom - just check time window (already checked above)
+  return { isDue: true, reason: "Due now" };
+}
+
+// Get the run period key for idempotency
 function getRunPeriodKey(frequencyType: string, intervalDays: number): string {
   const now = new Date();
   
@@ -98,7 +168,6 @@ function buildTrainingsTable(trainings: TrainingItem[]): string {
 
   for (const t of trainings) {
     const statusColor = t.days_until < 0 ? "#ef4444" : t.days_until <= 7 ? "#f59e0b" : "#22c55e";
-    const statusText = t.days_until < 0 ? "Prošlé" : t.days_until <= 7 ? "Urgentní" : "Brzy";
     
     html += `
       <tr>
@@ -186,7 +255,6 @@ async function sendEmail(
   deliveryMode: string,
   emailProvider: any
 ): Promise<{ success: boolean; error?: string; provider: string }> {
-  // For now, only Resend is fully implemented with BCC support
   return await sendViaResend(
     recipients, 
     subject, 
@@ -224,22 +292,29 @@ const handler = async (req: Request): Promise<Response> => {
 
   let triggeredBy = "cron";
   let testMode = false;
+  let forceRun = false; // Manual runs bypass "due now" check
 
   try {
-    // Get trigger type and test mode from body if provided
     const body = await req.json().catch(() => ({}));
     if (body.triggered_by) {
       triggeredBy = body.triggered_by;
+      // Manual triggers bypass the "due now" check
+      if (triggeredBy === "manual" || triggeredBy.startsWith("manual")) {
+        forceRun = true;
+      }
     }
     if (body.test_mode === true) {
       testMode = true;
       triggeredBy = triggeredBy === "cron" ? "test" : `${triggeredBy}_test`;
     }
+    if (body.force === true) {
+      forceRun = true;
+    }
   } catch {
     // No body or invalid JSON, use default
   }
 
-  console.log(`Starting reminder run: triggered_by=${triggeredBy}, test_mode=${testMode}`);
+  console.log(`Starting reminder run: triggered_by=${triggeredBy}, test_mode=${testMode}, force=${forceRun}`);
 
   // Load all settings
   const { data: settings, error: settingsError } = await supabase
@@ -261,7 +336,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   const reminderSchedule = settingsMap.reminder_schedule || { enabled: true, skip_weekends: true };
   const reminderDays = settingsMap.reminder_days || { days_before: [30, 14, 7] };
-  const reminderFrequency = settingsMap.reminder_frequency || { type: "weekly", interval_days: 7 };
+  const reminderFrequency = settingsMap.reminder_frequency || { type: "weekly", interval_days: 7, enabled: true };
   const reminderRecipients = settingsMap.reminder_recipients || { user_ids: [], delivery_mode: "bcc" };
   const emailProvider = settingsMap.email_provider || { provider: "resend" };
   const emailTemplate = settingsMap.email_template || {
@@ -269,10 +344,16 @@ const handler = async (req: Request): Promise<Response> => {
     body: "Dobrý den,\n\nzasíláme přehled školení vyžadujících pozornost.\n\nCelkem: {totalCount} školení\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}",
   };
 
-  // Get run period key for idempotency
-  const runPeriodKey = getRunPeriodKey(reminderFrequency.type, reminderFrequency.interval_days);
+  // Check if frequency is enabled
+  if (reminderFrequency.enabled === false) {
+    console.log("Reminder frequency is disabled");
+    return new Response(
+      JSON.stringify({ message: "Reminder frequency is disabled", emailsSent: 0 }),
+      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
 
-  // Check if reminders are enabled
+  // Check if schedule is enabled
   if (!reminderSchedule.enabled) {
     console.log("Reminders are disabled");
     return new Response(
@@ -281,24 +362,73 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
-  // Check if today is weekend and skip_weekends is enabled
-  const today = new Date().getDay();
-  if (reminderSchedule.skip_weekends && (today === 0 || today === 6)) {
-    console.log("Skipped - weekend");
+  // Check "due now" logic for cron triggers (not manual)
+  if (!forceRun) {
+    const dueCheck = isDueNow(reminderFrequency, reminderSchedule);
+    if (!dueCheck.isDue) {
+      console.log(`Not due: ${dueCheck.reason}`);
+      return new Response(
+        JSON.stringify({ message: `Not due: ${dueCheck.reason}`, emailsSent: 0 }),
+        { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    console.log(`Due check passed: ${dueCheck.reason}`);
+  }
+
+  // Server-side validation of recipients - only existing users, deduplicated
+  const rawUserIds: string[] = reminderRecipients.user_ids || [];
+  const uniqueUserIds = [...new Set(rawUserIds)]; // Remove duplicates
+
+  if (uniqueUserIds.length === 0) {
+    console.log("No recipients configured");
     return new Response(
-      JSON.stringify({ message: "Skipped - weekend", emailsSent: 0 }),
-      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ 
+        error: "No recipients configured", 
+        warning: "Please configure reminder recipients in Admin Settings",
+        emailsSent: 0 
+      }),
+      { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 
-  // Check for recipients
-  if (!reminderRecipients.user_ids || reminderRecipients.user_ids.length === 0) {
-    console.log("No recipients configured");
+  // Validate user IDs exist in profiles
+  const { data: validProfiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, email, first_name, last_name")
+    .in("id", uniqueUserIds);
+
+  if (profilesError) {
+    console.error("Failed to validate recipients:", profilesError);
     return new Response(
-      JSON.stringify({ message: "No recipients configured", emailsSent: 0 }),
-      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ error: "Failed to validate recipients" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
+
+  // Filter to only valid users
+  const validUserIds = validProfiles?.map(p => p.id) || [];
+  const invalidUserIds = uniqueUserIds.filter(id => !validUserIds.includes(id));
+  
+  if (invalidUserIds.length > 0) {
+    console.log(`Ignoring ${invalidUserIds.length} invalid user IDs: ${invalidUserIds.join(", ")}`);
+  }
+
+  if (validProfiles?.length === 0) {
+    console.log("No valid recipients after validation");
+    return new Response(
+      JSON.stringify({ 
+        error: "No valid recipients", 
+        warning: "All configured recipients are invalid. Please update in Admin Settings",
+        emailsSent: 0 
+      }),
+      { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+
+  const recipientEmails = validProfiles!.map(r => r.email);
+
+  // Get run period key for idempotency
+  const runPeriodKey = getRunPeriodKey(reminderFrequency.type, reminderFrequency.interval_days);
 
   // Create run record
   const { data: runData, error: runError } = await supabase
@@ -333,7 +463,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("is_test", testMode)
       .limit(1);
 
-    if (existingRun && existingRun.length > 0 && !testMode) {
+    if (existingRun && existingRun.length > 0 && !testMode && !forceRun) {
       console.log(`Already sent for period ${runPeriodKey}, skipping`);
       await supabase
         .from("reminder_runs")
@@ -350,41 +480,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get recipients from profiles
-    const { data: recipientProfiles, error: recipientsError } = await supabase
-      .from("profiles")
-      .select("id, email, first_name, last_name")
-      .in("id", reminderRecipients.user_ids);
-
-    if (recipientsError || !recipientProfiles || recipientProfiles.length === 0) {
-      console.error("No valid recipients found:", recipientsError);
-      await supabase
-        .from("reminder_runs")
-        .update({
-          status: "failed",
-          ended_at: new Date().toISOString(),
-          error_message: "No valid recipients found",
-        })
-        .eq("id", runId);
-
-      return new Response(
-        JSON.stringify({ error: "No valid recipients found" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    const recipientEmails = recipientProfiles.map(r => r.email);
-
     // Collect all trainings that need attention
     const daysBeforeList: number[] = reminderDays.days_before;
     const allTrainings: TrainingItem[] = [];
     
-    // Get trainings expiring within the configured days
     const maxDays = Math.max(...daysBeforeList);
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + maxDays);
     const targetDateStr = targetDate.toISOString().split("T")[0];
-    const todayStr = new Date().toISOString().split("T")[0];
 
     // Get all active trainings expiring between now and maxDays from now (or already expired)
     const { data: trainingsRaw, error: trainingsError } = await supabase
@@ -419,7 +522,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (!employee) continue;
         
-        // Only include active employees
+        // Only include active employees (status = 'employed')
         if (employee.status !== "employed") continue;
 
         // Fetch training type
@@ -494,15 +597,15 @@ const handler = async (req: Request): Promise<Response> => {
         recipientEmails,
         subject,
         fullBody,
-        reminderRecipients.delivery_mode,
+        reminderRecipients.delivery_mode || "bcc",
         emailProvider
       );
     }
 
     // Log the reminder for each recipient
-    for (const recipient of recipientProfiles) {
+    for (const recipient of validProfiles!) {
       await supabase.from("reminder_logs").insert({
-        training_id: null, // Summary email, not per-training
+        training_id: null,
         employee_id: null,
         days_before: null,
         week_start: runPeriodKey,
