@@ -33,22 +33,13 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            {/* Primary navigation - accessible to all approved users */}
             <Route
               path="/"
               element={
                 <ProtectedRoute>
                   <Layout>
                     <ScheduledTrainings />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/statistics"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Statistics />
                   </Layout>
                 </ProtectedRoute>
               }
@@ -83,7 +74,17 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            {/* Ostatní dropdown routes */}
+            <Route
+              path="/statistics"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Statistics />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            {/* Ostatní dropdown routes - accessible to all approved users */}
             <Route
               path="/employees"
               element={
@@ -124,17 +125,18 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            {/* Secondary navigation */}
+            {/* Audit log - admin and manager only */}
             <Route
               path="/audit-log"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRoles={["admin", "manager"]}>
                   <Layout>
                     <AuditLog />
                   </Layout>
                 </ProtectedRoute>
               }
             />
+            {/* Profile - all approved users */}
             <Route
               path="/profile"
               element={
@@ -145,11 +147,11 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            {/* Admin routes */}
+            {/* Admin-only routes */}
             <Route
               path="/admin/settings"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRoles={["admin"]}>
                   <Layout>
                     <AdminSettings />
                   </Layout>
@@ -159,7 +161,7 @@ const App = () => (
             <Route
               path="/admin/status"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRoles={["admin"]}>
                   <Layout>
                     <SystemStatus />
                   </Layout>
