@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, KeyRound, Mail, Shield, Search, Settings as SettingsIcon, Bell, Clock, Download, Users, TrendingUp, UserX } from "lucide-react";
+import { User, Save, KeyRound, Mail, Shield, Search, Bell, Clock, Download, Users, TrendingUp, UserX } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -425,10 +425,9 @@ const Profile = () => {
 
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full" style={{
-        gridTemplateColumns: isAdmin ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)'
+        gridTemplateColumns: isAdmin ? 'repeat(4, 1fr)' : '1fr'
       }}>
           <TabsTrigger value="profile">Můj profil</TabsTrigger>
-          <TabsTrigger value="settings">Nastavení</TabsTrigger>
           {isAdmin && <TabsTrigger value="templates">Šablony</TabsTrigger>}
           {isAdmin && <TabsTrigger value="logs">Historie</TabsTrigger>}
           {isAdmin && <TabsTrigger value="import">Import</TabsTrigger>}
@@ -661,10 +660,6 @@ const Profile = () => {
             </>}
         </TabsContent>
 
-        <TabsContent value="settings" className="space-y-6">
-          {/* Nastavení systému */}
-          
-        </TabsContent>
 
         {isAdmin && <TabsContent value="templates">
             <ReminderTemplates />
