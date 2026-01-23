@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History } from "lucide-react";
 import { RolePermissionsInfo } from "@/components/RolePermissionsInfo";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
+import { SendSingleTestEmail } from "@/components/SendSingleTestEmail";
 import { EmailHistory } from "@/components/EmailHistory";
 import { EmailTemplatePreview } from "@/components/EmailTemplatePreview";
 import { NextSendPreview } from "@/components/NextSendPreview";
@@ -710,6 +711,7 @@ export default function AdminSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <SendSingleTestEmail isEnabled={reminderFrequency.enabled} />
               <SendTestSummaryEmail 
                 hasRecipients={reminderRecipients.user_ids.length > 0}
                 isEnabled={reminderFrequency.enabled}
