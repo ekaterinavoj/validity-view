@@ -121,7 +121,8 @@ export default function UserManagement() {
     const user = users.find(u => u.id === userId);
     if (!user) return;
 
-    // Check if this is the last admin trying to demote themselves
+    // CRITICAL: Prevent demoting the last admin (regardless of who is doing it)
+    // This prevents the system from having zero admins
     if (currentRole === "admin" && newRole !== "admin" && adminCount <= 1) {
       setIsLastAdminWarningOpen(true);
       return;
