@@ -39,7 +39,7 @@ export function useTrainingTypes() {
       setTrainingTypes(transformedData);
     } catch (err: any) {
       console.error("Error fetching training types:", err);
-      setError(err.message || "Nepodařilo se načíst typy školení");
+      setError("Nepodařilo se načíst typy školení. Zkuste to prosím znovu.");
     } finally {
       setLoading(false);
     }

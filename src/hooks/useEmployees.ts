@@ -72,7 +72,7 @@ export function useEmployees(statusFilter?: string) {
       setEmployees(transformedData);
     } catch (err: any) {
       console.error("Error fetching employees:", err);
-      setError(err.message || "Nepodařilo se načíst zaměstnance");
+      setError("Nepodařilo se načíst zaměstnance. Zkuste to prosím znovu.");
     } finally {
       setLoading(false);
     }
@@ -136,7 +136,7 @@ export function useInactiveEmployees() {
       setEmployees(transformedData);
     } catch (err: any) {
       console.error("Error fetching inactive employees:", err);
-      setError(err.message || "Nepodařilo se načíst neaktivní zaměstnance");
+      setError("Nepodařilo se načíst neaktivní zaměstnance. Zkuste to prosím znovu.");
     } finally {
       setLoading(false);
     }

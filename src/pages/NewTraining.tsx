@@ -22,6 +22,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
+import { FormSkeleton } from "@/components/LoadingSkeletons";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -48,8 +50,8 @@ export default function NewTraining() {
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const { toast } = useToast();
 
-  const { employees, loading: employeesLoading } = useEmployees();
-  const { trainingTypes, loading: typesLoading } = useTrainingTypes();
+  const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
+  const { trainingTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useTrainingTypes();
 
   // Filter only active employees
   const activeEmployees = useMemo(() => {
@@ -188,11 +190,29 @@ export default function NewTraining() {
     }
   };
 
+  const refetch = () => {
+    refetchEmployees();
+    refetchTypes();
+  };
+
+  if (employeesError || typesError) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-3xl font-bold text-foreground">Vytvoření nového školení</h2>
+        <ErrorDisplay
+          title="Nepodařilo se načíst data"
+          message={employeesError || typesError || "Zkuste to prosím znovu."}
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
+
   if (employeesLoading || typesLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <span className="ml-2">Načítání dat...</span>
+      <div className="space-y-6">
+        <h2 className="text-3xl font-bold text-foreground">Vytvoření nového školení</h2>
+        <FormSkeleton />
       </div>
     );
   }

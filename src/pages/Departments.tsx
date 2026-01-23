@@ -14,13 +14,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Edit, Plus, Trash2, Loader2 } from "lucide-react";
+import { Edit, Plus, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useDepartments, Department } from "@/hooks/useDepartments";
+import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
 
 const formSchema = z.object({
   code: z.string().min(1, "Zadejte číslo střediska"),
@@ -37,7 +39,7 @@ export default function Departments() {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  const { departments, loading, createDepartment, updateDepartment, deleteDepartment, refetch } = useDepartments();
+  const { departments, loading, error, createDepartment, updateDepartment, deleteDepartment, refetch } = useDepartments();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -119,11 +121,26 @@ export default function Departments() {
     }
   };
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold text-foreground">Editovat střediska</h2>
+        </div>
+        <ErrorDisplay
+          title="Nepodařilo se načíst střediska"
+          message={error}
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <span className="ml-2">Načítání středisek...</span>
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <TableSkeleton columns={3} rows={6} />
       </div>
     );
   }

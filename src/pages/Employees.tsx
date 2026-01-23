@@ -17,7 +17,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download, Loader2 } from "lucide-react";
+import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download, Loader2, RefreshCw } from "lucide-react";
 import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,6 +31,8 @@ import * as XLSX from 'xlsx';
 import { useEmployees, EmployeeWithDepartment } from "@/hooks/useEmployees";
 import { useDepartments } from "@/hooks/useDepartments";
 import { supabase } from "@/integrations/supabase/client";
+import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),
@@ -64,7 +66,7 @@ export default function Employees() {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  const { employees, loading: employeesLoading, refetch } = useEmployees();
+  const { employees, loading: employeesLoading, error: employeesError, refetch } = useEmployees();
   const { departments, loading: departmentsLoading } = useDepartments();
 
   const uniqueDepartments = useMemo(() => {
@@ -290,11 +292,26 @@ export default function Employees() {
     }
   };
 
+  if (employeesError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold text-foreground">Školené osoby</h2>
+        </div>
+        <ErrorDisplay
+          title="Nepodařilo se načíst zaměstnance"
+          message={employeesError}
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
+
   if (employeesLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <span className="ml-2">Načítání zaměstnanců...</span>
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <TableSkeleton columns={8} rows={8} />
       </div>
     );
   }

@@ -27,7 +27,7 @@ export function useDepartments() {
       setDepartments(data || []);
     } catch (err: any) {
       console.error("Error fetching departments:", err);
-      setError(err.message || "Nepodařilo se načíst střediska");
+      setError("Nepodařilo se načíst střediska. Zkuste to prosím znovu.");
     } finally {
       setLoading(false);
     }
