@@ -52,12 +52,10 @@ export const Layout = ({ children }: LayoutProps) => {
     return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-500/20 text-green-700 dark:text-green-300">Uživatel</span>;
   };
 
-  // Check if current path matches any "Ostatní" dropdown items
   const isOstatniActive = ["/employees", "/training-types", "/departments", "/inactive"].some(
     path => location.pathname === path
   );
 
-  // Check if current path matches any "Administrace" dropdown items
   const isAdminActive = location.pathname.startsWith("/admin/settings");
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -99,7 +97,6 @@ export const Layout = ({ children }: LayoutProps) => {
                   Odhlásit se
                 </Button>
 
-                {/* Mobile menu toggle */}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -115,10 +112,8 @@ export const Layout = ({ children }: LayoutProps) => {
       </header>
       
       <div className="container mx-auto px-4 py-6">
-        {/* Desktop Navigation */}
         <nav className="hidden lg:block mb-6 border-b border-border">
           <div className="flex items-center justify-between">
-            {/* Left side - Primary navigation */}
             <div className="flex items-center gap-1">
               <NavLink
                 to="/"
@@ -138,7 +133,6 @@ export const Layout = ({ children }: LayoutProps) => {
                 Historie školení
               </NavLink>
 
-              {/* CTA Button */}
               <Link to="/new-training">
                 <Button size="sm" className="ml-2 gap-2">
                   <PlusCircle className="w-4 h-4" />
@@ -146,7 +140,6 @@ export const Layout = ({ children }: LayoutProps) => {
                 </Button>
               </Link>
 
-              {/* Ostatní Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -188,7 +181,6 @@ export const Layout = ({ children }: LayoutProps) => {
               </DropdownMenu>
             </div>
 
-            {/* Right side - Secondary navigation */}
             <div className="flex items-center gap-1">
               <NavLink
                 to="/statistics"
@@ -221,7 +213,6 @@ export const Layout = ({ children }: LayoutProps) => {
                     Stav systému
                   </NavLink>
 
-                  {/* Administrace Dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -274,10 +265,8 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
         </nav>
 
-        {/* Mobile Navigation */}
         {mobileMenuOpen && (
           <nav className="lg:hidden mb-6 border border-border rounded-lg bg-card p-4 space-y-2">
-            {/* Primary items */}
             <div className="space-y-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Hlavní</p>
               <Link 
@@ -312,7 +301,6 @@ export const Layout = ({ children }: LayoutProps) => {
               </Link>
             </div>
 
-            {/* Ostatní */}
             <div className="space-y-1 pt-2 border-t border-border">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ostatní</p>
               <Link 
@@ -361,7 +349,6 @@ export const Layout = ({ children }: LayoutProps) => {
               </Link>
             </div>
 
-            {/* Secondary */}
             <div className="space-y-1 pt-2 border-t border-border">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Přehledy</p>
               <Link 
@@ -403,7 +390,6 @@ export const Layout = ({ children }: LayoutProps) => {
               )}
             </div>
 
-            {/* Admin */}
             {isAdmin && (
               <div className="space-y-1 pt-2 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Administrace</p>
@@ -465,7 +451,6 @@ export const Layout = ({ children }: LayoutProps) => {
               </div>
             )}
 
-            {/* Profile and Logout for mobile */}
             <div className="space-y-1 pt-2 border-t border-border">
               <Link 
                 to="/profile" 
