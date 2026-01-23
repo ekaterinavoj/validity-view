@@ -180,6 +180,8 @@ export type Database = {
           employee_id: string | null
           error_message: string | null
           id: string
+          is_test: boolean
+          provider_used: string | null
           recipient_emails: string[]
           sent_at: string
           status: string
@@ -196,6 +198,8 @@ export type Database = {
           employee_id?: string | null
           error_message?: string | null
           id?: string
+          is_test?: boolean
+          provider_used?: string | null
           recipient_emails: string[]
           sent_at?: string
           status?: string
@@ -212,6 +216,8 @@ export type Database = {
           employee_id?: string | null
           error_message?: string | null
           id?: string
+          is_test?: boolean
+          provider_used?: string | null
           recipient_emails?: string[]
           sent_at?: string
           status?: string
