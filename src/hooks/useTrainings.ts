@@ -86,6 +86,20 @@ export function useTrainings(activeOnly: boolean = true) {
       if (fetchError) throw fetchError;
 
       // Transform and filter data based on activeOnly parameter
+      // Compute status dynamically on read to avoid stale status
+      const computeStatus = (nextDate: string): "valid" | "warning" | "expired" => {
+        const next = new Date(nextDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        next.setHours(0, 0, 0, 0);
+        
+        const diffDays = Math.floor((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 0) return "expired";
+        if (diffDays <= 30) return "warning";
+        return "valid";
+      };
+
       const transformedData: TrainingWithDetails[] = (data || [])
         .filter((t: any) => {
           const employeeStatus = t.employees?.status;
@@ -99,7 +113,8 @@ export function useTrainings(activeOnly: boolean = true) {
         })
         .map((t: any) => ({
           id: t.id,
-          status: t.status as "valid" | "warning" | "expired",
+          // Compute status dynamically instead of using stored value
+          status: computeStatus(t.next_training_date),
           date: t.next_training_date,
           type: t.training_types?.name || "",
           employeeNumber: t.employees?.employee_number || "",
