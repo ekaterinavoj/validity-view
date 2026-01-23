@@ -46,7 +46,7 @@ const roleColors = {
 };
 
 export default function UserManagement() {
-  const { isAdmin, profile } = useAuth();
+  const { isAdmin, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -140,6 +140,7 @@ export default function UserManagement() {
     if (!pendingRoleChange) return;
 
     const { userId, newRole } = pendingRoleChange;
+    const isChangingOwnRole = userId === profile?.id;
 
     try {
       // Remove all existing roles for this user
@@ -164,7 +165,22 @@ export default function UserManagement() {
         description: `Role uživatele ${pendingRoleChange.userName} byla změněna na ${roleLabels[newRole as keyof typeof roleLabels]}.`,
       });
 
-      loadUsers();
+      // Reload users list from DB
+      await loadUsers();
+
+      // If user changed their own role, refresh their session roles
+      if (isChangingOwnRole) {
+        await refreshProfile();
+        
+        // If user demoted themselves from admin, redirect to home
+        if (pendingRoleChange.currentRole === "admin" && newRole !== "admin") {
+          toast({
+            title: "Role změněna",
+            description: "Vaše administrátorská oprávnění byla odebrána. Budete přesměrováni.",
+          });
+          setTimeout(() => navigate("/"), 1500);
+        }
+      }
     } catch (error: any) {
       console.error("Error updating role:", error);
       toast({

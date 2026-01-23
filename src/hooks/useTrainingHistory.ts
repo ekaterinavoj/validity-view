@@ -69,9 +69,24 @@ export function useTrainingHistory() {
 
       if (fetchError) throw fetchError;
 
+      // Compute status dynamically on read to avoid stale status
+      const computeStatus = (nextDate: string): "valid" | "warning" | "expired" => {
+        const next = new Date(nextDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        next.setHours(0, 0, 0, 0);
+        
+        const diffDays = Math.floor((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 0) return "expired";
+        if (diffDays <= 30) return "warning";
+        return "valid";
+      };
+
       const transformedData: HistoryTraining[] = (data || []).map((t: any) => ({
         id: t.id,
-        status: t.status as "valid" | "warning" | "expired",
+        // Compute status dynamically based on next_training_date
+        status: computeStatus(t.next_training_date),
         date: t.last_training_date,
         type: t.training_types?.name || "",
         employeeNumber: t.employees?.employee_number || "",
