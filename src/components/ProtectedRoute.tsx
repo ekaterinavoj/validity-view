@@ -13,7 +13,18 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps) => {
-  const { user, loading, profile, isPending, roles, rolesLoaded, signOut } = useAuth();
+  const {
+    user,
+    loading,
+    profile,
+    profileLoaded,
+    profileError,
+    isPending,
+    roles,
+    rolesLoaded,
+    signOut,
+    refreshProfile,
+  } = useAuth();
 
   // Show loader while initial auth check is in progress
   if (loading) {
@@ -27,6 +38,43 @@ export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps)
   // Redirect to auth if not logged in
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Wait until profile is loaded (approval gating depends on it)
+  if (!profileLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If profile couldn't be loaded, show a clear error instead of infinite spinner
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-destructive/5 p-4">
+        <Card className="w-full max-w-md border-destructive/20">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 text-destructive" />
+            </div>
+            <CardTitle className="text-xl">Nepodařilo se načíst profil</CardTitle>
+            <CardDescription className="text-base">
+              {profileError || "Zkuste to prosím znovu."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button className="w-full" onClick={() => refreshProfile()}>
+              Zkusit znovu
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => signOut()}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Odhlásit se
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // If we have requiredRoles but roles haven't loaded yet, show loader

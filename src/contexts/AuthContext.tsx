@@ -22,6 +22,8 @@ interface AuthContextType {
   roles: UserRole[];
   loading: boolean;
   rolesLoaded: boolean;
+  profileLoaded: boolean;
+  profileError: string | null;
   isPending: boolean;
   isApproved: boolean;
   hasRole: (role: UserRole) => boolean;
@@ -42,9 +44,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [rolesLoaded, setRolesLoaded] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const loadProfile = async (userId: string): Promise<Profile | null> => {
+    setProfileLoaded(false);
+    setProfileError(null);
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -54,6 +60,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error("Error loading profile:", error);
+        setProfile(null);
+        setProfileError(error.message);
         return null;
       }
 
@@ -61,7 +69,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return data;
     } catch (error) {
       console.error("Error loading profile:", error);
+      setProfile(null);
+      setProfileError(error instanceof Error ? error.message : "Neznámá chyba");
       return null;
+    } finally {
+      setProfileLoaded(true);
     }
   };
 
@@ -112,52 +124,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    const initializeAuth = async () => {
-      try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
-        
-        if (initialSession?.user) {
-          await loadUserData(initialSession.user.id);
-        } else {
-          setRolesLoaded(true);
-        }
-      } catch (error) {
-        console.error("Error initializing auth:", error);
-        if (mounted) {
-          setRolesLoaded(true);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+    const handleSession = (newSession: Session | null) => {
+      if (!mounted) return;
+
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+
+      if (newSession?.user) {
+        // Clear stale data immediately; load fresh data asynchronously.
+        setProfile(null);
+        setRoles([]);
+        setProfileLoaded(false);
+        setRolesLoaded(false);
+        setProfileError(null);
+
+        // IMPORTANT: do not await any backend calls inside auth callback.
+        setTimeout(() => {
+          if (!mounted) return;
+          void loadUserData(newSession.user.id);
+        }, 0);
+      } else {
+        setProfile(null);
+        setRoles([]);
+        setProfileError(null);
+        setProfileLoaded(true);
+        setRolesLoaded(true);
       }
+
+      setLoading(false);
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        if (!mounted) return;
-        
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        
-        if (newSession?.user) {
-          await loadUserData(newSession.user.id);
-        } else {
+    // Listener FIRST (prevents missing events during init)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
+      void event;
+      handleSession(newSession);
+    });
+
+    // THEN resolve initial session
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: initialSession } }) => {
+        handleSession(initialSession);
+      })
+      .catch((error) => {
+        console.error("Error initializing auth:", error);
+        if (mounted) {
           setProfile(null);
           setRoles([]);
+          setProfileError(error instanceof Error ? error.message : "Neznámá chyba");
+          setProfileLoaded(true);
           setRolesLoaded(true);
+          setLoading(false);
         }
-        
-        setLoading(false);
-      }
-    );
-
-    initializeAuth();
+      });
 
     return () => {
       mounted = false;
@@ -210,7 +231,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await supabase.auth.signOut();
       setProfile(null);
       setRoles([]);
-      setRolesLoaded(false);
+      setProfileError(null);
+      setProfileLoaded(true);
+      setRolesLoaded(true);
       toast({
         title: "Odhlášení úspěšné",
         description: "Byli jste úspěšně odhlášeni.",
@@ -233,6 +256,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         roles,
         loading,
         rolesLoaded,
+        profileLoaded,
+        profileError,
         isPending,
         isApproved,
         hasRole,
