@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { 
   Loader2, 
@@ -19,7 +20,8 @@ import {
   Play,
   Send,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  FlaskConical
 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -47,6 +49,7 @@ export default function SystemStatus() {
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
   const [runningReminders, setRunningReminders] = useState(false);
+  const [testMode, setTestMode] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -114,15 +117,25 @@ export default function SystemStatus() {
     setRunningReminders(true);
     try {
       const { data, error } = await supabase.functions.invoke("run-reminders", {
-        body: { triggered_by: "manual" },
+        body: { 
+          triggered_by: "manual",
+          test_mode: testMode,
+        },
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Připomínky spuštěny",
-        description: `Odesláno ${data?.emailsSent || 0} emailů`,
-      });
+      if (testMode) {
+        toast({
+          title: "Testovací běh dokončen",
+          description: `Simulováno ${data?.emailsSent || 0} emailů (žádné nebyly odeslány)`,
+        });
+      } else {
+        toast({
+          title: "Připomínky spuštěny",
+          description: `Odesláno ${data?.emailsSent || 0} emailů`,
+        });
+      }
       
       // Reload runs after a short delay
       setTimeout(loadRuns, 2000);
@@ -154,6 +167,10 @@ export default function SystemStatus() {
     switch (trigger) {
       case "manual":
         return "Manuální";
+      case "manual_test":
+        return "Manuální (test)";
+      case "test":
+        return "Test";
       case "cron":
         return "Automaticky (cron)";
       case "pg_cron":
@@ -285,15 +302,32 @@ export default function SystemStatus() {
 
             <div className="flex-1 space-y-2">
               <Label>Spustit připomínky</Label>
+              <div className="flex items-center gap-3 mb-2 p-2 rounded-md bg-muted/50">
+                <Switch
+                  id="test-mode"
+                  checked={testMode}
+                  onCheckedChange={setTestMode}
+                />
+                <Label htmlFor="test-mode" className="flex items-center gap-2 cursor-pointer text-sm font-normal">
+                  <FlaskConical className="w-4 h-4" />
+                  Testovací režim
+                </Label>
+              </div>
               <Button 
                 onClick={handleRunReminders} 
                 disabled={runningReminders}
                 className="w-full"
+                variant={testMode ? "secondary" : "default"}
               >
                 {runningReminders ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Probíhá...
+                  </>
+                ) : testMode ? (
+                  <>
+                    <FlaskConical className="w-4 h-4 mr-2" />
+                    Simulovat běh
                   </>
                 ) : (
                   <>
@@ -303,7 +337,10 @@ export default function SystemStatus() {
                 )}
               </Button>
               <p className="text-xs text-muted-foreground">
-                Manuálně spustí kontrolu a odeslání připomínek
+                {testMode 
+                  ? "Simuluje běh bez skutečného odesílání emailů"
+                  : "Manuálně spustí kontrolu a odeslání připomínek"
+                }
               </p>
             </div>
           </div>

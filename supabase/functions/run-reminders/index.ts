@@ -143,16 +143,23 @@ const handler = async (req: Request): Promise<Response> => {
 
   const weekStart = getWeekStart();
   let triggeredBy = "cron";
+  let testMode = false;
 
   try {
-    // Get trigger type from body if provided
+    // Get trigger type and test mode from body if provided
     const body = await req.json().catch(() => ({}));
     if (body.triggered_by) {
       triggeredBy = body.triggered_by;
     }
+    if (body.test_mode === true) {
+      testMode = true;
+      triggeredBy = triggeredBy === "cron" ? "test" : `${triggeredBy}_test`;
+    }
   } catch {
     // No body or invalid JSON, use default
   }
+
+  console.log(`Starting reminder run: triggered_by=${triggeredBy}, test_mode=${testMode}`);
 
   // Create run record
   const { data: runData, error: runError } = await supabase
@@ -319,9 +326,13 @@ const handler = async (req: Request): Promise<Response> => {
         const subject = replaceVariables(emailTemplate.subject, training as Training, daysLeft);
         const body = replaceVariables(emailTemplate.body, training as Training, daysLeft);
 
-        // Send email
+        // Send email (or simulate in test mode)
         let result: { success: boolean; error?: string };
-        if (emailProvider.provider === "smtp") {
+        if (testMode) {
+          // In test mode, simulate successful send without actually sending
+          console.log(`[TEST MODE] Would send email to ${training.employee.email}: ${subject}`);
+          result = { success: true };
+        } else if (emailProvider.provider === "smtp") {
           result = await sendViaSMTP(training.employee.email, subject, body, emailProvider);
         } else {
           result = await sendViaResend(training.employee.email, subject, body);
@@ -336,9 +347,9 @@ const handler = async (req: Request): Promise<Response> => {
           recipient_emails: [training.employee.email],
           email_subject: subject,
           email_body: body,
-          status: result.success ? "sent" : "failed",
+          status: testMode ? "simulated" : (result.success ? "sent" : "failed"),
           error_message: result.error || null,
-          template_name: `${daysBefore} days before`,
+          template_name: `${daysBefore} days before${testMode ? " (test)" : ""}`,
         });
 
         if (result.success) {
