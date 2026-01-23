@@ -8,8 +8,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Shield, UserCog, Search, X } from "lucide-react";
+import { Loader2, Shield, UserCog, Search, X, AlertTriangle, Download, FileSpreadsheet, FileDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface UserProfile {
   id: string;
@@ -40,6 +53,13 @@ export default function UserManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [pendingRoleChange, setPendingRoleChange] = useState<{
+    userId: string;
+    userName: string;
+    currentRole: string;
+    newRole: string;
+  } | null>(null);
+  const [isLastAdminWarningOpen, setIsLastAdminWarningOpen] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -92,10 +112,43 @@ export default function UserManagement() {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
+  // Count admins in the system
+  const adminCount = useMemo(() => {
+    return users.filter(u => u.roles.includes("admin")).length;
+  }, [users]);
+
+  const handleRoleChangeRequest = (userId: string, currentRole: string, newRole: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    // Check if this is the last admin trying to demote themselves
+    if (currentRole === "admin" && newRole !== "admin" && adminCount <= 1) {
+      setIsLastAdminWarningOpen(true);
+      return;
+    }
+
+    // Show confirmation dialog
+    setPendingRoleChange({
+      userId,
+      userName: `${user.first_name} ${user.last_name}`,
+      currentRole,
+      newRole,
+    });
+  };
+
+  const confirmRoleChange = async () => {
+    if (!pendingRoleChange) return;
+
+    const { userId, newRole } = pendingRoleChange;
+
     try {
       // Remove all existing roles for this user
-      await supabase.from("user_roles").delete().eq("user_id", userId);
+      const { error: deleteError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (deleteError) throw deleteError;
 
       // Add the new role
       const { error } = await supabase.from("user_roles").insert([{
@@ -108,7 +161,7 @@ export default function UserManagement() {
 
       toast({
         title: "Role aktualizována",
-        description: "Role uživatele byla úspěšně změněna.",
+        description: `Role uživatele ${pendingRoleChange.userName} byla změněna na ${roleLabels[newRole as keyof typeof roleLabels]}.`,
       });
 
       loadUsers();
@@ -116,9 +169,11 @@ export default function UserManagement() {
       console.error("Error updating role:", error);
       toast({
         title: "Chyba",
-        description: "Nepodařilo se aktualizovat roli.",
+        description: "Nepodařilo se aktualizovat roli. Zkuste to prosím znovu.",
         variant: "destructive",
       });
+    } finally {
+      setPendingRoleChange(null);
     }
   };
 
@@ -153,6 +208,76 @@ export default function UserManagement() {
 
   const hasActiveFilters = searchQuery !== "" || roleFilter !== "all";
 
+  // Export functions
+  const exportToExcel = () => {
+    try {
+      const dataToExport = filteredUsers.map(user => ({
+        "Jméno": `${user.first_name} ${user.last_name}`,
+        "Email": user.email,
+        "Pozice": user.position || "-",
+        "Role": roleLabels[user.roles[0] as keyof typeof roleLabels] || "Uživatel",
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Uživatelé");
+      
+      const timestamp = new Date().toISOString().split("T")[0];
+      XLSX.writeFile(wb, `uzivatele_${timestamp}.xlsx`);
+
+      toast({
+        title: "Export úspěšný",
+        description: `Exportováno ${filteredUsers.length} uživatelů do Excel.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportToPDF = () => {
+    try {
+      const doc = new jsPDF();
+      
+      doc.setFontSize(16);
+      doc.text("Správa uživatelů", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Vygenerováno: ${new Date().toLocaleDateString("cs-CZ")}`, 14, 22);
+
+      const tableData = filteredUsers.map(user => [
+        `${user.first_name} ${user.last_name}`,
+        user.email,
+        user.position || "-",
+        roleLabels[user.roles[0] as keyof typeof roleLabels] || "Uživatel",
+      ]);
+
+      autoTable(doc, {
+        head: [["Jméno", "Email", "Pozice", "Role"]],
+        body: tableData,
+        startY: 28,
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+
+      const timestamp = new Date().toISOString().split("T")[0];
+      doc.save(`uzivatele_${timestamp}.pdf`);
+
+      toast({
+        title: "Export úspěšný",
+        description: `Exportováno ${filteredUsers.length} uživatelů do PDF.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!isAdmin) {
     return null;
   }
@@ -169,7 +294,34 @@ export default function UserManagement() {
             Spravujte role a oprávnění uživatelů v systému
           </p>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportToExcel}>
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportToPDF}>
+            <FileDown className="w-4 h-4 mr-2" />
+            PDF
+          </Button>
+        </div>
       </div>
+
+      {/* Admin count warning */}
+      {adminCount <= 1 && (
+        <Card className="p-4 border-yellow-500 bg-yellow-500/10">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-600" />
+            <div>
+              <p className="font-medium text-yellow-700 dark:text-yellow-300">
+                V systému je pouze jeden administrátor
+              </p>
+              <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                Před změnou své role povyšte jiného uživatele na administrátora.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-6">
         <div className="space-y-4">
@@ -177,6 +329,9 @@ export default function UserManagement() {
             <UserCog className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-semibold">Uživatelé systému</h3>
             <Badge variant="secondary">{users.length} uživatelů</Badge>
+            <Badge variant="outline" className="text-red-600 border-red-300">
+              {adminCount} admin{adminCount !== 1 ? "ů" : ""}
+            </Badge>
           </div>
 
           {/* Filters */}
@@ -251,10 +406,16 @@ export default function UserManagement() {
                 ) : (
                   filteredUsers.map((user) => {
                     const currentRole = user.roles[0] || "user";
+                    const isCurrentUser = user.id === profile?.id;
+                    const isLastAdmin = currentRole === "admin" && adminCount <= 1;
+                    
                     return (
-                      <TableRow key={user.id}>
+                      <TableRow key={user.id} className={isCurrentUser ? "bg-primary/5" : ""}>
                         <TableCell className="font-medium">
                           {user.first_name} {user.last_name}
+                          {isCurrentUser && (
+                            <Badge variant="outline" className="ml-2 text-xs">Vy</Badge>
+                          )}
                         </TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>{user.position || "-"}</TableCell>
@@ -266,8 +427,7 @@ export default function UserManagement() {
                         <TableCell>
                           <Select
                             value={currentRole}
-                            onValueChange={(value) => handleRoleChange(user.id, value)}
-                            disabled={user.id === profile?.id}
+                            onValueChange={(value) => handleRoleChangeRequest(user.id, currentRole, value)}
                           >
                             <SelectTrigger className="w-40">
                               <SelectValue />
@@ -315,12 +475,64 @@ export default function UserManagement() {
             <div className="text-sm">
               <p className="font-medium">Plná oprávnění</p>
               <p className="text-muted-foreground">
-                Vše co manažer + správa uživatelských rolí a přístupů
+                Vše co manažer + správa uživatelských rolí, přístup k logům a nastavení systému
               </p>
             </div>
           </div>
         </div>
       </Card>
+
+      {/* Role change confirmation dialog */}
+      <AlertDialog open={!!pendingRoleChange} onOpenChange={() => setPendingRoleChange(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Potvrdit změnu role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Opravdu chcete změnit roli uživatele <strong>{pendingRoleChange?.userName}</strong> z{" "}
+              <Badge className={roleColors[pendingRoleChange?.currentRole as keyof typeof roleColors]}>
+                {roleLabels[pendingRoleChange?.currentRole as keyof typeof roleLabels]}
+              </Badge>{" "}
+              na{" "}
+              <Badge className={roleColors[pendingRoleChange?.newRole as keyof typeof roleColors]}>
+                {roleLabels[pendingRoleChange?.newRole as keyof typeof roleLabels]}
+              </Badge>
+              ?
+              {pendingRoleChange?.userId === profile?.id && (
+                <p className="mt-2 text-yellow-600 font-medium">
+                  ⚠️ Měníte svoji vlastní roli. Tato změna se projeví okamžitě.
+                </p>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušit</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRoleChange}>
+              Potvrdit změnu
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Last admin warning dialog */}
+      <AlertDialog open={isLastAdminWarningOpen} onOpenChange={setIsLastAdminWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-yellow-600">
+              <AlertTriangle className="w-5 h-5" />
+              Nelze změnit roli
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Jste jediný administrátor v systému. Před změnou své role musíte nejprve
+              povýšit jiného uživatele na administrátora, aby systém zůstal spravovatelný.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setIsLastAdminWarningOpen(false)}>
+              Rozumím
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

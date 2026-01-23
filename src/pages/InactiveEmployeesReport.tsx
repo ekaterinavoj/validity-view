@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, UserX, Calendar, Loader2, RefreshCw } from "lucide-react";
+import { Download, UserX, Calendar, Loader2, RefreshCw, FileSpreadsheet, FileDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -24,6 +24,9 @@ import { useInactiveEmployees } from "@/hooks/useEmployees";
 import { useTrainings } from "@/hooks/useTrainings";
 import { CardsSkeleton, TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const statusLabels = {
   employed: "Zaměstnaný",
@@ -66,6 +69,125 @@ export default function InactiveEmployeesReport() {
 
   const getTrainingsForEmployee = (employeeId: string) => {
     return inactiveTrainings.filter((t) => t.employeeId === employeeId);
+  };
+
+  const exportToExcel = () => {
+    try {
+      const rows: any[] = [];
+      filteredEmployees.forEach((employee) => {
+        const trainings = getTrainingsForEmployee(employee.id);
+        if (trainings.length === 0) {
+          rows.push({
+            "Osobní číslo": employee.employeeNumber,
+            "Jméno": `${employee.firstName} ${employee.lastName}`,
+            "Email": employee.email,
+            "Pozice": employee.position,
+            "Středisko": employee.department,
+            "Stav zaměstnance": statusLabels[employee.status],
+            "Typ školení": "-",
+            "Školení platné do": "-",
+            "Datum školení": "-",
+            "Stav školení": "-",
+          });
+        } else {
+          trainings.forEach((training) => {
+            rows.push({
+              "Osobní číslo": employee.employeeNumber,
+              "Jméno": `${employee.firstName} ${employee.lastName}`,
+              "Email": employee.email,
+              "Pozice": employee.position,
+              "Středisko": employee.department,
+              "Stav zaměstnance": statusLabels[employee.status],
+              "Typ školení": training.type,
+              "Školení platné do": new Date(training.date).toLocaleDateString("cs-CZ"),
+              "Datum školení": new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
+              "Stav školení": training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
+            });
+          });
+        }
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Neaktivní zaměstnanci");
+      
+      const timestamp = new Date().toISOString().split("T")[0];
+      XLSX.writeFile(wb, `neaktivni_zamestnanci_${timestamp}.xlsx`);
+
+      toast({
+        title: "Export úspěšný",
+        description: `Exportováno ${rows.length} záznamů do Excel.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportToPDF = () => {
+    try {
+      const doc = new jsPDF({ orientation: 'landscape' });
+      
+      doc.setFontSize(16);
+      doc.text("Pozastavená školení", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Vygenerováno: ${new Date().toLocaleDateString("cs-CZ")}`, 14, 22);
+
+      const tableData: string[][] = [];
+      filteredEmployees.forEach((employee) => {
+        const trainings = getTrainingsForEmployee(employee.id);
+        if (trainings.length === 0) {
+          tableData.push([
+            employee.employeeNumber,
+            `${employee.firstName} ${employee.lastName}`,
+            employee.position,
+            employee.department,
+            statusLabels[employee.status],
+            "-",
+            "-",
+            "-",
+          ]);
+        } else {
+          trainings.forEach((training) => {
+            tableData.push([
+              employee.employeeNumber,
+              `${employee.firstName} ${employee.lastName}`,
+              employee.position,
+              employee.department,
+              statusLabels[employee.status],
+              training.type,
+              new Date(training.date).toLocaleDateString("cs-CZ"),
+              training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
+            ]);
+          });
+        }
+      });
+
+      autoTable(doc, {
+        head: [["Os. číslo", "Jméno", "Pozice", "Středisko", "Stav", "Typ školení", "Platné do", "Stav školení"]],
+        body: tableData,
+        startY: 28,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+
+      const timestamp = new Date().toISOString().split("T")[0];
+      doc.save(`neaktivni_zamestnanci_${timestamp}.pdf`);
+
+      toast({
+        title: "Export úspěšný",
+        description: `Exportováno ${tableData.length} záznamů do PDF.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data.",
+        variant: "destructive",
+      });
+    }
   };
 
   const exportToCSV = () => {
@@ -203,10 +325,20 @@ export default function InactiveEmployeesReport() {
             Přehled zaměstnanců s neaktivním statusem a jejich dočasně pozastavených školení
           </p>
         </div>
-        <Button variant="outline" onClick={exportToCSV}>
-          <Download className="w-4 h-4 mr-2" />
-          Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportToExcel}>
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportToPDF}>
+            <FileDown className="w-4 h-4 mr-2" />
+            PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            CSV
+          </Button>
+        </div>
       </div>
 
       {/* Statistiky */}

@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Loader2, RefreshCw } from "lucide-react";
+import { Download, Loader2, RefreshCw, FileSpreadsheet, FileDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
@@ -19,6 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTrainingHistory } from "@/hooks/useTrainingHistory";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
@@ -106,6 +109,85 @@ export default function History() {
       );
     });
   }, [filters, trainings, employeeStatusFilter]);
+
+  const exportToExcel = () => {
+    try {
+      const dataToExport = filteredHistory.map((training) => ({
+        "Datum": new Date(training.date).toLocaleDateString("cs-CZ"),
+        "Typ školení": training.type,
+        "Osobní číslo": training.employeeNumber,
+        "Jméno": training.employeeName,
+        "Stav zaměstnance": employeeStatusLabels[training.employeeStatus] || training.employeeStatus,
+        "Středisko": training.department,
+        "Školitel": training.trainer,
+        "Firma": training.company,
+        "Poznámka": training.note || "",
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Historie");
+      
+      const timestamp = new Date().toISOString().split("T")[0];
+      XLSX.writeFile(wb, `historie_skoleni_${timestamp}.xlsx`);
+
+      toast({
+        title: "Export úspěšný",
+        description: `Exportováno ${filteredHistory.length} záznamů do Excel.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportToPDF = () => {
+    try {
+      const doc = new jsPDF({ orientation: 'landscape' });
+      
+      doc.setFontSize(16);
+      doc.text("Historie školení", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Vygenerováno: ${new Date().toLocaleDateString("cs-CZ")}`, 14, 22);
+
+      const tableData = filteredHistory.map((training) => [
+        new Date(training.date).toLocaleDateString("cs-CZ"),
+        training.type,
+        training.employeeNumber,
+        training.employeeName,
+        employeeStatusLabels[training.employeeStatus] || training.employeeStatus,
+        training.department,
+        training.trainer,
+        training.company,
+        training.note || "",
+      ]);
+
+      autoTable(doc, {
+        head: [["Datum", "Typ školení", "Os. číslo", "Jméno", "Stav", "Středisko", "Školitel", "Firma", "Poznámka"]],
+        body: tableData,
+        startY: 28,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+
+      const timestamp = new Date().toISOString().split("T")[0];
+      doc.save(`historie_skoleni_${timestamp}.pdf`);
+
+      toast({
+        title: "Export úspěšný",
+        description: `Exportováno ${filteredHistory.length} záznamů do PDF.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const exportToCSV = () => {
     try {
@@ -205,9 +287,17 @@ export default function History() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <Button variant="outline" onClick={exportToCSV}>
+          <Button variant="outline" size="sm" onClick={exportToExcel}>
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportToPDF}>
+            <FileDown className="w-4 h-4 mr-2" />
+            PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            CSV
           </Button>
         </div>
       </div>
