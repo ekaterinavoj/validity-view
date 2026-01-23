@@ -13,7 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar } from "lucide-react";
 
 interface SystemSetting {
   id: string;
@@ -41,12 +43,32 @@ const DAYS_OF_WEEK = [
   { value: 6, label: "Sobota" },
 ];
 
+const FREQUENCY_PRESETS = [
+  { value: "daily", label: "Denně", days: 1 },
+  { value: "weekly", label: "Týdně", days: 7 },
+  { value: "biweekly", label: "Každé 2 týdny", days: 14 },
+  { value: "monthly", label: "Měsíčně", days: 30 },
+  { value: "custom", label: "Vlastní interval", days: null },
+];
+
+const TIMEZONES = [
+  { value: "Europe/Prague", label: "Praha (CET/CEST)" },
+  { value: "Europe/London", label: "Londýn (GMT/BST)" },
+  { value: "Europe/Berlin", label: "Berlín (CET/CEST)" },
+  { value: "UTC", label: "UTC" },
+];
+
+const DELIVERY_MODES = [
+  { value: "bcc", label: "BCC (skrytá kopie)" },
+  { value: "to", label: "To (příjemci viditelní)" },
+  { value: "cc", label: "CC (kopie)" },
+];
+
 const TEMPLATE_VARIABLES = [
-  { var: "{firstName}", desc: "Křestní jméno zaměstnance" },
-  { var: "{lastName}", desc: "Příjmení zaměstnance" },
-  { var: "{trainingName}", desc: "Název školení" },
-  { var: "{expiresOn}", desc: "Datum vypršení" },
-  { var: "{daysLeft}", desc: "Počet dní do vypršení" },
+  { var: "{totalCount}", desc: "Celkový počet školení" },
+  { var: "{expiringCount}", desc: "Počet brzy vypršujících" },
+  { var: "{expiredCount}", desc: "Počet prošlých" },
+  { var: "{reportDate}", desc: "Datum reportu" },
 ];
 
 export default function AdminSettings() {
@@ -70,21 +92,33 @@ export default function AdminSettings() {
     days_before: [30, 14, 7],
   });
   
+  const [reminderFrequency, setReminderFrequency] = useState({
+    type: "weekly" as string,
+    interval_days: 7,
+    start_time: "08:00",
+    timezone: "Europe/Prague",
+  });
+  
+  const [reminderRecipients, setReminderRecipients] = useState({
+    user_ids: [] as string[],
+    delivery_mode: "bcc" as string,
+  });
+  
   const [emailProvider, setEmailProvider] = useState({
-    provider: "resend", // resend, smtp, smtp_with_resend_fallback
+    provider: "resend",
     smtp_host: "",
     smtp_port: 587,
     smtp_user: "",
     smtp_from_email: "",
     smtp_from_name: "Training System",
     smtp_secure: true,
-    smtp_tls_mode: "starttls", // starttls, smtps
+    smtp_tls_mode: "starttls",
     smtp_ignore_tls: false,
   });
   
   const [emailTemplate, setEmailTemplate] = useState({
-    subject: "",
-    body: "",
+    subject: "Souhrn školení k obnovení - {reportDate}",
+    body: "Dobrý den,\n\nzasíláme přehled školení vyžadujících pozornost.\n\nCelkem: {totalCount} školení\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}\n\nPodrobný seznam naleznete v příloze níže.\n\nS pozdravem,\nVáš systém školení",
   });
   
   const [newDayBefore, setNewDayBefore] = useState("");
@@ -118,6 +152,12 @@ export default function AdminSettings() {
           case "reminder_days":
             setReminderDays(setting.value);
             break;
+          case "reminder_frequency":
+            setReminderFrequency(prev => ({ ...prev, ...setting.value }));
+            break;
+          case "reminder_recipients":
+            setReminderRecipients(prev => ({ ...prev, ...setting.value }));
+            break;
           case "email_provider":
             setEmailProvider(setting.value);
             break;
@@ -140,21 +180,18 @@ export default function AdminSettings() {
   const loadUsers = async () => {
     setUsersLoading(true);
     try {
-      // Get profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, email, first_name, last_name");
       
       if (profilesError) throw profilesError;
       
-      // Get roles
       const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
       
       if (rolesError) throw rolesError;
       
-      // Combine data
       const usersWithRoles = profiles?.map(profile => {
         const userRole = roles?.find(r => r.user_id === profile.id);
         return {
@@ -163,7 +200,7 @@ export default function AdminSettings() {
           first_name: profile.first_name,
           last_name: profile.last_name,
           role: userRole?.role || "user",
-          is_active: true, // TODO: Add is_active field to profiles if needed
+          is_active: true,
         };
       }) || [];
       
@@ -180,12 +217,25 @@ export default function AdminSettings() {
   };
 
   const saveSetting = async (key: string, value: any) => {
-    const { error } = await supabase
+    // Try update first
+    const { data: existing } = await supabase
       .from("system_settings")
-      .update({ value, updated_at: new Date().toISOString() })
-      .eq("key", key);
+      .select("id")
+      .eq("key", key)
+      .maybeSingle();
     
-    if (error) throw error;
+    if (existing) {
+      const { error } = await supabase
+        .from("system_settings")
+        .update({ value, updated_at: new Date().toISOString() })
+        .eq("key", key);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from("system_settings")
+        .insert({ key, value, description: `Setting: ${key}` });
+      if (error) throw error;
+    }
   };
 
   const handleSaveAll = async () => {
@@ -194,6 +244,8 @@ export default function AdminSettings() {
       await Promise.all([
         saveSetting("reminder_schedule", reminderSchedule),
         saveSetting("reminder_days", reminderDays),
+        saveSetting("reminder_frequency", reminderFrequency),
+        saveSetting("reminder_recipients", reminderRecipients),
         saveSetting("email_provider", emailProvider),
         saveSetting("email_template", emailTemplate),
       ]);
@@ -229,15 +281,33 @@ export default function AdminSettings() {
     });
   };
 
+  const handleFrequencyPresetChange = (preset: string) => {
+    const selectedPreset = FREQUENCY_PRESETS.find(p => p.value === preset);
+    if (selectedPreset) {
+      setReminderFrequency(prev => ({
+        ...prev,
+        type: preset,
+        interval_days: selectedPreset.days ?? prev.interval_days,
+      }));
+    }
+  };
+
+  const handleRecipientToggle = (userId: string, checked: boolean) => {
+    setReminderRecipients(prev => ({
+      ...prev,
+      user_ids: checked 
+        ? [...prev.user_ids, userId]
+        : prev.user_ids.filter(id => id !== userId),
+    }));
+  };
+
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
-      // First delete existing role
       await supabase
         .from("user_roles")
         .delete()
         .eq("user_id", userId);
       
-      // Then insert new role
       const { error } = await supabase
         .from("user_roles")
         .insert({ user_id: userId, role: newRole as "admin" | "manager" | "user" });
@@ -257,6 +327,15 @@ export default function AdminSettings() {
         variant: "destructive",
       });
     }
+  };
+
+  const getSelectedRecipientsDisplay = () => {
+    const selected = users.filter(u => reminderRecipients.user_ids.includes(u.id));
+    if (selected.length === 0) return "Žádní příjemci";
+    if (selected.length <= 2) {
+      return selected.map(u => `${u.first_name} ${u.last_name}`).join(", ");
+    }
+    return `${selected.length} příjemců`;
   };
 
   if (loading) {
@@ -305,19 +384,124 @@ export default function AdminSettings() {
 
         {/* Reminders Tab */}
         <TabsContent value="reminders" className="space-y-6">
+          {/* Recipients Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Plán připomínek</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5" />
+                Příjemci připomínek
+              </CardTitle>
               <CardDescription>
-                Nastavte, kdy se mají automaticky odesílat připomínky
+                Vyberte uživatele, kteří budou dostávat souhrnné emaily s přehledem školení
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <Label>Vybraní příjemci</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {getSelectedRecipientsDisplay()}
+                  </p>
+                </div>
+                <div className="w-48">
+                  <Label>Způsob doručení</Label>
+                  <Select
+                    value={reminderRecipients.delivery_mode}
+                    onValueChange={(value) => 
+                      setReminderRecipients({ ...reminderRecipients, delivery_mode: value })
+                    }
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DELIVERY_MODES.map((mode) => (
+                        <SelectItem key={mode.value} value={mode.value}>
+                          {mode.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <Label className="mb-2 block">Vybrat příjemce z uživatelů systému</Label>
+                <ScrollArea className="h-[200px] border rounded-md p-3">
+                  {usersLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {users.map((user) => (
+                        <div 
+                          key={user.id} 
+                          className="flex items-center space-x-3 p-2 hover:bg-muted rounded-md"
+                        >
+                          <Checkbox
+                            id={`recipient-${user.id}`}
+                            checked={reminderRecipients.user_ids.includes(user.id)}
+                            onCheckedChange={(checked) => 
+                              handleRecipientToggle(user.id, checked as boolean)
+                            }
+                          />
+                          <label 
+                            htmlFor={`recipient-${user.id}`}
+                            className="flex-1 cursor-pointer"
+                          >
+                            <span className="font-medium">
+                              {user.first_name} {user.last_name}
+                            </span>
+                            <span className="text-sm text-muted-foreground ml-2">
+                              ({user.email})
+                            </span>
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {user.role}
+                            </Badge>
+                          </label>
+                        </div>
+                      ))}
+                      {users.length === 0 && (
+                        <p className="text-center text-muted-foreground py-4">
+                          Žádní uživatelé k výběru
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+
+              {reminderRecipients.delivery_mode === "bcc" && (
+                <div className="p-3 bg-muted/50 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  <p className="text-sm text-muted-foreground">
+                    V režimu BCC nebudou příjemci vidět ostatní příjemce emailu.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Frequency Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Frekvence odesílání
+              </CardTitle>
+              <CardDescription>
+                Nastavte, jak často se mají odesílat souhrnné emaily
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Povolit automatické připomínky</Label>
+                  <Label>Povolit automatické odesílání</Label>
                   <p className="text-sm text-muted-foreground">
-                    Systém bude automaticky odesílat připomínky podle plánu
+                    Systém bude automaticky odesílat souhrnné emaily podle plánu
                   </p>
                 </div>
                 <Switch
@@ -332,35 +516,96 @@ export default function AdminSettings() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Den v týdnu</Label>
+                  <Label>Frekvence</Label>
                   <Select
-                    value={String(reminderSchedule.day_of_week)}
-                    onValueChange={(value) => 
-                      setReminderSchedule({ ...reminderSchedule, day_of_week: parseInt(value) })
-                    }
+                    value={reminderFrequency.type}
+                    onValueChange={handleFrequencyPresetChange}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {DAYS_OF_WEEK.map((day) => (
-                        <SelectItem key={day.value} value={String(day.value)}>
-                          {day.label}
+                      {FREQUENCY_PRESETS.map((preset) => (
+                        <SelectItem key={preset.value} value={preset.value}>
+                          {preset.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
+                {reminderFrequency.type === "custom" && (
+                  <div className="space-y-2">
+                    <Label>Interval (dny)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={reminderFrequency.interval_days}
+                      onChange={(e) => 
+                        setReminderFrequency({ 
+                          ...reminderFrequency, 
+                          interval_days: parseInt(e.target.value) || 7 
+                        })
+                      }
+                    />
+                  </div>
+                )}
+
+                {reminderFrequency.type !== "custom" && (
+                  <div className="space-y-2">
+                    <Label>Den v týdnu</Label>
+                    <Select
+                      value={String(reminderSchedule.day_of_week)}
+                      onValueChange={(value) => 
+                        setReminderSchedule({ ...reminderSchedule, day_of_week: parseInt(value) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DAYS_OF_WEEK.map((day) => (
+                          <SelectItem key={day.value} value={String(day.value)}>
+                            {day.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Čas odeslání</Label>
                   <Input
                     type="time"
-                    value={reminderSchedule.time}
+                    value={reminderFrequency.start_time}
                     onChange={(e) => 
-                      setReminderSchedule({ ...reminderSchedule, time: e.target.value })
+                      setReminderFrequency({ ...reminderFrequency, start_time: e.target.value })
                     }
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Časové pásmo</Label>
+                  <Select
+                    value={reminderFrequency.timezone}
+                    onValueChange={(value) => 
+                      setReminderFrequency({ ...reminderFrequency, timezone: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIMEZONES.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -368,7 +613,7 @@ export default function AdminSettings() {
                 <div>
                   <Label>Přeskočit víkendy</Label>
                   <p className="text-sm text-muted-foreground">
-                    Neodesílat připomínky o víkendech
+                    Neodesílat emaily o víkendech
                   </p>
                 </div>
                 <Switch
@@ -378,14 +623,23 @@ export default function AdminSettings() {
                   }
                 />
               </div>
+
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Tip:</strong> Pro on-prem instalace použijte externí cron job, který spustí endpoint 
+                  <code className="mx-1 px-1 bg-background rounded">/functions/v1/run-reminders</code>
+                  s hlavičkou <code className="mx-1 px-1 bg-background rounded">X-CRON-SECRET</code>.
+                </p>
+              </div>
             </CardContent>
           </Card>
 
+          {/* Days before expiration Card */}
           <Card>
             <CardHeader>
               <CardTitle>Dny před vypršením</CardTitle>
               <CardDescription>
-                Kolik dní před vypršením školení odeslat připomínku
+                Školení s expirací v těchto dnech budou zahrnuta v souhrnném emailu
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -633,9 +887,9 @@ export default function AdminSettings() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Šablona emailu</CardTitle>
+              <CardTitle>Šablona souhrnného emailu</CardTitle>
               <CardDescription>
-                Upravte text připomínkového emailu
+                Upravte text souhrnného emailu odesílaného vybraným příjemcům
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -646,7 +900,7 @@ export default function AdminSettings() {
                   onChange={(e) => 
                     setEmailTemplate({ ...emailTemplate, subject: e.target.value })
                   }
-                  placeholder="Upozornění: Školení {trainingName} brzy vyprší"
+                  placeholder="Souhrn školení k obnovení - {reportDate}"
                 />
               </div>
 
@@ -658,7 +912,7 @@ export default function AdminSettings() {
                     setEmailTemplate({ ...emailTemplate, body: e.target.value })
                   }
                   rows={8}
-                  placeholder="Dobrý den {firstName} {lastName}..."
+                  placeholder="Dobrý den,\n\nzasíláme přehled školení..."
                 />
               </div>
 
