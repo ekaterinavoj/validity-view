@@ -184,6 +184,7 @@ export type Database = {
           is_test: boolean
           provider_used: string | null
           recipient_emails: string[]
+          resent_from_log_id: string | null
           sent_at: string
           status: string
           template_id: string | null
@@ -203,6 +204,7 @@ export type Database = {
           is_test?: boolean
           provider_used?: string | null
           recipient_emails: string[]
+          resent_from_log_id?: string | null
           sent_at?: string
           status?: string
           template_id?: string | null
@@ -222,6 +224,7 @@ export type Database = {
           is_test?: boolean
           provider_used?: string | null
           recipient_emails?: string[]
+          resent_from_log_id?: string | null
           sent_at?: string
           status?: string
           template_id?: string | null
@@ -230,6 +233,13 @@ export type Database = {
           week_start?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reminder_logs_resent_from_log_id_fkey"
+            columns: ["resent_from_log_id"]
+            isOneToOne: false
+            referencedRelation: "reminder_logs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reminder_logs_template_id_fkey"
             columns: ["template_id"]

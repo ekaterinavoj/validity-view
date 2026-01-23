@@ -294,13 +294,14 @@ const handler = async (req: Request): Promise<Response> => {
   let testMode = false;
   let forceRun = false; // Manual runs bypass "due now" check
   let resendLogId: string | null = null;
+  let singleRecipientEmail: string | null = null;
 
   try {
     const body = await req.json().catch(() => ({}));
     if (body.triggered_by) {
       triggeredBy = body.triggered_by;
       // Manual triggers bypass the "due now" check
-      if (triggeredBy === "manual" || triggeredBy.startsWith("manual") || triggeredBy === "resend") {
+      if (triggeredBy === "manual" || triggeredBy.startsWith("manual") || triggeredBy === "resend" || triggeredBy === "single_test") {
         forceRun = true;
       }
     }
@@ -314,11 +315,14 @@ const handler = async (req: Request): Promise<Response> => {
     if (body.resend_log_id) {
       resendLogId = body.resend_log_id;
     }
+    if (body.single_recipient_email) {
+      singleRecipientEmail = body.single_recipient_email;
+    }
   } catch {
     // No body or invalid JSON, use default
   }
 
-  console.log(`Starting reminder run: triggered_by=${triggeredBy}, test_mode=${testMode}, force=${forceRun}, resend_log_id=${resendLogId}`);
+  console.log(`Starting reminder run: triggered_by=${triggeredBy}, test_mode=${testMode}, force=${forceRun}, resend_log_id=${resendLogId}, single_recipient=${singleRecipientEmail}`);
 
   // Load all settings
   const { data: settings, error: settingsError } = await supabase
@@ -403,7 +407,7 @@ const handler = async (req: Request): Promise<Response> => {
       emailProvider
     );
     
-    // Log the resend attempt
+    // Log the resend attempt with reference to original
     await supabase.from("reminder_logs").insert({
       training_id: null,
       employee_id: null,
@@ -416,8 +420,9 @@ const handler = async (req: Request): Promise<Response> => {
       email_body: originalLog.email_body,
       status: result.success ? "resent" : "failed",
       error_message: result.error || null,
-      template_name: `Resend of ${originalLog.id}`,
+      template_name: `Resend`,
       delivery_mode: deliveryMode,
+      resent_from_log_id: resendLogId, // Audit trail reference
     });
     
     return new Response(
@@ -661,13 +666,17 @@ const handler = async (req: Request): Promise<Response> => {
       : "";
     const fullBody = `${testNotice}${bodyText.replace(/\n/g, "<br>")}<br><br>${trainingsTable}`;
 
+    // Determine actual recipients - use single recipient if specified (for preview)
+    const actualRecipients = singleRecipientEmail ? [singleRecipientEmail] : recipientEmails;
+    const actualDeliveryMode = singleRecipientEmail ? "to" : deliveryMode;
+
     // Send email - test mode now actually sends with TEST prefix (for verification)
     // Simulation mode (dry run) is handled separately in UI
     const result = await sendEmail(
-      recipientEmails,
+      actualRecipients,
       subject,
       fullBody,
-      deliveryMode,
+      actualDeliveryMode,
       emailProvider
     );
 
@@ -680,13 +689,13 @@ const handler = async (req: Request): Promise<Response> => {
       week_start: runPeriodKey,
       is_test: testMode,
       provider_used: result.provider,
-      recipient_emails: recipientEmails,
+      recipient_emails: actualRecipients,
       email_subject: subject,
       email_body: fullBody,
       status: result.success ? "sent" : "failed",
       error_message: result.error || null,
-      template_name: `Summary${testMode ? " (test)" : ""}`,
-      delivery_mode: deliveryMode,
+      template_name: singleRecipientEmail ? `Single preview to ${singleRecipientEmail}` : `Summary${testMode ? " (test)" : ""}`,
+      delivery_mode: actualDeliveryMode,
     });
 
     if (result.success) {

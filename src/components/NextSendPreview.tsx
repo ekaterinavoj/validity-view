@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarClock, Clock, AlertCircle, CheckCircle2, Pause } from "lucide-react";
-import { format, addDays, setHours, setMinutes, nextMonday, nextDay, isWeekend } from "date-fns";
+import { format, addDays, setHours, setMinutes, isWeekend } from "date-fns";
 import { cs } from "date-fns/locale";
 
 interface ReminderSchedule {
@@ -43,9 +43,16 @@ const FREQUENCY_LABELS: Record<string, string> = {
   custom: "Vlastní interval",
 };
 
+const TIMEZONE_LABELS: Record<string, string> = {
+  "Europe/Prague": "Praha",
+  "Europe/London": "Londýn",
+  "Europe/Berlin": "Berlín",
+  "UTC": "UTC",
+};
+
 export function NextSendPreview({ schedule, frequency, hasRecipients }: NextSendPreviewProps) {
   const nextSendInfo = useMemo(() => {
-    // Check if enabled
+    // Check if enabled - matches edge function isDueNow logic
     if (!frequency.enabled) {
       return { 
         status: "paused", 
@@ -62,7 +69,33 @@ export function NextSendPreview({ schedule, frequency, hasRecipients }: NextSend
       };
     }
 
+    // Get current time in configured timezone (matches edge function)
+    const timezone = frequency.timezone || "Europe/Prague";
     const now = new Date();
+    
+    // Format current time in target timezone
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      weekday: "long",
+    });
+    const parts = formatter.formatToParts(now);
+    const currentHour = parseInt(parts.find(p => p.type === "hour")?.value || "0");
+    const currentMinute = parseInt(parts.find(p => p.type === "minute")?.value || "0");
+    const currentWeekdayEn = parts.find(p => p.type === "weekday")?.value || "";
+    
+    // Map English weekday to number
+    const weekdayToNum: Record<string, number> = {
+      "Sunday": 0, "Monday": 1, "Tuesday": 2, "Wednesday": 3,
+      "Thursday": 4, "Friday": 5, "Saturday": 6
+    };
+    const currentDayNum = weekdayToNum[currentWeekdayEn] ?? now.getDay();
+    
     const [targetHour, targetMinute] = (frequency.start_time || "08:00").split(":").map(Number);
     
     let nextDate = new Date(now);
@@ -71,43 +104,53 @@ export function NextSendPreview({ schedule, frequency, hasRecipients }: NextSend
     nextDate.setSeconds(0);
     nextDate.setMilliseconds(0);
 
-    // If today's time has passed, start from tomorrow
-    if (nextDate <= now) {
-      nextDate = addDays(nextDate, 1);
-    }
+    // Check if we're past today's send window
+    const currentMinutes = currentHour * 60 + currentMinute;
+    const targetMinutes = targetHour * 60 + targetMinute;
+    const pastTodayWindow = currentMinutes >= targetMinutes + 60;
 
-    // Handle different frequency types
+    // Handle different frequency types (matches edge function logic)
     switch (frequency.type) {
       case "daily":
-        // Already set to next occurrence
+        // If past today's window, move to tomorrow
+        if (pastTodayWindow) {
+          nextDate = addDays(nextDate, 1);
+        }
         break;
       
       case "weekly":
       case "biweekly": {
         const targetDay = schedule.day_of_week ?? 1;
-        const currentDay = nextDate.getDay();
         
-        if (currentDay !== targetDay) {
+        if (currentDayNum === targetDay && !pastTodayWindow) {
+          // Today is the day and we haven't missed the window
+        } else {
           // Find next occurrence of target day
-          const daysUntil = (targetDay - currentDay + 7) % 7 || 7;
+          let daysUntil = (targetDay - currentDayNum + 7) % 7;
+          if (daysUntil === 0) daysUntil = 7; // If same day but past window, go to next week
           nextDate = addDays(nextDate, daysUntil);
         }
         break;
       }
       
       case "monthly":
-        // Approximate: 30 days from last send or next occurrence
-        // For simplicity, use next Monday of next month
-        nextDate = addDays(nextDate, 30 - nextDate.getDate() + 1);
+        // Approximate: next month's first occurrence
+        if (pastTodayWindow || now.getDate() > 7) {
+          const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          nextDate = setHours(nextMonth, targetHour);
+          nextDate = setMinutes(nextDate, targetMinute);
+        }
         break;
       
       case "custom":
-        // Custom interval - next occurrence based on interval_days
-        // This is approximate since we don't know last send
+        // For custom, just show next occurrence based on interval
+        if (pastTodayWindow) {
+          nextDate = addDays(nextDate, 1);
+        }
         break;
     }
 
-    // Skip weekends if enabled
+    // Skip weekends if enabled (matches edge function logic)
     if (schedule.skip_weekends) {
       while (isWeekend(nextDate)) {
         nextDate = addDays(nextDate, 1);
@@ -118,6 +161,7 @@ export function NextSendPreview({ schedule, frequency, hasRecipients }: NextSend
       status: "scheduled",
       message: null,
       date: nextDate,
+      timezone,
     };
   }, [schedule, frequency, hasRecipients]);
 
@@ -170,6 +214,9 @@ export function NextSendPreview({ schedule, frequency, hasRecipients }: NextSend
                 <div className="flex flex-wrap gap-2 mt-2">
                   <Badge variant="outline">
                     {FREQUENCY_LABELS[frequency.type] || frequency.type}
+                  </Badge>
+                  <Badge variant="outline">
+                    {TIMEZONE_LABELS[frequency.timezone] || frequency.timezone}
                   </Badge>
                   {frequency.type === "custom" && (
                     <Badge variant="secondary">
