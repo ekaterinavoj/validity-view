@@ -66,6 +66,7 @@ interface ReminderFrequency {
   interval_days: number;
   start_time: string;
   timezone: string;
+  enabled: boolean;
 }
 
 interface ReminderRecipients {
@@ -96,7 +97,7 @@ export function ReminderDryRunPreview() {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [reminderSchedule, setReminderSchedule] = useState<ReminderSchedule>({ enabled: true, skip_weekends: true });
-  const [reminderFrequency, setReminderFrequency] = useState<ReminderFrequency>({ type: "weekly", interval_days: 7, start_time: "08:00", timezone: "Europe/Prague" });
+  const [reminderFrequency, setReminderFrequency] = useState<ReminderFrequency>({ type: "weekly", interval_days: 7, start_time: "08:00", timezone: "Europe/Prague", enabled: true });
   const [reminderRecipients, setReminderRecipients] = useState<ReminderRecipients>({ user_ids: [], delivery_mode: "bcc" });
   const [emailTemplate, setEmailTemplate] = useState({ subject: "", body: "" });
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,7 +118,7 @@ export function ReminderDryRunPreview() {
       });
 
       const schedule: ReminderSchedule = settingsMap.reminder_schedule || { enabled: true, skip_weekends: true };
-      const frequency: ReminderFrequency = settingsMap.reminder_frequency || { type: "weekly", interval_days: 7, start_time: "08:00", timezone: "Europe/Prague" };
+      const frequency: ReminderFrequency = settingsMap.reminder_frequency || { type: "weekly", interval_days: 7, start_time: "08:00", timezone: "Europe/Prague", enabled: true };
       const recipientSettings: ReminderRecipients = settingsMap.reminder_recipients || { user_ids: [], delivery_mode: "bcc" };
       const template = settingsMap.email_template || { subject: "Souhrn školení k obnovení - {reportDate}", body: "" };
       const reminderDays = settingsMap.reminder_days || { days_before: [30, 14, 7] };
@@ -127,13 +128,13 @@ export function ReminderDryRunPreview() {
       setReminderRecipients(recipientSettings);
       setEmailTemplate(template);
 
-      // Check if reminders are enabled
-      if (!schedule.enabled) {
+      // Check if frequency is enabled (can be paused without changing cron)
+      if (frequency.enabled === false) {
         setTrainings([]);
         setRecipients([]);
         toast({
-          title: "Připomínky jsou vypnuté",
-          description: "V nastavení jsou připomínky deaktivovány.",
+          title: "Odesílání je pozastaveno",
+          description: "Odesílání připomínek je dočasně pozastaveno v nastavení frekvence.",
         });
         setLoading(false);
         return;
@@ -346,15 +347,15 @@ export function ReminderDryRunPreview() {
               {/* Settings Status */}
               <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
                 <Badge 
-                  variant={reminderSchedule.enabled ? "default" : "secondary"}
+                  variant={reminderFrequency.enabled ? "default" : "destructive"}
                   className="flex items-center gap-1"
                 >
-                  {reminderSchedule.enabled ? (
+                  {reminderFrequency.enabled ? (
                     <Check className="w-3 h-3" />
                   ) : (
                     <AlertCircle className="w-3 h-3" />
                   )}
-                  Připomínky: {reminderSchedule.enabled ? "zapnuté" : "vypnuté"}
+                  Odesílání: {reminderFrequency.enabled ? "aktivní" : "pozastaveno"}
                 </Badge>
                 <Badge variant="outline" className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
@@ -430,9 +431,17 @@ export function ReminderDryRunPreview() {
                       </p>
                     </div>
                   ) : (
-                    <p className="text-muted-foreground text-sm">
-                      Nejsou vybráni žádní příjemci. Nastavte je v Administraci.
-                    </p>
+                    <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
+                        <div>
+                          <p className="font-medium text-destructive text-sm">Nejsou vybráni příjemci</p>
+                          <p className="text-muted-foreground text-xs">
+                            Email nebude odeslán. Nastavte příjemce v Administraci → Připomínky.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>

@@ -15,7 +15,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar } from "lucide-react";
+import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield } from "lucide-react";
+import { RolePermissionsInfo } from "@/components/RolePermissionsInfo";
 
 interface SystemSetting {
   id: string;
@@ -97,6 +98,7 @@ export default function AdminSettings() {
     interval_days: 7,
     start_time: "08:00",
     timezone: "Europe/Prague",
+    enabled: true, // New field to pause reminders without changing cron
   });
   
   const [reminderRecipients, setReminderRecipients] = useState({
@@ -486,6 +488,24 @@ export default function AdminSettings() {
           </Card>
 
           {/* Frequency Card */}
+          {/* No recipients warning */}
+          {reminderRecipients.user_ids.length === 0 && (
+            <Card className="border-destructive bg-destructive/5">
+              <CardContent className="pt-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+                  <div>
+                    <p className="font-medium text-destructive">Nejsou vybráni příjemci</p>
+                    <p className="text-sm text-muted-foreground">
+                      Připomínky nebudou odesílány, dokud nevyberete alespoň jednoho příjemce v sekci výše.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Frequency Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -499,15 +519,15 @@ export default function AdminSettings() {
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Povolit automatické odesílání</Label>
+                  <Label>Povolit odesílání připomínek</Label>
                   <p className="text-sm text-muted-foreground">
-                    Systém bude automaticky odesílat souhrnné emaily podle plánu
+                    Dočasně pozastavit odesílání bez změny cron konfigurace
                   </p>
                 </div>
                 <Switch
-                  checked={reminderSchedule.enabled}
+                  checked={reminderFrequency.enabled}
                   onCheckedChange={(checked) => 
-                    setReminderSchedule({ ...reminderSchedule, enabled: checked })
+                    setReminderFrequency({ ...reminderFrequency, enabled: checked })
                   }
                 />
               </div>
@@ -980,6 +1000,9 @@ export default function AdminSettings() {
               )}
             </CardContent>
           </Card>
+          
+          {/* Role Permissions Info */}
+          <RolePermissionsInfo />
         </TabsContent>
 
         {/* Data Tab */}
