@@ -10,9 +10,11 @@ import ScheduledTrainings from "./pages/ScheduledTrainings";
 import History from "./pages/History";
 import NewTraining from "./pages/NewTraining";
 import EditTraining from "./pages/EditTraining";
-import Other from "./pages/Other";
+import Employees from "./pages/Employees";
+import TrainingTypes from "./pages/TrainingTypes";
+import Departments from "./pages/Departments";
+import InactiveEmployeesReport from "./pages/InactiveEmployeesReport";
 import Auth from "./pages/Auth";
-import UserManagement from "./pages/UserManagement";
 import AuditLog from "./pages/AuditLog";
 import Profile from "./pages/Profile";
 import AdminSettings from "./pages/AdminSettings";
@@ -81,26 +83,48 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Ostatní dropdown routes */}
             <Route
-              path="/other"
+              path="/employees"
               element={
                 <ProtectedRoute>
                   <Layout>
-                    <Other />
+                    <Employees />
                   </Layout>
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/user-management"
+              path="/training-types"
               element={
                 <ProtectedRoute>
                   <Layout>
-                    <UserManagement />
+                    <TrainingTypes />
                   </Layout>
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/departments"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Departments />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/inactive"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <InactiveEmployeesReport />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            {/* Secondary navigation */}
             <Route
               path="/audit-log"
               element={
@@ -121,6 +145,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Admin routes */}
             <Route
               path="/admin/settings"
               element={
