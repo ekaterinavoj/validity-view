@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
+import { useFacilities } from "@/hooks/useFacilities";
 import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 
@@ -52,6 +53,7 @@ export default function NewTraining() {
 
   const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
   const { trainingTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useTrainingTypes();
+  const { facilities, loading: facilitiesLoading, error: facilitiesError, refetch: refetchFacilities } = useFacilities();
 
   // Filter only active employees
   const activeEmployees = useMemo(() => {
@@ -193,22 +195,23 @@ export default function NewTraining() {
   const refetch = () => {
     refetchEmployees();
     refetchTypes();
+    refetchFacilities();
   };
 
-  if (employeesError || typesError) {
+  if (employeesError || typesError || facilitiesError) {
     return (
       <div className="space-y-6">
         <h2 className="text-3xl font-bold text-foreground">Vytvoření nového školení</h2>
         <ErrorDisplay
           title="Nepodařilo se načíst data"
-          message={employeesError || typesError || "Zkuste to prosím znovu."}
+          message={employeesError || typesError || facilitiesError || "Zkuste to prosím znovu."}
           onRetry={refetch}
         />
       </div>
     );
   }
 
-  if (employeesLoading || typesLoading) {
+  if (employeesLoading || typesLoading || facilitiesLoading) {
     return (
       <div className="space-y-6">
         <h2 className="text-3xl font-bold text-foreground">Vytvoření nového školení</h2>
@@ -255,9 +258,20 @@ export default function NewTraining() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Provozovna *</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Provozovna" />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Vyberte provozovnu" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {facilities.map((facility) => (
+                        <SelectItem key={facility.id} value={facility.code}>
+                          {facility.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
