@@ -184,6 +184,7 @@ export type Database = {
           template_id: string | null
           template_name: string
           training_id: string | null
+          week_start: string | null
         }
         Insert: {
           created_at?: string
@@ -197,6 +198,7 @@ export type Database = {
           template_id?: string | null
           template_name: string
           training_id?: string | null
+          week_start?: string | null
         }
         Update: {
           created_at?: string
@@ -210,6 +212,7 @@ export type Database = {
           template_id?: string | null
           template_name?: string
           training_id?: string | null
+          week_start?: string | null
         }
         Relationships: [
           {
@@ -227,6 +230,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reminder_runs: {
+        Row: {
+          created_at: string
+          emails_failed: number | null
+          emails_sent: number | null
+          ended_at: string | null
+          error_details: Json | null
+          error_message: string | null
+          id: string
+          started_at: string
+          status: string
+          triggered_by: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          emails_failed?: number | null
+          emails_sent?: number | null
+          ended_at?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          triggered_by?: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          emails_failed?: number | null
+          emails_sent?: number | null
+          ended_at?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          triggered_by?: string
+          week_start?: string
+        }
+        Relationships: []
       }
       reminder_templates: {
         Row: {
@@ -270,6 +315,33 @@ export type Database = {
           repeat_interval_days?: number | null
           target_user_ids?: string[] | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: Json
         }
         Relationships: []
       }
