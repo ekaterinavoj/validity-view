@@ -5,10 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
-import { Mail, CheckCircle2, XCircle, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
+import { Mail, CheckCircle2, XCircle, TrendingUp, AlertTriangle, RefreshCw, FileSpreadsheet, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { cs } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface EmailStats {
   totalSent: number;
@@ -89,9 +93,11 @@ const PIE_COLORS = [
 ];
 
 export function EmailDeliveryStats() {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<EmailStats | null>(null);
   const [days, setDays] = useState(30);
+  const [exporting, setExporting] = useState(false);
 
   const loadStats = async () => {
     setLoading(true);
@@ -194,6 +200,204 @@ export function EmailDeliveryStats() {
     loadStats();
   }, [days]);
 
+  // Export to Excel
+  const exportToExcel = () => {
+    if (!stats) return;
+    setExporting(true);
+    
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Summary statistics
+      const summaryData = [
+        ["Statistika doručování emailů", ""],
+        ["Období", `Posledních ${days} dní`],
+        ["Vygenerováno", format(new Date(), "d. M. yyyy HH:mm", { locale: cs })],
+        ["", ""],
+        ["Metrika", "Hodnota"],
+        ["Celkem odesláno", stats.totalSent],
+        ["Celkem neúspěšných", stats.totalFailed],
+        ["Úspěšnost (%)", stats.successRate.toFixed(1)],
+        ["Průměrný počet pokusů", stats.avgAttempts.toFixed(2)],
+      ];
+      const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+      ws1["!cols"] = [{ wch: 25 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(wb, ws1, "Souhrn");
+
+      // Sheet 2: Daily stats
+      if (stats.dailyStats.length > 0) {
+        const dailyData = [
+          ["Datum", "Odesláno", "Přeposláno", "Neúspěšných"],
+          ...stats.dailyStats.map((d) => [d.date, d.sent, d.resent, d.failed]),
+        ];
+        const ws2 = XLSX.utils.aoa_to_sheet(dailyData);
+        ws2["!cols"] = [{ wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, ws2, "Denní statistiky");
+      }
+
+      // Sheet 3: Failure reasons
+      if (stats.failureReasons.length > 0) {
+        const failureData = [
+          ["Důvod selhání", "Počet", "Procento (%)"],
+          ...stats.failureReasons.map((r) => [
+            r.reason,
+            r.count,
+            r.percentage.toFixed(1),
+          ]),
+        ];
+        const ws3 = XLSX.utils.aoa_to_sheet(failureData);
+        ws3["!cols"] = [{ wch: 25 }, { wch: 10 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, ws3, "Důvody selhání");
+      }
+
+      // Sheet 4: Provider stats
+      if (stats.providerStats.length > 0) {
+        const providerData = [
+          ["Poskytovatel", "Úspěšných", "Neúspěšných", "Úspěšnost (%)"],
+          ...stats.providerStats.map((p) => [
+            p.provider,
+            p.sent,
+            p.failed,
+            p.successRate.toFixed(1),
+          ]),
+        ];
+        const ws4 = XLSX.utils.aoa_to_sheet(providerData);
+        ws4["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }];
+        XLSX.utils.book_append_sheet(wb, ws4, "Poskytovatelé");
+      }
+
+      const timestamp = format(new Date(), "yyyy-MM-dd");
+      XLSX.writeFile(wb, `email_statistiky_${timestamp}.xlsx`, {
+        bookType: "xlsx",
+        type: "binary",
+      });
+
+      toast({
+        title: "Export dokončen",
+        description: "Statistiky emailů byly exportovány do Excel souboru.",
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat data do Excel.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Export to PDF
+  const exportToPDF = () => {
+    if (!stats) return;
+    setExporting(true);
+
+    try {
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      let yPosition = 20;
+
+      // Title
+      pdf.setFontSize(20);
+      pdf.text("Statistiky doručování emailů", pageWidth / 2, yPosition, {
+        align: "center",
+      });
+      yPosition += 10;
+
+      // Subtitle
+      pdf.setFontSize(10);
+      pdf.text(
+        `Období: Posledních ${days} dní | Vygenerováno: ${format(new Date(), "d. M. yyyy HH:mm", { locale: cs })}`,
+        pageWidth / 2,
+        yPosition,
+        { align: "center" }
+      );
+      yPosition += 15;
+
+      // Summary table
+      pdf.setFontSize(14);
+      pdf.text("Celkový přehled", 15, yPosition);
+      yPosition += 5;
+
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [["Metrika", "Hodnota"]],
+        body: [
+          ["Celkem odesláno", stats.totalSent.toString()],
+          ["Celkem neúspěšných", stats.totalFailed.toString()],
+          ["Úspěšnost", `${stats.successRate.toFixed(1)}%`],
+          ["Průměrný počet pokusů", stats.avgAttempts.toFixed(2)],
+        ],
+        theme: "striped",
+        headStyles: { fillColor: [66, 66, 66] },
+        margin: { left: 15 },
+      });
+
+      yPosition = (pdf as any).lastAutoTable.finalY + 15;
+
+      // Failure reasons table
+      if (stats.failureReasons.length > 0) {
+        pdf.setFontSize(14);
+        pdf.text("Nejčastější důvody selhání", 15, yPosition);
+        yPosition += 5;
+
+        autoTable(pdf, {
+          startY: yPosition,
+          head: [["Důvod", "Počet", "Procento"]],
+          body: stats.failureReasons.map((r) => [
+            r.reason,
+            r.count.toString(),
+            `${r.percentage.toFixed(1)}%`,
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [66, 66, 66] },
+          margin: { left: 15 },
+        });
+
+        yPosition = (pdf as any).lastAutoTable.finalY + 15;
+      }
+
+      // Provider stats table
+      if (stats.providerStats.length > 0) {
+        pdf.setFontSize(14);
+        pdf.text("Statistiky podle poskytovatele", 15, yPosition);
+        yPosition += 5;
+
+        autoTable(pdf, {
+          startY: yPosition,
+          head: [["Poskytovatel", "Úspěšných", "Neúspěšných", "Úspěšnost"]],
+          body: stats.providerStats.map((p) => [
+            p.provider,
+            p.sent.toString(),
+            p.failed.toString(),
+            `${p.successRate.toFixed(1)}%`,
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [66, 66, 66] },
+          margin: { left: 15 },
+        });
+      }
+
+      const timestamp = format(new Date(), "yyyy-MM-dd");
+      pdf.save(`email_statistiky_${timestamp}.pdf`);
+
+      toast({
+        title: "Export dokončen",
+        description: "Statistiky emailů byly exportovány do PDF souboru.",
+      });
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast({
+        title: "Chyba při exportu",
+        description: "Nepodařilo se exportovat statistiky do PDF.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="col-span-full">
@@ -231,7 +435,7 @@ export function EmailDeliveryStats() {
             Posledních {days} dní (bez testovacích emailů)
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
             variant={days === 7 ? "default" : "outline"}
             size="sm"
@@ -252,6 +456,15 @@ export function EmailDeliveryStats() {
             onClick={() => setDays(90)}
           >
             90 dní
+          </Button>
+          <div className="w-px bg-border mx-1" />
+          <Button variant="outline" size="sm" onClick={exportToExcel} disabled={exporting || !stats}>
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportToPDF} disabled={exporting || !stats}>
+            <FileDown className="w-4 h-4 mr-2" />
+            PDF
           </Button>
           <Button variant="ghost" size="sm" onClick={loadStats}>
             <RefreshCw className="w-4 h-4" />
