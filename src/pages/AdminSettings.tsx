@@ -20,6 +20,7 @@ import { RolePermissionsInfo } from "@/components/RolePermissionsInfo";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
 import { EmailHistory } from "@/components/EmailHistory";
 import { EmailTemplatePreview } from "@/components/EmailTemplatePreview";
+import { NextSendPreview } from "@/components/NextSendPreview";
 
 interface SystemSetting {
   id: string;
@@ -716,6 +717,13 @@ export default function AdminSettings() {
               <EmailHistory />
             </CardContent>
           </Card>
+
+          {/* Next Scheduled Send Preview */}
+          <NextSendPreview 
+            schedule={reminderSchedule}
+            frequency={reminderFrequency}
+            hasRecipients={reminderRecipients.user_ids.length > 0}
+          />
         </TabsContent>
 
         {/* Email Tab */}
