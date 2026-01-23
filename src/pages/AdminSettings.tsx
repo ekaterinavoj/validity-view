@@ -15,8 +15,10 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield } from "lucide-react";
+import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History } from "lucide-react";
 import { RolePermissionsInfo } from "@/components/RolePermissionsInfo";
+import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
+import { EmailHistory } from "@/components/EmailHistory";
 
 interface SystemSetting {
   id: string;
@@ -691,6 +693,26 @@ export default function AdminSettings() {
                   Přidat
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Test & History Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                Testování a historie
+              </CardTitle>
+              <CardDescription>
+                Odešlete testovací email nebo zobrazte historii odeslaných emailů
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <SendTestSummaryEmail 
+                hasRecipients={reminderRecipients.user_ids.length > 0}
+                isEnabled={reminderFrequency.enabled}
+              />
+              <EmailHistory />
             </CardContent>
           </Card>
         </TabsContent>
