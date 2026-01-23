@@ -15,6 +15,8 @@ import Auth from "./pages/Auth";
 import UserManagement from "./pages/UserManagement";
 import AuditLog from "./pages/AuditLog";
 import Profile from "./pages/Profile";
+import AdminSettings from "./pages/AdminSettings";
+import SystemStatus from "./pages/SystemStatus";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -115,6 +117,26 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Profile />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AdminSettings />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/status"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SystemStatus />
                   </Layout>
                 </ProtectedRoute>
               }

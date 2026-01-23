@@ -11,7 +11,9 @@ import {
   LogOut,
   User,
   Shield,
-  FileText
+  FileText,
+  Settings,
+  Activity
 } from "lucide-react";
 
 const navItems = [
@@ -117,6 +119,26 @@ export const Layout = ({ children }: LayoutProps) => {
                 <FileText className="w-4 h-4" />
                 Audit log
               </NavLink>
+            )}
+            {isAdmin && (
+              <>
+                <NavLink
+                  to="/admin/settings"
+                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
+                  activeClassName="text-foreground bg-card border-b-2 border-primary"
+                >
+                  <Settings className="w-4 h-4" />
+                  Administrace
+                </NavLink>
+                <NavLink
+                  to="/admin/status"
+                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
+                  activeClassName="text-foreground bg-card border-b-2 border-primary"
+                >
+                  <Activity className="w-4 h-4" />
+                  Stav systému
+                </NavLink>
+              </>
             )}
           </div>
         </nav>
