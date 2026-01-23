@@ -23,7 +23,11 @@ interface ReminderLogExport {
   error_message: string | null;
   is_test: boolean;
   provider_used: string | null;
+  week_start: string | null;
+  days_before: number | null;
   trainings: {
+    id: string;
+    next_training_date: string;
     employees: { first_name: string; last_name: string } | null;
     training_types: { name: string } | null;
   } | null;
@@ -46,7 +50,11 @@ export function ExportReminderLogs() {
         error_message,
         is_test,
         provider_used,
+        week_start,
+        days_before,
         trainings (
+          id,
+          next_training_date,
           employees (first_name, last_name),
           training_types (name)
         )
@@ -61,6 +69,7 @@ export function ExportReminderLogs() {
   const formatLogsForExport = (logs: ReminderLogExport[]) => {
     return logs.map(log => ({
       "ID": log.id,
+      "Týden od": log.week_start || "",
       "Datum odeslání": format(new Date(log.sent_at), "d. M. yyyy HH:mm:ss", { locale: cs }),
       "Stav": log.status === "sent" ? "Odesláno" : log.status === "simulated" ? "Simulováno" : "Chyba",
       "Test": log.is_test ? "Ano" : "Ne",
@@ -69,6 +78,10 @@ export function ExportReminderLogs() {
         ? `${log.trainings.employees.first_name} ${log.trainings.employees.last_name}` 
         : "",
       "Školení": log.trainings?.training_types?.name || "",
+      "Vyprší": log.trainings?.next_training_date 
+        ? format(new Date(log.trainings.next_training_date), "d. M. yyyy", { locale: cs })
+        : "",
+      "Dnů předem": log.days_before || "",
       "Příjemci": log.recipient_emails.join(", "),
       "Předmět": log.email_subject,
       "Provider": log.provider_used || "",

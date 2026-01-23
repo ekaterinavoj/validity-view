@@ -297,7 +297,8 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        // Check if we already sent a reminder this week for this specific training + employee + days_before
+        // Check if we already sent a reminder this week for this specific training + employee + days_before + is_test
+        // Test runs only check against test logs, real runs only check against real logs
         const { data: existingLog } = await supabase
           .from("reminder_logs")
           .select("id")
@@ -305,10 +306,11 @@ const handler = async (req: Request): Promise<Response> => {
           .eq("employee_id", employee.id)
           .eq("days_before", daysBefore)
           .eq("week_start", weekStart)
-          .single();
+          .eq("is_test", testMode)
+          .maybeSingle();
 
         if (existingLog) {
-          console.log(`Skipping training ${trainingRaw.id} for employee ${employee.id} (${daysBefore} days) - already reminded this week`);
+          console.log(`Skipping training ${trainingRaw.id} for employee ${employee.id} (${daysBefore} days, test=${testMode}) - already processed this week`);
           continue;
         }
 
