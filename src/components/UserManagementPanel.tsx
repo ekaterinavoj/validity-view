@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield } from "lucide-react";
+import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info } from "lucide-react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -249,6 +249,25 @@ export function UserManagementPanel() {
           </CardContent>
         </Card>
       )}
+
+      {/* Info about adding users */}
+      <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+        <CardContent className="pt-4">
+          <div className="flex items-start gap-3">
+            <UserPlus className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-blue-800 dark:text-blue-200">
+                Jak přidat nového uživatele?
+              </p>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Noví uživatelé se registrují sami na přihlašovací stránce. Po registraci se automaticky 
+                objeví v tomto seznamu s rolí "Uživatel". Zde jim pak můžete přidělit vyšší oprávnění 
+                (Manažer nebo Administrátor).
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

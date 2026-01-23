@@ -148,9 +148,80 @@ export default function AuditLog() {
       status: "Stav",
       is_active: "Aktivní",
       role: "Role",
+      deleted_at: "Archivováno",
     };
 
     return fields.map((f) => fieldLabels[f] || f).join(", ");
+  };
+
+  const formatChangeDetails = (log: AuditLog) => {
+    if (!log.changed_fields || log.changed_fields.length === 0) return null;
+
+    const fieldLabels: Record<string, string> = {
+      role: "Role",
+      status: "Stav",
+      is_active: "Aktivní",
+      deleted_at: "Archivováno",
+    };
+
+    const roleLabels: Record<string, string> = {
+      admin: "Administrátor",
+      manager: "Manažer",
+      user: "Uživatel",
+    };
+
+    const statusLabels: Record<string, string> = {
+      employed: "Zaměstnaný",
+      parental_leave: "Mateřská/rodičovská",
+      sick_leave: "Nemocenská",
+      terminated: "Ukončený",
+    };
+
+    const details: string[] = [];
+
+    for (const field of log.changed_fields) {
+      const oldVal = log.old_data?.[field];
+      const newVal = log.new_data?.[field];
+
+      let oldDisplay = oldVal;
+      let newDisplay = newVal;
+
+      // Format role changes
+      if (field === "role") {
+        oldDisplay = roleLabels[oldVal] || oldVal;
+        newDisplay = roleLabels[newVal] || newVal;
+      }
+
+      // Format status changes
+      if (field === "status") {
+        oldDisplay = statusLabels[oldVal] || oldVal;
+        newDisplay = statusLabels[newVal] || newVal;
+      }
+
+      // Format is_active changes
+      if (field === "is_active") {
+        oldDisplay = oldVal ? "Aktivní" : "Neaktivní";
+        newDisplay = newVal ? "Aktivní" : "Neaktivní";
+      }
+
+      // Format deleted_at (archive)
+      if (field === "deleted_at") {
+        oldDisplay = oldVal ? "Archivováno" : "Aktivní";
+        newDisplay = newVal ? "Archivováno" : "Aktivní";
+      }
+
+      const label = fieldLabels[field] || field;
+      
+      if (log.action === "INSERT") {
+        details.push(`${label}: ${newDisplay || "-"}`);
+      } else if (log.action === "DELETE") {
+        details.push(`${label}: ${oldDisplay || "-"}`);
+      } else {
+        details.push(`${label}: ${oldDisplay || "-"} → ${newDisplay || "-"}`);
+      }
+    }
+
+    return details;
   };
 
   if (!isAdmin && !isManager) {
@@ -280,10 +351,21 @@ export default function AuditLog() {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-xs">
-                        <span className="text-sm">
-                          {formatChangedFields(log.changed_fields)}
-                        </span>
+                      <TableCell className="max-w-md">
+                        <div className="space-y-1">
+                          <span className="text-sm text-muted-foreground">
+                            {formatChangedFields(log.changed_fields)}
+                          </span>
+                          {formatChangeDetails(log) && (
+                            <div className="text-xs space-y-0.5">
+                              {formatChangeDetails(log)?.map((detail, i) => (
+                                <div key={i} className="font-mono bg-muted/50 px-2 py-0.5 rounded">
+                                  {detail}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
