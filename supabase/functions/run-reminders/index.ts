@@ -579,46 +579,44 @@ const handler = async (req: Request): Promise<Response> => {
     const expiringCount = allTrainings.filter(t => t.days_until >= 0).length;
     const totalCount = allTrainings.length;
 
-    // Build email content
-    const subject = replaceVariables(emailTemplate.subject, totalCount, expiringCount, expiredCount);
+    // Build email content - add TEST: prefix for test mode
+    const deliveryMode = reminderRecipients.delivery_mode || "bcc";
+    const baseSubject = replaceVariables(emailTemplate.subject, totalCount, expiringCount, expiredCount);
+    const subject = testMode ? `[TEST] ${baseSubject}` : baseSubject;
     const bodyText = replaceVariables(emailTemplate.body, totalCount, expiringCount, expiredCount);
     const trainingsTable = buildTrainingsTable(allTrainings);
-    const fullBody = `${bodyText.replace(/\n/g, "<br>")}<br><br>${trainingsTable}`;
+    const testNotice = testMode 
+      ? `<div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 10px; margin-bottom: 20px; border-radius: 4px;"><strong>⚠️ TESTOVACÍ EMAIL</strong> - Tento email byl odeslán v testovacím režimu.</div>`
+      : "";
+    const fullBody = `${testNotice}${bodyText.replace(/\n/g, "<br>")}<br><br>${trainingsTable}`;
 
-    // Send email (or simulate in test mode)
-    let result: { success: boolean; error?: string; provider: string };
-    if (testMode) {
-      console.log(`[TEST MODE] Would send summary email to ${recipientEmails.length} recipients`);
-      console.log(`[TEST MODE] Subject: ${subject}`);
-      console.log(`[TEST MODE] Trainings count: ${totalCount}`);
-      result = { success: true, provider: "simulated" };
-    } else {
-      result = await sendEmail(
-        recipientEmails,
-        subject,
-        fullBody,
-        reminderRecipients.delivery_mode || "bcc",
-        emailProvider
-      );
-    }
+    // Send email - test mode now actually sends with TEST prefix (for verification)
+    // Simulation mode (dry run) is handled separately in UI
+    const result = await sendEmail(
+      recipientEmails,
+      subject,
+      fullBody,
+      deliveryMode,
+      emailProvider
+    );
 
-    // Log the reminder for each recipient
-    for (const recipient of validProfiles!) {
-      await supabase.from("reminder_logs").insert({
-        training_id: null,
-        employee_id: null,
-        days_before: null,
-        week_start: runPeriodKey,
-        is_test: testMode,
-        provider_used: result.provider,
-        recipient_emails: recipientEmails,
-        email_subject: subject,
-        email_body: fullBody,
-        status: testMode ? "simulated" : (result.success ? "sent" : "failed"),
-        error_message: result.error || null,
-        template_name: `Summary to ${recipient.email}${testMode ? " (test)" : ""}`,
-      });
-    }
+    // Log the reminder - one entry per send (not per recipient) for summary emails
+    // This is the idempotency record: week_start + is_test determines uniqueness
+    await supabase.from("reminder_logs").insert({
+      training_id: null,
+      employee_id: null,
+      days_before: null,
+      week_start: runPeriodKey,
+      is_test: testMode,
+      provider_used: result.provider,
+      recipient_emails: recipientEmails,
+      email_subject: subject,
+      email_body: fullBody,
+      status: result.success ? "sent" : "failed",
+      error_message: result.error || null,
+      template_name: `Summary${testMode ? " (test)" : ""}`,
+      delivery_mode: deliveryMode,
+    });
 
     if (result.success) {
       emailsSent = recipientEmails.length;

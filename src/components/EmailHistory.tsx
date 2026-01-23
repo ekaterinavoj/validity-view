@@ -47,7 +47,14 @@ interface ReminderLogEntry {
   is_test: boolean;
   error_message: string | null;
   week_start: string | null;
+  delivery_mode: string | null;
 }
+
+const DELIVERY_MODE_LABELS: Record<string, string> = {
+  bcc: "BCC (skrytá kopie)",
+  to: "To (příjemci viditelní)",
+  cc: "CC (kopie)",
+};
 
 export function EmailHistory() {
   const { toast } = useToast();
@@ -62,7 +69,7 @@ export function EmailHistory() {
     try {
       const { data, error } = await supabase
         .from("reminder_logs")
-        .select("id, sent_at, status, recipient_emails, email_subject, email_body, template_name, provider_used, is_test, error_message, week_start")
+        .select("id, sent_at, status, recipient_emails, email_subject, email_body, template_name, provider_used, is_test, error_message, week_start, delivery_mode")
         .order("sent_at", { ascending: false })
         .limit(50);
 
@@ -185,6 +192,11 @@ export function EmailHistory() {
                                   <Users className="w-3 h-3" />
                                   {log.recipient_emails?.length || 0} příjemců
                                 </span>
+                                {log.delivery_mode && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {DELIVERY_MODE_LABELS[log.delivery_mode] || log.delivery_mode}
+                                  </Badge>
+                                )}
                                 {log.week_start && (
                                   <span className="flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
