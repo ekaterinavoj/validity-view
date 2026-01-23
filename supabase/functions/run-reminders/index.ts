@@ -579,11 +579,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("No recipients configured");
     return new Response(
       JSON.stringify({ 
-        error: "No recipients configured", 
+        success: false,
+        info: "Nejsou nakonfigurováni žádní příjemci připomínek. Přejděte do Nastavení → Příjemci připomínek a přidejte alespoň jednoho uživatele.",
         warning: "Please configure reminder recipients in Admin Settings",
         emailsSent: 0 
       }),
-      { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 
