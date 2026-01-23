@@ -174,8 +174,10 @@ export type Database = {
       reminder_logs: {
         Row: {
           created_at: string
+          days_before: number | null
           email_body: string
           email_subject: string
+          employee_id: string | null
           error_message: string | null
           id: string
           recipient_emails: string[]
@@ -188,8 +190,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          days_before?: number | null
           email_body: string
           email_subject: string
+          employee_id?: string | null
           error_message?: string | null
           id?: string
           recipient_emails: string[]
@@ -202,8 +206,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          days_before?: number | null
           email_body?: string
           email_subject?: string
+          employee_id?: string | null
           error_message?: string | null
           id?: string
           recipient_emails?: string[]

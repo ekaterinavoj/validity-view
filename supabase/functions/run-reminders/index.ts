@@ -262,34 +262,42 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       for (const trainingRaw of trainingsRaw || []) {
-        // Check if we already sent a reminder this week for this training
-        const { data: existingLog } = await supabase
-          .from("reminder_logs")
-          .select("id")
-          .eq("training_id", trainingRaw.id)
-          .eq("week_start", weekStart)
-          .single();
-
-        if (existingLog) {
-          console.log(`Skipping training ${trainingRaw.id} - already reminded this week`);
-          continue;
-        }
-
-        // Fetch employee and training type separately
+        // Fetch employee first to check idempotency properly
         const { data: employee } = await supabase
           .from("employees")
           .select("id, first_name, last_name, email")
           .eq("id", trainingRaw.employee_id)
           .single();
 
+        if (!employee) {
+          console.error(`Missing employee for training ${trainingRaw.id}`);
+          continue;
+        }
+
+        // Check if we already sent a reminder this week for this specific training + employee + days_before
+        const { data: existingLog } = await supabase
+          .from("reminder_logs")
+          .select("id")
+          .eq("training_id", trainingRaw.id)
+          .eq("employee_id", employee.id)
+          .eq("days_before", daysBefore)
+          .eq("week_start", weekStart)
+          .single();
+
+        if (existingLog) {
+          console.log(`Skipping training ${trainingRaw.id} for employee ${employee.id} (${daysBefore} days) - already reminded this week`);
+          continue;
+        }
+
+        // Fetch training type
         const { data: trainingType } = await supabase
           .from("training_types")
           .select("name")
           .eq("id", trainingRaw.training_type_id)
           .single();
 
-        if (!employee || !trainingType) {
-          console.error(`Missing data for training ${trainingRaw.id}`);
+        if (!trainingType) {
+          console.error(`Missing training type for training ${trainingRaw.id}`);
           continue;
         }
 
@@ -319,9 +327,11 @@ const handler = async (req: Request): Promise<Response> => {
           result = await sendViaResend(training.employee.email, subject, body);
         }
 
-        // Log the reminder
+        // Log the reminder with idempotency fields
         await supabase.from("reminder_logs").insert({
           training_id: training.id,
+          employee_id: training.employee.id,
+          days_before: daysBefore,
           week_start: weekStart,
           recipient_emails: [training.employee.email],
           email_subject: subject,
