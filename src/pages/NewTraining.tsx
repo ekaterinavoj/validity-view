@@ -177,7 +177,7 @@ export default function NewTraining() {
         description: `Nové školení bylo úspěšně přidáno${uploadedFiles.length > 0 ? ` se ${uploadedFiles.length} dokumenty` : ""}.`,
       });
       
-      navigate("/scheduled-trainings");
+      navigate("/");
     } catch (error: any) {
       console.error("Chyba při vytváření školení:", error);
       toast({
@@ -383,7 +383,7 @@ export default function NewTraining() {
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {isSubmitting ? "Vytváří se..." : "Vytvořit školení"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => navigate("/scheduled-trainings")} disabled={isSubmitting}>
+              <Button type="button" variant="outline" onClick={() => navigate("/")} disabled={isSubmitting}>
                 Zrušit
               </Button>
             </div>
