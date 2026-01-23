@@ -18,9 +18,11 @@ export interface HistoryTraining {
   requester: string;
   period: number;
   note: string;
+  deletedAt: string | null; // Soft-delete timestamp
+  isArchived: boolean;
 }
 
-export function useTrainingHistory() {
+export function useTrainingHistory(includeArchived: boolean = false) {
   const [trainings, setTrainings] = useState<HistoryTraining[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +32,8 @@ export function useTrainingHistory() {
     setError(null);
 
     try {
-      // Fetch ALL trainings regardless of employee status (for history)
-      const { data, error: fetchError } = await supabase
+      // Build query - include deleted_at for archive filtering
+      let query = supabase
         .from("trainings")
         .select(`
           id,
@@ -46,6 +48,7 @@ export function useTrainingHistory() {
           next_training_date,
           employee_id,
           training_type_id,
+          deleted_at,
           employees (
             id,
             employee_number,
@@ -66,6 +69,13 @@ export function useTrainingHistory() {
           )
         `)
         .order("last_training_date", { ascending: false });
+      
+      // If not including archived, filter them out
+      if (!includeArchived) {
+        query = query.is("deleted_at", null);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
@@ -101,6 +111,8 @@ export function useTrainingHistory() {
         requester: t.requester || "",
         period: t.training_types?.period_days || 365,
         note: t.note || "",
+        deletedAt: t.deleted_at,
+        isArchived: t.deleted_at !== null,
       }));
 
       setTrainings(transformedData);
@@ -110,7 +122,7 @@ export function useTrainingHistory() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [includeArchived]);
 
   useEffect(() => {
     fetchHistory();

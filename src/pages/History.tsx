@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Loader2, RefreshCw, FileSpreadsheet, FileDown } from "lucide-react";
+import { Download, Loader2, RefreshCw, FileSpreadsheet, FileDown, ArchiveRestore, Archive } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTrainingHistory } from "@/hooks/useTrainingHistory";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -39,8 +40,13 @@ const employeeStatusColors: Record<string, string> = {
 
 export default function History() {
   const { toast } = useToast();
-  const { trainings, loading, error, refetch } = useTrainingHistory();
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState<string>("all");
+  const [archiveFilter, setArchiveFilter] = useState<string>("active"); // "all", "active", "archived"
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  
+  // Include archived trainings when filter is "all" or "archived"
+  const includeArchived = archiveFilter === "all" || archiveFilter === "archived";
+  const { trainings, loading, error, refetch } = useTrainingHistory(includeArchived);
 
   const {
     filters,
@@ -70,6 +76,10 @@ export default function History() {
 
   const filteredHistory = useMemo(() => {
     return trainings.filter((training) => {
+      // Archive filter
+      if (archiveFilter === "active" && training.isArchived) return false;
+      if (archiveFilter === "archived" && !training.isArchived) return false;
+
       // Employee status filter
       const matchesEmployeeStatus =
         employeeStatusFilter === "all" || training.employeeStatus === employeeStatusFilter;
@@ -108,7 +118,34 @@ export default function History() {
         matchesDateTo
       );
     });
-  }, [filters, trainings, employeeStatusFilter]);
+  }, [filters, trainings, employeeStatusFilter, archiveFilter]);
+
+  const handleRestoreTraining = async (trainingId: string) => {
+    setRestoringId(trainingId);
+    try {
+      const { error } = await supabase
+        .from("trainings")
+        .update({ deleted_at: null })
+        .eq("id", trainingId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Školení obnoveno",
+        description: "Školení bylo úspěšně obnoveno a přesunuto zpět do aktivních.",
+      });
+
+      refetch();
+    } catch (err: any) {
+      toast({
+        title: "Chyba při obnovení",
+        description: err.message || "Nepodařilo se obnovit školení.",
+        variant: "destructive",
+      });
+    } finally {
+      setRestoringId(null);
+    }
+  };
 
   const exportToExcel = () => {
     try {
@@ -302,22 +339,37 @@ export default function History() {
         </div>
       </div>
 
-      {/* Employee status filter */}
+      {/* Filters */}
       <Card className="p-4">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium">Stav zaměstnance:</label>
-          <Select value={employeeStatusFilter} onValueChange={setEmployeeStatusFilter}>
-            <SelectTrigger className="w-64">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Všichni zaměstnanci</SelectItem>
-              <SelectItem value="employed">Aktivní</SelectItem>
-              <SelectItem value="parental_leave">Mateřská/rodičovská</SelectItem>
-              <SelectItem value="sick_leave">Nemocenská</SelectItem>
-              <SelectItem value="terminated">Ukončený</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Archiv:</label>
+            <Select value={archiveFilter} onValueChange={setArchiveFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Aktivní školení</SelectItem>
+                <SelectItem value="archived">Archivovaná</SelectItem>
+                <SelectItem value="all">Vše</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Stav zaměstnance:</label>
+            <Select value={employeeStatusFilter} onValueChange={setEmployeeStatusFilter}>
+              <SelectTrigger className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všichni zaměstnanci</SelectItem>
+                <SelectItem value="employed">Aktivní</SelectItem>
+                <SelectItem value="parental_leave">Mateřská/rodičovská</SelectItem>
+                <SelectItem value="sick_leave">Nemocenská</SelectItem>
+                <SelectItem value="terminated">Ukončený</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </Card>
 
@@ -351,18 +403,24 @@ export default function History() {
                 <TableHead>Školitel</TableHead>
                 <TableHead>Firma</TableHead>
                 <TableHead>Poznámka</TableHead>
+                {(archiveFilter === "all" || archiveFilter === "archived") && (
+                  <TableHead>Stav</TableHead>
+                )}
+                {archiveFilter !== "active" && (
+                  <TableHead>Akce</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={archiveFilter === "active" ? 9 : 11} className="text-center py-8 text-muted-foreground">
                     Žádná historie nenalezena
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredHistory.map((training) => (
-                  <TableRow key={training.id}>
+                  <TableRow key={training.id} className={training.isArchived ? "bg-muted/50" : ""}>
                     <TableCell className="whitespace-nowrap">
                       {new Date(training.date).toLocaleDateString("cs-CZ")}
                     </TableCell>
@@ -380,6 +438,41 @@ export default function History() {
                     <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                     <TableCell className="whitespace-nowrap">{training.company}</TableCell>
                     <TableCell>{training.note || "-"}</TableCell>
+                    {(archiveFilter === "all" || archiveFilter === "archived") && (
+                      <TableCell>
+                        {training.isArchived ? (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                            <Archive className="w-3 h-3 mr-1" />
+                            Archivováno
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                            Aktivní
+                          </Badge>
+                        )}
+                      </TableCell>
+                    )}
+                    {archiveFilter !== "active" && (
+                      <TableCell>
+                        {training.isArchived && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRestoreTraining(training.id)}
+                            disabled={restoringId === training.id}
+                          >
+                            {restoringId === training.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                <ArchiveRestore className="w-4 h-4 mr-1" />
+                                Obnovit
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
