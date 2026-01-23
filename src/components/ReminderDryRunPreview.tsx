@@ -55,30 +55,50 @@ export function ReminderDryRunPreview() {
   const loadPreview = async () => {
     setLoading(true);
     try {
-      // Load settings for days_before and skip_weekends
+      // Load settings for days_before and reminder_schedule (matches real sender)
       const { data: settingsData } = await supabase
         .from("system_settings")
         .select("key, value")
-        .in("key", ["reminder_days", "skip_weekends"]);
+        .in("key", ["reminder_days", "reminder_schedule"]);
 
       const reminderDaysSetting = settingsData?.find(s => s.key === "reminder_days");
-      const skipWeekendsSetting = settingsData?.find(s => s.key === "skip_weekends");
+      const reminderScheduleSetting = settingsData?.find(s => s.key === "reminder_schedule");
       
-      const settingsValue = reminderDaysSetting?.value as { days_before?: number[] } | null;
-      const reminderDays = settingsValue || { days_before: [30, 14, 7] };
+      // Match real sender: settingsMap.reminder_schedule || { enabled: true, skip_weekends: true }
+      const reminderSchedule = (reminderScheduleSetting?.value as { enabled?: boolean; skip_weekends?: boolean }) || 
+        { enabled: true, skip_weekends: true };
+      
+      // Match real sender: settingsMap.reminder_days || { days_before: [30, 14, 7] }
+      const reminderDays = (reminderDaysSetting?.value as { days_before?: number[] }) || 
+        { days_before: [30, 14, 7] };
       const daysBeforeList: number[] = reminderDays.days_before || [30, 14, 7];
       
-      // Parse skip_weekends setting (default: true)
-      const skipWeekends = skipWeekendsSetting?.value === true || 
-        (typeof skipWeekendsSetting?.value === 'object' && (skipWeekendsSetting.value as any)?.enabled === true) ||
-        skipWeekendsSetting?.value === undefined; // default to true if not set
+      // Check if reminders are enabled (matches real sender)
+      if (!reminderSchedule.enabled) {
+        setPendingReminders([]);
+        setLoading(false);
+        toast({
+          title: "Připomínky jsou vypnuté",
+          description: "V nastavení jsou připomínky deaktivovány.",
+        });
+        return;
+      }
 
-      // Check if today is a weekend and skip_weekends is enabled
-      const today = new Date();
-      const dayOfWeek = today.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      // Check if today is weekend and skip_weekends is enabled (matches real sender exactly)
+      const today = new Date().getDay();
+      const isWeekend = today === 0 || today === 6;
 
-      // Get current week start (Monday)
+      if (reminderSchedule.skip_weekends && isWeekend) {
+        setPendingReminders([]);
+        setLoading(false);
+        toast({
+          title: "Víkend - odesílání přeskočeno",
+          description: "Nastavení 'Přeskočit víkendy' je aktivní. Připomínky se o víkendech neodesílají.",
+        });
+        return;
+      }
+
+      // Get current week start (Monday) - matches real sender
       const now = new Date();
       const day = now.getDay();
       const diff = now.getDate() - day + (day === 0 ? -6 : 1);
@@ -89,31 +109,20 @@ export function ReminderDryRunPreview() {
 
       const reminders: PendingReminder[] = [];
 
-      // If it's weekend and skip_weekends is enabled, show empty preview with note
-      if (isWeekend && skipWeekends) {
-        setPendingReminders([]);
-        setLoading(false);
-        toast({
-          title: "Víkend - odesílání přeskočeno",
-          description: "Nastavení 'Přeskočit víkendy' je aktivní. Připomínky se o víkendech neodesílají.",
-        });
-        return;
-      }
-
       for (const daysBefore of daysBeforeList) {
         // Calculate target date
         const targetDate = new Date();
         targetDate.setDate(targetDate.getDate() + daysBefore);
         const targetDateStr = targetDate.toISOString().split("T")[0];
 
-        // Get trainings expiring on target date
+        // Get trainings expiring on target date (matches real sender: only is_active=true filter)
         const { data: trainings, error } = await supabase
           .from("trainings")
           .select(`
             id,
             next_training_date,
             employee_id,
-            employees (id, first_name, last_name, email, status),
+            employees (id, first_name, last_name, email),
             training_types (name)
           `)
           .eq("next_training_date", targetDateStr)
@@ -124,13 +133,10 @@ export function ReminderDryRunPreview() {
           continue;
         }
         
-        // Filter only active employees (matching real sender logic)
-        const activeTrainings = (trainings || []).filter(t => {
-          const emp = t.employees as any;
-          return emp && emp.status === 'employed';
-        });
+        // Real sender does NOT filter by employees.status - it sends to all employees
+        // with is_active=true trainings. Matching that behavior here.
 
-        for (const training of activeTrainings) {
+        for (const training of trainings || []) {
           if (!training.employees || !training.training_types) continue;
 
           // Check if already sent this week
