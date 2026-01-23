@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, FileDown, Copy, Shield, Eye, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, FileDown, Shield, Eye, Loader2, Settings2, Check, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,6 +12,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -29,7 +32,7 @@ interface ImportRow {
 interface ParsedRow {
   rowNumber: number;
   data: ImportRow;
-  status: 'valid' | 'error' | 'duplicate' | 'fuzzy_matched';
+  status: 'valid' | 'error' | 'duplicate' | 'auto_matched' | 'suggestion';
   error?: string;
   warning?: string;
   employeeId?: string;
@@ -41,13 +44,44 @@ interface ParsedRow {
   periodDays?: number;
   existingTrainingId?: string;
   existingTrainingDate?: string;
+  isCrossFacility?: boolean;
+  manualOverrideTypeId?: string;
+  isApproved?: boolean;
+}
+
+interface TrainingType {
+  id: string;
+  name: string;
+  facility: string;
+  period_days: number;
 }
 
 interface FuzzyMatch {
-  item: any;
+  item: TrainingType;
   score: number;
-  normalizedScore: number;
+  isCrossFacility: boolean;
 }
+
+// Remove diacritics from string
+const removeDiacritics = (str: string): string => {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
+
+// Normalize name for comparison
+const normalizeName = (name: string): string => {
+  let normalized = name.toLowerCase().trim();
+  normalized = removeDiacritics(normalized);
+  // Remove years (4-digit numbers)
+  normalized = normalized.replace(/\b\d{4}\b/g, "");
+  // Remove common words
+  const commonWords = ["skoleni", "training", "kurz", "course", "zakladni", "basic", "pokrocile", "advanced", "opakované", "opakovane", "refresher"];
+  commonWords.forEach(word => {
+    normalized = normalized.replace(new RegExp(`\\b${word}\\b`, "gi"), "");
+  });
+  // Remove extra whitespace
+  normalized = normalized.replace(/\s+/g, " ").trim();
+  return normalized;
+};
 
 // Levenshtein distance for fuzzy matching
 const levenshteinDistance = (str1: string, str2: string): number => {
@@ -76,10 +110,10 @@ const levenshteinDistance = (str1: string, str2: string): number => {
   return dp[m][n];
 };
 
-// Calculate similarity score (0-100%)
+// Calculate similarity score (0-100%) using normalized names
 const calculateSimilarity = (str1: string, str2: string): number => {
-  const s1 = str1.toLowerCase().trim();
-  const s2 = str2.toLowerCase().trim();
+  const s1 = normalizeName(str1);
+  const s2 = normalizeName(str2);
   
   if (s1 === s2) return 100;
   
@@ -90,35 +124,50 @@ const calculateSimilarity = (str1: string, str2: string): number => {
   return Math.round((1 - distance / maxLen) * 100);
 };
 
-// Find best fuzzy match for training type
+// Find best fuzzy match for training type with cross-facility support
 const findBestTrainingTypeMatch = (
   searchName: string, 
   facilityCode: string,
-  trainingTypes: Array<{ id: string; name: string; facility: string; period_days: number }> | null,
+  trainingTypes: TrainingType[] | null,
   minSimilarity: number = 70
 ): FuzzyMatch | null => {
   if (!trainingTypes || trainingTypes.length === 0) return null;
   
-  const normalizedSearch = searchName.toLowerCase().trim();
-  
   // Filter by facility first
   const facilityTypes = trainingTypes.filter(t => t.facility === facilityCode);
   
-  // If no types for this facility, try all types
-  const typesToSearch = facilityTypes.length > 0 ? facilityTypes : trainingTypes;
-  
   let bestMatch: FuzzyMatch | null = null;
   
-  for (const type of typesToSearch) {
+  // Search in same facility first
+  for (const type of facilityTypes) {
     const similarity = calculateSimilarity(searchName, type.name);
     
     if (similarity >= minSimilarity) {
-      if (!bestMatch || similarity > bestMatch.normalizedScore) {
+      if (!bestMatch || similarity > bestMatch.score) {
         bestMatch = {
           item: type,
           score: similarity,
-          normalizedScore: similarity
+          isCrossFacility: false
         };
+      }
+    }
+  }
+  
+  // If no match in facility, search all types (cross-facility)
+  if (!bestMatch) {
+    for (const type of trainingTypes) {
+      if (type.facility === facilityCode) continue; // Skip already searched
+      
+      const similarity = calculateSimilarity(searchName, type.name);
+      
+      if (similarity >= minSimilarity) {
+        if (!bestMatch || similarity > bestMatch.score) {
+          bestMatch = {
+            item: type,
+            score: similarity,
+            isCrossFacility: true
+          };
+        }
       }
     }
   }
@@ -131,10 +180,21 @@ interface ImportPreview {
   validRows: ParsedRow[];
   errorRows: ParsedRow[];
   duplicateRows: ParsedRow[];
-  fuzzyMatchedRows: ParsedRow[];
+  autoMatchedRows: ParsedRow[];
+  suggestionRows: ParsedRow[];
 }
 
-type DuplicateAction = 'skip' | 'overwrite' | 'import';
+type DuplicateAction = 'skip' | 'overwrite';
+
+interface ImportSettings {
+  minSimilarityThreshold: number;
+  autoMatchThreshold: number;
+}
+
+const DEFAULT_SETTINGS: ImportSettings = {
+  minSimilarityThreshold: 70,
+  autoMatchThreshold: 90,
+};
 
 const REQUIRED_COLUMNS = ['training_type_name', 'facility_code', 'last_training_date'];
 const OPTIONAL_COLUMNS = ['employee_number', 'email', 'trainer', 'company', 'note'];
@@ -146,9 +206,12 @@ export const BulkTrainingImport = () => {
   const [parsing, setParsing] = useState(false);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
-  const [duplicateAction, setDuplicateAction] = useState<DuplicateAction>('skip');
+  const [duplicateAction, setDuplicateAction] = useState<DuplicateAction>('overwrite');
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [settings, setSettings] = useState<ImportSettings>(DEFAULT_SETTINGS);
+  const [showSettings, setShowSettings] = useState(false);
+  const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
 
   // Only admin and manager can import
   const canImport = isAdmin || isManager;
@@ -262,7 +325,8 @@ export const BulkTrainingImport = () => {
       const validRows: ParsedRow[] = [];
       const errorRows: ParsedRow[] = [];
       const duplicateRows: ParsedRow[] = [];
-      const fuzzyMatchedRows: ParsedRow[] = [];
+      const autoMatchedRows: ParsedRow[] = [];
+      const suggestionRows: ParsedRow[] = [];
 
       // Fetch all employees for matching
       const { data: employees } = await supabase
@@ -270,9 +334,11 @@ export const BulkTrainingImport = () => {
         .select("id, employee_number, email, first_name, last_name");
 
       // Fetch all training types
-      const { data: trainingTypes } = await supabase
+      const { data: types } = await supabase
         .from("training_types")
         .select("id, name, facility, period_days");
+
+      setTrainingTypes(types || []);
 
       // Fetch existing trainings for duplicate detection
       const { data: existingTrainings } = await supabase
@@ -351,36 +417,53 @@ export const BulkTrainingImport = () => {
         parsedRow.employeeId = employee.id;
         parsedRow.employeeName = `${employee.first_name} ${employee.last_name}`;
 
-        // Validate training type - exact match first
-        let trainingType = trainingTypes?.find(
-          t => t.name.toLowerCase() === row.training_type_name.toLowerCase().trim() && 
+        // Validate training type - exact match first (case-insensitive, normalized)
+        let trainingType = types?.find(
+          t => normalizeName(t.name) === normalizeName(row.training_type_name) && 
                t.facility === row.facility_code.trim()
         );
 
-        let isFuzzyMatch = false;
+        let matchType: 'exact' | 'auto' | 'suggestion' | 'none' = 'exact';
         let matchConfidence = 100;
+        let isCrossFacility = false;
 
         // If no exact match, try fuzzy matching
         if (!trainingType) {
           const fuzzyMatch = findBestTrainingTypeMatch(
             row.training_type_name,
             row.facility_code.trim(),
-            trainingTypes
+            types,
+            settings.minSimilarityThreshold
           );
 
           if (fuzzyMatch) {
             trainingType = fuzzyMatch.item;
-            isFuzzyMatch = true;
-            matchConfidence = fuzzyMatch.normalizedScore;
+            matchConfidence = fuzzyMatch.score;
+            isCrossFacility = fuzzyMatch.isCrossFacility;
             parsedRow.matchedTrainingTypeName = trainingType.name;
             parsedRow.matchConfidence = matchConfidence;
-            parsedRow.warning = `Fuzzy match: "${row.training_type_name}" → "${trainingType.name}" (${matchConfidence}% shoda)`;
+            parsedRow.isCrossFacility = isCrossFacility;
+
+            // Determine match type based on thresholds
+            // ≥90% AND same facility = auto match
+            // Cross-facility = always suggestion (never auto)
+            // 70-89% = suggestion
+            if (matchConfidence >= settings.autoMatchThreshold && !isCrossFacility) {
+              matchType = 'auto';
+              parsedRow.warning = `Auto-match: "${row.training_type_name}" → "${trainingType.name}" (${matchConfidence}%)`;
+            } else {
+              matchType = 'suggestion';
+              const crossNote = isCrossFacility ? ` [cross-facility: ${trainingType.facility}]` : '';
+              parsedRow.warning = `Návrh: "${row.training_type_name}" → "${trainingType.name}" (${matchConfidence}%)${crossNote}`;
+            }
+          } else {
+            matchType = 'none';
           }
         }
 
         if (!trainingType) {
           parsedRow.status = 'error';
-          parsedRow.error = `Typ školení "${row.training_type_name}" pro provozovnu "${row.facility_code}" nebyl nalezen`;
+          parsedRow.error = `Typ školení "${row.training_type_name}" pro provozovnu "${row.facility_code}" nebyl nalezen (min. shoda ${settings.minSimilarityThreshold}%)`;
           errorRows.push(parsedRow);
           continue;
         }
@@ -389,7 +472,7 @@ export const BulkTrainingImport = () => {
         parsedRow.trainingTypeName = trainingType.name;
         parsedRow.periodDays = trainingType.period_days;
 
-        // Check for duplicates (same employee + training type + training date)
+        // Check for duplicates (same employee + training type)
         const existingTraining = existingTrainings?.find(
           t => t.employee_id === employee.id && 
                t.training_type_id === trainingType!.id
@@ -403,14 +486,17 @@ export const BulkTrainingImport = () => {
           continue;
         }
 
-        // If fuzzy matched, add to fuzzy matched rows for review
-        if (isFuzzyMatch) {
-          parsedRow.status = 'fuzzy_matched';
-          fuzzyMatchedRows.push(parsedRow);
-          continue;
+        // Categorize by match type
+        if (matchType === 'auto') {
+          parsedRow.status = 'auto_matched';
+          autoMatchedRows.push(parsedRow);
+        } else if (matchType === 'suggestion') {
+          parsedRow.status = 'suggestion';
+          parsedRow.isApproved = false; // Needs approval
+          suggestionRows.push(parsedRow);
+        } else {
+          validRows.push(parsedRow);
         }
-
-        validRows.push(parsedRow);
       }
 
       setPreview({
@@ -418,7 +504,8 @@ export const BulkTrainingImport = () => {
         validRows,
         errorRows,
         duplicateRows,
-        fuzzyMatchedRows,
+        autoMatchedRows,
+        suggestionRows,
       });
       setShowPreviewDialog(true);
 
@@ -487,6 +574,55 @@ export const BulkTrainingImport = () => {
     }
   };
 
+  // Handle suggestion approval/rejection
+  const handleSuggestionApproval = (rowNumber: number, approved: boolean) => {
+    if (!preview) return;
+    
+    setPreview(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        suggestionRows: prev.suggestionRows.map(row => 
+          row.rowNumber === rowNumber 
+            ? { ...row, isApproved: approved }
+            : row
+        )
+      };
+    });
+  };
+
+  // Handle manual override of training type for suggestion
+  const handleManualOverride = (rowNumber: number, newTypeId: string) => {
+    if (!preview) return;
+    
+    const newType = trainingTypes.find(t => t.id === newTypeId);
+    if (!newType) return;
+    
+    setPreview(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        suggestionRows: prev.suggestionRows.map(row => {
+          if (row.rowNumber === rowNumber) {
+            return {
+              ...row,
+              manualOverrideTypeId: newTypeId,
+              trainingTypeId: newTypeId,
+              trainingTypeName: newType.name,
+              matchedTrainingTypeName: newType.name,
+              periodDays: newType.period_days,
+              matchConfidence: 100,
+              isCrossFacility: newType.facility !== row.data.facility_code,
+              isApproved: true,
+              warning: `Manuálně vybráno: "${newType.name}"`
+            };
+          }
+          return row;
+        })
+      };
+    });
+  };
+
   const executeImport = async () => {
     if (!preview || !user) return;
 
@@ -499,14 +635,22 @@ export const BulkTrainingImport = () => {
     let skipped = 0;
     let failed = 0;
 
-    const rowsToProcess = [...preview.validRows, ...preview.fuzzyMatchedRows];
+    // Include valid rows, auto-matched rows, and approved suggestions
+    const rowsToProcess = [
+      ...preview.validRows, 
+      ...preview.autoMatchedRows,
+      ...preview.suggestionRows.filter(r => r.isApproved)
+    ];
     
-    // Handle duplicates based on action
-    if (duplicateAction === 'overwrite' || duplicateAction === 'import') {
+    // Handle duplicates - always overwrite since that's the confirmed behavior
+    if (duplicateAction === 'overwrite') {
       rowsToProcess.push(...preview.duplicateRows);
     } else {
       skipped = preview.duplicateRows.length;
     }
+
+    // Count skipped suggestions
+    skipped += preview.suggestionRows.filter(r => !r.isApproved).length;
 
     const totalRows = rowsToProcess.length;
 
@@ -520,8 +664,8 @@ export const BulkTrainingImport = () => {
           const nextDate = new Date(lastDate);
           nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
 
-          if (row.status === 'duplicate' && duplicateAction === 'overwrite' && row.existingTrainingId) {
-            // Update existing training
+          if (row.status === 'duplicate' && row.existingTrainingId) {
+            // Update existing training (overwrite)
             const { error } = await supabase
               .from("trainings")
               .update({
@@ -578,6 +722,8 @@ export const BulkTrainingImport = () => {
           failed,
           total_rows: preview.totalRows,
           duplicate_action: duplicateAction,
+          auto_matched: preview.autoMatchedRows.length,
+          suggestions_approved: preview.suggestionRows.filter(r => r.isApproved).length,
         },
         user_id: user.id,
         user_email: profile?.email || user.email,
@@ -655,6 +801,17 @@ export const BulkTrainingImport = () => {
     setImportProgress(0);
   };
 
+  // Calculate how many rows will be imported
+  const getImportableRowsCount = () => {
+    if (!preview) return 0;
+    let count = preview.validRows.length + preview.autoMatchedRows.length;
+    count += preview.suggestionRows.filter(r => r.isApproved).length;
+    if (duplicateAction === 'overwrite') {
+      count += preview.duplicateRows.length;
+    }
+    return count;
+  };
+
   if (!canImport) {
     return (
       <Card>
@@ -689,6 +846,66 @@ export const BulkTrainingImport = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Settings Collapsible */}
+          <Collapsible open={showSettings} onOpenChange={setShowSettings}>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="mb-4">
+                <Settings2 className="w-4 h-4 mr-2" />
+                Nastavení fuzzy matchingu
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <Card className="p-4 mb-4 bg-muted/50">
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Minimální práh shody (pro návrhy)</Label>
+                      <Badge variant="outline">{settings.minSimilarityThreshold}%</Badge>
+                    </div>
+                    <Slider
+                      value={[settings.minSimilarityThreshold]}
+                      onValueChange={([value]) => setSettings(s => ({ ...s, minSimilarityThreshold: value }))}
+                      min={70}
+                      max={95}
+                      step={5}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Pod tímto prahem bude záznam označen jako chyba.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Práh pro automatické párování</Label>
+                      <Badge variant="outline">{settings.autoMatchThreshold}%</Badge>
+                    </div>
+                    <Slider
+                      value={[settings.autoMatchThreshold]}
+                      onValueChange={([value]) => setSettings(s => ({ ...s, autoMatchThreshold: Math.max(value, s.minSimilarityThreshold) }))}
+                      min={settings.minSimilarityThreshold}
+                      max={100}
+                      step={5}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Při shodě ≥{settings.autoMatchThreshold}% (a stejná provozovna) se záznam spáruje automaticky. 
+                      Mezi {settings.minSimilarityThreshold}% a {settings.autoMatchThreshold - 1}% se zobrazí jako návrh k potvrzení.
+                    </p>
+                  </div>
+
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      <strong>Cross-facility párování:</strong> Pokud není nalezena shoda v provozovně, hledá se napříč všemi provozovnami. 
+                      Cross-facility shody jsou vždy zobrazeny jako návrhy (nikdy automaticky).
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              </Card>
+            </CollapsibleContent>
+          </Collapsible>
+
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
@@ -710,10 +927,11 @@ export const BulkTrainingImport = () => {
                   <strong>Párování zaměstnanců:</strong> Primárně podle osobního čísla, pokud nenalezeno, fallback na email.
                 </p>
                 <p className="text-sm mt-2">
-                  <strong>Duplicita:</strong> Stejný zaměstnanec + typ školení = duplicita. Můžete přeskočit, přepsat nebo importovat jako nový.
+                  <strong>Duplicita:</strong> Stejný zaměstnanec + typ školení = aktualizuje se existující záznam (overwrite).
                 </p>
                 <p className="text-sm mt-2">
-                  <strong>Fuzzy matching:</strong> Pokud přesný název školení nenajde shodu, systém automaticky najde podobný název (min. 70% shoda).
+                  <strong>Fuzzy matching:</strong> Normalizace názvů (bez diakritiky, roku, běžných slov). 
+                  ≥{settings.autoMatchThreshold}% = auto-match, {settings.minSimilarityThreshold}-{settings.autoMatchThreshold - 1}% = návrh k potvrzení, &lt;{settings.minSimilarityThreshold}% = chyba.
                 </p>
                 <p className="text-sm mt-2 text-muted-foreground">
                   <strong>CSV formát:</strong> Delimiter: středník (;), kódování: UTF-8 s BOM
@@ -765,88 +983,166 @@ export const BulkTrainingImport = () => {
 
       {/* Preview Dialog */}
       <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5" />
               Náhled importu
             </DialogTitle>
             <DialogDescription>
-              Zkontrolujte data před importem. Můžete exportovat chybné záznamy pro opravu.
+              Zkontrolujte data před importem. Schvalte nebo upravte návrhy párování.
             </DialogDescription>
           </DialogHeader>
 
           {preview && (
             <div className="space-y-4">
               {/* Summary */}
-              <div className="grid grid-cols-5 gap-3">
-                <Card className="p-4">
-                  <div className="text-2xl font-bold">{preview.totalRows}</div>
-                  <div className="text-sm text-muted-foreground">Celkem</div>
+              <div className="grid grid-cols-6 gap-2">
+                <Card className="p-3">
+                  <div className="text-xl font-bold">{preview.totalRows}</div>
+                  <div className="text-xs text-muted-foreground">Celkem</div>
                 </Card>
-                <Card className="p-4 border-primary/50 bg-primary/10">
-                  <div className="text-2xl font-bold text-primary">{preview.validRows.length}</div>
-                  <div className="text-sm text-muted-foreground">Přesná shoda</div>
+                <Card className="p-3 border-primary/50 bg-primary/10">
+                  <div className="text-xl font-bold text-primary">{preview.validRows.length}</div>
+                  <div className="text-xs text-muted-foreground">Přesná shoda</div>
                 </Card>
-                <Card className="p-4 border-secondary/50 bg-secondary/10">
-                  <div className="text-2xl font-bold text-secondary-foreground">{preview.fuzzyMatchedRows.length}</div>
-                  <div className="text-sm text-muted-foreground">Fuzzy shoda</div>
+                <Card className="p-3 border-primary/50 bg-primary/10">
+                  <div className="text-xl font-bold text-primary">{preview.autoMatchedRows.length}</div>
+                  <div className="text-xs text-muted-foreground">Auto-match</div>
                 </Card>
-                <Card className="p-4 border-accent/50 bg-accent/10">
-                  <div className="text-2xl font-bold text-accent-foreground">{preview.duplicateRows.length}</div>
-                  <div className="text-sm text-muted-foreground">Duplicity</div>
+                <Card className="p-3 border-secondary/50 bg-secondary/10">
+                  <div className="text-xl font-bold text-secondary-foreground">{preview.suggestionRows.length}</div>
+                  <div className="text-xs text-muted-foreground">Návrhy</div>
                 </Card>
-                <Card className="p-4 border-destructive/50 bg-destructive/10">
-                  <div className="text-2xl font-bold text-destructive">{preview.errorRows.length}</div>
-                  <div className="text-sm text-muted-foreground">Chyby</div>
+                <Card className="p-3 border-accent/50 bg-accent/10">
+                  <div className="text-xl font-bold text-accent-foreground">{preview.duplicateRows.length}</div>
+                  <div className="text-xs text-muted-foreground">Duplicity</div>
+                </Card>
+                <Card className="p-3 border-destructive/50 bg-destructive/10">
+                  <div className="text-xl font-bold text-destructive">{preview.errorRows.length}</div>
+                  <div className="text-xs text-muted-foreground">Chyby</div>
                 </Card>
               </div>
 
-              {/* Fuzzy matched rows info */}
-              {preview.fuzzyMatchedRows.length > 0 && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
+              {/* Auto-matched rows info */}
+              {preview.autoMatchedRows.length > 0 && (
+                <Alert className="border-primary/50 bg-primary/5">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
                   <AlertDescription>
-                    <div className="space-y-2">
-                      <p className="font-semibold">Fuzzy shoda ({preview.fuzzyMatchedRows.length} záznamů)</p>
-                      <p className="text-sm">
-                        Tyto záznamy byly automaticky spárovány s podobnými typy školení. 
-                        Zkontrolujte správnost párování před importem.
-                      </p>
-                      <div className="max-h-32 overflow-y-auto border rounded-lg mt-2">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-16">Řádek</TableHead>
-                              <TableHead>Původní název</TableHead>
-                              <TableHead>Spárováno s</TableHead>
-                              <TableHead className="w-20">Shoda</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {preview.fuzzyMatchedRows.slice(0, 5).map((row) => (
-                              <TableRow key={row.rowNumber}>
-                                <TableCell className="font-mono">{row.rowNumber}</TableCell>
-                                <TableCell className="text-sm">{row.data.training_type_name}</TableCell>
-                                <TableCell className="text-sm font-medium">{row.matchedTrainingTypeName}</TableCell>
-                                <TableCell>
-                                  <Badge variant={row.matchConfidence && row.matchConfidence >= 90 ? "default" : "secondary"}>
-                                    {row.matchConfidence}%
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                        {preview.fuzzyMatchedRows.length > 5 && (
-                          <div className="p-2 text-center text-sm text-muted-foreground bg-muted">
-                            ... a dalších {preview.fuzzyMatchedRows.length - 5} záznamů
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <p className="font-semibold text-primary">Auto-match ({preview.autoMatchedRows.length} záznamů)</p>
+                    <p className="text-sm text-muted-foreground">
+                      Tyto záznamy byly automaticky spárovány (≥{settings.autoMatchThreshold}% shoda, stejná provozovna).
+                    </p>
                   </AlertDescription>
                 </Alert>
+              )}
+
+              {/* Suggestion rows - need approval */}
+              {preview.suggestionRows.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="font-semibold text-accent-foreground">Návrhy k potvrzení ({preview.suggestionRows.length})</Label>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Schvalte nebo upravte párování. Neschválené záznamy nebudou importovány.
+                  </p>
+                  <div className="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-16">Řádek</TableHead>
+                          <TableHead>Zaměstnanec</TableHead>
+                          <TableHead>Původní název</TableHead>
+                          <TableHead>Spárovat s</TableHead>
+                          <TableHead className="w-20">Shoda</TableHead>
+                          <TableHead className="w-32">Akce</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {preview.suggestionRows.map((row) => (
+                          <TableRow key={row.rowNumber} className={row.isApproved ? "bg-primary/5" : "bg-muted/50"}>
+                            <TableCell className="font-mono">{row.rowNumber}</TableCell>
+                            <TableCell className="text-sm">{row.employeeName}</TableCell>
+                            <TableCell className="text-sm">{row.data.training_type_name}</TableCell>
+                            <TableCell>
+                              <Select
+                                value={row.manualOverrideTypeId || row.trainingTypeId}
+                                onValueChange={(value) => handleManualOverride(row.rowNumber, value)}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {trainingTypes.map((type) => (
+                                    <SelectItem key={type.id} value={type.id}>
+                                      {type.name} ({type.facility})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Badge variant={row.matchConfidence && row.matchConfidence >= 90 ? "default" : "secondary"}>
+                                  {row.matchConfidence}%
+                                </Badge>
+                                {row.isCrossFacility && (
+                                  <Badge variant="outline" className="text-xs">CF</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant={row.isApproved ? "default" : "outline"}
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => handleSuggestionApproval(row.rowNumber, true)}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant={row.isApproved === false ? "destructive" : "outline"}
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => handleSuggestionApproval(row.rowNumber, false)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setPreview(prev => prev ? {
+                          ...prev,
+                          suggestionRows: prev.suggestionRows.map(r => ({ ...r, isApproved: true }))
+                        } : prev);
+                      }}
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Schválit vše
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setPreview(prev => prev ? {
+                          ...prev,
+                          suggestionRows: prev.suggestionRows.map(r => ({ ...r, isApproved: false }))
+                        } : prev);
+                      }}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Zamítnout vše
+                    </Button>
+                  </div>
+                </div>
               )}
 
               {/* Duplicate handling */}
@@ -856,29 +1152,20 @@ export const BulkTrainingImport = () => {
                   <RadioGroup value={duplicateAction} onValueChange={(value: DuplicateAction) => setDuplicateAction(value)}>
                     <div className="space-y-2">
                       <div className="flex items-center gap-3 p-2 border rounded-lg hover:bg-muted/50">
-                        <RadioGroupItem value="skip" id="skip" />
-                        <Label htmlFor="skip" className="cursor-pointer flex-1">
-                          <span className="font-medium">Přeskočit</span>
-                          <span className="text-sm text-muted-foreground ml-2">
-                            – duplicity nebudou importovány
-                          </span>
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-3 p-2 border rounded-lg hover:bg-muted/50">
                         <RadioGroupItem value="overwrite" id="overwrite" />
                         <Label htmlFor="overwrite" className="cursor-pointer flex-1">
-                          <span className="font-medium">Přepsat</span>
+                          <span className="font-medium">Přepsat (výchozí)</span>
                           <span className="text-sm text-muted-foreground ml-2">
                             – aktualizovat existující záznamy
                           </span>
                         </Label>
                       </div>
                       <div className="flex items-center gap-3 p-2 border rounded-lg hover:bg-muted/50">
-                        <RadioGroupItem value="import" id="import" />
-                        <Label htmlFor="import" className="cursor-pointer flex-1">
-                          <span className="font-medium">Importovat jako nové</span>
+                        <RadioGroupItem value="skip" id="skip" />
+                        <Label htmlFor="skip" className="cursor-pointer flex-1">
+                          <span className="font-medium">Přeskočit</span>
                           <span className="text-sm text-muted-foreground ml-2">
-                            – vytvořit duplicitní záznamy
+                            – duplicity nebudou importovány
                           </span>
                         </Label>
                       </div>
@@ -969,6 +1256,18 @@ export const BulkTrainingImport = () => {
                   </AlertDescription>
                 </Alert>
               )}
+
+              {/* Summary of what will be imported */}
+              {!importResult && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm font-medium">
+                    Bude importováno: <strong>{getImportableRowsCount()}</strong> záznamů
+                    {preview.suggestionRows.filter(r => r.isApproved).length > 0 && (
+                      <span className="text-muted-foreground"> (včetně {preview.suggestionRows.filter(r => r.isApproved).length} schválených návrhů)</span>
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -976,7 +1275,7 @@ export const BulkTrainingImport = () => {
             <Button variant="outline" onClick={closePreview}>
               {importResult ? "Zavřít" : "Zrušit"}
             </Button>
-            {!importResult && preview && (preview.validRows.length > 0 || preview.fuzzyMatchedRows.length > 0 || (preview.duplicateRows.length > 0 && duplicateAction !== 'skip')) && (
+            {!importResult && preview && getImportableRowsCount() > 0 && (
               <Button onClick={executeImport} disabled={importing}>
                 {importing ? (
                   <>
@@ -986,7 +1285,7 @@ export const BulkTrainingImport = () => {
                 ) : (
                   <>
                     <Upload className="w-4 h-4 mr-2" />
-                    Spustit import
+                    Spustit import ({getImportableRowsCount()})
                   </>
                 )}
               </Button>
