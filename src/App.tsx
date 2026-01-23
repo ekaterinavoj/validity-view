@@ -13,6 +13,7 @@ import EditTraining from "./pages/EditTraining";
 import Employees from "./pages/Employees";
 import TrainingTypes from "./pages/TrainingTypes";
 import Departments from "./pages/Departments";
+import Facilities from "./pages/Facilities";
 import InactiveEmployeesReport from "./pages/InactiveEmployeesReport";
 import Auth from "./pages/Auth";
 import AuditLog from "./pages/AuditLog";
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/employees" element={<ProtectedLayout><Employees /></ProtectedLayout>} />
             <Route path="/training-types" element={<ProtectedLayout><TrainingTypes /></ProtectedLayout>} />
             <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
+            <Route path="/facilities" element={<ProtectedLayout><Facilities /></ProtectedLayout>} />
             <Route path="/inactive" element={<ProtectedLayout><InactiveEmployeesReport /></ProtectedLayout>} />
             {/* Audit log - admin and manager only */}
             <Route path="/audit-log" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><AuditLog /></ProtectedLayout>} />

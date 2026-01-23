@@ -15,6 +15,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPeriodicity } from "@/lib/utils";
+import { useFacilities } from "@/hooks/useFacilities";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -45,6 +46,7 @@ export default function TrainingTypes() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { facilities, loading: facilitiesLoading } = useFacilities();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -82,6 +84,12 @@ export default function TrainingTypes() {
   useEffect(() => {
     loadTrainingTypes();
   }, []);
+
+  // Helper to get facility name from code
+  const getFacilityName = (code: string) => {
+    const facility = facilities.find(f => f.code === code);
+    return facility?.name || code;
+  };
 
   const convertToDays = (value: number, unit: "days" | "months" | "years"): number => {
     if (unit === "years") return Math.round(value * 365);
@@ -241,16 +249,24 @@ export default function TrainingTypes() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Provozovna *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Vyberte provozovnu" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="qlar-jenec-dc3">
-                            Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3
-                          </SelectItem>
+                          {facilitiesLoading ? (
+                            <SelectItem value="" disabled>Načítání...</SelectItem>
+                          ) : facilities.length === 0 ? (
+                            <SelectItem value="" disabled>Žádné provozovny</SelectItem>
+                          ) : (
+                            facilities.map((facility) => (
+                              <SelectItem key={facility.id} value={facility.code}>
+                                {facility.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -391,9 +407,9 @@ export default function TrainingTypes() {
                 trainingTypes.map((type) => {
                   const displayPeriod = formatPeriodicity(type.period_days);
 
-                  return (
+                    return (
                     <TableRow key={type.id}>
-                      <TableCell className="text-sm">{type.facility}</TableCell>
+                      <TableCell className="text-sm">{getFacilityName(type.facility)}</TableCell>
                       <TableCell className="font-medium">{type.name}</TableCell>
                       <TableCell>{displayPeriod}</TableCell>
                       <TableCell>{type.duration_hours}</TableCell>
