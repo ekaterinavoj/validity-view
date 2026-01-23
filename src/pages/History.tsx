@@ -20,6 +20,7 @@ import { useTrainingHistory } from "@/hooks/useTrainingHistory";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { supabase } from "@/integrations/supabase/client";
+import { useFacilities } from "@/hooks/useFacilities";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -47,6 +48,21 @@ export default function History() {
   // Include archived trainings when filter is "all" or "archived"
   const includeArchived = archiveFilter === "all" || archiveFilter === "archived";
   const { trainings, loading, error, refetch } = useTrainingHistory(includeArchived);
+  const { facilities: facilitiesData } = useFacilities();
+
+  // Create a map of facility code to name for display
+  const facilityNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    facilitiesData.forEach(f => {
+      map[f.code] = f.name;
+    });
+    return map;
+  }, [facilitiesData]);
+
+  // Helper to get facility name from code
+  const getFacilityName = (code: string): string => {
+    return facilityNameMap[code] || code;
+  };
 
   const {
     filters,
@@ -64,10 +80,15 @@ export default function History() {
     return Array.from(depts).sort();
   }, [trainings]);
 
-  const facilities = useMemo(() => {
+  const facilityCodes = useMemo(() => {
     const facilitySet = new Set(trainings.map((t) => t.facility).filter(Boolean));
     return Array.from(facilitySet).sort();
   }, [trainings]);
+
+  // Convert facility codes to names for filter display
+  const facilities = useMemo(() => {
+    return facilityCodes.map(code => getFacilityName(code)).sort();
+  }, [facilityCodes, facilityNameMap]);
 
   const trainingTypes = useMemo(() => {
     const types = new Set(trainings.map((t) => t.type).filter(Boolean));
@@ -101,7 +122,7 @@ export default function History() {
       const matchesStatus =
         filters.statusFilter === "all" || training.status === filters.statusFilter;
       const matchesFacility =
-        filters.facilityFilter === "all" || training.facility === filters.facilityFilter;
+        filters.facilityFilter === "all" || getFacilityName(training.facility) === filters.facilityFilter;
       const matchesDepartment =
         filters.departmentFilter === "all" ||
         training.department === filters.departmentFilter;

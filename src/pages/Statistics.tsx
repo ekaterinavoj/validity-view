@@ -81,6 +81,29 @@ export default function Statistics() {
     prošlé: stats.expired,
   })), [departmentStats]);
 
+  // Facility statistics - computed from real data
+  const facilityStats = useMemo(() => {
+    return activeTrainings.reduce((acc, training) => {
+      const facility = training.facility || "Nezařazeno";
+      if (!acc[facility]) {
+        acc[facility] = { valid: 0, warning: 0, expired: 0, total: 0 };
+      }
+      acc[facility][training.status]++;
+      acc[facility].total++;
+      return acc;
+    }, {} as Record<string, { valid: number; warning: number; expired: number; total: number }>);
+  }, [activeTrainings]);
+
+  const facilityBarData = useMemo(() => Object.entries(facilityStats)
+    .map(([facility, stats]) => ({
+      facility: facility || "Nezařazeno",
+      platné: stats.valid,
+      "brzy vyprší": stats.warning,
+      prošlé: stats.expired,
+      celkem: stats.total,
+    }))
+    .sort((a, b) => b.celkem - a.celkem), [facilityStats]);
+
   // Training type statistics - computed from real data
   const trainingTypeStats = useMemo(() => {
     const stats = activeTrainings.reduce((acc, training) => {
@@ -641,6 +664,37 @@ export default function Statistics() {
                         <td className="py-3 px-4 text-right text-status-warning">{stat.varování}</td>
                         <td className="py-3 px-4 text-right text-status-expired">{stat.prošlé}</td>
                         <td className="py-3 px-4 text-right text-muted-foreground">{stat.periodicita} dní</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
+          {/* Facility statistics table */}
+          {facilityBarData.length > 0 && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Přehled podle provozovny</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Provozovna</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Celkem</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Platné</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Varování</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Prošlé</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {facilityBarData.map((stat, index) => (
+                      <tr key={index} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
+                        <td className="py-3 px-4 font-medium">{stat.facility}</td>
+                        <td className="py-3 px-4 text-right font-semibold text-primary">{stat.celkem}</td>
+                        <td className="py-3 px-4 text-right text-status-valid">{stat.platné}</td>
+                        <td className="py-3 px-4 text-right text-status-warning">{stat["brzy vyprší"]}</td>
+                        <td className="py-3 px-4 text-right text-status-expired">{stat.prošlé}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Edit, Trash2, Plus, CalendarClock, FileSpreadsheet, FileDown, Upload, X, FileText, FileImage, File, Eye, Loader2, Archive, ArchiveRestore } from "lucide-react";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
+import { useFacilities } from "@/hooks/useFacilities";
 import { Progress } from "@/components/ui/progress";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +51,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useTrainings, TrainingWithDetails } from "@/hooks/useTrainings";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
@@ -59,6 +67,7 @@ export default function ScheduledTrainings() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { trainings, loading: trainingsLoading, error: trainingsError, refetch } = useTrainings(true);
+  const { facilities: facilitiesData } = useFacilities();
   const [selectedTrainings, setSelectedTrainings] = useState<Set<string>>(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -70,10 +79,30 @@ export default function ScheduledTrainings() {
     trainer: "",
     company: "",
     note: "",
+    facility: "",
     lastTrainingDate: undefined as Date | undefined,
     keepExistingFiles: false,
     uploadedFiles: [] as File[],
   });
+
+  // Create a map of facility code to name for display
+  const facilityNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    facilitiesData.forEach(f => {
+      map[f.code] = f.name;
+    });
+    return map;
+  }, [facilitiesData]);
+
+  // Create sorted list of facility names for filter dropdown
+  const facilityNamesForFilter = useMemo(() => {
+    return facilitiesData.map(f => f.name).sort();
+  }, [facilitiesData]);
+
+  // Helper to get facility name from code
+  const getFacilityName = (code: string): string => {
+    return facilityNameMap[code] || code;
+  };
   
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -114,10 +143,15 @@ export default function ScheduledTrainings() {
     return Array.from(depts).sort();
   }, [trainings]);
 
-  const facilities = useMemo(() => {
+  const facilityCodes = useMemo(() => {
     const facilitySet = new Set(trainings.map((t) => t.facility).filter(Boolean));
     return Array.from(facilitySet).sort();
   }, [trainings]);
+
+  // Convert facility codes to names for filter display
+  const facilities = useMemo(() => {
+    return facilityCodes.map(code => getFacilityName(code)).sort();
+  }, [facilityCodes, facilityNameMap]);
 
   const trainingTypes = useMemo(() => {
     const types = new Set(trainings.map((t) => t.type).filter(Boolean));
@@ -144,7 +178,7 @@ export default function ScheduledTrainings() {
       const matchesStatus =
         filters.statusFilter === "all" || training.status === filters.statusFilter;
       const matchesFacility =
-        filters.facilityFilter === "all" || training.facility === filters.facilityFilter;
+        filters.facilityFilter === "all" || getFacilityName(training.facility) === filters.facilityFilter;
       const matchesDepartment =
         filters.departmentFilter === "all" ||
         training.department === filters.departmentFilter;
@@ -218,6 +252,13 @@ export default function ScheduledTrainings() {
       }
       if (bulkEditData.note.trim() !== "") {
         updates.note = bulkEditData.note.trim();
+      }
+      if (bulkEditData.facility !== "") {
+        // Find the facility code from the name
+        const facilityEntry = facilitiesData.find(f => f.name === bulkEditData.facility);
+        if (facilityEntry) {
+          updates.facility = facilityEntry.code;
+        }
       }
       if (bulkEditData.lastTrainingDate) {
         updates.last_training_date = format(bulkEditData.lastTrainingDate, "yyyy-MM-dd");
@@ -348,6 +389,7 @@ export default function ScheduledTrainings() {
         trainer: "",
         company: "",
         note: "",
+        facility: "",
         lastTrainingDate: undefined,
         keepExistingFiles: false,
         uploadedFiles: [],
@@ -862,6 +904,27 @@ export default function ScheduledTrainings() {
                         />
                       </div>
                       <div className="space-y-2">
+                        <Label>Provozovna</Label>
+                        <Select
+                          value={bulkEditData.facility}
+                          onValueChange={(value) =>
+                            setBulkEditData({ ...bulkEditData, facility: value === "__none__" ? "" : value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Vyberte provozovnu (ponechat prázdné pro beze změny)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">-- Bez změny --</SelectItem>
+                            {facilitiesData.map((f) => (
+                              <SelectItem key={f.id} value={f.name}>
+                                {f.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
                         <Label>Poznámka</Label>
                         <Textarea
                           placeholder="Nová poznámka (ponechat prázdné pro beze změny)"
@@ -1070,6 +1133,7 @@ export default function ScheduledTrainings() {
                             trainer: "", 
                             company: "", 
                             note: "",
+                            facility: "",
                             lastTrainingDate: undefined,
                             keepExistingFiles: false,
                             uploadedFiles: [],
@@ -1236,8 +1300,8 @@ export default function ScheduledTrainings() {
                       <TableCell className="font-medium">{training.type}</TableCell>
                       <TableCell>{training.employeeNumber}</TableCell>
                       <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
-                      <TableCell className="max-w-xs truncate" title={training.facility}>
-                        {training.facility}
+                      <TableCell className="max-w-xs truncate" title={getFacilityName(training.facility)}>
+                        {getFacilityName(training.facility)}
                       </TableCell>
                       <TableCell>{training.department}</TableCell>
                       <TableCell className="whitespace-nowrap">
