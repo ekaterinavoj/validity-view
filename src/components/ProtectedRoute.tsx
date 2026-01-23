@@ -8,7 +8,6 @@ type RequiredRole = "admin" | "manager" | "user";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  /** If specified, user must have at least one of these roles */
   requiredRoles?: RequiredRole[];
 }
 
@@ -30,7 +29,6 @@ export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps)
   }
 
   // If we have requiredRoles but roles haven't loaded yet, show loader
-  // This prevents premature redirect when roles are still being fetched
   if (requiredRoles && requiredRoles.length > 0 && !rolesLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">

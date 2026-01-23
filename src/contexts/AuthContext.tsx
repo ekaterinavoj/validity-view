@@ -89,7 +89,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loadUserData = async (userId: string) => {
     setRolesLoaded(false);
     try {
-      // Load both profile and roles in parallel
       await Promise.all([
         loadProfile(userId),
         loadRoles(userId)
@@ -119,7 +118,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const initializeAuth = async () => {
       try {
-        // Get initial session
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -134,6 +132,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
+        if (mounted) {
+          setRolesLoaded(true);
+        }
       } finally {
         if (mounted) {
           setLoading(false);
@@ -141,7 +142,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
@@ -150,7 +150,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(newSession?.user ?? null);
         
         if (newSession?.user) {
-          // Load user data when session changes
           await loadUserData(newSession.user.id);
         } else {
           setProfile(null);
@@ -176,12 +175,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email,
         password,
       });
-
-      if (error) {
-        return { error };
-      }
-
-      return { error: null };
+      return { error: error ?? null };
     } catch (error: any) {
       return { error };
     }
@@ -209,12 +203,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           },
         },
       });
-
-      if (error) {
-        return { error };
-      }
-
-      return { error: null };
+      return { error: error ?? null };
     } catch (error: any) {
       return { error };
     }
