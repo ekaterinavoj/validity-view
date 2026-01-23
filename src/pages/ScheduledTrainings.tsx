@@ -114,6 +114,11 @@ export default function ScheduledTrainings() {
     return Array.from(depts).sort();
   }, [trainings]);
 
+  const facilities = useMemo(() => {
+    const facilitySet = new Set(trainings.map((t) => t.facility).filter(Boolean));
+    return Array.from(facilitySet).sort();
+  }, [trainings]);
+
   const trainingTypes = useMemo(() => {
     const types = new Set(trainings.map((t) => t.type).filter(Boolean));
     return Array.from(types).sort();
@@ -138,6 +143,8 @@ export default function ScheduledTrainings() {
 
       const matchesStatus =
         filters.statusFilter === "all" || training.status === filters.statusFilter;
+      const matchesFacility =
+        filters.facilityFilter === "all" || training.facility === filters.facilityFilter;
       const matchesDepartment =
         filters.departmentFilter === "all" ||
         training.department === filters.departmentFilter;
@@ -154,6 +161,7 @@ export default function ScheduledTrainings() {
       return (
         matchesSearch &&
         matchesStatus &&
+        matchesFacility &&
         matchesDepartment &&
         matchesType &&
         matchesTrainer &&
@@ -1165,6 +1173,7 @@ export default function ScheduledTrainings() {
           savedFilters={savedFilters}
           hasActiveFilters={hasActiveFilters}
           departments={departments}
+          facilities={facilities}
           trainingTypes={trainingTypes}
           trainers={trainers}
           resultCount={filteredTrainings.length}
