@@ -22,6 +22,7 @@ import { SendSingleTestEmail } from "@/components/SendSingleTestEmail";
 import { EmailHistory } from "@/components/EmailHistory";
 import { EmailTemplatePreview } from "@/components/EmailTemplatePreview";
 import { NextSendPreview } from "@/components/NextSendPreview";
+import { UserManagementPanel } from "@/components/UserManagementPanel";
 
 interface SystemSetting {
   id: string;
@@ -370,7 +371,7 @@ export default function AdminSettings() {
       </div>
 
       <Tabs defaultValue="reminders" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="reminders" className="flex items-center gap-2">
             <Clock className="w-4 h-4" />
             Připomínky
@@ -379,9 +380,13 @@ export default function AdminSettings() {
             <Mail className="w-4 h-4" />
             Emaily
           </TabsTrigger>
+          <TabsTrigger value="user-management" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Správa uživatelů
+          </TabsTrigger>
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
-            Uživatelé
+            Příjemci
           </TabsTrigger>
           <TabsTrigger value="data" className="flex items-center gap-2">
             <Database className="w-4 h-4" />
@@ -978,13 +983,18 @@ export default function AdminSettings() {
           />
         </TabsContent>
 
-        {/* Users Tab */}
+        {/* User Management Tab */}
+        <TabsContent value="user-management" className="space-y-6">
+          <UserManagementPanel />
+        </TabsContent>
+
+        {/* Users (Recipients) Tab */}
         <TabsContent value="users" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Správa uživatelů</CardTitle>
+              <CardTitle>Přehled uživatelů a rolí</CardTitle>
               <CardDescription>
-                Přidělte role uživatelům systému
+                Přehled všech uživatelů v systému a jejich rolí (pro změnu rolí použijte záložku "Správa uživatelů")
               </CardDescription>
             </CardHeader>
             <CardContent>
