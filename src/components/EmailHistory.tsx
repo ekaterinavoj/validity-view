@@ -32,7 +32,9 @@ import {
   FlaskConical,
   Eye,
   RotateCcw,
-  Loader2
+  Loader2,
+  Repeat,
+  AlertTriangle
 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -50,6 +52,20 @@ interface ReminderLogEntry {
   error_message: string | null;
   week_start: string | null;
   delivery_mode: string | null;
+  attempt_number: number | null;
+  max_attempts: number | null;
+  attempt_errors: unknown; // JSON type from DB, we'll cast it
+  final_status: string | null;
+  resent_from_log_id: string | null;
+}
+
+// Helper to safely parse attempt_errors JSON
+function parseAttemptErrors(errors: unknown): string[] | null {
+  if (!errors) return null;
+  if (Array.isArray(errors)) {
+    return errors.filter((e): e is string => typeof e === "string");
+  }
+  return null;
 }
 
 const DELIVERY_MODE_LABELS: Record<string, string> = {
@@ -72,7 +88,7 @@ export function EmailHistory() {
     try {
       const { data, error } = await supabase
         .from("reminder_logs")
-        .select("id, sent_at, status, recipient_emails, email_subject, email_body, template_name, provider_used, is_test, error_message, week_start, delivery_mode")
+        .select("id, sent_at, status, recipient_emails, email_subject, email_body, template_name, provider_used, is_test, error_message, week_start, delivery_mode, attempt_number, max_attempts, attempt_errors, final_status, resent_from_log_id")
         .order("sent_at", { ascending: false })
         .limit(50);
 
@@ -230,6 +246,23 @@ export function EmailHistory() {
                                     {log.provider_used}
                                   </Badge>
                                 )}
+                                {/* Show attempt count if there were retries */}
+                                {log.max_attempts && log.max_attempts > 1 && (
+                                  <Badge 
+                                    variant={log.attempt_number === log.max_attempts && log.status === "failed" ? "destructive" : "outline"} 
+                                    className="text-xs flex items-center gap-1"
+                                  >
+                                    <Repeat className="w-3 h-3" />
+                                    {log.attempt_number}/{log.max_attempts} pokusů
+                                  </Badge>
+                                )}
+                                {/* Show if this is a resend of another entry */}
+                                {log.resent_from_log_id && (
+                                  <Badge variant="outline" className="text-xs flex items-center gap-1">
+                                    <RotateCcw className="w-3 h-3" />
+                                    Přeposlání
+                                  </Badge>
+                                )}
                               </div>
                               <div className="flex items-center gap-4 text-sm text-muted-foreground ml-6">
                                 <span className="flex items-center gap-1">
@@ -277,7 +310,26 @@ export function EmailHistory() {
                                 ))}
                               </div>
                             </div>
-                            {log.error_message && (
+                            {/* Show attempt history if there were multiple attempts */}
+                            {(() => {
+                              const attemptErrors = parseAttemptErrors(log.attempt_errors);
+                              return attemptErrors && attemptErrors.length > 0 && (
+                                <div className="p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
+                                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200 flex items-center gap-1 mb-1">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    Historie pokusů ({attemptErrors.length}):
+                                  </p>
+                                  <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1">
+                                    {attemptErrors.map((err, idx) => (
+                                      <li key={idx} className="pl-2 border-l-2 border-amber-300 dark:border-amber-700">
+                                        {err}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              );
+                            })()}
+                            {log.error_message && !parseAttemptErrors(log.attempt_errors) && (
                               <div className="p-2 bg-destructive/10 border border-destructive/30 rounded-md">
                                 <p className="text-sm text-destructive">{log.error_message}</p>
                               </div>
