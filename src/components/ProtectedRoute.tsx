@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Clock, AlertTriangle, LogOut, ShieldX } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,15 +13,9 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps) => {
-  const { user, loading, profile, isPending, isAdmin, isManager, roles, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { user, loading, profile, isPending, roles, rolesLoaded, signOut } = useAuth();
 
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
-    }
-  }, [user, loading, navigate]);
-
+  // Show loader while initial auth check is in progress
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -31,8 +24,19 @@ export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps)
     );
   }
 
+  // Redirect to auth if not logged in
   if (!user) {
-    return null;
+    return <Navigate to="/auth" replace />;
+  }
+
+  // If we have requiredRoles but roles haven't loaded yet, show loader
+  // This prevents premature redirect when roles are still being fetched
+  if (requiredRoles && requiredRoles.length > 0 && !rolesLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   // Show pending approval screen
@@ -139,9 +143,9 @@ export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps)
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => navigate("/")}
+                onClick={() => window.history.back()}
               >
-                Zpět na hlavní stránku
+                Zpět
               </Button>
             </CardContent>
           </Card>

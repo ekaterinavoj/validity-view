@@ -21,6 +21,7 @@ interface AuthContextType {
   profile: Profile | null;
   roles: UserRole[];
   loading: boolean;
+  rolesLoaded: boolean;
   isPending: boolean;
   isApproved: boolean;
   hasRole: (role: UserRole) => boolean;
@@ -40,9 +41,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rolesLoaded, setRolesLoaded] = useState(false);
   const { toast } = useToast();
 
-  const loadProfile = async (userId: string) => {
+  const loadProfile = async (userId: string): Promise<Profile | null> => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -52,16 +54,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error("Error loading profile:", error);
-        return;
+        return null;
       }
 
       setProfile(data);
+      return data;
     } catch (error) {
       console.error("Error loading profile:", error);
+      return null;
     }
   };
 
-  const loadRoles = async (userId: string) => {
+  const loadRoles = async (userId: string): Promise<UserRole[]> => {
     try {
       const { data, error } = await supabase
         .from("user_roles")
@@ -70,12 +74,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error("Error loading roles:", error);
-        return;
+        return [];
       }
 
-      setRoles(data?.map((r) => r.role as UserRole) || []);
+      const userRoles = data?.map((r) => r.role as UserRole) || [];
+      setRoles(userRoles);
+      return userRoles;
     } catch (error) {
       console.error("Error loading roles:", error);
+      return [];
+    }
+  };
+
+  const loadUserData = async (userId: string) => {
+    setRolesLoaded(false);
+    try {
+      // Load both profile and roles in parallel
+      await Promise.all([
+        loadProfile(userId),
+        loadRoles(userId)
+      ]);
+    } finally {
+      setRolesLoaded(true);
     }
   };
 
@@ -90,49 +110,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshProfile = async () => {
     if (user?.id) {
-      await loadProfile(user.id);
-      await loadRoles(user.id);
+      await loadUserData(user.id);
     }
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
         
-        // Defer profile and roles loading with setTimeout to avoid deadlock
-        if (session?.user) {
-          setTimeout(() => {
-            loadProfile(session.user.id);
-            loadRoles(session.user.id);
-          }, 0);
+        if (!mounted) return;
+        
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        
+        if (initialSession?.user) {
+          await loadUserData(initialSession.user.id);
+        } else {
+          setRolesLoaded(true);
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        if (!mounted) return;
+        
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        
+        if (newSession?.user) {
+          // Load user data when session changes
+          await loadUserData(newSession.user.id);
         } else {
           setProfile(null);
           setRoles([]);
+          setRolesLoaded(true);
         }
         
         setLoading(false);
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        setTimeout(() => {
-          loadProfile(session.user.id);
-          loadRoles(session.user.id);
-        }, 0);
-      }
-      
-      setLoading(false);
-    });
+    initializeAuth();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -190,6 +225,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await supabase.auth.signOut();
       setProfile(null);
       setRoles([]);
+      setRolesLoaded(false);
       toast({
         title: "Odhlášení úspěšné",
         description: "Byli jste úspěšně odhlášeni.",
@@ -211,6 +247,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         profile,
         roles,
         loading,
+        rolesLoaded,
         isPending,
         isApproved,
         hasRole,
