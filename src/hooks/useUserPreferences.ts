@@ -52,16 +52,17 @@ export function useUserPreferences() {
     return DEFAULT_PREFERENCES;
   });
 
-  // Apply theme effect
+  // Apply theme effect with smooth transition
   useEffect(() => {
     const root = document.documentElement;
     
-    if (preferences.theme === "system") {
-      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.classList.toggle("dark", isDark);
-    } else {
-      root.classList.toggle("dark", preferences.theme === "dark");
-    }
+    // Determine if dark mode should be applied
+    const shouldBeDark = preferences.theme === "system"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+      : preferences.theme === "dark";
+    
+    // Apply the theme change
+    root.classList.toggle("dark", shouldBeDark);
   }, [preferences.theme]);
 
   // Listen for system theme changes
@@ -76,6 +77,19 @@ export function useUserPreferences() {
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);
   }, [preferences.theme]);
+
+  // Disable transitions on initial load to prevent flash
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("no-transitions");
+    
+    // Re-enable transitions after initial render
+    const timeout = setTimeout(() => {
+      root.classList.remove("no-transitions");
+    }, 100);
+    
+    return () => clearTimeout(timeout);
+  }, []);
 
   // Apply compact mode
   useEffect(() => {
