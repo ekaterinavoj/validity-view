@@ -1,0 +1,78 @@
+export interface Equipment {
+  id: string;
+  inventory_number: string;
+  name: string;
+  equipment_type: string;
+  facility: string;
+  department_id?: string;
+  description?: string;
+  manufacturer?: string;
+  model?: string;
+  serial_number?: string;
+  purchase_date?: string;
+  location?: string;
+  responsible_person?: string;
+  status: "active" | "inactive" | "decommissioned";
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeadlineType {
+  id: string;
+  name: string;
+  facility: string;
+  period_days: number;
+  description?: string;
+  created_at: string;
+}
+
+export interface Deadline {
+  id: string;
+  equipment_id: string;
+  deadline_type_id: string;
+  facility: string;
+  last_check_date: string;
+  next_check_date: string;
+  status: "valid" | "warning" | "expired";
+  remind_days_before?: number;
+  repeat_days_after?: number;
+  reminder_template_id?: string;
+  performer?: string;
+  company?: string;
+  requester?: string;
+  note?: string;
+  is_active: boolean;
+  deleted_at?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  equipment?: Equipment;
+  deadline_type?: DeadlineType;
+}
+
+export interface DeadlineDocument {
+  id: string;
+  deadline_id: string;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  file_size: number;
+  document_type: string;
+  description?: string;
+  uploaded_by?: string;
+  uploaded_at: string;
+}
+
+export const equipmentStatusLabels: Record<string, string> = {
+  active: "Aktivní",
+  inactive: "Neaktivní",
+  decommissioned: "Vyřazeno",
+};
+
+export const equipmentStatusColors: Record<string, string> = {
+  active: "bg-green-500/20 text-green-700 dark:text-green-300",
+  inactive: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
+  decommissioned: "bg-red-500/20 text-red-700 dark:text-red-300",
+};
