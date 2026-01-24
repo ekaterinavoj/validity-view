@@ -1,9 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { cs } from "date-fns/locale";
 import {
-  Calendar,
   RefreshCw,
   Download,
   PlusCircle,
@@ -13,10 +11,9 @@ import {
   MoreHorizontal,
   Pencil,
   Archive,
-  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -48,30 +45,37 @@ export default function ScheduledDeadlines() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Create filter options
-  const facilityOptions = useMemo(() => 
-    facilities.map(f => ({ value: f.code, label: f.name })),
+  const facilityList = useMemo(() => 
+    facilities.map(f => f.code),
     [facilities]
   );
 
-  const deadlineTypeOptions = useMemo(() => {
-    const types = new Map<string, string>();
+  const deadlineTypeList = useMemo(() => {
+    const types = new Set<string>();
     deadlines.forEach(d => {
-      if (d.deadline_type) {
-        types.set(d.deadline_type.id, d.deadline_type.name);
-      }
+      if (d.deadline_type?.name) types.add(d.deadline_type.name);
     });
-    return Array.from(types.entries()).map(([value, label]) => ({ value, label }));
+    return Array.from(types);
   }, [deadlines]);
 
-  const performerOptions = useMemo(() => {
+  const performerList = useMemo(() => {
     const performers = new Set<string>();
     deadlines.forEach(d => {
       if (d.performer) performers.add(d.performer);
     });
-    return Array.from(performers).map(p => ({ value: p, label: p }));
+    return Array.from(performers);
   }, [deadlines]);
 
-  const { filters, updateFilter, clearFilters, hasActiveFilters } = useAdvancedFilters("deadline-filters");
+  const { 
+    filters, 
+    updateFilter, 
+    clearFilters, 
+    hasActiveFilters,
+    saveCurrentFilters,
+    loadSavedFilter,
+    deleteSavedFilter,
+    savedFilters
+  } = useAdvancedFilters("deadline-filters");
 
   // Filter deadlines
   const filteredDeadlines = useMemo(() => {
@@ -79,7 +83,7 @@ export default function ScheduledDeadlines() {
       if (!d.is_active) return false;
       
       if (filters.facilityFilter !== "all" && d.facility !== filters.facilityFilter) return false;
-      if (filters.typeFilter !== "all" && d.deadline_type_id !== filters.typeFilter) return false;
+      if (filters.typeFilter !== "all" && d.deadline_type?.name !== filters.typeFilter) return false;
       if (filters.trainerFilter !== "all" && d.performer !== filters.trainerFilter) return false;
       if (filters.statusFilter !== "all" && d.status !== filters.statusFilter) return false;
       if (filters.searchQuery) {
@@ -192,10 +196,17 @@ export default function ScheduledDeadlines() {
         filters={filters}
         onFilterChange={updateFilter}
         onClearFilters={clearFilters}
-        facilityOptions={facilityOptions}
-        departmentOptions={[]}
-        trainingTypeOptions={deadlineTypeOptions}
-        trainerOptions={performerOptions}
+        onSaveFilters={saveCurrentFilters}
+        onLoadFilter={loadSavedFilter}
+        onDeleteFilter={deleteSavedFilter}
+        savedFilters={savedFilters}
+        hasActiveFilters={hasActiveFilters}
+        departments={[]}
+        facilities={facilityList}
+        trainingTypes={deadlineTypeList}
+        trainers={performerList}
+        resultCount={filteredDeadlines.length}
+        totalCount={deadlines.length}
       />
 
       <Card>

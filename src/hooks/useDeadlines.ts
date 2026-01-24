@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Deadline } from "@/types/equipment";
+import { Deadline, EquipmentRef, DeadlineTypeRef } from "@/types/equipment";
 import { useToast } from "@/hooks/use-toast";
 
-interface DeadlineWithRelations {
+interface DeadlineRow {
   id: string;
   equipment_id: string;
   deadline_type_id: string;
@@ -23,23 +23,8 @@ interface DeadlineWithRelations {
   created_by: string | null;
   created_at: string;
   updated_at: string;
-  equipment: {
-    id: string;
-    inventory_number: string;
-    name: string;
-    equipment_type: string;
-    facility: string;
-    department_id: string | null;
-    status: string;
-    location: string | null;
-    responsible_person: string | null;
-  } | null;
-  deadline_types: {
-    id: string;
-    name: string;
-    facility: string;
-    period_days: number;
-  } | null;
+  equipment: EquipmentRef | null;
+  deadline_types: DeadlineTypeRef | null;
 }
 
 export function useDeadlines() {
@@ -66,10 +51,10 @@ export function useDeadlines() {
       if (error) throw error;
       
       // Transform data to match Deadline type
-      return (data as DeadlineWithRelations[]).map((item) => ({
+      return (data as DeadlineRow[]).map((item): Deadline => ({
         ...item,
         deadline_type: item.deadline_types,
-      })) as Deadline[];
+      }));
     },
   });
 
@@ -100,7 +85,7 @@ export function useDeadlines() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Deadline> & { id: string }) => {
       // Remove joined data before update
-      const { equipment, deadline_type, ...cleanUpdates } = updates as Deadline;
+      const { equipment, deadline_type, ...cleanUpdates } = updates;
       
       const { data, error } = await supabase
         .from("deadlines")

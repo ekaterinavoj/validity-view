@@ -23,7 +23,11 @@ import {
   UserCheck,
   Database,
   Menu,
-  X
+  X,
+  GraduationCap,
+  Wrench,
+  Clock,
+  Cog
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,6 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
@@ -42,6 +47,10 @@ export const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Determine current mode based on route
+  const isDeadlineMode = location.pathname.startsWith("/deadlines");
+  const isTrainingMode = !isDeadlineMode;
+
   const getRoleBadge = () => {
     if (roles.includes("admin")) {
       return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-500/20 text-red-700 dark:text-red-300">Admin</span>;
@@ -52,7 +61,13 @@ export const Layout = ({ children }: LayoutProps) => {
     return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-500/20 text-green-700 dark:text-green-300">Uživatel</span>;
   };
 
-  const isOstatniActive = ["/employees", "/training-types", "/departments", "/facilities", "/inactive"].some(
+  // Training mode "Ostatní" dropdown active state
+  const isTrainingOstatniActive = ["/employees", "/training-types", "/departments", "/facilities", "/inactive"].some(
+    path => location.pathname === path
+  );
+
+  // Deadline mode "Ostatní" dropdown active state
+  const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types"].some(
     path => location.pathname === path
   );
 
@@ -60,14 +75,38 @@ export const Layout = ({ children }: LayoutProps) => {
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
+  const handleModeSwitch = (value: string) => {
+    if (value === "trainings" && isDeadlineMode) {
+      window.location.href = "/trainings";
+    } else if (value === "deadlines" && isTrainingMode) {
+      window.location.href = "/deadlines";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-foreground">
-              Systém správy školení
-            </h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold text-foreground">
+                {isDeadlineMode ? "Technické lhůty" : "Správa školení"}
+              </h1>
+              
+              {/* Mode Switcher Tabs */}
+              <Tabs value={isDeadlineMode ? "deadlines" : "trainings"} onValueChange={handleModeSwitch}>
+                <TabsList className="grid w-[280px] grid-cols-2">
+                  <TabsTrigger value="trainings" className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4" />
+                    Školení
+                  </TabsTrigger>
+                  <TabsTrigger value="deadlines" className="flex items-center gap-2">
+                    <Wrench className="w-4 h-4" />
+                    Technické lhůty
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
             
             {profile && (
               <div className="flex items-center gap-4">
@@ -112,79 +151,147 @@ export const Layout = ({ children }: LayoutProps) => {
       </header>
       
       <div className="container mx-auto px-4 py-6">
+        {/* Desktop Navigation */}
         <nav className="hidden lg:block mb-6 border-b border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <NavLink
-                to="/"
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
-                activeClassName="text-foreground bg-card border-b-2 border-primary"
-              >
-                <Calendar className="w-4 h-4" />
-                Naplánovaná školení
-              </NavLink>
-              
-              <NavLink
-                to="/history"
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
-                activeClassName="text-foreground bg-card border-b-2 border-primary"
-              >
-                <History className="w-4 h-4" />
-                Historie školení
-              </NavLink>
-
-              <Link to="/new-training">
-                <Button size="sm" className="ml-2 gap-2">
-                  <PlusCircle className="w-4 h-4" />
-                  Nové školení
-                </Button>
-              </Link>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1",
-                      isOstatniActive && "text-foreground bg-card border-b-2 border-primary"
-                    )}
+              {isTrainingMode ? (
+                <>
+                  {/* Training Mode Navigation */}
+                  <NavLink
+                    to="/trainings"
+                    className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
+                    activeClassName="text-foreground bg-card border-b-2 border-primary"
                   >
-                    Ostatní
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48 bg-popover z-50">
-                  <DropdownMenuItem asChild>
-                    <Link to="/employees" className="flex items-center gap-2 cursor-pointer">
-                      <Users className="w-4 h-4" />
-                      Školené osoby
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/training-types" className="flex items-center gap-2 cursor-pointer">
-                      <BookOpen className="w-4 h-4" />
-                      Typy školení
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
-                      <Building2 className="w-4 h-4" />
-                      Střediska
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
-                      <Building2 className="w-4 h-4" />
-                      Provozovny
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/inactive" className="flex items-center gap-2 cursor-pointer">
-                      <UserX className="w-4 h-4" />
-                      Pozastavená
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <Calendar className="w-4 h-4" />
+                    Naplánovaná
+                  </NavLink>
+                  
+                  <NavLink
+                    to="/trainings/history"
+                    className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
+                    activeClassName="text-foreground bg-card border-b-2 border-primary"
+                  >
+                    <History className="w-4 h-4" />
+                    Historie
+                  </NavLink>
+
+                  <Link to="/trainings/new">
+                    <Button size="sm" className="ml-2 gap-2">
+                      <PlusCircle className="w-4 h-4" />
+                      Nové školení
+                    </Button>
+                  </Link>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1",
+                          isTrainingOstatniActive && "text-foreground bg-card border-b-2 border-primary"
+                        )}
+                      >
+                        Ostatní
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48 bg-popover z-50">
+                      <DropdownMenuItem asChild>
+                        <Link to="/employees" className="flex items-center gap-2 cursor-pointer">
+                          <Users className="w-4 h-4" />
+                          Školené osoby
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/training-types" className="flex items-center gap-2 cursor-pointer">
+                          <BookOpen className="w-4 h-4" />
+                          Typy školení
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
+                          <Building2 className="w-4 h-4" />
+                          Střediska
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
+                          <Building2 className="w-4 h-4" />
+                          Provozovny
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/inactive" className="flex items-center gap-2 cursor-pointer">
+                          <UserX className="w-4 h-4" />
+                          Pozastavená
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              ) : (
+                <>
+                  {/* Deadline Mode Navigation */}
+                  <NavLink
+                    to="/deadlines"
+                    className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
+                    activeClassName="text-foreground bg-card border-b-2 border-primary"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Naplánované
+                  </NavLink>
+                  
+                  <NavLink
+                    to="/deadlines/history"
+                    className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
+                    activeClassName="text-foreground bg-card border-b-2 border-primary"
+                  >
+                    <History className="w-4 h-4" />
+                    Historie
+                  </NavLink>
+
+                  <Link to="/deadlines/new">
+                    <Button size="sm" className="ml-2 gap-2">
+                      <PlusCircle className="w-4 h-4" />
+                      Nová lhůta
+                    </Button>
+                  </Link>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1",
+                          isDeadlineOstatniActive && "text-foreground bg-card border-b-2 border-primary"
+                        )}
+                      >
+                        Ostatní
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48 bg-popover z-50">
+                      <DropdownMenuItem asChild>
+                        <Link to="/deadlines/equipment" className="flex items-center gap-2 cursor-pointer">
+                          <Cog className="w-4 h-4" />
+                          Zařízení
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/deadlines/types" className="flex items-center gap-2 cursor-pointer">
+                          <Clock className="w-4 h-4" />
+                          Typy lhůt
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
+                          <Building2 className="w-4 h-4" />
+                          Provozovny
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-1">
@@ -271,88 +378,171 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
         </nav>
 
+        {/* Mobile Navigation */}
         {mobileMenuOpen && (
           <nav className="lg:hidden mb-6 border border-border rounded-lg bg-card p-4 space-y-2">
+            {/* Mode Switcher for Mobile */}
+            <div className="pb-4 border-b border-border">
+              <Tabs value={isDeadlineMode ? "deadlines" : "trainings"} onValueChange={handleModeSwitch} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="trainings" className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4" />
+                    Školení
+                  </TabsTrigger>
+                  <TabsTrigger value="deadlines" className="flex items-center gap-2">
+                    <Wrench className="w-4 h-4" />
+                    Tech. lhůty
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
             <div className="space-y-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Hlavní</p>
-              <Link 
-                to="/" 
-                onClick={closeMobileMenu}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                  location.pathname === "/" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <Calendar className="w-4 h-4" />
-                Naplánovaná školení
-              </Link>
-              <Link 
-                to="/history" 
-                onClick={closeMobileMenu}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                  location.pathname === "/history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <History className="w-4 h-4" />
-                Historie školení
-              </Link>
-              <Link 
-                to="/new-training" 
-                onClick={closeMobileMenu}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground"
-              >
-                <PlusCircle className="w-4 h-4" />
-                Nové školení
-              </Link>
+              {isTrainingMode ? (
+                <>
+                  <Link 
+                    to="/trainings" 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                      location.pathname === "/" || location.pathname === "/trainings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Naplánovaná školení
+                  </Link>
+                  <Link 
+                    to="/trainings/history" 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                      location.pathname === "/trainings/history" || location.pathname === "/history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <History className="w-4 h-4" />
+                    Historie školení
+                  </Link>
+                  <Link 
+                    to="/trainings/new" 
+                    onClick={closeMobileMenu}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Nové školení
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link 
+                    to="/deadlines" 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                      location.pathname === "/deadlines" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Naplánované lhůty
+                  </Link>
+                  <Link 
+                    to="/deadlines/history" 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                      location.pathname === "/deadlines/history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <History className="w-4 h-4" />
+                    Historie lhůt
+                  </Link>
+                  <Link 
+                    to="/deadlines/new" 
+                    onClick={closeMobileMenu}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Nová lhůta
+                  </Link>
+                </>
+              )}
             </div>
 
             <div className="space-y-1 pt-2 border-t border-border">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ostatní</p>
-              <Link 
-                to="/employees" 
-                onClick={closeMobileMenu}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                  location.pathname === "/employees" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <Users className="w-4 h-4" />
-                Školené osoby
-              </Link>
-              <Link 
-                to="/training-types" 
-                onClick={closeMobileMenu}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                  location.pathname === "/training-types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <BookOpen className="w-4 h-4" />
-                Typy školení
-              </Link>
-              <Link 
-                to="/departments" 
-                onClick={closeMobileMenu}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                  location.pathname === "/departments" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <Building2 className="w-4 h-4" />
-                Střediska
-              </Link>
-              <Link 
-                to="/inactive" 
-                onClick={closeMobileMenu}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                  location.pathname === "/inactive" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <UserX className="w-4 h-4" />
-                Pozastavená
-              </Link>
+              {isTrainingMode ? (
+                <>
+                  <Link 
+                    to="/employees" 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                      location.pathname === "/employees" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <Users className="w-4 h-4" />
+                    Školené osoby
+                  </Link>
+                  <Link 
+                    to="/training-types" 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                      location.pathname === "/training-types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Typy školení
+                  </Link>
+                  <Link 
+                    to="/departments" 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                      location.pathname === "/departments" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Střediska
+                  </Link>
+                  <Link 
+                    to="/inactive" 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                      location.pathname === "/inactive" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <UserX className="w-4 h-4" />
+                    Pozastavená
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link 
+                    to="/deadlines/equipment" 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                      location.pathname === "/deadlines/equipment" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <Cog className="w-4 h-4" />
+                    Zařízení
+                  </Link>
+                  <Link 
+                    to="/deadlines/types" 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                      location.pathname === "/deadlines/types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <Clock className="w-4 h-4" />
+                    Typy lhůt
+                  </Link>
+                </>
+              )}
               <Link 
                 to="/facilities" 
                 onClick={closeMobileMenu}
