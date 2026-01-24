@@ -56,6 +56,285 @@ export type Database = {
         }
         Relationships: []
       }
+      deadline_documents: {
+        Row: {
+          deadline_id: string
+          description: string | null
+          document_type: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          deadline_id: string
+          description?: string | null
+          document_type: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          deadline_id?: string
+          description?: string | null
+          document_type?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deadline_documents_deadline_id_fkey"
+            columns: ["deadline_id"]
+            isOneToOne: false
+            referencedRelation: "deadlines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deadline_reminder_logs: {
+        Row: {
+          created_at: string
+          days_before: number | null
+          deadline_id: string | null
+          delivery_mode: string | null
+          email_body: string
+          email_subject: string
+          equipment_id: string | null
+          error_message: string | null
+          id: string
+          is_test: boolean
+          recipient_emails: string[]
+          sent_at: string
+          status: string
+          template_id: string | null
+          template_name: string
+          week_start: string | null
+        }
+        Insert: {
+          created_at?: string
+          days_before?: number | null
+          deadline_id?: string | null
+          delivery_mode?: string | null
+          email_body: string
+          email_subject: string
+          equipment_id?: string | null
+          error_message?: string | null
+          id?: string
+          is_test?: boolean
+          recipient_emails: string[]
+          sent_at?: string
+          status?: string
+          template_id?: string | null
+          template_name: string
+          week_start?: string | null
+        }
+        Update: {
+          created_at?: string
+          days_before?: number | null
+          deadline_id?: string | null
+          delivery_mode?: string | null
+          email_body?: string
+          email_subject?: string
+          equipment_id?: string | null
+          error_message?: string | null
+          id?: string
+          is_test?: boolean
+          recipient_emails?: string[]
+          sent_at?: string
+          status?: string
+          template_id?: string | null
+          template_name?: string
+          week_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deadline_reminder_logs_deadline_id_fkey"
+            columns: ["deadline_id"]
+            isOneToOne: false
+            referencedRelation: "deadlines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deadline_reminder_logs_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deadline_reminder_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "deadline_reminder_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deadline_reminder_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          email_body: string
+          email_subject: string
+          id: string
+          is_active: boolean
+          name: string
+          remind_days_before: number
+          repeat_interval_days: number | null
+          target_user_ids: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          email_body: string
+          email_subject: string
+          id?: string
+          is_active?: boolean
+          name: string
+          remind_days_before?: number
+          repeat_interval_days?: number | null
+          target_user_ids?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          email_body?: string
+          email_subject?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          remind_days_before?: number
+          repeat_interval_days?: number | null
+          target_user_ids?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      deadline_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          facility: string
+          id: string
+          name: string
+          period_days: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          facility: string
+          id?: string
+          name: string
+          period_days: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          facility?: string
+          id?: string
+          name?: string
+          period_days?: number
+        }
+        Relationships: []
+      }
+      deadlines: {
+        Row: {
+          company: string | null
+          created_at: string
+          created_by: string | null
+          deadline_type_id: string
+          deleted_at: string | null
+          equipment_id: string
+          facility: string
+          id: string
+          is_active: boolean
+          last_check_date: string
+          next_check_date: string
+          note: string | null
+          performer: string | null
+          remind_days_before: number | null
+          reminder_template_id: string | null
+          repeat_days_after: number | null
+          requester: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline_type_id: string
+          deleted_at?: string | null
+          equipment_id: string
+          facility: string
+          id?: string
+          is_active?: boolean
+          last_check_date: string
+          next_check_date: string
+          note?: string | null
+          performer?: string | null
+          remind_days_before?: number | null
+          reminder_template_id?: string | null
+          repeat_days_after?: number | null
+          requester?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline_type_id?: string
+          deleted_at?: string | null
+          equipment_id?: string
+          facility?: string
+          id?: string
+          is_active?: boolean
+          last_check_date?: string
+          next_check_date?: string
+          note?: string | null
+          performer?: string | null
+          remind_days_before?: number | null
+          reminder_template_id?: string | null
+          repeat_days_after?: number | null
+          requester?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deadlines_deadline_type_id_fkey"
+            columns: ["deadline_type_id"]
+            isOneToOne: false
+            referencedRelation: "deadline_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deadlines_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           code: string
@@ -123,6 +402,74 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "employees_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          description: string | null
+          equipment_type: string
+          facility: string
+          id: string
+          inventory_number: string
+          location: string | null
+          manufacturer: string | null
+          model: string | null
+          name: string
+          notes: string | null
+          purchase_date: string | null
+          responsible_person: string | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          equipment_type: string
+          facility: string
+          id?: string
+          inventory_number: string
+          location?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          name: string
+          notes?: string | null
+          purchase_date?: string | null
+          responsible_person?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          equipment_type?: string
+          facility?: string
+          id?: string
+          inventory_number?: string
+          location?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          name?: string
+          notes?: string | null
+          purchase_date?: string | null
+          responsible_person?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_department_id_fkey"
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
@@ -646,6 +993,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_deadline_status: {
+        Args: { next_date: string }
+        Returns: string
+      }
       calculate_training_status: {
         Args: { next_date: string }
         Returns: string
