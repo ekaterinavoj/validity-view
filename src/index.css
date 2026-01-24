@@ -137,4 +137,30 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Compact mode adjustments */
+  .compact-mode {
+    font-size: 14px;
+  }
+
+  .compact-mode .space-y-6 {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(1rem * var(--tw-space-y-reverse));
+  }
+
+  .compact-mode .p-6 {
+    padding: 1rem;
+  }
+
+  .compact-mode .gap-6 {
+    gap: 1rem;
+  }
+
+  /* Animations toggle */
+  .no-animations,
+  .no-animations * {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
 }

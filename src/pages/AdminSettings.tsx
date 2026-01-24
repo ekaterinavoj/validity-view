@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus } from "lucide-react";
+import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette } from "lucide-react";
 import { RolePermissionsInfo } from "@/components/RolePermissionsInfo";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
 import { SendSingleTestEmail } from "@/components/SendSingleTestEmail";
@@ -28,6 +28,7 @@ import { PendingUsersPanel } from "@/components/PendingUsersPanel";
 import { UserInvitePanel } from "@/components/UserInvitePanel";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
+import { DisplaySettings } from "@/components/DisplaySettings";
 
 interface SystemSetting {
   id: string;
@@ -91,7 +92,7 @@ export default function AdminSettings() {
   
   // Get initial tab from URL query param, default to "onboarding"
   const tabParam = searchParams.get("tab");
-  const validTabs = ["onboarding", "reminders", "email", "user-management", "recipients", "data"];
+  const validTabs = ["onboarding", "display", "reminders", "email", "user-management", "recipients", "data"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
   const [activeTab, setActiveTab] = useState(initialTab);
   
@@ -397,10 +398,14 @@ export default function AdminSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
             Onboarding
+          </TabsTrigger>
+          <TabsTrigger value="display" className="flex items-center gap-2">
+            <Palette className="w-4 h-4" />
+            Zobrazení
           </TabsTrigger>
           <TabsTrigger value="reminders" className="flex items-center gap-2">
             <Clock className="w-4 h-4" />
@@ -412,7 +417,7 @@ export default function AdminSettings() {
           </TabsTrigger>
           <TabsTrigger value="user-management" className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
-            Správa uživatelů
+            Uživatelé
           </TabsTrigger>
           <TabsTrigger value="recipients" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
@@ -429,6 +434,11 @@ export default function AdminSettings() {
           <OnboardingSettings />
           <PendingUsersPanel />
           <UserInvitePanel />
+        </TabsContent>
+
+        {/* Display Tab */}
+        <TabsContent value="display" className="space-y-6">
+          <DisplaySettings />
         </TabsContent>
 
         {/* Reminders Tab */}
