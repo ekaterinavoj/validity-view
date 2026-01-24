@@ -1,3 +1,23 @@
+// Lightweight reference types for joined data in lists
+export interface EquipmentRef {
+  id: string;
+  inventory_number: string;
+  name: string;
+  equipment_type: string;
+  facility: string;
+  department_id?: string | null;
+  status: string;
+  location?: string | null;
+  responsible_person?: string | null;
+}
+
+export interface DeadlineTypeRef {
+  id: string;
+  name: string;
+  facility: string;
+  period_days: number;
+}
+
 export interface Equipment {
   id: string;
   inventory_number: string;
@@ -35,21 +55,21 @@ export interface Deadline {
   last_check_date: string;
   next_check_date: string;
   status: "valid" | "warning" | "expired";
-  remind_days_before?: number;
-  repeat_days_after?: number;
-  reminder_template_id?: string;
-  performer?: string;
-  company?: string;
-  requester?: string;
-  note?: string;
+  remind_days_before?: number | null;
+  repeat_days_after?: number | null;
+  reminder_template_id?: string | null;
+  performer?: string | null;
+  company?: string | null;
+  requester?: string | null;
+  note?: string | null;
   is_active: boolean;
-  deleted_at?: string;
-  created_by?: string;
+  deleted_at?: string | null;
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
-  // Joined data
-  equipment?: Equipment;
-  deadline_type?: DeadlineType;
+  // Lightweight joined data for lists
+  equipment?: EquipmentRef | null;
+  deadline_type?: DeadlineTypeRef | null;
 }
 
 export interface DeadlineDocument {

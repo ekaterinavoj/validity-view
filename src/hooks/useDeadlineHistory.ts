@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Deadline } from "@/types/equipment";
+import { Deadline, EquipmentRef, DeadlineTypeRef } from "@/types/equipment";
 
-interface DeadlineWithRelations {
+interface DeadlineRow {
   id: string;
   equipment_id: string;
   deadline_type_id: string;
@@ -22,23 +22,8 @@ interface DeadlineWithRelations {
   created_by: string | null;
   created_at: string;
   updated_at: string;
-  equipment: {
-    id: string;
-    inventory_number: string;
-    name: string;
-    equipment_type: string;
-    facility: string;
-    department_id: string | null;
-    status: string;
-    location: string | null;
-    responsible_person: string | null;
-  } | null;
-  deadline_types: {
-    id: string;
-    name: string;
-    facility: string;
-    period_days: number;
-  } | null;
+  equipment: EquipmentRef | null;
+  deadline_types: DeadlineTypeRef | null;
 }
 
 export function useDeadlineHistory() {
@@ -60,10 +45,10 @@ export function useDeadlineHistory() {
 
       if (error) throw error;
       
-      return (data as DeadlineWithRelations[]).map((item) => ({
+      return (data as DeadlineRow[]).map((item): Deadline => ({
         ...item,
         deadline_type: item.deadline_types,
-      })) as Deadline[];
+      }));
     },
   });
 

@@ -37,30 +37,37 @@ export default function DeadlineHistory() {
   const [archiveFilter, setArchiveFilter] = useState<string>("active");
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
-  const facilityOptions = useMemo(() => 
-    facilities.map(f => ({ value: f.code, label: f.name })),
+  const facilityList = useMemo(() => 
+    facilities.map(f => f.code),
     [facilities]
   );
 
-  const deadlineTypeOptions = useMemo(() => {
-    const types = new Map<string, string>();
+  const deadlineTypeList = useMemo(() => {
+    const types = new Set<string>();
     history.forEach(d => {
-      if (d.deadline_type) {
-        types.set(d.deadline_type.id, d.deadline_type.name);
-      }
+      if (d.deadline_type?.name) types.add(d.deadline_type.name);
     });
-    return Array.from(types.entries()).map(([value, label]) => ({ value, label }));
+    return Array.from(types);
   }, [history]);
 
-  const performerOptions = useMemo(() => {
+  const performerList = useMemo(() => {
     const performers = new Set<string>();
     history.forEach(d => {
       if (d.performer) performers.add(d.performer);
     });
-    return Array.from(performers).map(p => ({ value: p, label: p }));
+    return Array.from(performers);
   }, [history]);
 
-  const { filters, updateFilter, clearFilters, hasActiveFilters } = useAdvancedFilters("deadline-history-filters");
+  const { 
+    filters, 
+    updateFilter, 
+    clearFilters, 
+    hasActiveFilters,
+    saveCurrentFilters,
+    loadSavedFilter,
+    deleteSavedFilter,
+    savedFilters
+  } = useAdvancedFilters("deadline-history-filters");
 
   const filteredHistory = useMemo(() => {
     return history.filter(d => {
@@ -69,7 +76,7 @@ export default function DeadlineHistory() {
       if (archiveFilter === "archived" && !d.deleted_at) return false;
 
       if (filters.facilityFilter !== "all" && d.facility !== filters.facilityFilter) return false;
-      if (filters.typeFilter !== "all" && d.deadline_type_id !== filters.typeFilter) return false;
+      if (filters.typeFilter !== "all" && d.deadline_type?.name !== filters.typeFilter) return false;
       if (filters.trainerFilter !== "all" && d.performer !== filters.trainerFilter) return false;
       if (filters.statusFilter !== "all" && d.status !== filters.statusFilter) return false;
       if (filters.searchQuery) {
@@ -172,10 +179,17 @@ export default function DeadlineHistory() {
         filters={filters}
         onFilterChange={updateFilter}
         onClearFilters={clearFilters}
-        facilityOptions={facilityOptions}
-        departmentOptions={[]}
-        trainingTypeOptions={deadlineTypeOptions}
-        trainerOptions={performerOptions}
+        onSaveFilters={saveCurrentFilters}
+        onLoadFilter={loadSavedFilter}
+        onDeleteFilter={deleteSavedFilter}
+        savedFilters={savedFilters}
+        hasActiveFilters={hasActiveFilters}
+        departments={[]}
+        facilities={facilityList}
+        trainingTypes={deadlineTypeList}
+        trainers={performerList}
+        resultCount={filteredHistory.length}
+        totalCount={history.length}
       />
 
       <Card>
@@ -230,9 +244,9 @@ export default function DeadlineHistory() {
                         <Badge 
                           variant="outline" 
                           className={cn(
-                            deadline.status === "valid" && "bg-green-500/20 text-green-700",
-                            deadline.status === "warning" && "bg-yellow-500/20 text-yellow-700",
-                            deadline.status === "expired" && "bg-red-500/20 text-red-700"
+                            deadline.status === "valid" && "bg-green-500/20 text-green-700 dark:text-green-300",
+                            deadline.status === "warning" && "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
+                            deadline.status === "expired" && "bg-red-500/20 text-red-700 dark:text-red-300"
                           )}
                         >
                           {deadline.status === "valid" ? "Platná" : 
