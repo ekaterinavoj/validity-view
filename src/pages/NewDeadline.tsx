@@ -52,7 +52,8 @@ const formSchema = z.object({
   performer: z.string().optional(),
   company: z.string().optional(),
   note: z.string().optional(),
-  remind_days_before: z.number().optional(),
+  reminder_template_id: z.string().min(1, "Vyberte šablonu připomenutí"),
+  remind_days_before: z.number().min(1, "Zadejte počet dní"),
   repeat_days_after: z.number().optional(),
 });
 
@@ -67,6 +68,7 @@ export default function NewDeadline() {
   const { facilities, loading: facilitiesLoading } = useFacilities();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
 
   const activeEquipment = equipment.filter(e => e.status === "active");
 
@@ -77,6 +79,22 @@ export default function NewDeadline() {
       repeat_days_after: 30,
     },
   });
+
+  // Load reminder templates for deadlines
+  useEffect(() => {
+    const loadTemplates = async () => {
+      const { data, error } = await supabase
+        .from("deadline_reminder_templates")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+
+      if (!error && data) {
+        setReminderTemplates(data);
+      }
+    };
+    loadTemplates();
+  }, []);
 
   const selectedTypeId = form.watch("deadline_type_id");
   const selectedType = deadlineTypes.find(t => t.id === selectedTypeId);
@@ -118,7 +136,8 @@ export default function NewDeadline() {
         performer: data.performer || null,
         company: data.company || null,
         note: data.note || null,
-        remind_days_before: data.remind_days_before || 30,
+        reminder_template_id: data.reminder_template_id,
+        remind_days_before: data.remind_days_before,
         repeat_days_after: data.repeat_days_after || 30,
         requester: profile ? `${profile.first_name} ${profile.last_name}` : null,
         created_by: (await supabase.auth.getUser()).data.user?.id,
@@ -365,6 +384,81 @@ export default function NewDeadline() {
                 />
               </div>
 
+              {/* File Upload Section */}
+              <div className="space-y-2">
+                <Label>Dokumenty k události</Label>
+                <FileUploader
+                  files={uploadedFiles}
+                  onFilesChange={setUploadedFiles}
+                  maxFiles={10}
+                  maxSize={20}
+                  acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="reminder_template_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Šablona připomenutí *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Vyberte šablonu" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {reminderTemplates.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="remind_days_before"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Připomenout dopředu (dní) *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="repeat_days_after"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Opakovat po (dní)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
                 name="note"
@@ -379,32 +473,28 @@ export default function NewDeadline() {
                 )}
               />
 
-              {/* File Upload Section */}
+              {/* Zadavatel (requester) - auto-filled with logged-in user */}
               <div className="space-y-2">
-                <Label>Protokoly a dokumenty</Label>
-                <p className="text-sm text-muted-foreground">
-                  Nahrajte protokoly o provedené kontrole (PDF, DOC, obrázky)
-                </p>
-                <FileUploader
-                  files={uploadedFiles}
-                  onFilesChange={setUploadedFiles}
-                  maxFiles={10}
-                  maxSize={20}
-                  acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
+                <Label>Zadavatel</Label>
+                <Input 
+                  value={profile ? `${profile.first_name} ${profile.last_name}` : 'Načítání...'} 
+                  disabled 
+                  className="bg-muted" 
                 />
               </div>
 
-              <div className="flex justify-end gap-4">
+              <div className="flex gap-4">
+                <Button type="submit" disabled={isSubmitting || isLoading}>
+                  {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Vytvořit událost
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => navigate("/deadlines")}
+                  disabled={isSubmitting}
                 >
                   Zrušit
-                </Button>
-                <Button type="submit" disabled={isSubmitting || isLoading}>
-                  {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Vytvořit událost
                 </Button>
               </div>
             </form>
