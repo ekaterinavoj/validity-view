@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
@@ -47,13 +47,33 @@ export const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Determine current mode based on route - only /trainings/* and /deadlines/* affect mode
-  // Global pages (/audit-log, /admin/*, /statistics, /profile, etc.) don't change mode
+  // Determine if current route is a module-specific route
   const isDeadlineRoute = location.pathname.startsWith("/deadlines");
-  const isTrainingRoute = location.pathname.startsWith("/trainings") || location.pathname === "/" || location.pathname === "/scheduled-trainings" || location.pathname === "/history" || location.pathname === "/new-training" || location.pathname.startsWith("/edit-training") || location.pathname === "/employees" || location.pathname === "/training-types" || location.pathname === "/departments" || location.pathname === "/inactive";
+  const isTrainingRoute = location.pathname.startsWith("/trainings") || location.pathname === "/" || location.pathname === "/scheduled-trainings" || location.pathname === "/history" || location.pathname === "/new-training" || location.pathname.startsWith("/edit-training") || location.pathname === "/employees" || location.pathname === "/training-types" || location.pathname === "/departments" || location.pathname === "/inactive" || location.pathname === "/facilities" || location.pathname === "/statistics";
   
-  // For mode switcher display - default to trainings if on a global page
-  const isDeadlineMode = isDeadlineRoute;
+  // Global pages don't belong to any module
+  const isGlobalPage = !isDeadlineRoute && !isTrainingRoute;
+  
+  // Get last selected module from localStorage, default to trainings
+  const [lastSelectedModule, setLastSelectedModule] = useState<"trainings" | "deadlines">(() => {
+    const saved = localStorage.getItem("last-selected-module");
+    return (saved === "deadlines") ? "deadlines" : "trainings";
+  });
+  
+  // Update last selected module when navigating to module-specific routes
+  useEffect(() => {
+    if (isDeadlineRoute) {
+      localStorage.setItem("last-selected-module", "deadlines");
+      setLastSelectedModule("deadlines");
+    } else if (isTrainingRoute) {
+      localStorage.setItem("last-selected-module", "trainings");
+      setLastSelectedModule("trainings");
+    }
+    // Global pages don't update the last selected module
+  }, [isDeadlineRoute, isTrainingRoute]);
+  
+  // For mode switcher display - use last selected module on global pages
+  const isDeadlineMode = isGlobalPage ? lastSelectedModule === "deadlines" : isDeadlineRoute;
   const isTrainingMode = !isDeadlineMode;
 
   const getRoleBadge = () => {
@@ -81,9 +101,9 @@ export const Layout = ({ children }: LayoutProps) => {
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const handleModeSwitch = (value: string) => {
-    if (value === "trainings" && isDeadlineMode) {
+    if (value === "trainings") {
       window.location.href = "/trainings";
-    } else if (value === "deadlines" && isTrainingMode) {
+    } else if (value === "deadlines") {
       window.location.href = "/deadlines";
     }
   };
