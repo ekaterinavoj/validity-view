@@ -7,7 +7,7 @@ import { format, addDays } from "date-fns";
 import { cs } from "date-fns/locale";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -39,9 +40,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { FileUploader, UploadedFile } from "@/components/FileUploader";
+import { uploadDeadlineDocument } from "@/lib/deadlineDocuments";
 
 const formSchema = z.object({
-  deadline_type_id: z.string().min(1, "Vyberte typ lhůty"),
+  deadline_type_id: z.string().min(1, "Vyberte typ události"),
   equipment_id: z.string().min(1, "Vyberte zařízení"),
   facility: z.string().min(1, "Vyberte provozovnu"),
   last_check_date: z.date({ required_error: "Vyberte datum poslední kontroly" }),
@@ -63,6 +66,7 @@ export default function NewDeadline() {
   const { deadlineTypes, isLoading: typesLoading } = useDeadlineTypes();
   const { facilities, loading: facilitiesLoading } = useFacilities();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const activeEquipment = equipment.filter(e => e.status === "active");
 
@@ -104,7 +108,7 @@ export default function NewDeadline() {
         status = "warning";
       }
 
-      const { error } = await supabase.from("deadlines").insert({
+      const { data: deadlineData, error } = await supabase.from("deadlines").insert({
         deadline_type_id: data.deadline_type_id,
         equipment_id: data.equipment_id,
         facility: data.facility,
@@ -118,15 +122,41 @@ export default function NewDeadline() {
         repeat_days_after: data.repeat_days_after || 30,
         requester: profile ? `${profile.first_name} ${profile.last_name}` : null,
         created_by: (await supabase.auth.getUser()).data.user?.id,
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      toast({ title: "Technická lhůta byla vytvořena" });
+      // Upload documents if any
+      if (uploadedFiles.length > 0 && deadlineData) {
+        let uploadErrors: string[] = [];
+        
+        for (const uploadedFile of uploadedFiles) {
+          const { error: uploadError } = await uploadDeadlineDocument(
+            deadlineData.id,
+            uploadedFile.file,
+            uploadedFile.documentType,
+            uploadedFile.description
+          );
+          
+          if (uploadError) {
+            uploadErrors.push(`${uploadedFile.file.name}: ${uploadError.message}`);
+          }
+        }
+        
+        if (uploadErrors.length > 0) {
+          toast({
+            title: "Některé soubory se nepodařilo nahrát",
+            description: uploadErrors.join(", "),
+            variant: "destructive",
+          });
+        }
+      }
+
+      toast({ title: "Technická událost byla vytvořena" });
       navigate("/deadlines");
     } catch (err) {
       toast({
-        title: "Chyba při vytváření lhůty",
+        title: "Chyba při vytváření události",
         description: (err as Error).message,
         variant: "destructive",
       });
@@ -142,7 +172,7 @@ export default function NewDeadline() {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Nová technická lhůta</h1>
+          <h1 className="text-2xl font-bold text-foreground">Nová technická událost</h1>
           <p className="text-muted-foreground">Načítání dat...</p>
         </div>
         <Card>
@@ -157,8 +187,8 @@ export default function NewDeadline() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Nová technická lhůta</h1>
-        <p className="text-muted-foreground">Vytvořte nový záznam o technické lhůtě</p>
+        <h1 className="text-2xl font-bold text-foreground">Nová technická událost</h1>
+        <p className="text-muted-foreground">Vytvořte nový záznam o technické události</p>
       </div>
 
       <Card>
@@ -170,11 +200,11 @@ export default function NewDeadline() {
                 name="deadline_type_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Typ lhůty *</FormLabel>
+                    <FormLabel>Typ události *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Vyberte typ lhůty" />
+                          <SelectValue placeholder="Vyberte typ události" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -349,6 +379,21 @@ export default function NewDeadline() {
                 )}
               />
 
+              {/* File Upload Section */}
+              <div className="space-y-2">
+                <Label>Protokoly a dokumenty</Label>
+                <p className="text-sm text-muted-foreground">
+                  Nahrajte protokoly o provedené kontrole (PDF, DOC, obrázky)
+                </p>
+                <FileUploader
+                  files={uploadedFiles}
+                  onFilesChange={setUploadedFiles}
+                  maxFiles={10}
+                  maxSize={20}
+                  acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
+                />
+              </div>
+
               <div className="flex justify-end gap-4">
                 <Button
                   type="button"
@@ -359,7 +404,7 @@ export default function NewDeadline() {
                 </Button>
                 <Button type="submit" disabled={isSubmitting || isLoading}>
                   {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Vytvořit lhůtu
+                  Vytvořit událost
                 </Button>
               </div>
             </form>

@@ -99,7 +99,7 @@ export default function DeadlineTypes() {
   };
 
   if (error) {
-    return <ErrorDisplay title="Chyba při načítání typů lhůt" message={error.message} onRetry={() => refetch()} />;
+    return <ErrorDisplay title="Chyba při načítání typů událostí" message={error.message} onRetry={() => refetch()} />;
   }
 
   if (isLoading) {
@@ -110,7 +110,7 @@ export default function DeadlineTypes() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Typy technických lhůt</h1>
+          <h1 className="text-2xl font-bold text-foreground">Typy technických událostí</h1>
           <p className="text-muted-foreground">
             Celkem {filteredTypes.length} typů
           </p>
@@ -130,7 +130,7 @@ export default function DeadlineTypes() {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Hledat typy lhůt..."
+          placeholder="Hledat typy událostí..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           className="pl-9"
@@ -154,7 +154,7 @@ export default function DeadlineTypes() {
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    Nebyly nalezeny žádné typy lhůt
+                    Nebyly nalezeny žádné typy událostí
                   </TableCell>
                 </TableRow>
               ) : (
@@ -193,7 +193,7 @@ export default function DeadlineTypes() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingItem ? "Upravit typ lhůty" : "Nový typ lhůty"}
+              {editingItem ? "Upravit typ události" : "Nový typ události"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -234,7 +234,7 @@ export default function DeadlineTypes() {
               <Textarea
                 value={formData.description}
                 onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Volitelný popis typu lhůty"
+                placeholder="Volitelný popis typu události"
               />
             </div>
           </div>

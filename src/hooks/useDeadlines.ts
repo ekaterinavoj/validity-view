@@ -71,11 +71,11 @@ export function useDeadlines() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deadlines"] });
-      toast({ title: "Technická lhůta byla přidána" });
+      toast({ title: "Technická událost byla přidána" });
     },
     onError: (error: Error) => {
       toast({
-        title: "Chyba při přidávání technické lhůty",
+        title: "Chyba při přidávání technické události",
         description: error.message,
         variant: "destructive",
       });
@@ -99,11 +99,11 @@ export function useDeadlines() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deadlines"] });
-      toast({ title: "Technická lhůta byla aktualizována" });
+      toast({ title: "Technická událost byla aktualizována" });
     },
     onError: (error: Error) => {
       toast({
-        title: "Chyba při aktualizaci technické lhůty",
+        title: "Chyba při aktualizaci technické události",
         description: error.message,
         variant: "destructive",
       });
@@ -121,7 +121,7 @@ export function useDeadlines() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deadlines"] });
-      toast({ title: "Technická lhůta byla archivována" });
+      toast({ title: "Technická událost byla archivována" });
     },
     onError: (error: Error) => {
       toast({
