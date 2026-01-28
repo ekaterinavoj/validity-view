@@ -129,7 +129,7 @@ export const Layout = ({ children }: LayoutProps) => {
                   </TabsTrigger>
                   <TabsTrigger value="deadlines" className="flex items-center gap-2">
                     <Wrench className="w-4 h-4" />
-                    Technické lhůty
+                    Technické události
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -280,7 +280,7 @@ export const Layout = ({ children }: LayoutProps) => {
                   <Link to="/deadlines/new">
                     <Button size="sm" className="ml-2 gap-2">
                       <PlusCircle className="w-4 h-4" />
-                      Nová lhůta
+                      Nová událost
                     </Button>
                   </Link>
 
@@ -306,7 +306,7 @@ export const Layout = ({ children }: LayoutProps) => {
                       <DropdownMenuItem asChild>
                         <Link to="/deadlines/types" className="flex items-center gap-2 cursor-pointer">
                           <Clock className="w-4 h-4" />
-                          Typy lhůt
+                          Typy událostí
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>

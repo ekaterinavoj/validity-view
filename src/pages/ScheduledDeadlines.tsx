@@ -142,7 +142,7 @@ export default function ScheduledDeadlines() {
     const data = filteredDeadlines.map(d => ({
       "Inventární č.": d.equipment?.inventory_number || "",
       "Zařízení": d.equipment?.name || "",
-      "Typ lhůty": d.deadline_type?.name || "",
+      "Typ události": d.deadline_type?.name || "",
       "Provozovna": d.facility,
       "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
       "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
@@ -153,12 +153,12 @@ export default function ScheduledDeadlines() {
     
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Technické lhůty");
-    XLSX.writeFile(wb, `technicke-lhuty-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Technické události");
+    XLSX.writeFile(wb, `technicke-udalosti-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
   };
 
   if (error) {
-    return <ErrorDisplay title="Chyba při načítání technických lhůt" message={error.message} onRetry={() => refetch()} />;
+    return <ErrorDisplay title="Chyba při načítání technických událostí" message={error.message} onRetry={() => refetch()} />;
   }
 
   if (isLoading) {
@@ -169,9 +169,9 @@ export default function ScheduledDeadlines() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Naplánované technické lhůty</h1>
+          <h1 className="text-2xl font-bold text-foreground">Naplánované technické události</h1>
           <p className="text-muted-foreground">
-            Celkem {filteredDeadlines.length} aktivních lhůt
+            Celkem {filteredDeadlines.length} aktivních událostí
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -186,7 +186,7 @@ export default function ScheduledDeadlines() {
           <Link to="/deadlines/new">
             <Button size="sm">
               <PlusCircle className="w-4 h-4 mr-2" />
-              Nová lhůta
+              Nová událost
             </Button>
           </Link>
         </div>
@@ -223,7 +223,7 @@ export default function ScheduledDeadlines() {
                 <TableHead>Stav</TableHead>
                 <TableHead>Inventární č.</TableHead>
                 <TableHead>Zařízení</TableHead>
-                <TableHead>Typ lhůty</TableHead>
+                <TableHead>Typ události</TableHead>
                 <TableHead>Provozovna</TableHead>
                 <TableHead>Poslední</TableHead>
                 <TableHead>Příští</TableHead>
@@ -235,7 +235,7 @@ export default function ScheduledDeadlines() {
               {filteredDeadlines.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                    Nebyly nalezeny žádné technické lhůty
+                    Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
               ) : (
@@ -305,7 +305,7 @@ export default function ScheduledDeadlines() {
       <div className="flex items-center gap-6 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <span>Platná lhůta</span>
+          <span>Platná událost</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
@@ -313,7 +313,7 @@ export default function ScheduledDeadlines() {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-red-500"></div>
-          <span>Prošlá lhůta</span>
+          <span>Prošlá událost</span>
         </div>
       </div>
     </div>

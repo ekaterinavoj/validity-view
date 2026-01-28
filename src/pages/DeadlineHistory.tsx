@@ -103,7 +103,7 @@ export default function DeadlineHistory() {
 
       if (error) throw error;
       
-      toast({ title: "Lhůta byla obnovena" });
+      toast({ title: "Událost byla obnovena" });
       refetch();
     } catch (err) {
       toast({
@@ -120,7 +120,7 @@ export default function DeadlineHistory() {
     const data = filteredHistory.map(d => ({
       "Inventární č.": d.equipment?.inventory_number || "",
       "Zařízení": d.equipment?.name || "",
-      "Typ lhůty": d.deadline_type?.name || "",
+      "Typ události": d.deadline_type?.name || "",
       "Provozovna": d.facility,
       "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
       "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
@@ -132,8 +132,8 @@ export default function DeadlineHistory() {
     
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Historie lhůt");
-    XLSX.writeFile(wb, `historie-lhut-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Historie událostí");
+    XLSX.writeFile(wb, `historie-udalosti-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
   };
 
   if (error) {
@@ -148,7 +148,7 @@ export default function DeadlineHistory() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Historie technických lhůt</h1>
+          <h1 className="text-2xl font-bold text-foreground">Historie technických událostí</h1>
           <p className="text-muted-foreground">
             Celkem {filteredHistory.length} záznamů
           </p>
@@ -199,7 +199,7 @@ export default function DeadlineHistory() {
               <TableRow>
                 <TableHead>Inventární č.</TableHead>
                 <TableHead>Zařízení</TableHead>
-                <TableHead>Typ lhůty</TableHead>
+                <TableHead>Typ události</TableHead>
                 <TableHead>Provozovna</TableHead>
                 <TableHead>Poslední kontrola</TableHead>
                 <TableHead>Příští kontrola</TableHead>
