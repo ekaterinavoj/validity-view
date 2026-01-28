@@ -36,6 +36,7 @@ import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { DeadlineProtocolCell } from "@/components/DeadlineProtocolCell";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 
@@ -228,13 +229,14 @@ export default function ScheduledDeadlines() {
                 <TableHead>Poslední</TableHead>
                 <TableHead>Příští</TableHead>
                 <TableHead>Provádějící</TableHead>
+                <TableHead>Protokol</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredDeadlines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
@@ -269,6 +271,9 @@ export default function ScheduledDeadlines() {
                       {format(new Date(deadline.next_check_date), "dd.MM.yyyy")}
                     </TableCell>
                     <TableCell>{deadline.performer || "-"}</TableCell>
+                    <TableCell>
+                      <DeadlineProtocolCell deadlineId={deadline.id} />
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
