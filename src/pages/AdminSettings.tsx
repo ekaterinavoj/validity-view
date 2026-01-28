@@ -28,6 +28,7 @@ import { PendingUsersPanel } from "@/components/PendingUsersPanel";
 import { UserInvitePanel } from "@/components/UserInvitePanel";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
+import { BulkDeadlineImport } from "@/components/BulkDeadlineImport";
 import { DisplaySettings } from "@/components/DisplaySettings";
 
 interface SystemSetting {
@@ -1094,6 +1095,8 @@ export default function AdminSettings() {
           <BulkTrainingImport />
           
           <BulkEmployeeImport />
+          
+          <BulkDeadlineImport />
         </TabsContent>
       </Tabs>
     </div>

@@ -295,14 +295,17 @@ export const Layout = ({ children }: LayoutProps) => {
             </div>
 
             <div className="flex items-center gap-1">
-              <NavLink
-                to="/statistics"
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
-                activeClassName="text-foreground bg-card border-b-2 border-primary"
-              >
-                <BarChart3 className="w-4 h-4" />
-                Statistika
-              </NavLink>
+              {/* Statistics only visible in Training mode */}
+              {isTrainingMode && (
+                <NavLink
+                  to="/statistics"
+                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors"
+                  activeClassName="text-foreground bg-card border-b-2 border-primary"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Statistika
+                </NavLink>
+              )}
 
               {(isAdmin || isManager) && (
                 <NavLink
@@ -558,17 +561,20 @@ export const Layout = ({ children }: LayoutProps) => {
 
             <div className="space-y-1 pt-2 border-t border-border">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Přehledy</p>
-              <Link 
-                to="/statistics" 
-                onClick={closeMobileMenu}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                  location.pathname === "/statistics" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <BarChart3 className="w-4 h-4" />
-                Statistika
-              </Link>
+              {/* Statistics only visible in Training mode */}
+              {isTrainingMode && (
+                <Link 
+                  to="/statistics" 
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                    location.pathname === "/statistics" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  )}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Statistika
+                </Link>
+              )}
               {(isAdmin || isManager) && (
                 <Link 
                   to="/audit-log" 
