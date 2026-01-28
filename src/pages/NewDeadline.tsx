@@ -137,6 +137,23 @@ export default function NewDeadline() {
 
   const isLoading = equipmentLoading || typesLoading || facilitiesLoading;
 
+  // Prevent render issues by showing loading state until data is ready
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Nová technická lhůta</h1>
+          <p className="text-muted-foreground">Načítání dat...</p>
+        </div>
+        <Card>
+          <CardContent className="pt-6 flex items-center justify-center min-h-[200px]">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
