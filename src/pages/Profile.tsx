@@ -106,14 +106,21 @@ const Profile = () => {
       } = await supabase.from("user_roles").select("user_id, role");
       if (rolesError) throw rolesError;
 
-      // Získat poslední přihlášení z auth.users
-      const {
-        data,
-        error: authError
-      } = await supabase.auth.admin.listUsers();
-      const authUsers = data?.users || [];
+      // Získat poslední přihlášení přes Edge Function (bezpečná alternativa k admin API)
+      let authUsers: Array<{ id: string; last_sign_in_at?: string }> = [];
+      try {
+        const { data: funcData, error: funcError } = await supabase.functions.invoke("list-users");
+        if (!funcError && funcData?.users) {
+          authUsers = funcData.users;
+        } else {
+          console.warn("Failed to fetch auth users via Edge Function:", funcError);
+        }
+      } catch (funcErr) {
+        console.warn("Edge Function call failed:", funcErr);
+      }
+
       const usersWithRoles = profiles?.map(p => {
-        const authUser = authUsers.find((au: any) => au.id === p.id);
+        const authUser = authUsers.find((au) => au.id === p.id);
         return {
           id: p.id,
           first_name: p.first_name,
