@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.send-training-reminders]
 verify_jwt = false
+
+[functions.list-users]
+verify_jwt = false
