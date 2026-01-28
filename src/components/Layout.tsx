@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   Calendar, 
   History, 
@@ -45,6 +45,7 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
   const { profile, roles, isAdmin, isManager, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Determine if current route is a module-specific route
@@ -100,11 +101,12 @@ export const Layout = ({ children }: LayoutProps) => {
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
+  // Always navigate when clicking a module tab (even if already active)
   const handleModeSwitch = (value: string) => {
     if (value === "trainings") {
-      window.location.href = "/trainings";
+      navigate("/trainings");
     } else if (value === "deadlines") {
-      window.location.href = "/deadlines";
+      navigate("/deadlines");
     }
   };
 
