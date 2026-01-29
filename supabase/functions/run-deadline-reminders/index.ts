@@ -265,6 +265,32 @@ const handler = async (req: Request): Promise<Response> => {
     }
   }
 
+  // Fetch module-specific recipients and template settings from system_settings
+  const { data: settings } = await supabase
+    .from("system_settings")
+    .select("key, value")
+    .in("key", ["deadline_reminder_recipients", "deadline_email_template", "email_provider"]);
+  
+  let moduleRecipients: { user_ids: string[], delivery_mode: string } = { user_ids: [], delivery_mode: "bcc" };
+  let moduleEmailTemplate: { subject: string, body: string } | null = null;
+  let emailProviderSettings: { smtp_from_email: string, smtp_from_name: string } | null = null;
+  
+  if (settings) {
+    for (const s of settings) {
+      if (s.key === "deadline_reminder_recipients" && s.value && typeof s.value === "object") {
+        moduleRecipients = s.value as typeof moduleRecipients;
+      }
+      if (s.key === "deadline_email_template" && s.value && typeof s.value === "object") {
+        moduleEmailTemplate = s.value as { subject: string; body: string };
+      }
+      if (s.key === "email_provider" && s.value && typeof s.value === "object") {
+        emailProviderSettings = s.value as typeof emailProviderSettings;
+      }
+    }
+  }
+  
+  console.log(`Module recipients configured: ${moduleRecipients.user_ids?.length || 0} users, delivery_mode: ${moduleRecipients.delivery_mode}`);
+
   // Fetch all active reminder templates for lookup
   const { data: allTemplates } = await supabase
     .from("deadline_reminder_templates")
@@ -425,89 +451,145 @@ const handler = async (req: Request): Promise<Response> => {
   let totalEmailsFailed = 0;
   const results: any[] = [];
 
-  // Process each template group
-  for (const [templateId, deadlineItems] of deadlinesByTemplate) {
-    const template = templatesMap.get(templateId) || defaultTemplate;
+  // Combine all deadlines into a single summary email (using module-level configuration)
+  // rather than per-template batching
+  const allDeadlineItems: DeadlineItem[] = [];
+  for (const items of deadlinesByTemplate.values()) {
+    allDeadlineItems.push(...items);
+  }
+  
+  // Sort by days until expiration (most urgent first)
+  allDeadlineItems.sort((a, b) => a.days_until - b.days_until);
+
+  // Build final recipient list: module recipients from system_settings
+  // (priority) then fallback to template targets / responsible persons
+  let finalRecipientEmails: string[] = [];
+  
+  // 1. First try module-level recipients from system_settings
+  if (moduleRecipients.user_ids && moduleRecipients.user_ids.length > 0) {
+    console.log(`Using module-level recipients: ${moduleRecipients.user_ids.length} users`);
+    for (const profileId of moduleRecipients.user_ids) {
+      const email = profileEmailMap.get(profileId);
+      if (email) {
+        finalRecipientEmails.push(email);
+      }
+    }
     
-    // Get recipients: responsible persons first, then fallback to template targets
-    let recipientSet = recipientsByTemplate.get(templateId) || new Set<string>();
+    // If profile emails not loaded yet, fetch them
+    if (finalRecipientEmails.length === 0 && moduleRecipients.user_ids.length > 0) {
+      const { data: moduleProfiles } = await supabase
+        .from("profiles")
+        .select("id, email")
+        .in("id", moduleRecipients.user_ids);
+      
+      if (moduleProfiles) {
+        for (const p of moduleProfiles) {
+          finalRecipientEmails.push(p.email);
+        }
+      }
+    }
+  }
+  
+  // 2. Fallback to responsible persons if no module recipients configured
+  if (finalRecipientEmails.length === 0) {
+    console.log("No module recipients, falling back to responsible persons");
+    const allResponsibleEmails = new Set<string>();
+    for (const [templateId, items] of deadlinesByTemplate) {
+      const recipientSet = recipientsByTemplate.get(templateId);
+      if (recipientSet) {
+        recipientSet.forEach(email => allResponsibleEmails.add(email));
+      }
+    }
     
-    // Fallback to template.target_user_ids if no responsible persons found
-    if (recipientSet.size === 0 && template.target_user_ids && template.target_user_ids.length > 0) {
-      console.log(`Template ${template.name}: No responsible persons, using template target_user_ids as fallback`);
-      for (const profileId of template.target_user_ids) {
+    // Fallback to template target_user_ids if still empty
+    if (allResponsibleEmails.size === 0 && defaultTemplate.target_user_ids && defaultTemplate.target_user_ids.length > 0) {
+      console.log("No responsible persons, using template target_user_ids as fallback");
+      for (const profileId of defaultTemplate.target_user_ids) {
         const email = profileEmailMap.get(profileId);
         if (email) {
-          recipientSet.add(email);
+          allResponsibleEmails.add(email);
         }
       }
     }
     
-    const recipientEmails = Array.from(recipientSet);
-    
-    if (recipientEmails.length === 0) {
-      console.log(`Template ${template.name}: No recipients configured, skipping`);
-      continue;
-    }
-    
-    // Prepare email content
-    const expiredCount = deadlineItems.filter(d => d.days_until < 0).length;
-    const expiringCount = deadlineItems.filter(d => d.days_until >= 0).length;
-    const totalCount = deadlineItems.length;
-
-    const subject = testMode 
-      ? `[TEST] ${replaceVariables(template.email_subject, totalCount, expiringCount, expiredCount)}`
-      : replaceVariables(template.email_subject, totalCount, expiringCount, expiredCount);
-    
-    const bodyText = replaceVariables(template.email_body, totalCount, expiringCount, expiredCount);
-    const tableHtml = buildDeadlinesTable(deadlineItems);
-    const fullBody = `${bodyText}${tableHtml}`;
-
-    // Send email
-    const result = await sendViaResend(recipientEmails, subject, fullBody, "bcc");
-
-    // Log per template/batch - includes deadline IDs for traceability
-    const { error: logError } = await supabase
-      .from("deadline_reminder_logs")
-      .insert({
-        template_id: template.id,
-        template_name: template.name,
-        recipient_emails: recipientEmails,
-        email_subject: subject,
-        email_body: fullBody,
-        status: result.success ? "sent" : "failed",
-        error_message: result.error || null,
-        is_test: testMode,
-        week_start: weekStart,
-        delivery_mode: "bcc",
-        // Store first deadline_id for reference
-        deadline_id: deadlineItems[0]?.id || null,
-        equipment_id: deadlineItems[0]?.equipment_id || null,
-        days_before: deadlineItems[0]?.days_until || null,
-      });
-
-    if (logError) {
-      console.error(`Failed to log reminder for template ${template.name}:`, logError);
-    }
-
-    if (result.success) {
-      totalEmailsSent++;
-      console.log(`Sent reminder for template '${template.name}' to ${recipientEmails.length} recipients with ${deadlineItems.length} deadlines`);
-    } else {
-      totalEmailsFailed++;
-      console.error(`Failed to send reminder for template '${template.name}':`, result.error);
-    }
-
-    results.push({
-      template: template.name,
-      templateId: template.id,
-      deadlinesCount: deadlineItems.length,
-      recipientCount: recipientEmails.length,
-      recipientSource: recipientSet.size > 0 ? "responsible_persons" : "template_fallback",
-      success: result.success,
-      error: result.error,
-    });
+    finalRecipientEmails = Array.from(allResponsibleEmails);
   }
+  
+  if (finalRecipientEmails.length === 0) {
+    console.log("No recipients configured for deadline reminders");
+    return new Response(
+      JSON.stringify({ info: "No recipients configured for deadline reminders", emailsSent: 0 }),
+      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+  
+  console.log(`Final recipients: ${finalRecipientEmails.join(", ")}`);
+  
+  // Prepare email content using module-level template (from system_settings)
+  // or fallback to the default deadline_reminder_template
+  const expiredCount = allDeadlineItems.filter(d => d.days_until < 0).length;
+  const expiringCount = allDeadlineItems.filter(d => d.days_until >= 0).length;
+  const totalCount = allDeadlineItems.length;
+
+  // Use moduleEmailTemplate if set, otherwise use default template
+  const subjectTemplate = moduleEmailTemplate?.subject || defaultTemplate.email_subject;
+  const bodyTemplate = moduleEmailTemplate?.body || defaultTemplate.email_body;
+
+  const subject = testMode 
+    ? `[TEST] ${replaceVariables(subjectTemplate, totalCount, expiringCount, expiredCount)}`
+    : replaceVariables(subjectTemplate, totalCount, expiringCount, expiredCount);
+  
+  const bodyText = replaceVariables(bodyTemplate, totalCount, expiringCount, expiredCount);
+  const tableHtml = buildDeadlinesTable(allDeadlineItems);
+  const fullBody = `${bodyText}${tableHtml}`;
+  
+  const deliveryMode = moduleRecipients.delivery_mode || "bcc";
+  const fromEmail = (emailProviderSettings as { smtp_from_email?: string, smtp_from_name?: string } | null)?.smtp_from_email;
+  const fromName = (emailProviderSettings as { smtp_from_email?: string, smtp_from_name?: string } | null)?.smtp_from_name;
+
+  // Send email
+  const result = await sendViaResend(finalRecipientEmails, subject, fullBody, deliveryMode, fromEmail, fromName);
+
+  // Log the send attempt
+  const { error: logError } = await supabase
+    .from("deadline_reminder_logs")
+    .insert({
+      template_id: defaultTemplate.id,
+      template_name: moduleEmailTemplate ? "Souhrnný email (Technické lhůty)" : defaultTemplate.name,
+      recipient_emails: finalRecipientEmails,
+      email_subject: subject,
+      email_body: fullBody,
+      status: result.success ? "sent" : "failed",
+      error_message: result.error || null,
+      is_test: testMode,
+      week_start: weekStart,
+      delivery_mode: deliveryMode,
+      deadline_id: allDeadlineItems[0]?.id || null,
+      equipment_id: allDeadlineItems[0]?.equipment_id || null,
+      days_before: allDeadlineItems[0]?.days_until || null,
+    });
+
+  if (logError) {
+    console.error("Failed to log deadline reminder:", logError);
+  }
+
+  if (result.success) {
+    totalEmailsSent++;
+    console.log(`Sent deadline reminder to ${finalRecipientEmails.length} recipients with ${allDeadlineItems.length} deadlines`);
+  } else {
+    totalEmailsFailed++;
+    console.error(`Failed to send deadline reminder:`, result.error);
+  }
+
+  results.push({
+    template: moduleEmailTemplate ? "Souhrnný email (Technické lhůty)" : defaultTemplate.name,
+    templateId: defaultTemplate.id,
+    deadlinesCount: allDeadlineItems.length,
+    recipientCount: finalRecipientEmails.length,
+    recipientSource: moduleRecipients.user_ids?.length > 0 ? "module_settings" : "fallback",
+    success: result.success,
+    error: result.error,
+  });
 
   console.log(`Deadline reminder run completed: ${totalEmailsSent} sent, ${totalEmailsFailed} failed`);
 
