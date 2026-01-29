@@ -14,13 +14,18 @@ interface DeadlineItem {
   deadline_type_name: string;
   facility: string;
   days_until: number;
+  template_id: string | null;
+  template_name: string;
+  responsible_person: string | null;
 }
 
-interface Recipient {
+interface ReminderTemplate {
   id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
+  name: string;
+  email_subject: string;
+  email_body: string;
+  target_user_ids: string[] | null;
+  remind_days_before: number;
 }
 
 // Calculate days until expiration
@@ -39,7 +44,7 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString("cs-CZ");
 }
 
-// Replace template variables for summary email
+// Replace template variables for email
 function replaceVariables(
   template: string, 
   totalCount: number, 
@@ -67,6 +72,7 @@ function buildDeadlinesTable(deadlines: DeadlineItem[]): string {
           <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Zařízení</th>
           <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Inv. číslo</th>
           <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Typ události</th>
+          <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Odpovědná osoba</th>
           <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Termín</th>
           <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">Dnů</th>
         </tr>
@@ -82,6 +88,7 @@ function buildDeadlinesTable(deadlines: DeadlineItem[]): string {
         <td style="border: 1px solid #e5e7eb; padding: 10px;">${d.equipment_name}</td>
         <td style="border: 1px solid #e5e7eb; padding: 10px;">${d.equipment_inventory_number}</td>
         <td style="border: 1px solid #e5e7eb; padding: 10px;">${d.deadline_type_name}</td>
+        <td style="border: 1px solid #e5e7eb; padding: 10px;">${d.responsible_person || "-"}</td>
         <td style="border: 1px solid #e5e7eb; padding: 10px;">${formatDate(d.next_check_date)}</td>
         <td style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">
           <span style="background-color: ${statusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
@@ -171,26 +178,55 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Verify authorization
+  // Verify authorization - cron secret OR authenticated admin
   const cronSecret = req.headers.get("x-cron-secret");
   const envCronSecret = Deno.env.get("CRON_SECRET");
   const authHeader = req.headers.get("authorization");
   
   const isCronRequest = cronSecret && envCronSecret && cronSecret === envCronSecret;
-  const isAuthenticatedRequest = authHeader?.startsWith("Bearer ");
   
-  if (!isCronRequest && !isAuthenticatedRequest) {
+  // For non-cron requests, verify JWT and admin role
+  let isAuthorizedAdmin = false;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  
+  if (!isCronRequest && authHeader?.startsWith("Bearer ")) {
+    // Verify the user is an admin
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
+    
+    if (!claimsError && claimsData?.claims?.sub) {
+      const userId = claimsData.claims.sub;
+      const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Check if user has admin role
+      const { data: roles } = await serviceSupabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("role", "admin")
+        .limit(1);
+      
+      isAuthorizedAdmin = !!(roles && roles.length > 0);
+    }
+  }
+  
+  if (!isCronRequest && !isAuthorizedAdmin) {
+    console.log("Unauthorized access attempt");
     return new Response(
-      JSON.stringify({ error: "Unauthorized" }),
+      JSON.stringify({ error: "Unauthorized - Admin access or CRON secret required" }),
       { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  let triggeredBy = "cron";
+  let triggeredBy = isCronRequest ? "cron" : "admin";
   let testMode = false;
 
   try {
@@ -210,7 +246,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   const weekStart = getRunPeriodKey();
 
-  // Check for duplicate run (idempotency)
+  // Check for duplicate run (idempotency) - skip for test mode
   if (!testMode) {
     const { data: existingRun } = await supabase
       .from("deadline_reminder_logs")
@@ -228,12 +264,39 @@ const handler = async (req: Request): Promise<Response> => {
     }
   }
 
-  // Fetch active deadlines with related data
+  // Fetch all active reminder templates for lookup
+  const { data: allTemplates } = await supabase
+    .from("deadline_reminder_templates")
+    .select("*")
+    .eq("is_active", true);
+
+  const templatesMap = new Map<string, ReminderTemplate>();
+  let defaultTemplate: ReminderTemplate | null = null;
+  
+  if (allTemplates) {
+    for (const t of allTemplates) {
+      templatesMap.set(t.id, t as ReminderTemplate);
+      // Use first active template as default fallback
+      if (!defaultTemplate) {
+        defaultTemplate = t as ReminderTemplate;
+      }
+    }
+  }
+
+  if (!defaultTemplate) {
+    console.log("No active reminder template found");
+    return new Response(
+      JSON.stringify({ info: "No active reminder template configured", emailsSent: 0 }),
+      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+
+  // Fetch active deadlines with related data including responsible_person from equipment
   const { data: deadlines, error: deadlinesError } = await supabase
     .from("deadlines")
     .select(`
-      id, next_check_date, facility, reminder_template_id, remind_days_before,
-      equipment:equipment_id(id, name, inventory_number, status),
+      id, next_check_date, facility, reminder_template_id, remind_days_before, requester,
+      equipment:equipment_id(id, name, inventory_number, status, responsible_person),
       deadline_types:deadline_type_id(id, name)
     `)
     .eq("is_active", true)
@@ -248,8 +311,9 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
-  // Filter deadlines that are expiring or expired
-  const relevantDeadlines: DeadlineItem[] = [];
+  // Group deadlines by template for batch sending
+  // Key: template_id, Value: array of deadline items
+  const deadlinesByTemplate = new Map<string, DeadlineItem[]>();
   
   for (const d of deadlines || []) {
     const equipment = d.equipment as any;
@@ -262,7 +326,11 @@ const handler = async (req: Request): Promise<Response> => {
     
     // Include if expired or within reminder window
     if (daysUntil <= remindDays) {
-      relevantDeadlines.push({
+      // Determine which template to use: per-deadline or default fallback
+      const templateId = d.reminder_template_id || defaultTemplate.id;
+      const template = templatesMap.get(templateId) || defaultTemplate;
+      
+      const item: DeadlineItem = {
         id: d.id,
         next_check_date: d.next_check_date,
         equipment_name: equipment.name,
@@ -270,11 +338,18 @@ const handler = async (req: Request): Promise<Response> => {
         deadline_type_name: deadlineType?.name || "Neznámý typ",
         facility: d.facility,
         days_until: daysUntil,
-      });
+        template_id: template.id,
+        template_name: template.name,
+        responsible_person: equipment.responsible_person || null,
+      };
+      
+      const existingItems = deadlinesByTemplate.get(template.id) || [];
+      existingItems.push(item);
+      deadlinesByTemplate.set(template.id, existingItems);
     }
   }
 
-  if (relevantDeadlines.length === 0) {
+  if (deadlinesByTemplate.size === 0) {
     console.log("No deadlines require reminders");
     return new Response(
       JSON.stringify({ message: "No deadlines require reminders", emailsSent: 0 }),
@@ -282,95 +357,122 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
-  // Get active reminder template
-  const { data: templates } = await supabase
-    .from("deadline_reminder_templates")
-    .select("*")
-    .eq("is_active", true)
-    .limit(1);
+  let totalEmailsSent = 0;
+  let totalEmailsFailed = 0;
+  const results: any[] = [];
 
-  const template = templates?.[0];
-  
-  if (!template) {
-    console.log("No active reminder template found");
-    return new Response(
-      JSON.stringify({ info: "No active reminder template configured", emailsSent: 0 }),
-      { headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
-  }
+  // Process each template group
+  for (const [templateId, deadlineItems] of deadlinesByTemplate) {
+    const template = templatesMap.get(templateId) || defaultTemplate;
+    
+    // Determine recipients:
+    // 1. Template's target_user_ids (admin-configured recipients)
+    // 2. TODO: In future, also include responsible_person emails from equipment
+    //    Currently responsible_person is just a text field, not linked to profiles
+    //    To implement: create a mapping or use email directly if it's an email format
+    
+    let recipientIds = template.target_user_ids || [];
+    
+    // Collect unique responsible persons from deadlines (as potential future recipients)
+    const responsiblePersons = new Set<string>();
+    for (const item of deadlineItems) {
+      if (item.responsible_person) {
+        responsiblePersons.add(item.responsible_person);
+      }
+    }
+    
+    // Log note about responsible persons for debugging
+    if (responsiblePersons.size > 0) {
+      console.log(`Template ${template.name}: Found ${responsiblePersons.size} responsible persons:`, 
+        Array.from(responsiblePersons).join(", "));
+      // TODO: If responsible_person contains emails, add them to recipientIds
+      // For now, we only use template.target_user_ids
+    }
+    
+    if (recipientIds.length === 0) {
+      console.log(`Template ${template.name}: No recipients configured, skipping`);
+      continue;
+    }
 
-  // Get recipients from template
-  const recipientIds = template.target_user_ids || [];
-  
-  if (recipientIds.length === 0) {
-    console.log("No recipients configured in template");
-    return new Response(
-      JSON.stringify({ info: "No recipients configured in reminder template", emailsSent: 0 }),
-      { headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
-  }
+    // Fetch recipient profiles
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, email, first_name, last_name")
+      .in("id", recipientIds);
 
-  // Fetch recipient profiles
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, email, first_name, last_name")
-    .in("id", recipientIds);
+    if (!profiles || profiles.length === 0) {
+      console.log(`Template ${template.name}: No valid recipient profiles found`);
+      continue;
+    }
 
-  if (profilesError || !profiles || profiles.length === 0) {
-    console.error("Failed to fetch recipient profiles:", profilesError);
-    return new Response(
-      JSON.stringify({ info: "No valid recipients found", emailsSent: 0 }),
-      { headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
-  }
+    const recipientEmails = profiles.map(p => p.email);
+    
+    // Prepare email content
+    const expiredCount = deadlineItems.filter(d => d.days_until < 0).length;
+    const expiringCount = deadlineItems.filter(d => d.days_until >= 0).length;
+    const totalCount = deadlineItems.length;
 
-  const recipientEmails = profiles.map(p => p.email);
-  
-  // Prepare email content
-  const expiredCount = relevantDeadlines.filter(d => d.days_until < 0).length;
-  const expiringCount = relevantDeadlines.filter(d => d.days_until >= 0).length;
-  const totalCount = relevantDeadlines.length;
+    const subject = testMode 
+      ? `[TEST] ${replaceVariables(template.email_subject, totalCount, expiringCount, expiredCount)}`
+      : replaceVariables(template.email_subject, totalCount, expiringCount, expiredCount);
+    
+    const bodyText = replaceVariables(template.email_body, totalCount, expiringCount, expiredCount);
+    const tableHtml = buildDeadlinesTable(deadlineItems);
+    const fullBody = `${bodyText}${tableHtml}`;
 
-  const subject = testMode 
-    ? `[TEST] ${replaceVariables(template.email_subject, totalCount, expiringCount, expiredCount)}`
-    : replaceVariables(template.email_subject, totalCount, expiringCount, expiredCount);
-  
-  const bodyText = replaceVariables(template.email_body, totalCount, expiringCount, expiredCount);
-  const tableHtml = buildDeadlinesTable(relevantDeadlines);
-  const fullBody = `${bodyText}${tableHtml}`;
+    // Send email
+    const result = await sendViaResend(recipientEmails, subject, fullBody, "bcc");
 
-  // Send email
-  const result = await sendViaResend(recipientEmails, subject, fullBody, "bcc");
+    // Log per template/batch - includes deadline IDs for traceability
+    const { error: logError } = await supabase
+      .from("deadline_reminder_logs")
+      .insert({
+        template_id: template.id,
+        template_name: template.name,
+        recipient_emails: recipientEmails,
+        email_subject: subject,
+        email_body: fullBody,
+        status: result.success ? "sent" : "failed",
+        error_message: result.error || null,
+        is_test: testMode,
+        week_start: weekStart,
+        delivery_mode: "bcc",
+        // Store first deadline_id for reference (could extend schema for multiple)
+        deadline_id: deadlineItems[0]?.id || null,
+        equipment_id: null, // Could be extended to store all equipment IDs
+        days_before: deadlineItems[0]?.days_until || null,
+      });
 
-  // Log the result
-  const { error: logError } = await supabase
-    .from("deadline_reminder_logs")
-    .insert({
-      template_id: template.id,
-      template_name: template.name,
-      recipient_emails: recipientEmails,
-      email_subject: subject,
-      email_body: fullBody,
-      status: result.success ? "sent" : "failed",
-      error_message: result.error || null,
-      is_test: testMode,
-      week_start: weekStart,
-      delivery_mode: "bcc",
+    if (logError) {
+      console.error(`Failed to log reminder for template ${template.name}:`, logError);
+    }
+
+    if (result.success) {
+      totalEmailsSent++;
+      console.log(`Sent reminder for template '${template.name}' to ${recipientEmails.length} recipients with ${deadlineItems.length} deadlines`);
+    } else {
+      totalEmailsFailed++;
+      console.error(`Failed to send reminder for template '${template.name}':`, result.error);
+    }
+
+    results.push({
+      template: template.name,
+      templateId: template.id,
+      deadlinesCount: deadlineItems.length,
+      recipientCount: recipientEmails.length,
+      success: result.success,
+      error: result.error,
     });
-
-  if (logError) {
-    console.error("Failed to log reminder:", logError);
   }
 
-  console.log(`Deadline reminder ${result.success ? "sent" : "failed"}: ${recipientEmails.length} recipients`);
+  console.log(`Deadline reminder run completed: ${totalEmailsSent} sent, ${totalEmailsFailed} failed`);
 
   return new Response(
     JSON.stringify({
-      success: result.success,
-      emailsSent: result.success ? 1 : 0,
-      recipientCount: recipientEmails.length,
-      deadlinesCount: relevantDeadlines.length,
-      error: result.error,
+      success: totalEmailsFailed === 0,
+      emailsSent: totalEmailsSent,
+      emailsFailed: totalEmailsFailed,
+      results,
     }),
     { headers: { "Content-Type": "application/json", ...corsHeaders } }
   );
