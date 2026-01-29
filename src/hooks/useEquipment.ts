@@ -3,6 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Equipment } from "@/types/equipment";
 import { useToast } from "@/hooks/use-toast";
 
+interface CreateEquipmentWithResponsibles {
+  equipment: Omit<Equipment, "id" | "created_at" | "updated_at">;
+  responsibleProfileIds?: string[];
+}
+
 export function useEquipment() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -21,7 +26,8 @@ export function useEquipment() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (newEquipment: Omit<Equipment, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async ({ equipment: newEquipment, responsibleProfileIds = [] }: CreateEquipmentWithResponsibles) => {
+      // Create the equipment
       const { data, error } = await supabase
         .from("equipment")
         .insert(newEquipment)
@@ -29,10 +35,33 @@ export function useEquipment() {
         .single();
 
       if (error) throw error;
+
+      // If there are responsible persons to add, create them
+      if (responsibleProfileIds.length > 0 && data) {
+        const { data: user } = await supabase.auth.getUser();
+        
+        const responsiblesData = responsibleProfileIds.map(profileId => ({
+          equipment_id: data.id,
+          profile_id: profileId,
+          created_by: user.user?.id || null,
+        }));
+
+        const { error: responsiblesError } = await supabase
+          .from("equipment_responsibles")
+          .insert(responsiblesData);
+
+        if (responsiblesError) {
+          console.error("Error adding responsible persons:", responsiblesError);
+          // Don't throw - equipment was created, just log the error
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
+      queryClient.invalidateQueries({ queryKey: ["equipment-responsibles"] });
+      queryClient.invalidateQueries({ queryKey: ["all-equipment-responsibles"] });
       toast({ title: "Zařízení bylo přidáno" });
     },
     onError: (error: Error) => {
