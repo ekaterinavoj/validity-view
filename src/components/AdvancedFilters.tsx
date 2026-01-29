@@ -29,6 +29,11 @@ import { cs } from "date-fns/locale";
 import { useState } from "react";
 import { FilterState, SavedFilter } from "@/hooks/useAdvancedFilters";
 
+interface ResponsiblePerson {
+  id: string;
+  name: string;
+}
+
 interface AdvancedFiltersProps {
   filters: FilterState;
   onFilterChange: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
@@ -42,6 +47,7 @@ interface AdvancedFiltersProps {
   facilities: string[];
   trainingTypes: string[];
   trainers: string[];
+  responsiblePersons?: ResponsiblePerson[];
   resultCount?: number;
   totalCount?: number;
 }
@@ -59,6 +65,7 @@ export function AdvancedFilters({
   facilities,
   trainingTypes,
   trainers,
+  responsiblePersons,
   resultCount,
   totalCount,
 }: AdvancedFiltersProps) {
@@ -204,6 +211,26 @@ export function AdvancedFilters({
               ))}
             </SelectContent>
           </Select>
+
+          {/* Responsible Person Filter - only show when responsiblePersons are provided */}
+          {responsiblePersons && responsiblePersons.length > 0 && (
+            <Select
+              value={filters.responsibleFilter}
+              onValueChange={(value) => onFilterChange("responsibleFilter", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Odpovědná osoba" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všechny odpovědné osoby</SelectItem>
+                {responsiblePersons.map((person) => (
+                  <SelectItem key={person.id} value={person.id}>
+                    {person.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* Date Range */}

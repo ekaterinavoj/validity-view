@@ -37,11 +37,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useEquipment } from "@/hooks/useEquipment";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useDepartments } from "@/hooks/useDepartments";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { EquipmentResponsiblesManager } from "@/components/EquipmentResponsiblesManager";
 import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColors } from "@/types/equipment";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
@@ -375,6 +377,19 @@ export default function Equipment() {
                 onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               />
             </div>
+            
+            {/* Responsible persons management - only show when editing */}
+            {editingItem && (
+              <>
+                <Separator className="col-span-2 my-2" />
+                <div className="col-span-2">
+                  <EquipmentResponsiblesManager
+                    equipmentId={editingItem.id}
+                    equipmentName={editingItem.name}
+                  />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
