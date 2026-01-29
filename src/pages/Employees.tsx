@@ -31,7 +31,8 @@ import { useDepartments } from "@/hooks/useDepartments";
 import { supabase } from "@/integrations/supabase/client";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
-import { EmployeeStatusBadge, EmployeeStatusLegend, EmployeeStatus } from "@/components/EmployeeStatusBadge";
+import { EmployeeStatusBadge, EmployeeStatus } from "@/components/EmployeeStatusBadge";
+import { StatusLegend } from "@/components/StatusLegend";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),
@@ -570,9 +571,9 @@ export default function Employees() {
         )}
       </Card>
 
-      {/* Status Legend */}
+      {/* Status Legend + Count - above the table */}
       <div className="flex items-center justify-between">
-        <EmployeeStatusLegend />
+        <StatusLegend variant="employee" />
         <p className="text-sm text-muted-foreground">
           Celkem: {filteredEmployees.length} zaměstnanců
         </p>

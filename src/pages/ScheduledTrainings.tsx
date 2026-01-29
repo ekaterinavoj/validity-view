@@ -1,4 +1,5 @@
 import { StatusBadge } from "@/components/StatusBadge";
+import { StatusLegend } from "@/components/StatusLegend";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -1244,6 +1245,14 @@ export default function ScheduledTrainings() {
           totalCount={trainings.length}
         />
 
+        {/* Legend + Count - above the table */}
+        <div className="flex items-center justify-between">
+          <StatusLegend variant="training" />
+          <p className="text-sm text-muted-foreground">
+            Celkem: {filteredTrainings.length} školení
+          </p>
+        </div>
+
         <Card className="p-6">
           <div className="overflow-x-auto">
             <Table>
@@ -1338,21 +1347,6 @@ export default function ScheduledTrainings() {
           </div>
         </Card>
 
-        {/* Legend */}
-        <div className="flex items-center gap-6 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-3 h-3 rounded-full bg-status-valid" />
-            <span>Platné školení</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-3 h-3 rounded-full bg-status-warning" />
-            <span>Brzy vyprší (do 30 dní)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-3 h-3 rounded-full bg-status-expired" />
-            <span>Prošlé školení</span>
-          </div>
-        </div>
       </div>
     </>
   );
