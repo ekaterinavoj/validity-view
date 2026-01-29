@@ -5,9 +5,6 @@ import {
   RefreshCw,
   Download,
   PlusCircle,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
   MoreHorizontal,
   Pencil,
   Archive,
@@ -28,7 +25,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useDeadlines } from "@/hooks/useDeadlines";
 import { useFacilities } from "@/hooks/useFacilities";
@@ -37,6 +33,7 @@ import { AdvancedFilters } from "@/components/AdvancedFilters";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeadlineProtocolCell } from "@/components/DeadlineProtocolCell";
+import { StatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 
@@ -111,33 +108,7 @@ export default function ScheduledDeadlines() {
     );
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "valid":
-        return (
-          <Badge variant="outline" className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30">
-            <CheckCircle2 className="w-3 h-3 mr-1" />
-            Platná
-          </Badge>
-        );
-      case "warning":
-        return (
-          <Badge variant="outline" className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30">
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            Brzy vyprší
-          </Badge>
-        );
-      case "expired":
-        return (
-          <Badge variant="outline" className="bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30">
-            <XCircle className="w-3 h-3 mr-1" />
-            Prošlá
-          </Badge>
-        );
-      default:
-        return null;
-    }
-  };
+  // Status badge is now unified via StatusBadge component
 
   const exportToExcel = () => {
     const data = filteredDeadlines.map(d => ({
@@ -245,8 +216,8 @@ export default function ScheduledDeadlines() {
                   <TableRow 
                     key={deadline.id}
                     className={cn(
-                      deadline.status === "expired" && "bg-red-500/5",
-                      deadline.status === "warning" && "bg-yellow-500/5"
+                      deadline.status === "expired" && "bg-destructive/5",
+                      deadline.status === "warning" && "bg-accent/30"
                     )}
                   >
                     <TableCell>
@@ -255,7 +226,9 @@ export default function ScheduledDeadlines() {
                         onCheckedChange={(checked) => handleSelectOne(deadline.id, !!checked)}
                       />
                     </TableCell>
-                    <TableCell>{getStatusBadge(deadline.status)}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={deadline.status as "valid" | "warning" | "expired"} />
+                    </TableCell>
                     <TableCell className="font-mono text-sm">
                       {deadline.equipment?.inventory_number}
                     </TableCell>
@@ -309,15 +282,15 @@ export default function ScheduledDeadlines() {
       {/* Legend */}
       <div className="flex items-center gap-6 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          <span className="inline-block w-3 h-3 rounded-full bg-status-valid" />
           <span>Platná událost</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <span className="inline-block w-3 h-3 rounded-full bg-status-warning" />
           <span>Vyprší do 30 dnů</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500"></div>
+          <span className="inline-block w-3 h-3 rounded-full bg-status-expired" />
           <span>Prošlá událost</span>
         </div>
       </div>

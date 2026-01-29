@@ -477,6 +477,45 @@ export type Database = {
           },
         ]
       }
+      equipment_responsibles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          equipment_id: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          equipment_id: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          equipment_id?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_responsibles_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_responsibles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       facilities: {
         Row: {
           code: string

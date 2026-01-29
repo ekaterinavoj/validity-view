@@ -11,6 +11,7 @@ interface DeadlineItem {
   next_check_date: string;
   equipment_name: string;
   equipment_inventory_number: string;
+  equipment_id: string;
   deadline_type_name: string;
   facility: string;
   days_until: number;
@@ -311,9 +312,57 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
+  // Fetch equipment_responsibles junction table for responsible persons
+  const equipmentIds = (deadlines || []).map(d => (d.equipment as any)?.id).filter(Boolean);
+  
+  let responsiblesMap = new Map<string, string[]>(); // equipment_id -> profile_id[]
+  
+  if (equipmentIds.length > 0) {
+    const { data: responsibles } = await supabase
+      .from("equipment_responsibles")
+      .select("equipment_id, profile_id")
+      .in("equipment_id", equipmentIds);
+    
+    if (responsibles) {
+      for (const r of responsibles) {
+        const existing = responsiblesMap.get(r.equipment_id) || [];
+        existing.push(r.profile_id);
+        responsiblesMap.set(r.equipment_id, existing);
+      }
+    }
+  }
+
+  // Fetch all profile emails for quick lookup
+  const allProfileIds = new Set<string>();
+  for (const ids of responsiblesMap.values()) {
+    ids.forEach(id => allProfileIds.add(id));
+  }
+  // Also add template target_user_ids
+  for (const template of templatesMap.values()) {
+    if (template.target_user_ids) {
+      template.target_user_ids.forEach(id => allProfileIds.add(id));
+    }
+  }
+  
+  const profileEmailMap = new Map<string, string>();
+  
+  if (allProfileIds.size > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, email")
+      .in("id", Array.from(allProfileIds));
+    
+    if (profiles) {
+      for (const p of profiles) {
+        profileEmailMap.set(p.id, p.email);
+      }
+    }
+  }
+
   // Group deadlines by template for batch sending
-  // Key: template_id, Value: array of deadline items
   const deadlinesByTemplate = new Map<string, DeadlineItem[]>();
+  // Track recipients per template (combine responsible persons + template targets)
+  const recipientsByTemplate = new Map<string, Set<string>>();
   
   for (const d of deadlines || []) {
     const equipment = d.equipment as any;
@@ -335,6 +384,7 @@ const handler = async (req: Request): Promise<Response> => {
         next_check_date: d.next_check_date,
         equipment_name: equipment.name,
         equipment_inventory_number: equipment.inventory_number,
+        equipment_id: equipment.id,
         deadline_type_name: deadlineType?.name || "Neznámý typ",
         facility: d.facility,
         days_until: daysUntil,
@@ -346,6 +396,20 @@ const handler = async (req: Request): Promise<Response> => {
       const existingItems = deadlinesByTemplate.get(template.id) || [];
       existingItems.push(item);
       deadlinesByTemplate.set(template.id, existingItems);
+      
+      // Collect recipients for this template
+      const recipientSet = recipientsByTemplate.get(template.id) || new Set<string>();
+      
+      // 1. Add responsible persons from equipment_responsibles junction table
+      const equipmentResponsibles = responsiblesMap.get(equipment.id) || [];
+      for (const profileId of equipmentResponsibles) {
+        const email = profileEmailMap.get(profileId);
+        if (email) {
+          recipientSet.add(email);
+        }
+      }
+      
+      recipientsByTemplate.set(template.id, recipientSet);
     }
   }
 
@@ -365,47 +429,26 @@ const handler = async (req: Request): Promise<Response> => {
   for (const [templateId, deadlineItems] of deadlinesByTemplate) {
     const template = templatesMap.get(templateId) || defaultTemplate;
     
-    // Determine recipients:
-    // 1. Template's target_user_ids (admin-configured recipients)
-    // 2. TODO: In future, also include responsible_person emails from equipment
-    //    Currently responsible_person is just a text field, not linked to profiles
-    //    To implement: create a mapping or use email directly if it's an email format
+    // Get recipients: responsible persons first, then fallback to template targets
+    let recipientSet = recipientsByTemplate.get(templateId) || new Set<string>();
     
-    let recipientIds = template.target_user_ids || [];
-    
-    // Collect unique responsible persons from deadlines (as potential future recipients)
-    const responsiblePersons = new Set<string>();
-    for (const item of deadlineItems) {
-      if (item.responsible_person) {
-        responsiblePersons.add(item.responsible_person);
+    // Fallback to template.target_user_ids if no responsible persons found
+    if (recipientSet.size === 0 && template.target_user_ids && template.target_user_ids.length > 0) {
+      console.log(`Template ${template.name}: No responsible persons, using template target_user_ids as fallback`);
+      for (const profileId of template.target_user_ids) {
+        const email = profileEmailMap.get(profileId);
+        if (email) {
+          recipientSet.add(email);
+        }
       }
     }
     
-    // Log note about responsible persons for debugging
-    if (responsiblePersons.size > 0) {
-      console.log(`Template ${template.name}: Found ${responsiblePersons.size} responsible persons:`, 
-        Array.from(responsiblePersons).join(", "));
-      // TODO: If responsible_person contains emails, add them to recipientIds
-      // For now, we only use template.target_user_ids
-    }
+    const recipientEmails = Array.from(recipientSet);
     
-    if (recipientIds.length === 0) {
+    if (recipientEmails.length === 0) {
       console.log(`Template ${template.name}: No recipients configured, skipping`);
       continue;
     }
-
-    // Fetch recipient profiles
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, email, first_name, last_name")
-      .in("id", recipientIds);
-
-    if (!profiles || profiles.length === 0) {
-      console.log(`Template ${template.name}: No valid recipient profiles found`);
-      continue;
-    }
-
-    const recipientEmails = profiles.map(p => p.email);
     
     // Prepare email content
     const expiredCount = deadlineItems.filter(d => d.days_until < 0).length;
@@ -437,9 +480,9 @@ const handler = async (req: Request): Promise<Response> => {
         is_test: testMode,
         week_start: weekStart,
         delivery_mode: "bcc",
-        // Store first deadline_id for reference (could extend schema for multiple)
+        // Store first deadline_id for reference
         deadline_id: deadlineItems[0]?.id || null,
-        equipment_id: null, // Could be extended to store all equipment IDs
+        equipment_id: deadlineItems[0]?.equipment_id || null,
         days_before: deadlineItems[0]?.days_until || null,
       });
 
@@ -460,6 +503,7 @@ const handler = async (req: Request): Promise<Response> => {
       templateId: template.id,
       deadlinesCount: deadlineItems.length,
       recipientCount: recipientEmails.length,
+      recipientSource: recipientSet.size > 0 ? "responsible_persons" : "template_fallback",
       success: result.success,
       error: result.error,
     });
