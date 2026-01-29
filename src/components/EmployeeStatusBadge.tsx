@@ -1,0 +1,61 @@
+import { cn } from "@/lib/utils";
+
+export type EmployeeStatus = "employed" | "parental_leave" | "sick_leave" | "terminated";
+
+interface EmployeeStatusBadgeProps {
+  status: EmployeeStatus;
+  className?: string;
+}
+
+const statusConfig: Record<EmployeeStatus, { label: string; className: string }> = {
+  employed: {
+    label: "Aktivní",
+    className: "bg-status-valid text-status-valid-foreground",
+  },
+  parental_leave: {
+    label: "Mateřská/rodičovská",
+    className: "bg-status-warning text-status-warning-foreground",
+  },
+  sick_leave: {
+    label: "Nemocenská",
+    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  },
+  terminated: {
+    label: "Ukončený",
+    className: "bg-muted text-muted-foreground",
+  },
+};
+
+export const EmployeeStatusBadge = ({ status, className }: EmployeeStatusBadgeProps) => {
+  const config = statusConfig[status];
+  
+  return (
+    <div className={cn("inline-flex items-center gap-2", className)}>
+      <span
+        className={cn(
+          "inline-block w-2.5 h-2.5 rounded-full",
+          config.className
+        )}
+      />
+      <span className="text-sm font-medium">{config.label}</span>
+    </div>
+  );
+};
+
+export const EmployeeStatusLegend = () => {
+  return (
+    <div className="flex flex-wrap gap-4 text-sm">
+      {(Object.keys(statusConfig) as EmployeeStatus[]).map((status) => (
+        <div key={status} className="flex items-center gap-1.5">
+          <span
+            className={cn(
+              "inline-block w-2.5 h-2.5 rounded-full",
+              statusConfig[status].className
+            )}
+          />
+          <span className="text-muted-foreground">{statusConfig[status].label}</span>
+        </div>
+      ))}
+    </div>
+  );
+};

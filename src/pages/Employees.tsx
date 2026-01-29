@@ -26,13 +26,12 @@ import { useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
-import { Badge } from "@/components/ui/badge";
-import * as XLSX from 'xlsx';
 import { useEmployees, EmployeeWithDepartment } from "@/hooks/useEmployees";
 import { useDepartments } from "@/hooks/useDepartments";
 import { supabase } from "@/integrations/supabase/client";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { EmployeeStatusBadge, EmployeeStatusLegend, EmployeeStatus } from "@/components/EmployeeStatusBadge";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),
@@ -48,11 +47,15 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const statusLabels = {
-  employed: "Aktivní",
-  parental_leave: "Mateřská/rodičovská",
-  sick_leave: "Nemocenská",
-  terminated: "Ukončený",
+// Helper for CSV export
+const getStatusLabel = (status: string): string => {
+  const labels: Record<string, string> = {
+    employed: "Aktivní",
+    parental_leave: "Mateřská/rodičovská",
+    sick_leave: "Nemocenská",
+    terminated: "Ukončený",
+  };
+  return labels[status] || status;
 };
 
 export default function Employees() {
@@ -121,7 +124,7 @@ export default function Employees() {
         employee.email,
         employee.position,
         employee.department,
-        statusLabels[employee.status],
+        getStatusLabel(employee.status),
       ]);
 
       const escapeCSV = (value: string) => {
@@ -567,6 +570,14 @@ export default function Employees() {
         )}
       </Card>
 
+      {/* Status Legend */}
+      <div className="flex items-center justify-between">
+        <EmployeeStatusLegend />
+        <p className="text-sm text-muted-foreground">
+          Celkem: {filteredEmployees.length} zaměstnanců
+        </p>
+      </div>
+
       <Card>
         <Table>
           <TableHeader>
@@ -597,7 +608,7 @@ export default function Employees() {
                 <TableCell className="text-sm">{employee.position}</TableCell>
                 <TableCell className="text-sm">{employee.department}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{statusLabels[employee.status]}</Badge>
+                  <EmployeeStatusBadge status={employee.status as EmployeeStatus} />
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{employee.notes || "-"}</TableCell>
                 <TableCell>
