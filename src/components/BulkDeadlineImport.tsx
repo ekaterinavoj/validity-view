@@ -130,7 +130,7 @@ export const BulkDeadlineImport = () => {
   const canImport = isAdmin || isManager;
 
   // ============ EQUIPMENT IMPORT FUNCTIONS ============
-  const downloadEquipmentTemplate = () => {
+  const downloadEquipmentTemplateXLSX = () => {
     const template = [
       {
         inventory_number: "INV-001",
@@ -168,6 +168,37 @@ export const BulkDeadlineImport = () => {
     toast({
       title: "Šablona stažena",
       description: "Excel šablona pro import zařízení byla stažena.",
+    });
+  };
+
+  const downloadEquipmentTemplateCSV = () => {
+    const template = [
+      {
+        inventory_number: "INV-001",
+        name: "Vysokozdvižný vozík",
+        equipment_type: "VZV",
+        facility_code: "qlar-jenec-dc3",
+        manufacturer: "Toyota",
+        model: "8FG25",
+        serial_number: "SN123456",
+        location: "Hala A",
+        responsible_person: "Jan Novák",
+        status: "active",
+        notes: "Poznámka k zařízení"
+      }
+    ];
+
+    const csv = Papa.unparse(template, { delimiter: ";" });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "sablona_import_zarizeni.csv";
+    link.click();
+
+    toast({
+      title: "Šablona stažena",
+      description: "CSV šablona pro import zařízení byla stažena (delimiter: středník, kódování: UTF-8 BOM).",
     });
   };
 
@@ -381,7 +412,7 @@ export const BulkDeadlineImport = () => {
   };
 
   // ============ DEADLINE IMPORT FUNCTIONS ============
-  const downloadDeadlineTemplate = () => {
+  const downloadDeadlineTemplateXLSX = () => {
     const template = [
       {
         inventory_number: "INV-001",
@@ -411,6 +442,33 @@ export const BulkDeadlineImport = () => {
     toast({
       title: "Šablona stažena",
       description: "Excel šablona pro import lhůt byla stažena.",
+    });
+  };
+
+  const downloadDeadlineTemplateCSV = () => {
+    const template = [
+      {
+        inventory_number: "INV-001",
+        deadline_type_name: "Revize VZV",
+        facility_code: "qlar-jenec-dc3",
+        last_check_date: "2024-01-15",
+        performer: "BOZP Servis s.r.o.",
+        company: "Revizní firma",
+        note: "Poznámka k lhůtě"
+      }
+    ];
+
+    const csv = Papa.unparse(template, { delimiter: ";" });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "sablona_import_lhut.csv";
+    link.click();
+
+    toast({
+      title: "Šablona stažena",
+      description: "CSV šablona pro import lhůt byla stažena (delimiter: středník, kódování: UTF-8 BOM).",
     });
   };
 
@@ -709,79 +767,145 @@ export const BulkDeadlineImport = () => {
           </TabsList>
 
           <TabsContent value="equipment" className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={downloadEquipmentTemplate}>
-                <Download className="w-4 h-4 mr-2" />
-                Stáhnout šablonu XLSX
-              </Button>
-            </div>
-
-            <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleEquipmentFileSelect}
-                className="hidden"
-                id="equipment-file-upload"
-                disabled={parsingEquipment}
-              />
-              <label htmlFor="equipment-file-upload" className="cursor-pointer">
-                <div className="flex flex-col items-center gap-2">
-                  {parsingEquipment ? (
-                    <Loader2 className="w-12 h-12 text-muted-foreground animate-spin" />
-                  ) : (
-                    <Upload className="w-12 h-12 text-muted-foreground" />
-                  )}
-                  <p className="text-lg font-medium">
-                    {parsingEquipment ? "Zpracovávám soubor..." : "Nahrát soubor se zařízeními"}
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-semibold">Povinné sloupce:</p>
+                  <ul className="text-sm list-disc list-inside space-y-1 ml-4">
+                    <li><strong>inventory_number</strong> – unikátní inventární číslo zařízení</li>
+                    <li><strong>name</strong> – název zařízení</li>
+                    <li><strong>equipment_type</strong> – typ zařízení (např. VZV, Zakladač)</li>
+                    <li><strong>facility_code</strong> – kód provozovny (musí existovat v systému)</li>
+                  </ul>
+                  <p className="font-semibold mt-3">Nepovinné sloupce:</p>
+                  <ul className="text-sm list-disc list-inside space-y-1 ml-4">
+                    <li><strong>manufacturer</strong> – výrobce</li>
+                    <li><strong>model</strong> – model</li>
+                    <li><strong>serial_number</strong> – sériové číslo</li>
+                    <li><strong>location</strong> – umístění</li>
+                    <li><strong>responsible_person</strong> – odpovědná osoba</li>
+                    <li><strong>status</strong> – stav (active/inactive/decommissioned), výchozí: active</li>
+                    <li><strong>notes</strong> – poznámky</li>
+                  </ul>
+                  <p className="text-sm mt-3">
+                    <strong>Duplicita:</strong> Zařízení se stejným inventárním číslem = aktualizuje se existující záznam.
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    CSV nebo Excel soubor (XLSX, XLS)
+                  <p className="text-sm mt-2 text-muted-foreground">
+                    <strong>CSV formát:</strong> Delimiter: středník (;), kódování: UTF-8 s BOM
                   </p>
                 </div>
-              </label>
+              </AlertDescription>
+            </Alert>
+
+            <div className="flex flex-wrap gap-4">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={downloadEquipmentTemplateXLSX}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Šablona XLSX
+                </Button>
+                <Button variant="outline" size="sm" onClick={downloadEquipmentTemplateCSV}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Šablona CSV
+                </Button>
+              </div>
+
+              <div className="flex-1">
+                <label htmlFor="equipment-file-upload" className="cursor-pointer">
+                  <Button asChild disabled={parsingEquipment}>
+                    <span>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      {parsingEquipment ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Zpracovávám...
+                        </>
+                      ) : (
+                        "Vybrat soubor pro import"
+                      )}
+                    </span>
+                  </Button>
+                </label>
+                <input
+                  id="equipment-file-upload"
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleEquipmentFileSelect}
+                  className="hidden"
+                  disabled={parsingEquipment}
+                />
+              </div>
             </div>
           </TabsContent>
 
           <TabsContent value="deadlines" className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={downloadDeadlineTemplate}>
-                <Download className="w-4 h-4 mr-2" />
-                Stáhnout šablonu XLSX
-              </Button>
-            </div>
-
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Před importem lhůt se ujistěte, že zařízení a typy lhůt již existují v systému.
+                <div className="space-y-2">
+                  <p className="font-semibold">Povinné sloupce:</p>
+                  <ul className="text-sm list-disc list-inside space-y-1 ml-4">
+                    <li><strong>inventory_number</strong> – inventární číslo zařízení (musí existovat v systému)</li>
+                    <li><strong>deadline_type_name</strong> – název typu lhůty (musí existovat v systému)</li>
+                    <li><strong>facility_code</strong> – kód provozovny (musí existovat v systému)</li>
+                    <li><strong>last_check_date</strong> – datum poslední kontroly ve formátu YYYY-MM-DD</li>
+                  </ul>
+                  <p className="font-semibold mt-3">Nepovinné sloupce:</p>
+                  <ul className="text-sm list-disc list-inside space-y-1 ml-4">
+                    <li><strong>performer</strong> – provádějící osoba/technik</li>
+                    <li><strong>company</strong> – servisní/revizní firma</li>
+                    <li><strong>note</strong> – poznámka</li>
+                  </ul>
+                  <p className="text-sm mt-3">
+                    <strong>Důležité:</strong> Před importem lhůt se ujistěte, že zařízení a typy lhůt již existují v systému.
+                  </p>
+                  <p className="text-sm mt-2">
+                    <strong>Duplicita:</strong> Stejné zařízení + typ lhůty = aktualizuje se existující záznam (overwrite).
+                  </p>
+                  <p className="text-sm mt-2 text-muted-foreground">
+                    <strong>CSV formát:</strong> Delimiter: středník (;), kódování: UTF-8 s BOM
+                  </p>
+                </div>
               </AlertDescription>
             </Alert>
 
-            <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleDeadlineFileSelect}
-                className="hidden"
-                id="deadline-file-upload"
-                disabled={parsingDeadline}
-              />
-              <label htmlFor="deadline-file-upload" className="cursor-pointer">
-                <div className="flex flex-col items-center gap-2">
-                  {parsingDeadline ? (
-                    <Loader2 className="w-12 h-12 text-muted-foreground animate-spin" />
-                  ) : (
-                    <Upload className="w-12 h-12 text-muted-foreground" />
-                  )}
-                  <p className="text-lg font-medium">
-                    {parsingDeadline ? "Zpracovávám soubor..." : "Nahrát soubor s lhůtami"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    CSV nebo Excel soubor (XLSX, XLS)
-                  </p>
-                </div>
-              </label>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={downloadDeadlineTemplateXLSX}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Šablona XLSX
+                </Button>
+                <Button variant="outline" size="sm" onClick={downloadDeadlineTemplateCSV}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Šablona CSV
+                </Button>
+              </div>
+
+              <div className="flex-1">
+                <label htmlFor="deadline-file-upload" className="cursor-pointer">
+                  <Button asChild disabled={parsingDeadline}>
+                    <span>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      {parsingDeadline ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Zpracovávám...
+                        </>
+                      ) : (
+                        "Vybrat soubor pro import"
+                      )}
+                    </span>
+                  </Button>
+                </label>
+                <input
+                  id="deadline-file-upload"
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleDeadlineFileSelect}
+                  className="hidden"
+                  disabled={parsingDeadline}
+                />
+              </div>
             </div>
           </TabsContent>
         </Tabs>

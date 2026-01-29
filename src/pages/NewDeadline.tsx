@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,13 +42,22 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadDeadlineDocument } from "@/lib/deadlineDocuments";
+import { 
+  PeriodicityInput, 
+  PeriodicityUnit, 
+  daysToPeriodicityUnit, 
+  periodicityToDays, 
+  calculateNextDate, 
+  formatPeriodicityDisplay 
+} from "@/components/PeriodicityInput";
 
 const formSchema = z.object({
   deadline_type_id: z.string().min(1, "Vyberte typ události"),
   equipment_id: z.string().min(1, "Vyberte zařízení"),
   facility: z.string().min(1, "Vyberte provozovnu"),
   last_check_date: z.date({ required_error: "Vyberte datum poslední kontroly" }),
-  period_days: z.number().min(1, "Zadejte periodu"),
+  period_value: z.number().min(1, "Zadejte periodicitu"),
+  period_unit: z.enum(["days", "months", "years"]),
   performer: z.string().optional(),
   company: z.string().optional(),
   note: z.string().optional(),
@@ -77,6 +86,8 @@ export default function NewDeadline() {
     defaultValues: {
       remind_days_before: 30,
       repeat_days_after: 30,
+      period_value: 1,
+      period_unit: "years",
     },
   });
 
@@ -99,30 +110,33 @@ export default function NewDeadline() {
   const selectedTypeId = form.watch("deadline_type_id");
   const selectedType = deadlineTypes.find(t => t.id === selectedTypeId);
   const lastCheckDate = form.watch("last_check_date");
-  const periodDays = form.watch("period_days");
+  const periodValue = form.watch("period_value");
+  const periodUnit = form.watch("period_unit");
 
   // Auto-fill period and facility from type
   useEffect(() => {
     if (selectedType) {
-      form.setValue("period_days", selectedType.period_days);
+      const { value, unit } = daysToPeriodicityUnit(selectedType.period_days);
+      form.setValue("period_value", value);
+      form.setValue("period_unit", unit);
       form.setValue("facility", selectedType.facility);
     }
   }, [selectedType, form]);
 
-  const nextCheckDate = lastCheckDate && periodDays
-    ? addDays(lastCheckDate, periodDays)
+  const nextCheckDate = lastCheckDate && periodValue
+    ? calculateNextDate(lastCheckDate, periodValue, periodUnit as PeriodicityUnit)
     : null;
 
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
     try {
-      const next_check_date = addDays(data.last_check_date, data.period_days);
+      const next_check_date = calculateNextDate(data.last_check_date, data.period_value, data.period_unit as PeriodicityUnit);
       const today = new Date();
       
       let status: "valid" | "warning" | "expired" = "valid";
       if (next_check_date < today) {
         status = "expired";
-      } else if (next_check_date <= addDays(today, 30)) {
+      } else if (next_check_date <= new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)) {
         status = "warning";
       }
 
@@ -328,22 +342,13 @@ export default function NewDeadline() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="period_days"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Perioda (dní) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        onChange={e => field.onChange(parseInt(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              <PeriodicityInput
+                value={form.watch("period_value")}
+                unit={form.watch("period_unit") as PeriodicityUnit}
+                onValueChange={(val) => form.setValue("period_value", val)}
+                onUnitChange={(unit) => form.setValue("period_unit", unit)}
+                label="Periodicita"
+                required
               />
 
               {nextCheckDate && (

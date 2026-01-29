@@ -87,15 +87,18 @@ export const Layout = ({ children }: LayoutProps) => {
     return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-500/20 text-green-700 dark:text-green-300">Uživatel</span>;
   };
 
-  // Training mode "Ostatní" dropdown active state
-  const isTrainingOstatniActive = ["/employees", "/training-types", "/departments", "/facilities", "/inactive"].some(
+  // Training mode "Ostatní" dropdown active state (facilities removed - now global)
+  const isTrainingOstatniActive = ["/employees", "/training-types", "/departments", "/inactive"].some(
     path => location.pathname === path
   );
 
-  // Deadline mode "Ostatní" dropdown active state
+  // Deadline mode "Ostatní" dropdown active state (facilities removed - now global)
   const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types"].some(
     path => location.pathname === path
   );
+  
+  // System/Data dropdown active state (includes facilities)
+  const isSystemDataActive = location.pathname === "/facilities";
 
   
 
@@ -242,12 +245,6 @@ export const Layout = ({ children }: LayoutProps) => {
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
-                          <Building2 className="w-4 h-4" />
-                          Provozovny
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
                         <Link to="/inactive" className="flex items-center gap-2 cursor-pointer">
                           <UserX className="w-4 h-4" />
                           Pozastavená
@@ -309,12 +306,6 @@ export const Layout = ({ children }: LayoutProps) => {
                           Typy událostí
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
-                          <Building2 className="w-4 h-4" />
-                          Provozovny
-                        </Link>
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </>
@@ -341,7 +332,7 @@ export const Layout = ({ children }: LayoutProps) => {
                     <button
                       className={cn(
                         "flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors",
-                        (location.pathname === "/audit-log" || location.pathname.startsWith("/admin")) && "text-foreground bg-card border-b-2 border-primary"
+                        (location.pathname === "/audit-log" || location.pathname.startsWith("/admin") || location.pathname === "/facilities") && "text-foreground bg-card border-b-2 border-primary"
                       )}
                     >
                       <Settings className="w-4 h-4" />
@@ -350,6 +341,12 @@ export const Layout = ({ children }: LayoutProps) => {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+                    <DropdownMenuItem asChild>
+                      <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
+                        <Building2 className="w-4 h-4" />
+                        Provozovny (číselník)
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/audit-log" className="flex items-center gap-2 cursor-pointer">
                         <FileText className="w-4 h-4" />

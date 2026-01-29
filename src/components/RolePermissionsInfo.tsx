@@ -11,17 +11,25 @@ interface PermissionItem {
 }
 
 const PERMISSIONS: PermissionItem[] = [
+  // Školení
   { label: "Zobrazit a spravovat záznamy školení", user: true, manager: true, admin: true },
-  { label: "Spravovat zaměstnance", user: false, manager: true, admin: true },
-  { label: "Spravovat oddělení", user: false, manager: true, admin: true },
-  { label: "Spravovat typy školení", user: false, manager: true, admin: true },
+  { label: "Spravovat zaměstnance a školené osoby", user: false, manager: true, admin: true },
+  { label: "Spravovat typy školení a oddělení", user: false, manager: true, admin: true },
   { label: "Mazat záznamy školení", user: false, manager: true, admin: true },
+  // Technické lhůty
+  { label: "Zobrazit a spravovat technické lhůty", user: true, manager: true, admin: true },
+  { label: "Spravovat zařízení a typy lhůt", user: false, manager: true, admin: true },
+  { label: "Mazat záznamy technických lhůt", user: false, manager: true, admin: true },
+  // Sdílené
+  { label: "Spravovat provozovny (číselník)", user: false, manager: true, admin: true },
+  { label: "Import/export dat (školení i technické)", user: false, manager: true, admin: true },
   { label: "Zobrazit audit log", user: false, manager: true, admin: true },
+  // Admin only
   { label: "Administrace - nastavení systému", user: false, manager: false, admin: true },
   { label: "Stav systému a logy připomínek", user: false, manager: false, admin: true },
   { label: "Export logů připomínek", user: false, manager: false, admin: true },
   { label: "Nastavení email providera", user: false, manager: false, admin: true },
-  { label: "Konfigurace příjemců připomínek", user: false, manager: false, admin: true },
+  { label: "Konfigurace příjemců připomínek (Školení i Technické)", user: false, manager: false, admin: true },
   { label: "Správa uživatelských rolí", user: false, manager: false, admin: true },
   { label: "Konfigurace frekvence připomínek", user: false, manager: false, admin: true },
   { label: "Spouštět testovací emaily", user: false, manager: false, admin: true },
@@ -55,7 +63,7 @@ export function RolePermissionsInfo() {
                 <span className="font-medium">Uživatel</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Může zobrazovat a spravovat záznamy školení dle oprávnění aplikace. 
+                Může zobrazovat a spravovat záznamy školení i technických lhůt. 
                 Nemá přístup k nastavení systému, logům ani exportům.
               </p>
             </div>
@@ -65,9 +73,8 @@ export function RolePermissionsInfo() {
                 <span className="font-medium">Manažer</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Může spravovat zaměstnance, oddělení a typy školení. 
+                Může spravovat zaměstnance, oddělení, typy školení, zařízení a typy lhůt. 
                 Nemá přístup k administraci, logům připomínek ani nastavení emailů.
-                Manažeři nejsou automaticky příjemci připomínek.
               </p>
             </div>
             <div className="p-3 rounded-lg border bg-red-500/5 border-red-500/20">
@@ -77,7 +84,7 @@ export function RolePermissionsInfo() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Plná oprávnění: vše co manažer + správa uživatelských rolí, 
-                konfigurace připomínek a emailů, přístup k logům a systémovému stavu.
+                konfigurace připomínek (Školení + Technické lhůty), emailů a přístup k logům.
               </p>
             </div>
           </div>

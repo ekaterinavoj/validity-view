@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -25,13 +25,21 @@ import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { useFacilities } from "@/hooks/useFacilities";
 import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { 
+  PeriodicityInput, 
+  PeriodicityUnit, 
+  daysToPeriodicityUnit, 
+  periodicityToDays, 
+  calculateNextDate 
+} from "@/components/PeriodicityInput";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
   employeeId: z.string().min(1, "Vyberte školenu osobu"),
   trainingTypeId: z.string().min(1, "Vyberte typ školení"),
   lastTrainingDate: z.date({ required_error: "Zadejte datum posledního školení" }),
-  periodDays: z.string().min(1, "Zadejte periodicitu"),
+  periodValue: z.number().min(1, "Zadejte periodicitu"),
+  periodUnit: z.enum(["days", "months", "years"]),
   trainer: z.string().optional(),
   company: z.string().optional(),
   reminderTemplateId: z.string().min(1, "Vyberte šablonu připomenutí"),
@@ -47,7 +55,7 @@ export default function NewTraining() {
   const navigate = useNavigate();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [periodUnit, setPeriodUnit] = useState<"years" | "months" | "days">("years");
+  const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const { toast } = useToast();
 
@@ -63,7 +71,8 @@ export default function NewTraining() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      periodDays: "365",
+      periodValue: 1,
+      periodUnit: "years",
       remindDaysBefore: "30",
       repeatDaysAfter: "30",
     },
@@ -91,21 +100,24 @@ export default function NewTraining() {
     if (selectedTrainingTypeId) {
       const selectedType = trainingTypes.find(t => t.id === selectedTrainingTypeId);
       if (selectedType) {
-        form.setValue("periodDays", selectedType.periodDays.toString());
+        const { value, unit } = daysToPeriodicityUnit(selectedType.periodDays);
+        form.setValue("periodValue", value);
+        form.setValue("periodUnit", unit);
+        setPeriodUnit(unit);
         form.setValue("facility", selectedType.facility);
       }
     }
   }, [selectedTrainingTypeId, trainingTypes, form]);
 
   const lastTrainingDate = form.watch("lastTrainingDate");
-  const periodDays = form.watch("periodDays");
+  const periodValue = form.watch("periodValue");
+  const watchedPeriodUnit = form.watch("periodUnit");
   
   const expirationDate = useMemo(() => {
-    if (!lastTrainingDate || !periodDays) return null;
-    const days = parseInt(periodDays) || 0;
-    if (days <= 0) return null;
-    return addDays(lastTrainingDate, days);
-  }, [lastTrainingDate, periodDays]);
+    if (!lastTrainingDate || !periodValue) return null;
+    if (periodValue <= 0) return null;
+    return calculateNextDate(lastTrainingDate, periodValue, watchedPeriodUnit as PeriodicityUnit);
+  }, [lastTrainingDate, periodValue, watchedPeriodUnit]);
 
   const onSubmit = async (data: FormValues) => {
     if (!user) {
@@ -326,18 +338,16 @@ export default function NewTraining() {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="periodDays"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Periodicita (dní) *</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <PeriodicityInput
+              value={form.watch("periodValue")}
+              unit={form.watch("periodUnit") as PeriodicityUnit}
+              onValueChange={(val) => form.setValue("periodValue", val)}
+              onUnitChange={(unit) => {
+                form.setValue("periodUnit", unit);
+                setPeriodUnit(unit);
+              }}
+              label="Periodicita"
+              required
             />
 
             {expirationDate && (
