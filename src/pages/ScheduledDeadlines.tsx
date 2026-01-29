@@ -28,21 +28,18 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useDeadlines } from "@/hooks/useDeadlines";
 import { useFacilities } from "@/hooks/useFacilities";
-import { useEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeadlineProtocolCell } from "@/components/DeadlineProtocolCell";
 import { StatusBadge } from "@/components/StatusBadge";
-import { EquipmentResponsiblesManager } from "@/components/EquipmentResponsiblesManager";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 
 export default function ScheduledDeadlines() {
   const { deadlines, isLoading, error, refetch, archiveDeadline, isArchiving } = useDeadlines();
   const { facilities } = useFacilities();
-  const { allResponsibles } = useEquipmentResponsibles();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Create filter options
@@ -67,20 +64,6 @@ export default function ScheduledDeadlines() {
     return Array.from(performers);
   }, [deadlines]);
 
-  // Unique list of responsible persons for filter
-  const responsiblesList = useMemo(() => {
-    const uniqueProfiles = new Map<string, { id: string; name: string }>();
-    allResponsibles.forEach(r => {
-      if (r.profile && !uniqueProfiles.has(r.profile.id)) {
-        uniqueProfiles.set(r.profile.id, {
-          id: r.profile.id,
-          name: `${r.profile.first_name} ${r.profile.last_name}`,
-        });
-      }
-    });
-    return Array.from(uniqueProfiles.values());
-  }, [allResponsibles]);
-
   const { 
     filters, 
     updateFilter, 
@@ -101,14 +84,6 @@ export default function ScheduledDeadlines() {
       if (filters.typeFilter !== "all" && d.deadline_type?.name !== filters.typeFilter) return false;
       if (filters.trainerFilter !== "all" && d.performer !== filters.trainerFilter) return false;
       if (filters.statusFilter !== "all" && d.status !== filters.statusFilter) return false;
-      
-      // Filter by responsible person
-      if (filters.responsibleFilter !== "all") {
-        const equipmentResponsibles = allResponsibles.filter(r => r.equipment_id === d.equipment_id);
-        const hasResponsible = equipmentResponsibles.some(r => r.profile_id === filters.responsibleFilter);
-        if (!hasResponsible) return false;
-      }
-      
       if (filters.searchQuery) {
         const query = filters.searchQuery.toLowerCase();
         const matchesEquipment = d.equipment?.name.toLowerCase().includes(query) ||
@@ -121,7 +96,7 @@ export default function ScheduledDeadlines() {
       
       return true;
     });
-  }, [deadlines, filters, allResponsibles]);
+  }, [deadlines, filters]);
 
   const handleSelectAll = (checked: boolean) => {
     setSelectedIds(checked ? filteredDeadlines.map(d => d.id) : []);
@@ -202,7 +177,6 @@ export default function ScheduledDeadlines() {
         facilities={facilityList}
         trainingTypes={deadlineTypeList}
         trainers={performerList}
-        responsibles={responsiblesList}
         resultCount={filteredDeadlines.length}
         totalCount={deadlines.length}
       />
@@ -225,7 +199,6 @@ export default function ScheduledDeadlines() {
                 <TableHead>Provozovna</TableHead>
                 <TableHead>Poslední</TableHead>
                 <TableHead>Příští</TableHead>
-                <TableHead>Odpovědné osoby</TableHead>
                 <TableHead>Provádějící</TableHead>
                 <TableHead>Protokol</TableHead>
                 <TableHead className="w-12"></TableHead>
@@ -234,7 +207,7 @@ export default function ScheduledDeadlines() {
             <TableBody>
               {filteredDeadlines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
@@ -269,13 +242,6 @@ export default function ScheduledDeadlines() {
                     </TableCell>
                     <TableCell className="font-medium">
                       {format(new Date(deadline.next_check_date), "dd.MM.yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <EquipmentResponsiblesManager 
-                        equipmentId={deadline.equipment_id} 
-                        equipmentName={deadline.equipment?.name}
-                        compact 
-                      />
                     </TableCell>
                     <TableCell>{deadline.performer || "-"}</TableCell>
                     <TableCell>

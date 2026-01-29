@@ -42,7 +42,6 @@ interface AdvancedFiltersProps {
   facilities: string[];
   trainingTypes: string[];
   trainers: string[];
-  responsibles?: { id: string; name: string }[];
   resultCount?: number;
   totalCount?: number;
 }
@@ -60,7 +59,6 @@ export function AdvancedFilters({
   facilities,
   trainingTypes,
   trainers,
-  responsibles = [],
   resultCount,
   totalCount,
 }: AdvancedFiltersProps) {
@@ -206,26 +204,6 @@ export function AdvancedFilters({
               ))}
             </SelectContent>
           </Select>
-
-          {/* Responsible Person Filter (for deadlines) */}
-          {responsibles.length > 0 && (
-            <Select
-              value={filters.responsibleFilter}
-              onValueChange={(value) => onFilterChange("responsibleFilter", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Odpovědná osoba" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Všechny odpovědné osoby</SelectItem>
-                {responsibles.map((person) => (
-                  <SelectItem key={person.id} value={person.id}>
-                    {person.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
         </div>
 
         {/* Date Range */}
