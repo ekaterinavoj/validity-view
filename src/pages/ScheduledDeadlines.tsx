@@ -36,6 +36,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeadlineProtocolCell } from "@/components/DeadlineProtocolCell";
 import { EquipmentResponsiblesBadges } from "@/components/EquipmentResponsiblesBadges";
 import { StatusBadge } from "@/components/StatusBadge";
+import { StatusLegend } from "@/components/StatusLegend";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 
@@ -150,12 +151,7 @@ export default function ScheduledDeadlines() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Naplánované události</h1>
-          <p className="text-muted-foreground">
-            Celkem {filteredDeadlines.length} aktivních událostí
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold text-foreground">Naplánované události</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -194,6 +190,14 @@ export default function ScheduledDeadlines() {
         resultCount={filteredDeadlines.length}
         totalCount={deadlines.length}
       />
+
+      {/* Legend + Count - above the table */}
+      <div className="flex items-center justify-between">
+        <StatusLegend variant="deadline" />
+        <p className="text-sm text-muted-foreground">
+          Celkem: {filteredDeadlines.length} událostí
+        </p>
+      </div>
 
       <Card>
         <CardContent className="p-0">
@@ -296,22 +300,6 @@ export default function ScheduledDeadlines() {
           </Table>
         </CardContent>
       </Card>
-
-      {/* Legend */}
-      <div className="flex items-center gap-6 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-status-valid" />
-          <span>Platná událost</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-status-warning" />
-          <span>Vyprší do 30 dnů</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-status-expired" />
-          <span>Prošlá událost</span>
-        </div>
-      </div>
     </div>
   );
 }
