@@ -20,17 +20,34 @@ interface DeadlineProtocolCellProps {
 
 export function DeadlineProtocolCell({ deadlineId }: DeadlineProtocolCellProps) {
   const { toast } = useToast();
-  const [documents, setDocuments] = useState<DeadlineDocument[]>([]);
+  const [latestDocument, setLatestDocument] = useState<DeadlineDocument | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadDocuments = async () => {
       setLoading(true);
       const { data, error } = await getDeadlineDocuments(deadlineId);
-      if (!error && data) {
-        // Filter only protocol documents
-        const protocols = data.filter((d) => d.document_type === "protocol");
-        setDocuments(protocols);
+      if (!error && data && data.length > 0) {
+        // Get the most recent document (protocol preferred)
+        // Priority: protocol > certificate > any other
+        const priorityOrder = ["protocol", "certificate", "other"];
+        
+        // Sort by priority, then by upload date (newest first)
+        const sorted = [...data].sort((a, b) => {
+          const priorityA = priorityOrder.indexOf(a.document_type);
+          const priorityB = priorityOrder.indexOf(b.document_type);
+          
+          if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+          }
+          
+          // Same priority - sort by date (newest first)
+          return new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime();
+        });
+        
+        setLatestDocument(sorted[0] || null);
+      } else {
+        setLatestDocument(null);
       }
       setLoading(false);
     };
@@ -38,8 +55,10 @@ export function DeadlineProtocolCell({ deadlineId }: DeadlineProtocolCellProps) 
     loadDocuments();
   }, [deadlineId]);
 
-  const handleDownload = async (document: DeadlineDocument) => {
-    const { url, error } = await getDeadlineDocumentDownloadUrl(document.file_path);
+  const handleDownload = async () => {
+    if (!latestDocument) return;
+    
+    const { url, error } = await getDeadlineDocumentDownloadUrl(latestDocument.file_path);
     if (error) {
       toast({
         title: "Chyba při stahování",
@@ -50,7 +69,42 @@ export function DeadlineProtocolCell({ deadlineId }: DeadlineProtocolCellProps) 
     }
 
     if (url) {
-      window.open(url, "_blank");
+      // Try to open in a new tab first
+      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+      
+      // If popup was blocked or failed, try fallback download via fetch → blob
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === "undefined") {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error("Failed to fetch file");
+          }
+          
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          
+          const link = document.createElement("a");
+          link.href = blobUrl;
+          link.download = latestDocument.file_name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Cleanup blob URL after download
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+          
+          toast({
+            title: "Soubor stažen",
+            description: `Protokol "${latestDocument.file_name}" byl stažen.`,
+          });
+        } catch (fetchError) {
+          toast({
+            title: "Chyba při stahování",
+            description: "Nelze stáhnout soubor. Zkuste to prosím znovu.",
+            variant: "destructive",
+          });
+        }
+      }
     }
   };
 
@@ -62,37 +116,33 @@ export function DeadlineProtocolCell({ deadlineId }: DeadlineProtocolCellProps) 
     );
   }
 
-  if (documents.length === 0) {
+  if (!latestDocument) {
     return (
       <span className="text-xs text-muted-foreground">—</span>
     );
   }
 
   return (
-    <div className="flex gap-1">
-      {documents.map((document) => (
-        <TooltipProvider key={document.id}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => handleDownload(document)}
-              >
-                {document.file_type.includes("pdf") ? (
-                  <FileText className="w-4 h-4 text-primary" />
-                ) : (
-                  <File className="w-4 h-4 text-primary" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs">{document.file_name}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      ))}
-    </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleDownload}
+          >
+            {latestDocument.file_type.includes("pdf") ? (
+              <FileText className="w-4 h-4 text-primary" />
+            ) : (
+              <File className="w-4 h-4 text-primary" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">{latestDocument.file_name}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

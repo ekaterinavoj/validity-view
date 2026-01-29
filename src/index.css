@@ -50,11 +50,15 @@ All colors MUST be HSL.
     --status-valid: 78 78% 55%;
     --status-warning: 48 100% 50%;
     --status-expired: 4 90% 58%;
+    --status-sick: 200 80% 55%;
+    --status-terminated: 242 10% 65%;
     
     /* Foreground colors for status badges */
     --status-valid-foreground: 78 78% 15%;
     --status-warning-foreground: 48 100% 20%;
     --status-expired-foreground: 0 0% 100%;
+    --status-sick-foreground: 200 80% 15%;
+    --status-terminated-foreground: 0 0% 20%;
 
     /* Chart colors using Qlar palette */
     --chart-1: 265 100% 58%;
@@ -115,10 +119,14 @@ All colors MUST be HSL.
     --status-valid: 78 78% 55%;
     --status-warning: 48 100% 50%;
     --status-expired: 4 90% 58%;
+    --status-sick: 200 80% 55%;
+    --status-terminated: 242 10% 65%;
     
     --status-valid-foreground: 78 78% 15%;
     --status-warning-foreground: 48 100% 20%;
     --status-expired-foreground: 0 0% 100%;
+    --status-sick-foreground: 200 80% 85%;
+    --status-terminated-foreground: 0 0% 85%;
 
     /* Chart colors using Qlar palette */
     --chart-1: 265 100% 70%;
