@@ -28,11 +28,13 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useDeadlines } from "@/hooks/useDeadlines";
 import { useFacilities } from "@/hooks/useFacilities";
+import { useAllEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeadlineProtocolCell } from "@/components/DeadlineProtocolCell";
+import { EquipmentResponsiblesBadges } from "@/components/EquipmentResponsiblesBadges";
 import { StatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
@@ -40,6 +42,7 @@ import * as XLSX from "xlsx";
 export default function ScheduledDeadlines() {
   const { deadlines, isLoading, error, refetch, archiveDeadline, isArchiving } = useDeadlines();
   const { facilities } = useFacilities();
+  const { uniqueProfiles, getEquipmentIdsByProfile } = useAllEquipmentResponsibles();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Create filter options
@@ -84,6 +87,13 @@ export default function ScheduledDeadlines() {
       if (filters.typeFilter !== "all" && d.deadline_type?.name !== filters.typeFilter) return false;
       if (filters.trainerFilter !== "all" && d.performer !== filters.trainerFilter) return false;
       if (filters.statusFilter !== "all" && d.status !== filters.statusFilter) return false;
+      
+      // Filter by responsible person
+      if (filters.responsibleFilter !== "all") {
+        const equipmentIds = getEquipmentIdsByProfile(filters.responsibleFilter);
+        if (!equipmentIds.includes(d.equipment_id)) return false;
+      }
+      
       if (filters.searchQuery) {
         const query = filters.searchQuery.toLowerCase();
         const matchesEquipment = d.equipment?.name.toLowerCase().includes(query) ||
@@ -96,7 +106,7 @@ export default function ScheduledDeadlines() {
       
       return true;
     });
-  }, [deadlines, filters]);
+  }, [deadlines, filters, getEquipmentIdsByProfile]);
 
   const handleSelectAll = (checked: boolean) => {
     setSelectedIds(checked ? filteredDeadlines.map(d => d.id) : []);
@@ -177,6 +187,10 @@ export default function ScheduledDeadlines() {
         facilities={facilityList}
         trainingTypes={deadlineTypeList}
         trainers={performerList}
+        responsiblePersons={uniqueProfiles.map(p => ({
+          id: p.id,
+          name: `${p.first_name} ${p.last_name}`,
+        }))}
         resultCount={filteredDeadlines.length}
         totalCount={deadlines.length}
       />
@@ -200,6 +214,7 @@ export default function ScheduledDeadlines() {
                 <TableHead>Poslední</TableHead>
                 <TableHead>Příští</TableHead>
                 <TableHead>Provádějící</TableHead>
+                <TableHead>Odpovědní</TableHead>
                 <TableHead>Protokol</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
@@ -207,7 +222,7 @@ export default function ScheduledDeadlines() {
             <TableBody>
               {filteredDeadlines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
@@ -244,6 +259,9 @@ export default function ScheduledDeadlines() {
                       {format(new Date(deadline.next_check_date), "dd.MM.yyyy")}
                     </TableCell>
                     <TableCell>{deadline.performer || "-"}</TableCell>
+                    <TableCell>
+                      <EquipmentResponsiblesBadges equipmentId={deadline.equipment_id} />
+                    </TableCell>
                     <TableCell>
                       <DeadlineProtocolCell deadlineId={deadline.id} />
                     </TableCell>
