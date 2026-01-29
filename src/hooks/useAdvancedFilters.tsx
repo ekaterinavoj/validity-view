@@ -8,6 +8,7 @@ export interface FilterState {
   facilityFilter: string;
   typeFilter: string;
   trainerFilter: string;
+  responsibleFilter: string;
   dateFrom: Date | undefined;
   dateTo: Date | undefined;
 }
@@ -26,6 +27,7 @@ const DEFAULT_FILTERS: FilterState = {
   facilityFilter: "all",
   typeFilter: "all",
   trainerFilter: "all",
+  responsibleFilter: "all",
   dateFrom: undefined,
   dateTo: undefined,
 };
@@ -85,6 +87,7 @@ export function useAdvancedFilters(storageKey: string = "training-filters") {
       filters.facilityFilter !== "all" ||
       filters.typeFilter !== "all" ||
       filters.trainerFilter !== "all" ||
+      filters.responsibleFilter !== "all" ||
       filters.dateFrom !== undefined ||
       filters.dateTo !== undefined
     );
