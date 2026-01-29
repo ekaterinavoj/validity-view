@@ -44,6 +44,7 @@ import { useDepartments } from "@/hooks/useDepartments";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EquipmentResponsiblesManager } from "@/components/EquipmentResponsiblesManager";
+import { ResponsiblePersonsPicker } from "@/components/ResponsiblePersonsPicker";
 import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColors } from "@/types/equipment";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
@@ -56,6 +57,7 @@ export default function Equipment() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentType | null>(null);
+  const [selectedResponsibleIds, setSelectedResponsibleIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     inventory_number: "",
     name: "",
@@ -88,6 +90,7 @@ export default function Equipment() {
 
   const openCreateDialog = () => {
     setEditingItem(null);
+    setSelectedResponsibleIds([]);
     setFormData({
       inventory_number: "",
       name: "",
@@ -107,6 +110,7 @@ export default function Equipment() {
 
   const openEditDialog = (item: EquipmentType) => {
     setEditingItem(item);
+    setSelectedResponsibleIds([]); // Will be managed by EquipmentResponsiblesManager
     setFormData({
       inventory_number: item.inventory_number,
       name: item.name,
@@ -125,15 +129,18 @@ export default function Equipment() {
   };
 
   const handleSubmit = () => {
-    const data = {
+    const equipmentData = {
       ...formData,
       department_id: formData.department_id || null,
     };
 
     if (editingItem) {
-      updateEquipment({ id: editingItem.id, ...data });
+      updateEquipment({ id: editingItem.id, ...equipmentData });
     } else {
-      createEquipment(data);
+      createEquipment({
+        equipment: equipmentData,
+        responsibleProfileIds: selectedResponsibleIds,
+      });
     }
     setDialogOpen(false);
   };
@@ -378,18 +385,21 @@ export default function Equipment() {
               />
             </div>
             
-            {/* Responsible persons management - only show when editing */}
-            {editingItem && (
-              <>
-                <Separator className="col-span-2 my-2" />
-                <div className="col-span-2">
-                  <EquipmentResponsiblesManager
-                    equipmentId={editingItem.id}
-                    equipmentName={editingItem.name}
-                  />
-                </div>
-              </>
-            )}
+            {/* Responsible persons management */}
+            <Separator className="col-span-2 my-2" />
+            <div className="col-span-2">
+              {editingItem ? (
+                <EquipmentResponsiblesManager
+                  equipmentId={editingItem.id}
+                  equipmentName={editingItem.name}
+                />
+              ) : (
+                <ResponsiblePersonsPicker
+                  selectedIds={selectedResponsibleIds}
+                  onSelectionChange={setSelectedResponsibleIds}
+                />
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
