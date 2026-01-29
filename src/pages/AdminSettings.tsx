@@ -15,12 +15,14 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette } from "lucide-react";
+import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench } from "lucide-react";
 import { RolePermissionsInfo } from "@/components/RolePermissionsInfo";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
+import { SendTestDeadlineEmail } from "@/components/SendTestDeadlineEmail";
 import { SendSingleTestEmail } from "@/components/SendSingleTestEmail";
 import { EmailHistory } from "@/components/EmailHistory";
 import { EmailTemplatePreview } from "@/components/EmailTemplatePreview";
+import { DeadlineEmailTemplatePreview } from "@/components/DeadlineEmailTemplatePreview";
 import { NextSendPreview } from "@/components/NextSendPreview";
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { OnboardingSettings } from "@/components/OnboardingSettings";
@@ -30,6 +32,7 @@ import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
 import { BulkDeadlineImport } from "@/components/BulkDeadlineImport";
 import { DisplaySettings } from "@/components/DisplaySettings";
+import { ModuleRecipientsSelector } from "@/components/ModuleRecipientsSelector";
 
 interface SystemSetting {
   id: string;
@@ -143,6 +146,17 @@ export default function AdminSettings() {
     body: "Dobrý den,\n\nzasíláme přehled školení vyžadujících pozornost.\n\nCelkem: {totalCount} školení\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}\n\nPodrobný seznam naleznete v příloze níže.\n\nS pozdravem,\nVáš systém školení",
   });
   
+  const [deadlineEmailTemplate, setDeadlineEmailTemplate] = useState({
+    subject: "Souhrn technických lhůt k obnovení - {reportDate}",
+    body: "Dobrý den,\n\nzasíláme přehled technických lhůt vyžadujících pozornost.\n\nCelkem: {totalCount} událostí\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}\n\nPodrobný seznam naleznete v příloze níže.\n\nS pozdravem,\nVáš systém technických lhůt",
+  });
+  
+  // Recipients state per module
+  const [deadlineRecipients, setDeadlineRecipients] = useState({
+    user_ids: [] as string[],
+    delivery_mode: "bcc" as string,
+  });
+  
   const [newDayBefore, setNewDayBefore] = useState("");
   
   // Users state
@@ -183,22 +197,44 @@ export default function AdminSettings() {
       data?.forEach((setting: SystemSetting) => {
         switch (setting.key) {
           case "reminder_schedule":
-            setReminderSchedule(setting.value);
+            if (setting.value && typeof setting.value === 'object') {
+              setReminderSchedule(prev => ({ ...prev, ...(setting.value as object) }));
+            }
             break;
           case "reminder_days":
-            setReminderDays(setting.value);
+            if (setting.value && typeof setting.value === 'object') {
+              setReminderDays(prev => ({ ...prev, ...(setting.value as object) }));
+            }
             break;
           case "reminder_frequency":
-            setReminderFrequency(prev => ({ ...prev, ...setting.value }));
+            if (setting.value && typeof setting.value === 'object') {
+              setReminderFrequency(prev => ({ ...prev, ...(setting.value as object) }));
+            }
             break;
           case "reminder_recipients":
-            setReminderRecipients(prev => ({ ...prev, ...setting.value }));
+            if (setting.value && typeof setting.value === 'object') {
+              setReminderRecipients(prev => ({ ...prev, ...(setting.value as object) }));
+            }
+            break;
+          case "deadline_reminder_recipients":
+            if (setting.value && typeof setting.value === 'object') {
+              setDeadlineRecipients(prev => ({ ...prev, ...(setting.value as object) }));
+            }
             break;
           case "email_provider":
-            setEmailProvider(setting.value);
+            if (setting.value && typeof setting.value === 'object') {
+              setEmailProvider(setting.value as typeof emailProvider);
+            }
             break;
           case "email_template":
-            setEmailTemplate(setting.value);
+            if (setting.value && typeof setting.value === 'object') {
+              setEmailTemplate(prev => ({ ...prev, ...(setting.value as object) }));
+            }
+            break;
+          case "deadline_email_template":
+            if (setting.value && typeof setting.value === 'object') {
+              setDeadlineEmailTemplate(prev => ({ ...prev, ...(setting.value as object) }));
+            }
             break;
         }
       });
@@ -282,8 +318,10 @@ export default function AdminSettings() {
         saveSetting("reminder_days", reminderDays),
         saveSetting("reminder_frequency", reminderFrequency),
         saveSetting("reminder_recipients", reminderRecipients),
+        saveSetting("deadline_reminder_recipients", deadlineRecipients),
         saveSetting("email_provider", emailProvider),
         saveSetting("email_template", emailTemplate),
+        saveSetting("deadline_email_template", deadlineEmailTemplate),
       ]);
       
       toast({
@@ -444,124 +482,11 @@ export default function AdminSettings() {
 
         {/* Reminders Tab */}
         <TabsContent value="reminders" className="space-y-6">
-          {/* Recipients Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserCheck className="w-5 h-5" />
-                Příjemci připomínek
-              </CardTitle>
-              <CardDescription>
-                Vyberte uživatele, kteří budou dostávat souhrnné emaily s přehledem školení
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <Label>Vybraní příjemci</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {getSelectedRecipientsDisplay()}
-                  </p>
-                </div>
-                <div className="w-48">
-                  <Label>Způsob doručení</Label>
-                  <Select
-                    value={reminderRecipients.delivery_mode}
-                    onValueChange={(value) => 
-                      setReminderRecipients({ ...reminderRecipients, delivery_mode: value })
-                    }
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DELIVERY_MODES.map((mode) => (
-                        <SelectItem key={mode.value} value={mode.value}>
-                          {mode.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <Label className="mb-2 block">Vybrat příjemce z uživatelů systému</Label>
-                <ScrollArea className="h-[200px] border rounded-md p-3">
-                  {usersLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {users.map((user) => (
-                        <div 
-                          key={user.id} 
-                          className="flex items-center space-x-3 p-2 hover:bg-muted rounded-md"
-                        >
-                          <Checkbox
-                            id={`recipient-${user.id}`}
-                            checked={reminderRecipients.user_ids.includes(user.id)}
-                            onCheckedChange={(checked) => 
-                              handleRecipientToggle(user.id, checked as boolean)
-                            }
-                          />
-                          <label 
-                            htmlFor={`recipient-${user.id}`}
-                            className="flex-1 cursor-pointer"
-                          >
-                            <span className="font-medium">
-                              {user.first_name} {user.last_name}
-                            </span>
-                            <span className="text-sm text-muted-foreground ml-2">
-                              ({user.email})
-                            </span>
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {user.role}
-                            </Badge>
-                          </label>
-                        </div>
-                      ))}
-                      {users.length === 0 && (
-                        <p className="text-center text-muted-foreground py-4">
-                          Žádní uživatelé k výběru
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </ScrollArea>
-              </div>
-
-              {reminderRecipients.delivery_mode === "bcc" && (
-                <div className="p-3 bg-muted/50 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <p className="text-sm text-muted-foreground">
-                    V režimu BCC nebudou příjemci vidět ostatní příjemce emailu.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Frequency Card */}
-          {/* No recipients warning */}
-          {reminderRecipients.user_ids.length === 0 && (
-            <Card className="border-destructive bg-destructive/5">
-              <CardContent className="pt-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
-                  <div>
-                    <p className="font-medium text-destructive">Nejsou vybráni příjemci</p>
-                    <p className="text-sm text-muted-foreground">
-                      Připomínky nebudou odesílány, dokud nevyberete alespoň jednoho příjemce v sekci výše.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Module-specific Recipients Selector */}
+          <ModuleRecipientsSelector 
+            onTrainingRecipientsChange={(r) => setReminderRecipients(r)}
+            onDeadlineRecipientsChange={(r) => setDeadlineRecipients(r)}
+          />
 
           {/* Frequency Card */}
           <Card>
@@ -763,12 +688,26 @@ export default function AdminSettings() {
                 Odešlete testovací email nebo zobrazte historii odeslaných emailů
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <SendSingleTestEmail isEnabled={reminderFrequency.enabled} />
-              <SendTestSummaryEmail 
-                hasRecipients={reminderRecipients.user_ids.length > 0}
-                isEnabled={reminderFrequency.enabled}
-              />
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Školení</Label>
+                <div className="flex gap-2">
+                  <SendSingleTestEmail isEnabled={reminderFrequency.enabled} />
+                  <SendTestSummaryEmail 
+                    hasRecipients={reminderRecipients.user_ids.length > 0}
+                    isEnabled={reminderFrequency.enabled}
+                  />
+                </div>
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Technické lhůty</Label>
+                <SendTestDeadlineEmail 
+                  hasRecipients={deadlineRecipients.user_ids.length > 0}
+                  isEnabled={reminderFrequency.enabled}
+                />
+              </div>
+              <Separator />
               <EmailHistory />
             </CardContent>
           </Card>
@@ -991,44 +930,89 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
+          {/* Email Templates with Tabs for both modules */}
           <Card>
             <CardHeader>
-              <CardTitle>Šablona souhrnného emailu</CardTitle>
+              <CardTitle>Šablony souhrnných emailů</CardTitle>
               <CardDescription>
-                Upravte text souhrnného emailu odesílaného vybraným příjemcům
+                Upravte text souhrnných emailů odesílaných vybraným příjemcům pro oba moduly
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Předmět</Label>
-                <Input
-                  value={emailTemplate.subject}
-                  onChange={(e) => 
-                    setEmailTemplate({ ...emailTemplate, subject: e.target.value })
-                  }
-                  placeholder="Souhrn školení k obnovení - {reportDate}"
-                />
-              </div>
+              <Tabs defaultValue="training" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="training" className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4" />
+                    Školení
+                  </TabsTrigger>
+                  <TabsTrigger value="deadlines" className="flex items-center gap-2">
+                    <Wrench className="w-4 h-4" />
+                    Technické lhůty
+                  </TabsTrigger>
+                </TabsList>
 
-              <div className="space-y-2">
-                <Label>Tělo emailu</Label>
-                <Textarea
-                  value={emailTemplate.body}
-                  onChange={(e) => 
-                    setEmailTemplate({ ...emailTemplate, body: e.target.value })
-                  }
-                  rows={8}
-                  placeholder="Dobrý den,\n\nzasíláme přehled školení..."
-                />
-              </div>
+                <TabsContent value="training" className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>Předmět</Label>
+                    <Input
+                      value={emailTemplate.subject}
+                      onChange={(e) => 
+                        setEmailTemplate({ ...emailTemplate, subject: e.target.value })
+                      }
+                      placeholder="Souhrn školení k obnovení - {reportDate}"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Tělo emailu</Label>
+                    <Textarea
+                      value={emailTemplate.body}
+                      onChange={(e) => 
+                        setEmailTemplate({ ...emailTemplate, body: e.target.value })
+                      }
+                      rows={8}
+                      placeholder="Dobrý den,\n\nzasíláme přehled školení..."
+                    />
+                  </div>
+
+                  <EmailTemplatePreview 
+                    subject={emailTemplate.subject}
+                    body={emailTemplate.body}
+                  />
+                </TabsContent>
+
+                <TabsContent value="deadlines" className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>Předmět</Label>
+                    <Input
+                      value={deadlineEmailTemplate.subject}
+                      onChange={(e) => 
+                        setDeadlineEmailTemplate({ ...deadlineEmailTemplate, subject: e.target.value })
+                      }
+                      placeholder="Souhrn technických lhůt k obnovení - {reportDate}"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Tělo emailu</Label>
+                    <Textarea
+                      value={deadlineEmailTemplate.body}
+                      onChange={(e) => 
+                        setDeadlineEmailTemplate({ ...deadlineEmailTemplate, body: e.target.value })
+                      }
+                      rows={8}
+                      placeholder="Dobrý den,\n\nzasíláme přehled technických lhůt..."
+                    />
+                  </div>
+
+                  <DeadlineEmailTemplatePreview 
+                    subject={deadlineEmailTemplate.subject}
+                    body={deadlineEmailTemplate.body}
+                  />
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
-
-          {/* Live Email Preview */}
-          <EmailTemplatePreview 
-            subject={emailTemplate.subject}
-            body={emailTemplate.body}
-          />
         </TabsContent>
 
         {/* User Management Tab */}
