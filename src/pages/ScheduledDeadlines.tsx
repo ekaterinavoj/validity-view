@@ -151,7 +151,7 @@ export default function ScheduledDeadlines() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Naplánované technické události</h1>
+          <h1 className="text-2xl font-bold text-foreground">Naplánované události</h1>
           <p className="text-muted-foreground">
             Celkem {filteredDeadlines.length} aktivních událostí
           </p>

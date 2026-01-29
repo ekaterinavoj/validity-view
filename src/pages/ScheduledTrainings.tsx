@@ -1271,7 +1271,7 @@ export default function ScheduledTrainings() {
                   <TableHead>Zadavatel</TableHead>
                   <TableHead>Periodicita</TableHead>
                   <TableHead>Poznámka</TableHead>
-                  <TableHead className="text-center">Aktuální protokol</TableHead>
+                  <TableHead className="text-center">Protokol</TableHead>
                   <TableHead className="text-right">Akce</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1341,15 +1341,15 @@ export default function ScheduledTrainings() {
         {/* Legend */}
         <div className="flex items-center gap-6 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <span className="inline-block w-3 h-3 rounded-full bg-green-500" />
+            <span className="inline-block w-3 h-3 rounded-full bg-status-valid" />
             <span>Platné školení</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="inline-block w-3 h-3 rounded-full bg-orange-500" />
-            <span>Školení brzy vyprší (do 30 dní)</span>
+            <span className="inline-block w-3 h-3 rounded-full bg-status-warning" />
+            <span>Brzy vyprší (do 30 dní)</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="inline-block w-3 h-3 rounded-full bg-red-500" />
+            <span className="inline-block w-3 h-3 rounded-full bg-status-expired" />
             <span>Prošlé školení</span>
           </div>
         </div>

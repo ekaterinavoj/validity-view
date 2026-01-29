@@ -18,11 +18,11 @@ const statusConfig: Record<EmployeeStatus, { label: string; className: string }>
   },
   sick_leave: {
     label: "Nemocenská",
-    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    className: "bg-status-sick text-status-sick-foreground",
   },
   terminated: {
     label: "Ukončený",
-    className: "bg-muted text-muted-foreground",
+    className: "bg-status-terminated text-status-terminated-foreground",
   },
 };
 

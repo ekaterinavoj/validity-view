@@ -64,6 +64,10 @@ export default {
           "warning-foreground": "hsl(var(--status-warning-foreground))",
           expired: "hsl(var(--status-expired))",
           "expired-foreground": "hsl(var(--status-expired-foreground))",
+          sick: "hsl(var(--status-sick))",
+          "sick-foreground": "hsl(var(--status-sick-foreground))",
+          terminated: "hsl(var(--status-terminated))",
+          "terminated-foreground": "hsl(var(--status-terminated-foreground))",
         },
         qlar: {
           dark: "hsl(var(--qlar-dark))",

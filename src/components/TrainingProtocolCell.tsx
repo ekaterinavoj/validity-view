@@ -69,7 +69,42 @@ export function TrainingProtocolCell({ trainingId }: TrainingProtocolCellProps) 
     }
 
     if (url) {
-      window.open(url, "_blank");
+      // Try to open in a new tab first
+      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+      
+      // If popup was blocked or failed, try fallback download via fetch → blob
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === "undefined") {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error("Failed to fetch file");
+          }
+          
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          
+          const link = document.createElement("a");
+          link.href = blobUrl;
+          link.download = latestDocument.file_name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Cleanup blob URL after download
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+          
+          toast({
+            title: "Soubor stažen",
+            description: `Protokol "${latestDocument.file_name}" byl stažen.`,
+          });
+        } catch (fetchError) {
+          toast({
+            title: "Chyba při stahování",
+            description: "Nelze stáhnout soubor. Zkuste to prosím znovu.",
+            variant: "destructive",
+          });
+        }
+      }
     }
   };
 
