@@ -44,6 +44,10 @@ const formSchema = z.object({
   status: z.enum(["employed", "parental_leave", "sick_leave", "terminated"]),
   terminationDate: z.date().optional(),
   notes: z.string().optional(),
+  // Manager fields for hierarchy
+  managerFirstName: z.string().optional(),
+  managerLastName: z.string().optional(),
+  managerEmail: z.string().email("Neplatný email nadřízeného").optional().or(z.literal('')),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -185,6 +189,9 @@ export default function Employees() {
       departmentId: employee.departmentId || "",
       status: employee.status,
       notes: employee.notes || "",
+      managerFirstName: employee.managerFirstName || "",
+      managerLastName: employee.managerLastName || "",
+      managerEmail: employee.managerEmail || "",
     });
     setDialogOpen(true);
   };
@@ -232,7 +239,12 @@ export default function Employees() {
     setDialogOpen(open);
     if (!open) {
       setEditingEmployee(null);
-      form.reset({ status: "employed" });
+      form.reset({ 
+        status: "employed",
+        managerFirstName: "",
+        managerLastName: "",
+        managerEmail: "",
+      });
     }
   };
 
@@ -256,6 +268,10 @@ export default function Employees() {
         status: data.status,
         termination_date: data.terminationDate ? format(data.terminationDate, "yyyy-MM-dd") : null,
         notes: notes || null,
+        // Manager hierarchy fields
+        manager_first_name: data.managerFirstName || null,
+        manager_last_name: data.managerLastName || null,
+        manager_email: data.managerEmail || null,
       };
 
       if (editingEmployee) {
@@ -441,6 +457,57 @@ export default function Employees() {
                   )}
                 />
 
+                {/* Manager/Supervisor Section */}
+                <div className="border-t pt-4 mt-4">
+                  <p className="text-sm font-medium text-muted-foreground mb-3">Nadřízený (pro hierarchii)</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="managerFirstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Jméno nadřízeného</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Jan" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="managerLastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Příjmení nadřízeného</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Novák" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="managerEmail"
+                    render={({ field }) => (
+                      <FormItem className="mt-4">
+                        <FormLabel>Email nadřízeného (klíčové pole)</FormLabel>
+                        <FormControl>
+                          <Input type="email" {...field} placeholder="nadrizeny@firma.cz" />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Tento email se použije pro automatické propojení s nadřízeným zaměstnancem.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={form.control}
                   name="status"
@@ -588,8 +655,8 @@ export default function Employees() {
               <TableHead>Email</TableHead>
               <TableHead>Pozice</TableHead>
               <TableHead>Středisko</TableHead>
+              <TableHead>Nadřízený</TableHead>
               <TableHead>Stav</TableHead>
-              <TableHead>Poznámky</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -608,10 +675,18 @@ export default function Employees() {
                 <TableCell className="text-sm text-muted-foreground">{employee.email}</TableCell>
                 <TableCell className="text-sm">{employee.position}</TableCell>
                 <TableCell className="text-sm">{employee.department}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {employee.managerEmail ? (
+                    <span title={employee.managerEmail}>
+                      {employee.managerFirstName || employee.managerLastName 
+                        ? `${employee.managerFirstName || ''} ${employee.managerLastName || ''}`.trim()
+                        : employee.managerEmail}
+                    </span>
+                  ) : '-'}
+                </TableCell>
                 <TableCell>
                   <EmployeeStatusBadge status={employee.status as EmployeeStatus} />
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{employee.notes || "-"}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" onClick={() => handleEdit(employee)}>

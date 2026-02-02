@@ -45,14 +45,12 @@ const roleLabels: Record<string, string> = {
   admin: "Administrátor",
   manager: "Manažer",
   user: "Uživatel",
-  viewer: "Čtenář",
 };
 
 const roleColors: Record<string, string> = {
   admin: "bg-destructive",
   manager: "bg-primary",
   user: "bg-secondary text-secondary-foreground",
-  viewer: "bg-muted text-muted-foreground",
 };
 
 export function UserManagementPanel() {
@@ -402,7 +400,6 @@ export function UserManagementPanel() {
                               <SelectItem value="admin">Administrátor</SelectItem>
                               <SelectItem value="manager">Manažer</SelectItem>
                               <SelectItem value="user">Uživatel</SelectItem>
-                              <SelectItem value="viewer">Čtenář</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
