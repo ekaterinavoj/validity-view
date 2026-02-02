@@ -365,6 +365,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          manager_employee_id: string | null
           notes: string | null
           position: string
           status: string
@@ -379,6 +380,7 @@ export type Database = {
           first_name: string
           id?: string
           last_name: string
+          manager_employee_id?: string | null
           notes?: string | null
           position: string
           status: string
@@ -393,6 +395,7 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          manager_employee_id?: string | null
           notes?: string | null
           position?: string
           status?: string
@@ -405,6 +408,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_manager_employee_id_fkey"
+            columns: ["manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -1075,6 +1085,12 @@ export type Database = {
         Returns: string
       }
       get_registration_mode: { Args: never; Returns: string }
+      get_subordinate_employee_ids: {
+        Args: { root_employee_id: string }
+        Returns: {
+          employee_id: string
+        }[]
+      }
       get_user_employee_id: { Args: { _user_id: string }; Returns: string }
       get_user_roles: {
         Args: { _user_id: string }
@@ -1092,6 +1108,10 @@ export type Database = {
         Returns: boolean
       }
       is_email_allowed: { Args: { _email: string }; Returns: boolean }
+      is_manager_of: {
+        Args: { _target_employee_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
