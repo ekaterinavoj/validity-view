@@ -554,6 +554,7 @@ export type Database = {
           created_at: string
           department_id: string | null
           email: string
+          employee_id: string | null
           first_name: string
           id: string
           last_name: string
@@ -567,6 +568,7 @@ export type Database = {
           created_at?: string
           department_id?: string | null
           email: string
+          employee_id?: string | null
           first_name: string
           id: string
           last_name: string
@@ -580,6 +582,7 @@ export type Database = {
           created_at?: string
           department_id?: string | null
           email?: string
+          employee_id?: string | null
           first_name?: string
           id?: string
           last_name?: string
@@ -592,6 +595,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -1003,6 +1013,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_module_access: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          module: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          module: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          module?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1041,9 +1075,14 @@ export type Database = {
         Returns: string
       }
       get_registration_mode: { Args: never; Returns: string }
+      get_user_employee_id: { Args: { _user_id: string }; Returns: string }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
+      }
+      has_module_access: {
+        Args: { _module: string; _user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
