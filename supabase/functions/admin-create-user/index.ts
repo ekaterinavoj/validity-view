@@ -65,6 +65,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    console.log("Creating user with email:", email);
+    
     // Create user with admin API
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -77,11 +79,14 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
+      console.error("Create user error:", createError);
       return new Response(JSON.stringify({ error: createError.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    
+    console.log("User created successfully:", newUser.user.id);
 
     const userId = newUser.user.id;
 
