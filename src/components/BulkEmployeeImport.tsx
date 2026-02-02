@@ -16,6 +16,10 @@ const employeeSchema = z.object({
   position: z.string().min(1, "Pozice je povinná").max(100),
   department: z.string().min(1, "Středisko je povinné").max(50),
   status: z.enum(["employed", "parental_leave", "sick_leave", "terminated"]),
+  // Manager fields for import (optional)
+  managerEmail: z.string().email("Neplatný email nadřízeného").max(255).optional().or(z.literal('')),
+  managerFirstName: z.string().max(100).optional().or(z.literal('')),
+  managerLastName: z.string().max(100).optional().or(z.literal('')),
 });
 
 interface ImportedEmployee {
@@ -67,6 +71,10 @@ export function BulkEmployeeImport() {
               position: row['Pozice'] || row['position'] || '',
               department: row['Středisko'] || row['department'] || '',
               status: (row['Stav'] || row['status'] || 'employed').toLowerCase(),
+              // Manager fields for hierarchy
+              managerEmail: row['Email nadřízeného'] || row['managerEmail'] || row['Manager Email'] || '',
+              managerFirstName: row['Jméno nadřízeného'] || row['managerFirstName'] || '',
+              managerLastName: row['Příjmení nadřízeného'] || row['managerLastName'] || '',
             };
 
             const validation = employeeSchema.safeParse(employeeData);
@@ -161,6 +169,10 @@ export function BulkEmployeeImport() {
               position: row['Pozice'] || row['position'] || '',
               department: row['Středisko'] || row['department'] || '',
               status: (row['Stav'] || row['status'] || 'employed').toLowerCase(),
+              // Manager fields for hierarchy
+              managerEmail: row['Email nadřízeného'] || row['managerEmail'] || row['Manager Email'] || '',
+              managerFirstName: row['Jméno nadřízeného'] || row['managerFirstName'] || '',
+              managerLastName: row['Příjmení nadřízeného'] || row['managerLastName'] || '',
             };
 
             const validation = employeeSchema.safeParse(employeeData);
@@ -313,6 +325,7 @@ export function BulkEmployeeImport() {
                       <TableHead>Os. číslo</TableHead>
                       <TableHead>Pozice</TableHead>
                       <TableHead>Středisko</TableHead>
+                      <TableHead>Nadřízený (email)</TableHead>
                       <TableHead className="w-24">Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -326,6 +339,7 @@ export function BulkEmployeeImport() {
                         <TableCell className="font-mono">{item.data.employeeNumber}</TableCell>
                         <TableCell className="text-sm">{item.data.position}</TableCell>
                         <TableCell className="font-mono text-sm">{item.data.department}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{item.data.managerEmail || '-'}</TableCell>
                         <TableCell>
                           {item.isValid ? (
                             <Badge variant="secondary" className="bg-green-100 text-green-700">

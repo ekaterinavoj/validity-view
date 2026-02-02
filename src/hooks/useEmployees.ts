@@ -13,6 +13,11 @@ export interface EmployeeWithDepartment {
   status: "employed" | "parental_leave" | "sick_leave" | "terminated";
   terminationDate?: string;
   notes?: string;
+  // Manager hierarchy fields
+  managerEmployeeId?: string | null;
+  managerEmail?: string | null;
+  managerFirstName?: string | null;
+  managerLastName?: string | null;
 }
 
 export function useEmployees(statusFilter?: string) {
@@ -38,6 +43,10 @@ export function useEmployees(statusFilter?: string) {
           termination_date,
           notes,
           department_id,
+          manager_employee_id,
+          manager_email,
+          manager_first_name,
+          manager_last_name,
           departments (
             id,
             code,
@@ -67,6 +76,11 @@ export function useEmployees(statusFilter?: string) {
         status: e.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
         terminationDate: e.termination_date,
         notes: e.notes,
+        // Manager hierarchy fields
+        managerEmployeeId: e.manager_employee_id,
+        managerEmail: e.manager_email,
+        managerFirstName: e.manager_first_name,
+        managerLastName: e.manager_last_name,
       }));
 
       setEmployees(transformedData);
@@ -108,6 +122,10 @@ export function useInactiveEmployees() {
           termination_date,
           notes,
           department_id,
+          manager_employee_id,
+          manager_email,
+          manager_first_name,
+          manager_last_name,
           departments (
             id,
             code,
@@ -131,6 +149,11 @@ export function useInactiveEmployees() {
         status: e.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
         terminationDate: e.termination_date,
         notes: e.notes,
+        // Manager hierarchy fields
+        managerEmployeeId: e.manager_employee_id,
+        managerEmail: e.manager_email,
+        managerFirstName: e.manager_first_name,
+        managerLastName: e.manager_last_name,
       }));
 
       setEmployees(transformedData);
