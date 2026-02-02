@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info } from "lucide-react";
+import { ProfileEmployeeLink } from "@/components/ProfileEmployeeLink";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -37,18 +38,21 @@ interface UserProfile {
   email: string;
   position?: string;
   roles: string[];
+  employee_id?: string | null;
 }
 
 const roleLabels: Record<string, string> = {
   admin: "Administrátor",
   manager: "Manažer",
   user: "Uživatel",
+  viewer: "Čtenář",
 };
 
 const roleColors: Record<string, string> = {
-  admin: "bg-red-500",
-  manager: "bg-blue-500",
-  user: "bg-green-500",
+  admin: "bg-destructive",
+  manager: "bg-primary",
+  user: "bg-secondary text-secondary-foreground",
+  viewer: "bg-muted text-muted-foreground",
 };
 
 export function UserManagementPanel() {
@@ -233,15 +237,15 @@ export function UserManagementPanel() {
   return (
     <div className="space-y-6">
       {adminCount <= 1 && (
-        <Card className="border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+        <Card className="border-warning bg-warning/10">
           <CardContent className="pt-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
               <div>
-                <p className="font-medium text-amber-800 dark:text-amber-200">
+                <p className="font-medium text-foreground">
                   Pouze jeden administrátor
                 </p>
-                <p className="text-sm text-amber-700 dark:text-amber-300">
+                <p className="text-sm text-muted-foreground">
                   V systému je pouze jeden administrátor. Přidejte dalšího před změnou role.
                 </p>
               </div>
@@ -251,18 +255,37 @@ export function UserManagementPanel() {
       )}
 
       {/* Info about adding users */}
-      <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+      <Card className="border-primary/20 bg-primary/5">
         <CardContent className="pt-4">
           <div className="flex items-start gap-3">
-            <UserPlus className="w-5 h-5 text-blue-600 mt-0.5" />
+            <UserPlus className="w-5 h-5 text-primary mt-0.5" />
             <div>
-              <p className="font-medium text-blue-800 dark:text-blue-200">
+              <p className="font-medium text-foreground">
                 Jak přidat nového uživatele?
               </p>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
+              <p className="text-sm text-muted-foreground">
                 Noví uživatelé se registrují sami na přihlašovací stránce. Po registraci se automaticky 
                 objeví v tomto seznamu s rolí "Uživatel". Zde jim pak můžete přidělit vyšší oprávnění 
                 (Manažer nebo Administrátor).
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Info about employee linking */}
+      <Card className="border-warning/20 bg-warning/5">
+        <CardContent className="pt-4">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-warning mt-0.5" />
+            <div>
+              <p className="font-medium text-foreground">
+                Propojení se zaměstnancem je klíčové!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Non-admin uživatelé vidí pouze záznamy přiřazené k jejich zaměstnaneckému profilu. 
+                Bez propojení neuvidí žádná školení ani technické lhůty. 
+                U každého uživatele vyberte odpovídajícího zaměstnance ze seznamu.
               </p>
             </div>
           </div>
@@ -321,7 +344,7 @@ export function UserManagementPanel() {
                 <TableRow>
                   <TableHead>Jméno</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Pozice</TableHead>
+                  <TableHead>Propojení se zaměstnancem</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Změnit roli</TableHead>
                 </TableRow>
@@ -337,6 +360,7 @@ export function UserManagementPanel() {
                   filteredUsers.map((user) => {
                     const currentRole = user.roles[0] || "user";
                     const isCurrentUser = user.id === profile?.id;
+                    const isAdmin = currentRole === "admin";
                     return (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">
@@ -346,7 +370,19 @@ export function UserManagementPanel() {
                           )}
                         </TableCell>
                         <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.position || "-"}</TableCell>
+                        <TableCell>
+                          {isAdmin ? (
+                            <Badge variant="secondary" className="text-xs">
+                              Admin – vidí vše
+                            </Badge>
+                          ) : (
+                            <ProfileEmployeeLink
+                              profileId={user.id}
+                              currentEmployeeId={user.employee_id || null}
+                              onLinkChanged={loadUsers}
+                            />
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Badge className={roleColors[currentRole]}>
                             {roleLabels[currentRole] || currentRole}
@@ -366,6 +402,7 @@ export function UserManagementPanel() {
                               <SelectItem value="admin">Administrátor</SelectItem>
                               <SelectItem value="manager">Manažer</SelectItem>
                               <SelectItem value="user">Uživatel</SelectItem>
+                              <SelectItem value="viewer">Čtenář</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
