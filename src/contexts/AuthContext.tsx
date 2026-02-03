@@ -215,7 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -227,6 +227,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           },
         },
       });
+      
+      // If signup succeeded and we have a user, ensure profile exists
+      // This is a fallback in case the database trigger fails
+      if (!error && data?.user) {
+        // Small delay to let trigger attempt first
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Check if profile was created by trigger
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", data.user.id)
+          .maybeSingle();
+        
+        // If no profile exists, create it manually (fallback)
+        if (!existingProfile) {
+          console.log("Profile not created by trigger, creating manually...");
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .insert({
+              id: data.user.id,
+              first_name: firstName,
+              last_name: lastName,
+              email: email,
+              position: position || "",
+            });
+          
+          if (profileError) {
+            console.error("Failed to create profile fallback:", profileError);
+            // Don't return error - user is created, profile issue is secondary
+          }
+        }
+      }
+      
       return { error: error ?? null };
     } catch (error: any) {
       return { error };
