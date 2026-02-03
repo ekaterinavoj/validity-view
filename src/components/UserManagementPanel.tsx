@@ -25,8 +25,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail } from "lucide-react";
 import { ProfileEmployeeLink } from "@/components/ProfileEmployeeLink";
+import { AddUserModal } from "@/components/AddUserModal";
+import { ResetPasswordModal } from "@/components/ResetPasswordModal";
+import { ChangeEmailModal } from "@/components/ChangeEmailModal";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -60,6 +69,23 @@ export function UserManagementPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  
+  // Modal states
+  const [addUserModalOpen, setAddUserModalOpen] = useState(false);
+  const [resetPasswordModal, setResetPasswordModal] = useState<{
+    open: boolean;
+    userId: string;
+    userEmail: string;
+    userName: string;
+  }>({ open: false, userId: "", userEmail: "", userName: "" });
+  const [changeEmailModal, setChangeEmailModal] = useState<{
+    open: boolean;
+    userId: string;
+    currentEmail: string;
+    userName: string;
+  }>({ open: false, userId: "", currentEmail: "", userName: "" });
+  
+  // Role change states
   const [pendingRoleChange, setPendingRoleChange] = useState<{
     userId: string;
     userName: string;
@@ -113,6 +139,7 @@ export function UserManagementPanel() {
     const user = users.find(u => u.id === userId);
     if (!user) return;
 
+    // Check if trying to demote the last admin
     if (currentRole === "admin" && newRole !== "admin" && adminCount <= 1) {
       setIsLastAdminWarningOpen(true);
       return;
@@ -244,7 +271,8 @@ export function UserManagementPanel() {
                   Pouze jeden administrátor
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  V systému je pouze jeden administrátor. Přidejte dalšího před změnou role.
+                  V systému je pouze jeden administrátor. Doporučujeme přidat dalšího administrátora 
+                  pro případ nedostupnosti. Role jediného admina nelze změnit.
                 </p>
               </div>
             </div>
@@ -252,7 +280,7 @@ export function UserManagementPanel() {
         </Card>
       )}
 
-      {/* Info about adding users */}
+      {/* Info about admin provisioning */}
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="pt-4">
           <div className="flex items-start gap-3">
@@ -262,9 +290,8 @@ export function UserManagementPanel() {
                 Jak přidat nového uživatele?
               </p>
               <p className="text-sm text-muted-foreground">
-                Noví uživatelé se registrují sami na přihlašovací stránce. Po registraci se automaticky 
-                objeví v tomto seznamu s rolí "Uživatel". Zde jim pak můžete přidělit vyšší oprávnění 
-                (Manažer nebo Administrátor).
+                Uživatele přidává administrátor v této sekci pomocí tlačítka "Přidat uživatele". 
+                Zde mu nastaví roli, moduly a propojení na zaměstnance.
               </p>
             </div>
           </div>
@@ -282,8 +309,7 @@ export function UserManagementPanel() {
               </p>
               <p className="text-sm text-muted-foreground">
                 Non-admin uživatelé vidí pouze záznamy přiřazené k jejich zaměstnaneckému profilu. 
-                Bez propojení neuvidí žádná školení ani technické lhůty. 
-                U každého uživatele vyberte odpovídajícího zaměstnance ze seznamu.
+                Bez propojení neuvidí žádná školení ani technické lhůty.
               </p>
             </div>
           </div>
@@ -292,13 +318,21 @@ export function UserManagementPanel() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            Správa uživatelů a rolí
-          </CardTitle>
-          <CardDescription>
-            Správa uživatelských účtů a přidělování rolí v systému
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Správa uživatelů a rolí
+              </CardTitle>
+              <CardDescription>
+                Správa uživatelských účtů a přidělování rolí v systému
+              </CardDescription>
+            </div>
+            <Button onClick={() => setAddUserModalOpen(true)}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Přidat uživatele
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-4">
@@ -345,12 +379,13 @@ export function UserManagementPanel() {
                   <TableHead>Propojení se zaměstnancem</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Změnit roli</TableHead>
+                  <TableHead className="w-12">Akce</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       Žádní uživatelé nenalezeni
                     </TableCell>
                   </TableRow>
@@ -359,6 +394,8 @@ export function UserManagementPanel() {
                     const currentRole = user.roles[0] || "user";
                     const isCurrentUser = user.id === profile?.id;
                     const isAdmin = currentRole === "admin";
+                    const userName = `${user.first_name} ${user.last_name}`.trim() || user.email;
+                    
                     return (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">
@@ -403,6 +440,39 @@ export function UserManagementPanel() {
                             </SelectContent>
                           </Select>
                         </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => setResetPasswordModal({
+                                  open: true,
+                                  userId: user.id,
+                                  userEmail: user.email,
+                                  userName,
+                                })}
+                              >
+                                <Key className="h-4 w-4 mr-2" />
+                                Reset hesla
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setChangeEmailModal({
+                                  open: true,
+                                  userId: user.id,
+                                  currentEmail: user.email,
+                                  userName,
+                                })}
+                              >
+                                <Mail className="h-4 w-4 mr-2" />
+                                Změnit email
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -412,6 +482,33 @@ export function UserManagementPanel() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add User Modal */}
+      <AddUserModal
+        open={addUserModalOpen}
+        onOpenChange={setAddUserModalOpen}
+        onUserCreated={loadUsers}
+      />
+
+      {/* Reset Password Modal */}
+      <ResetPasswordModal
+        open={resetPasswordModal.open}
+        onOpenChange={(open) => setResetPasswordModal(prev => ({ ...prev, open }))}
+        userId={resetPasswordModal.userId}
+        userEmail={resetPasswordModal.userEmail}
+        userName={resetPasswordModal.userName}
+        onSuccess={loadUsers}
+      />
+
+      {/* Change Email Modal */}
+      <ChangeEmailModal
+        open={changeEmailModal.open}
+        onOpenChange={(open) => setChangeEmailModal(prev => ({ ...prev, open }))}
+        userId={changeEmailModal.userId}
+        currentEmail={changeEmailModal.currentEmail}
+        userName={changeEmailModal.userName}
+        onSuccess={loadUsers}
+      />
 
       {/* Role Change Confirmation Dialog */}
       <AlertDialog open={!!pendingRoleChange} onOpenChange={() => setPendingRoleChange(null)}>
@@ -444,7 +541,7 @@ export function UserManagementPanel() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               Toto je poslední administrátor v systému. Nejprve přidejte dalšího
-              administrátora, než změníte roli tohoto uživatele.
+              administrátora (povyšte jiného uživatele na admin), než změníte roli tohoto uživatele.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

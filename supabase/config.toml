@@ -14,3 +14,15 @@ verify_jwt = false
 
 [functions.run-deadline-reminders]
 verify_jwt = false
+
+[functions.admin-create-user]
+verify_jwt = false
+
+[functions.admin-link-employee]
+verify_jwt = false
+
+[functions.admin-reset-password]
+verify_jwt = false
+
+[functions.admin-change-email]
+verify_jwt = false
