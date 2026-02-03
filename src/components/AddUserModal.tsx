@@ -109,10 +109,22 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
   };
 
   const handleSubmit = async () => {
-    if (!email || !password || !employeeId) {
+    // Admin doesn't require employee link
+    const isAdminRole = role === "admin";
+    
+    if (!email || !password) {
       toast({
         title: "Vyplňte povinná pole",
-        description: "Email, heslo a propojení se zaměstnancem jsou povinné.",
+        description: "Email a heslo jsou povinné.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isAdminRole && !employeeId) {
+      toast({
+        title: "Vyplňte povinná pole",
+        description: "Propojení se zaměstnancem je povinné pro role Uživatel a Manažer.",
         variant: "destructive",
       });
       return;
@@ -170,34 +182,59 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Employee Link - REQUIRED */}
+          {/* Role - moved to top so we know if admin is selected */}
           <div className="space-y-2">
-            <Label htmlFor="employee">
-              Propojení se zaměstnancem <span className="text-destructive">*</span>
-            </Label>
-            {employeesLoading ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Načítání zaměstnanců...
-              </div>
-            ) : (
-              <Select value={employeeId} onValueChange={handleEmployeeSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Vyberte zaměstnance" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      {emp.last_name} {emp.first_name} ({emp.employee_number})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Propojení určuje, které záznamy uživatel uvidí v systému.
-            </p>
+            <Label>Role</Label>
+            <Select value={role} onValueChange={(v) => setRole(v as any)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">Uživatel</SelectItem>
+                <SelectItem value="manager">Manažer</SelectItem>
+                <SelectItem value="admin">Administrátor</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Employee Link - only required for non-admin */}
+          {!isAdmin && (
+            <div className="space-y-2">
+              <Label htmlFor="employee">
+                Propojení se zaměstnancem <span className="text-destructive">*</span>
+              </Label>
+              {employeesLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Načítání zaměstnanců...
+                </div>
+              ) : (
+                <Select value={employeeId} onValueChange={handleEmployeeSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Vyberte zaměstnance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.last_name} {emp.first_name} ({emp.employee_number})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Propojení určuje, které záznamy uživatel uvidí v systému.
+              </p>
+            </div>
+          )}
+
+          {isAdmin && (
+            <div className="rounded-md bg-muted/50 p-3">
+              <p className="text-sm text-muted-foreground">
+                <strong>Administrátor</strong> má přístup ke všem datům a nepotřebuje propojení se zaměstnancem.
+              </p>
+            </div>
+          )}
 
           {/* Email */}
           <div className="space-y-2">
@@ -273,20 +310,6 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
             </p>
           </div>
 
-          {/* Role */}
-          <div className="space-y-2">
-            <Label>Role</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as any)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">Uživatel</SelectItem>
-                <SelectItem value="manager">Manažer</SelectItem>
-                <SelectItem value="admin">Administrátor</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Modules - disabled for admin */}
           <div className="space-y-2">

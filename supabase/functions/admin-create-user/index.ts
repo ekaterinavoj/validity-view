@@ -65,8 +65,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!employeeId) {
-      return new Response(JSON.stringify({ error: "Employee link is required" }), {
+    // Employee link is only required for non-admin roles
+    const isAdminRole = role === "admin";
+    if (!isAdminRole && !employeeId) {
+      return new Response(JSON.stringify({ error: "Employee link is required for non-admin users" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -100,17 +102,23 @@ Deno.serve(async (req) => {
     // Wait a moment for the profile trigger to create the profile
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Update profile with name, employee link, and approval
+    // Update profile with name, employee link (if provided), and approval
+    const profileUpdate: Record<string, any> = { 
+      first_name: firstName || "",
+      last_name: lastName || "",
+      approval_status: "approved",
+      approved_at: new Date().toISOString(),
+      approved_by: caller.id,
+    };
+    
+    // Only set employee_id if provided (admins don't need it)
+    if (employeeId) {
+      profileUpdate.employee_id = employeeId;
+    }
+
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .update({ 
-        first_name: firstName || "",
-        last_name: lastName || "",
-        employee_id: employeeId,
-        approval_status: "approved",
-        approved_at: new Date().toISOString(),
-        approved_by: caller.id,
-      })
+      .update(profileUpdate)
       .eq("id", userId);
 
     if (profileError) {
