@@ -27,28 +27,30 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Create client with user's token to verify their identity
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+    // Create admin client for verification
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
     });
 
-    // Verify the token and get user claims
+    // Verify the token by getting user data using the token
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
     
-    if (claimsError || !claimsData?.claims) {
-      console.log("Failed to verify token:", claimsError);
+    if (userError || !userData?.user) {
+      console.log("Failed to verify token:", userError);
       return new Response(
         JSON.stringify({ error: "Invalid token" }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = userData.user.id;
     console.log(`User ${userId} requesting user list`);
 
-    // Check if user has admin role using service role to bypass RLS
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    // Check if user has admin role (reuse supabaseAdmin)
     
     const { data: roles, error: rolesError } = await supabaseAdmin
       .from("user_roles")
