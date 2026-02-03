@@ -1,8 +1,55 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, UserPlus, Lock, CheckCircle } from "lucide-react";
+import { Shield, UserPlus, Lock, CheckCircle, Users, Loader2 } from "lucide-react";
+
+interface UserWithRole {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+}
 
 export function OnboardingSettings() {
+  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name");
+      
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+      
+      const usersWithRoles = profiles?.map(profile => {
+        const userRole = roles?.find(r => r.user_id === profile.id);
+        return {
+          id: profile.id,
+          email: profile.email,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          role: userRole?.role || "user",
+        };
+      }) || [];
+      
+      setUsers(usersWithRoles);
+    } catch (error) {
+      console.error("Error loading users:", error);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Admin-only provisioning info */}
@@ -57,6 +104,48 @@ export function OnboardingSettings() {
               </ul>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Users overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Přehled uživatelů a rolí
+          </CardTitle>
+          <CardDescription>
+            Přehled všech uživatelů v systému. Pro změnu rolí a správu účtů použijte záložku "Uživatelé".
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {usersLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {users.map((user) => (
+                <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">
+                      {user.first_name} {user.last_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                  </div>
+                  <Badge variant={user.role === "admin" ? "destructive" : user.role === "manager" ? "default" : "secondary"}>
+                    {user.role === "admin" ? "Administrátor" : user.role === "manager" ? "Manažer" : "Uživatel"}
+                  </Badge>
+                </div>
+              ))}
+              
+              {users.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  Žádní uživatelé
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

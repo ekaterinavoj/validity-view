@@ -93,7 +93,7 @@ export default function AdminSettings() {
   
   // Get initial tab from URL query param, default to "onboarding"
   const tabParam = searchParams.get("tab");
-  const validTabs = ["onboarding", "display", "reminders", "email", "user-management", "recipients", "data"];
+  const validTabs = ["onboarding", "display", "reminders", "email", "user-management", "data"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
   const [activeTab, setActiveTab] = useState(initialTab);
   
@@ -434,7 +434,7 @@ export default function AdminSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
             Onboarding
@@ -454,10 +454,6 @@ export default function AdminSettings() {
           <TabsTrigger value="user-management" className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
             Uživatelé
-          </TabsTrigger>
-          <TabsTrigger value="recipients" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Příjemci
           </TabsTrigger>
           <TabsTrigger value="data" className="flex items-center gap-2">
             <Database className="w-4 h-4" />
@@ -1015,46 +1011,7 @@ export default function AdminSettings() {
           <UserManagementPanel />
         </TabsContent>
 
-        {/* Users (Recipients) Tab */}
-        <TabsContent value="recipients" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Přehled uživatelů a rolí</CardTitle>
-              <CardDescription>
-                Přehled všech uživatelů v systému. Pro změnu rolí a správu účtů použijte záložku "Uživatelé".
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {usersLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {users.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">
-                          {user.first_name} {user.last_name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{user.email}</p>
-                      </div>
-                      <Badge variant={user.role === "admin" ? "destructive" : user.role === "manager" ? "default" : "secondary"}>
-                        {user.role === "admin" ? "Administrátor" : user.role === "manager" ? "Manažer" : "Uživatel"}
-                      </Badge>
-                    </div>
-                  ))}
-                  
-                  {users.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">
-                      Žádní uživatelé
-                    </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+
 
         {/* Data Tab */}
         <TabsContent value="data" className="space-y-6">
