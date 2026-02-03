@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench } from "lucide-react";
-import { RolePermissionsInfo } from "@/components/RolePermissionsInfo";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
 import { SendTestDeadlineEmail } from "@/components/SendTestDeadlineEmail";
 import { SendSingleTestEmail } from "@/components/SendSingleTestEmail";
@@ -1022,7 +1021,7 @@ export default function AdminSettings() {
             <CardHeader>
               <CardTitle>Přehled uživatelů a rolí</CardTitle>
               <CardDescription>
-                Přehled všech uživatelů v systému a jejich rolí (pro změnu rolí použijte záložku "Správa uživatelů")
+                Přehled všech uživatelů v systému. Pro změnu rolí a správu účtů použijte záložku "Uživatelé".
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1040,19 +1039,9 @@ export default function AdminSettings() {
                         </p>
                         <p className="text-sm text-muted-foreground">{user.email}</p>
                       </div>
-                      <Select
-                        value={user.role}
-                        onValueChange={(value) => handleRoleChange(user.id, value)}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="user">Uživatel</SelectItem>
-                          <SelectItem value="manager">Manažer</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Badge variant={user.role === "admin" ? "destructive" : user.role === "manager" ? "default" : "secondary"}>
+                        {user.role === "admin" ? "Administrátor" : user.role === "manager" ? "Manažer" : "Uživatel"}
+                      </Badge>
                     </div>
                   ))}
                   
@@ -1065,9 +1054,6 @@ export default function AdminSettings() {
               )}
             </CardContent>
           </Card>
-          
-          {/* Role Permissions Info */}
-          <RolePermissionsInfo />
         </TabsContent>
 
         {/* Data Tab */}
