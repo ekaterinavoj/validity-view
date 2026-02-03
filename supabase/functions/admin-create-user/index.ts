@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
 
     console.log("Creating user with email:", email);
     
-    // Create user with admin API
+    // Create user with admin API - use raw_user_meta_data compatible format
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -84,11 +84,106 @@ Deno.serve(async (req) => {
       user_metadata: {
         first_name: firstName || "",
         last_name: lastName || "",
+        position: "",
+      },
+      // Also set app_metadata for additional info
+      app_metadata: {
+        provider: "admin",
+        created_by: caller.id,
       },
     });
 
     if (createError) {
       console.error("Create user error:", createError);
+      
+      // If trigger failed, try to create user without metadata and handle profile manually
+      if (createError.message.includes("Database error")) {
+        console.log("Trigger may have failed, attempting alternative approach...");
+        
+        // Try creating with minimal data
+        const { data: minimalUser, error: minimalError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+        });
+        
+        if (minimalError) {
+          console.error("Minimal create also failed:", minimalError);
+          return new Response(JSON.stringify({ error: minimalError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        const userId = minimalUser.user.id;
+        console.log("User created with minimal data:", userId);
+        
+        // Manually ensure profile exists (trigger might have created partial or none)
+        const { data: existingProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("id")
+          .eq("id", userId)
+          .single();
+        
+        if (!existingProfile) {
+          // Create profile manually
+          console.log("Creating profile manually for user:", userId);
+          const { error: insertError } = await supabaseAdmin
+            .from("profiles")
+            .insert({
+              id: userId,
+              email: email,
+              first_name: firstName || "",
+              last_name: lastName || "",
+              position: "",
+              approval_status: "approved",
+              approved_at: new Date().toISOString(),
+              approved_by: caller.id,
+            });
+          
+          if (insertError) {
+            console.error("Manual profile insert error:", insertError);
+          }
+        } else {
+          // Update existing profile
+          const profileUpdate: Record<string, any> = { 
+            first_name: firstName || "",
+            last_name: lastName || "",
+            approval_status: "approved",
+            approved_at: new Date().toISOString(),
+            approved_by: caller.id,
+          };
+          
+          if (employeeId) {
+            profileUpdate.employee_id = employeeId;
+          }
+
+          await supabaseAdmin
+            .from("profiles")
+            .update(profileUpdate)
+            .eq("id", userId);
+        }
+        
+        // Continue with role and module setup
+        await setupUserRolesAndModules(supabaseAdmin, userId, role, modules, caller.id, employeeId);
+        
+        // Log to audit
+        await logAuditEntry(supabaseAdmin, userId, email, firstName, lastName, role, modules, employeeId, caller);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            userId,
+            email,
+            message: `User ${email} created successfully` 
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
       return new Response(JSON.stringify({ error: createError.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -102,86 +197,63 @@ Deno.serve(async (req) => {
     // Wait a moment for the profile trigger to create the profile
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Update profile with name, employee link (if provided), and approval
-    const profileUpdate: Record<string, any> = { 
-      first_name: firstName || "",
-      last_name: lastName || "",
-      approval_status: "approved",
-      approved_at: new Date().toISOString(),
-      approved_by: caller.id,
-    };
-    
-    // Only set employee_id if provided (admins don't need it)
-    if (employeeId) {
-      profileUpdate.employee_id = employeeId;
-    }
-
-    const { error: profileError } = await supabaseAdmin
+    // Check if profile was created by trigger
+    const { data: existingProfile } = await supabaseAdmin
       .from("profiles")
-      .update(profileUpdate)
-      .eq("id", userId);
-
-    if (profileError) {
-      console.error("Profile update error:", profileError);
-    }
-
-    // Delete any existing roles and set the new one
-    await supabaseAdmin
-      .from("user_roles")
-      .delete()
-      .eq("user_id", userId);
-
-    const { error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .insert({
-        user_id: userId,
-        role: role || "user",
-        created_by: caller.id,
-      });
-
-    if (roleError) {
-      console.error("Role insert error:", roleError);
-    }
-
-    // Delete existing module access and set new ones
-    await supabaseAdmin
-      .from("user_module_access")
-      .delete()
-      .eq("user_id", userId);
-
-    // Determine which modules to grant
-    const modulesToGrant = role === "admin" 
-      ? ["trainings", "deadlines"] 
-      : (modules || ["trainings", "deadlines"]);
-
-    for (const module of modulesToGrant) {
-      await supabaseAdmin
-        .from("user_module_access")
+      .select("id")
+      .eq("id", userId)
+      .single();
+    
+    if (!existingProfile) {
+      // Create profile manually if trigger failed
+      console.log("Profile not found, creating manually for user:", userId);
+      const { error: insertError } = await supabaseAdmin
+        .from("profiles")
         .insert({
-          user_id: userId,
-          module: module,
-          created_by: caller.id,
+          id: userId,
+          email: email,
+          first_name: firstName || "",
+          last_name: lastName || "",
+          position: "",
+          approval_status: "approved",
+          approved_at: new Date().toISOString(),
+          approved_by: caller.id,
+          employee_id: employeeId || null,
         });
+      
+      if (insertError) {
+        console.error("Manual profile insert error:", insertError);
+      }
+    } else {
+      // Update profile with name, employee link (if provided), and approval
+      const profileUpdate: Record<string, any> = { 
+        first_name: firstName || "",
+        last_name: lastName || "",
+        approval_status: "approved",
+        approved_at: new Date().toISOString(),
+        approved_by: caller.id,
+      };
+      
+      // Only set employee_id if provided (admins don't need it)
+      if (employeeId) {
+        profileUpdate.employee_id = employeeId;
+      }
+
+      const { error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .update(profileUpdate)
+        .eq("id", userId);
+
+      if (profileError) {
+        console.error("Profile update error:", profileError);
+      }
     }
 
+    // Setup roles and modules
+    await setupUserRolesAndModules(supabaseAdmin, userId, role, modules, caller.id, employeeId);
+    
     // Log to audit
-    await supabaseAdmin
-      .from("audit_logs")
-      .insert({
-        table_name: "profiles",
-        record_id: userId,
-        action: "ADMIN_CREATE_USER",
-        new_data: {
-          email,
-          first_name: firstName,
-          last_name: lastName,
-          role: role || "user",
-          modules: modulesToGrant,
-          employee_id: employeeId,
-        },
-        user_id: caller.id,
-        user_email: caller.email,
-      });
+    await logAuditEntry(supabaseAdmin, userId, email, firstName, lastName, role, modules, employeeId, caller);
 
     return new Response(
       JSON.stringify({ 
@@ -204,3 +276,87 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// Helper function to setup user roles and module access
+async function setupUserRolesAndModules(
+  supabaseAdmin: any, 
+  userId: string, 
+  role: string, 
+  modules: string[] | undefined, 
+  callerId: string,
+  employeeId: string | undefined
+) {
+  // Delete any existing roles and set the new one
+  await supabaseAdmin
+    .from("user_roles")
+    .delete()
+    .eq("user_id", userId);
+
+  const { error: roleError } = await supabaseAdmin
+    .from("user_roles")
+    .insert({
+      user_id: userId,
+      role: role || "user",
+      created_by: callerId,
+    });
+
+  if (roleError) {
+    console.error("Role insert error:", roleError);
+  }
+
+  // Delete existing module access and set new ones
+  await supabaseAdmin
+    .from("user_module_access")
+    .delete()
+    .eq("user_id", userId);
+
+  // Determine which modules to grant
+  const modulesToGrant = role === "admin" 
+    ? ["trainings", "deadlines"] 
+    : (modules || ["trainings", "deadlines"]);
+
+  for (const module of modulesToGrant) {
+    await supabaseAdmin
+      .from("user_module_access")
+      .insert({
+        user_id: userId,
+        module: module,
+        created_by: callerId,
+      });
+  }
+}
+
+// Helper function to log audit entry
+async function logAuditEntry(
+  supabaseAdmin: any,
+  userId: string,
+  email: string,
+  firstName: string,
+  lastName: string,
+  role: string,
+  modules: string[] | undefined,
+  employeeId: string | undefined,
+  caller: any
+) {
+  const modulesToGrant = role === "admin" 
+    ? ["trainings", "deadlines"] 
+    : (modules || ["trainings", "deadlines"]);
+    
+  await supabaseAdmin
+    .from("audit_logs")
+    .insert({
+      table_name: "profiles",
+      record_id: userId,
+      action: "ADMIN_CREATE_USER",
+      new_data: {
+        email,
+        first_name: firstName,
+        last_name: lastName,
+        role: role || "user",
+        modules: modulesToGrant,
+        employee_id: employeeId,
+      },
+      user_id: caller.id,
+      user_email: caller.email,
+    });
+}
