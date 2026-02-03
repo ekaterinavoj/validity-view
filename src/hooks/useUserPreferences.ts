@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface UserPreferences {
   // UI & Display
@@ -37,23 +38,57 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   autoRefreshInterval: 60,
 };
 
-const STORAGE_KEY = "userPreferences";
+const getStorageKey = (userId: string | null) => {
+  return userId ? `userPreferences_${userId}` : "userPreferences_anonymous";
+};
 
 export function useUserPreferences() {
-  const [preferences, setPreferences] = useState<UserPreferences>(() => {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Get current user ID on mount and auth changes
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUserId(session?.user?.id ?? null);
+    };
+
+    getCurrentUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load preferences when userId changes
+  useEffect(() => {
+    if (userId === null && !isLoaded) {
+      // Wait for auth to initialize
+      return;
+    }
+
+    const storageKey = getStorageKey(userId);
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
-        return { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
+        setPreferences({ ...DEFAULT_PREFERENCES, ...JSON.parse(stored) });
+      } else {
+        setPreferences(DEFAULT_PREFERENCES);
       }
     } catch (e) {
       console.error("Failed to load user preferences:", e);
+      setPreferences(DEFAULT_PREFERENCES);
     }
-    return DEFAULT_PREFERENCES;
-  });
+    setIsLoaded(true);
+  }, [userId]);
 
   // Apply theme effect with smooth transition
   useEffect(() => {
+    if (!isLoaded) return;
+    
     const root = document.documentElement;
     
     // Determine if dark mode should be applied
@@ -63,7 +98,7 @@ export function useUserPreferences() {
     
     // Apply the theme change
     root.classList.toggle("dark", shouldBeDark);
-  }, [preferences.theme]);
+  }, [preferences.theme, isLoaded]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -93,26 +128,29 @@ export function useUserPreferences() {
 
   // Apply compact mode
   useEffect(() => {
+    if (!isLoaded) return;
     document.documentElement.classList.toggle("compact-mode", preferences.compactMode);
-  }, [preferences.compactMode]);
+  }, [preferences.compactMode, isLoaded]);
 
   // Apply animations setting
   useEffect(() => {
+    if (!isLoaded) return;
     document.documentElement.classList.toggle("no-animations", !preferences.animationsEnabled);
-  }, [preferences.animationsEnabled]);
+  }, [preferences.animationsEnabled, isLoaded]);
 
   // Save preferences
   const savePreferences = useCallback((newPrefs: Partial<UserPreferences>) => {
     setPreferences(prev => {
       const updated = { ...prev, ...newPrefs };
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        const storageKey = getStorageKey(userId);
+        localStorage.setItem(storageKey, JSON.stringify(updated));
       } catch (e) {
         console.error("Failed to save preferences:", e);
       }
       return updated;
     });
-  }, []);
+  }, [userId]);
 
   const updatePreference = useCallback(<K extends keyof UserPreferences>(
     key: K,
@@ -123,8 +161,13 @@ export function useUserPreferences() {
 
   const resetPreferences = useCallback(() => {
     setPreferences(DEFAULT_PREFERENCES);
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
+    try {
+      const storageKey = getStorageKey(userId);
+      localStorage.removeItem(storageKey);
+    } catch (e) {
+      console.error("Failed to reset preferences:", e);
+    }
+  }, [userId]);
 
   return {
     preferences,
@@ -132,5 +175,6 @@ export function useUserPreferences() {
     savePreferences,
     resetPreferences,
     DEFAULT_PREFERENCES,
+    isLoaded,
   };
 }
