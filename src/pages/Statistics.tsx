@@ -521,17 +521,7 @@ export default function Statistics() {
               </div>
             </Card>
 
-            <Card className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-yellow-500/10 rounded-lg">
-                  <Clock className="w-6 h-6 text-yellow-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Vyprší do 60 dní</p>
-                  <p className="text-2xl font-bold">{expiring60}</p>
-                </div>
-              </div>
-            </Card>
+            
 
             
 
