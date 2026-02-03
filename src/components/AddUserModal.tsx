@@ -45,7 +45,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Form state
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -82,7 +82,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
         .select("id, first_name, last_name, email, employee_number")
         .eq("status", "employed")
         .order("last_name");
-      
+
       if (error) throw error;
       setEmployees(data || []);
     } catch (error: any) {
@@ -98,7 +98,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
 
   const handleEmployeeSelect = (empId: string) => {
     setEmployeeId(empId);
-    const emp = employees.find(e => e.id === empId);
+    const emp = employees.find((e) => e.id === empId);
     if (emp) {
       setFirstName(emp.first_name);
       setLastName(emp.last_name);
@@ -109,9 +109,8 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
   };
 
   const handleSubmit = async () => {
-    // Admin doesn't require employee link
     const isAdminRole = role === "admin";
-    
+
     if (!email || !password) {
       toast({
         title: "Vyplňte povinná pole",
@@ -130,22 +129,38 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
       return;
     }
 
+    // NEW: non-admin must have at least one module selected
+    if (!isAdminRole && !moduleTrainings && !moduleDeadlines) {
+      toast({
+        title: "Vyberte modul",
+        description: "Uživatel musí mít přístup alespoň k jednomu modulu.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const modules: string[] = [];
       if (moduleTrainings) modules.push("trainings");
       if (moduleDeadlines) modules.push("deadlines");
 
+      // NEW: build payload without employeeId for admin
+      const payload: any = {
+        email,
+        password,
+        firstName,
+        lastName,
+        role,
+        modules: role === "admin" ? ["trainings", "deadlines"] : modules,
+      };
+
+      if (!isAdminRole) {
+        payload.employeeId = employeeId;
+      }
+
       const { data, error } = await supabase.functions.invoke("admin-create-user", {
-        body: {
-          email,
-          password,
-          firstName,
-          lastName,
-          role,
-          modules,
-          employeeId,
-        },
+        body: payload,
       });
 
       if (error) throw error;
@@ -176,9 +191,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Přidat nového uživatele</DialogTitle>
-          <DialogDescription>
-            Vytvořte nový uživatelský účet a přidělte mu přístup do systému.
-          </DialogDescription>
+          <DialogDescription>Vytvořte nový uživatelský účet a přidělte mu přístup do systému.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -222,9 +235,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
                   </SelectContent>
                 </Select>
               )}
-              <p className="text-xs text-muted-foreground">
-                Propojení určuje, které záznamy uživatel uvidí v systému.
-              </p>
+              <p className="text-xs text-muted-foreground">Propojení určuje, které záznamy uživatel uvidí v systému.</p>
             </div>
           )}
 
@@ -263,12 +274,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Příjmení</Label>
-              <Input
-                id="lastName"
-                placeholder="Novák"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-              />
+              <Input id="lastName" placeholder="Novák" value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </div>
           </div>
 
@@ -305,19 +311,14 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Heslo předejte uživateli bezpečným způsobem.
-            </p>
+            <p className="text-xs text-muted-foreground">Heslo předejte uživateli bezpečným způsobem.</p>
           </div>
-
 
           {/* Modules - disabled for admin */}
           <div className="space-y-2">
             <Label>Přístup k modulům</Label>
             {isAdmin ? (
-              <p className="text-sm text-muted-foreground">
-                Administrátor má automaticky přístup ke všem modulům.
-              </p>
+              <p className="text-sm text-muted-foreground">Administrátor má automaticky přístup ke všem modulům.</p>
             ) : (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
