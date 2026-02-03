@@ -26,8 +26,6 @@ import { DeadlineEmailTemplatePreview } from "@/components/DeadlineEmailTemplate
 import { NextSendPreview } from "@/components/NextSendPreview";
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { OnboardingSettings } from "@/components/OnboardingSettings";
-import { PendingUsersPanel } from "@/components/PendingUsersPanel";
-import { UserInvitePanel } from "@/components/UserInvitePanel";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
 import { BulkDeadlineImport } from "@/components/BulkDeadlineImport";
@@ -471,8 +469,6 @@ export default function AdminSettings() {
         {/* Onboarding Tab */}
         <TabsContent value="onboarding" className="space-y-6">
           <OnboardingSettings />
-          <PendingUsersPanel />
-          <UserInvitePanel />
         </TabsContent>
 
         {/* Display Tab */}

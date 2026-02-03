@@ -14,7 +14,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    // Create admin client with service role
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -55,105 +54,55 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse request body
-    const { email, password, firstName, lastName, role, modules, employeeId } = await req.json();
+    const { userId, newEmail } = await req.json();
 
-    if (!email || !password) {
-      return new Response(JSON.stringify({ error: "Email and password required" }), {
+    if (!userId || !newEmail) {
+      return new Response(JSON.stringify({ error: "User ID and new email required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (!employeeId) {
-      return new Response(JSON.stringify({ error: "Employee link is required" }), {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      return new Response(JSON.stringify({ error: "Invalid email format" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log("Creating user with email:", email);
-    
-    // Create user with admin API
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true, // Auto-confirm for admin-created users
-      user_metadata: {
-        first_name: firstName || "",
-        last_name: lastName || "",
-      },
+    // Get old email for audit log
+    const { data: oldProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("email, first_name, last_name")
+      .eq("id", userId)
+      .single();
+
+    console.log("Changing email for user:", userId, "from", oldProfile?.email, "to", newEmail);
+
+    // Update email using admin API
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      email: newEmail,
+      email_confirm: true, // Auto-confirm for admin-changed emails
     });
 
-    if (createError) {
-      console.error("Create user error:", createError);
-      return new Response(JSON.stringify({ error: createError.message }), {
+    if (updateError) {
+      console.error("Email change error:", updateError);
+      return new Response(JSON.stringify({ error: updateError.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    
-    console.log("User created successfully:", newUser.user.id);
 
-    const userId = newUser.user.id;
-
-    // Wait a moment for the profile trigger to create the profile
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Update profile with name, employee link, and approval
+    // Update email in profiles table
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .update({ 
-        first_name: firstName || "",
-        last_name: lastName || "",
-        employee_id: employeeId,
-        approval_status: "approved",
-        approved_at: new Date().toISOString(),
-        approved_by: caller.id,
-      })
+      .update({ email: newEmail })
       .eq("id", userId);
 
     if (profileError) {
-      console.error("Profile update error:", profileError);
-    }
-
-    // Delete any existing roles and set the new one
-    await supabaseAdmin
-      .from("user_roles")
-      .delete()
-      .eq("user_id", userId);
-
-    const { error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .insert({
-        user_id: userId,
-        role: role || "user",
-        created_by: caller.id,
-      });
-
-    if (roleError) {
-      console.error("Role insert error:", roleError);
-    }
-
-    // Delete existing module access and set new ones
-    await supabaseAdmin
-      .from("user_module_access")
-      .delete()
-      .eq("user_id", userId);
-
-    // Determine which modules to grant
-    const modulesToGrant = role === "admin" 
-      ? ["trainings", "deadlines"] 
-      : (modules || ["trainings", "deadlines"]);
-
-    for (const module of modulesToGrant) {
-      await supabaseAdmin
-        .from("user_module_access")
-        .insert({
-          user_id: userId,
-          module: module,
-          created_by: caller.id,
-        });
+      console.error("Profile email update error:", profileError);
     }
 
     // Log to audit
@@ -162,25 +111,25 @@ Deno.serve(async (req) => {
       .insert({
         table_name: "profiles",
         record_id: userId,
-        action: "ADMIN_CREATE_USER",
+        action: "ADMIN_CHANGE_EMAIL",
+        old_data: {
+          email: oldProfile?.email,
+        },
         new_data: {
-          email,
-          first_name: firstName,
-          last_name: lastName,
-          role: role || "user",
-          modules: modulesToGrant,
-          employee_id: employeeId,
+          email: newEmail,
+          target_name: `${oldProfile?.first_name} ${oldProfile?.last_name}`,
         },
         user_id: caller.id,
         user_email: caller.email,
+        changed_fields: ["email"],
       });
+
+    console.log("Email change successful:", oldProfile?.email, "->", newEmail);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        userId,
-        email,
-        message: `User ${email} created successfully` 
+        message: `Email changed from ${oldProfile?.email} to ${newEmail}` 
       }),
       {
         status: 200,
@@ -189,7 +138,7 @@ Deno.serve(async (req) => {
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Admin create user error:", message);
+    console.error("Admin change email error:", message);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
