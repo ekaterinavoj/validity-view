@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench } from "lucide-react";
+import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope } from "lucide-react";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
 import { SendTestDeadlineEmail } from "@/components/SendTestDeadlineEmail";
 import { SendSingleTestEmail } from "@/components/SendSingleTestEmail";
@@ -29,6 +29,7 @@ import { OnboardingSettings } from "@/components/OnboardingSettings";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
 import { BulkDeadlineImport } from "@/components/BulkDeadlineImport";
+import { BulkMedicalImport } from "@/components/BulkMedicalImport";
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { ModuleRecipientsSelector } from "@/components/ModuleRecipientsSelector";
 
@@ -157,9 +158,19 @@ export default function AdminSettings() {
     subject: "Souhrn technických lhůt k obnovení - {reportDate}",
     body: "Dobrý den,\n\nzasíláme přehled technických lhůt vyžadujících pozornost.\n\nCelkem: {totalCount} událostí\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}\n\nPodrobný seznam naleznete v příloze níže.\n\nS pozdravem,\nVáš systém technických lhůt",
   });
+
+  const [medicalEmailTemplate, setMedicalEmailTemplate] = useState({
+    subject: "Souhrn lékařských prohlídek k obnovení - {reportDate}",
+    body: "Dobrý den,\n\nzasíláme přehled pracovně lékařských prohlídek vyžadujících pozornost.\n\nCelkem: {totalCount} prohlídek\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}\n\nPodrobný seznam naleznete v příloze níže.\n\nS pozdravem,\nVáš systém pracovně lékařských prohlídek",
+  });
   
   // Recipients state per module
   const [deadlineRecipients, setDeadlineRecipients] = useState({
+    user_ids: [] as string[],
+    delivery_mode: "bcc" as string,
+  });
+
+  const [medicalRecipients, setMedicalRecipients] = useState({
     user_ids: [] as string[],
     delivery_mode: "bcc" as string,
   });
@@ -241,6 +252,16 @@ export default function AdminSettings() {
           case "deadline_email_template":
             if (setting.value && typeof setting.value === 'object') {
               setDeadlineEmailTemplate(prev => ({ ...prev, ...(setting.value as object) }));
+            }
+            break;
+          case "medical_email_template":
+            if (setting.value && typeof setting.value === 'object') {
+              setMedicalEmailTemplate(prev => ({ ...prev, ...(setting.value as object) }));
+            }
+            break;
+          case "medical_reminder_recipients":
+            if (setting.value && typeof setting.value === 'object') {
+              setMedicalRecipients(prev => ({ ...prev, ...(setting.value as object) }));
             }
             break;
         }
@@ -326,9 +347,11 @@ export default function AdminSettings() {
         saveSetting("reminder_frequency", reminderFrequency),
         saveSetting("reminder_recipients", reminderRecipients),
         saveSetting("deadline_reminder_recipients", deadlineRecipients),
+        saveSetting("medical_reminder_recipients", medicalRecipients),
         saveSetting("email_provider", emailProvider),
         saveSetting("email_template", emailTemplate),
         saveSetting("deadline_email_template", deadlineEmailTemplate),
+        saveSetting("medical_email_template", medicalEmailTemplate),
       ]);
       
       toast({
@@ -1083,12 +1106,12 @@ export default function AdminSettings() {
             <CardHeader>
               <CardTitle>Šablony souhrnných emailů</CardTitle>
               <CardDescription>
-                Upravte text souhrnných emailů odesílaných vybraným příjemcům pro oba moduly
+                Upravte text souhrnných emailů odesílaných vybraným příjemcům pro všechny moduly
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Tabs defaultValue="training" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="training" className="flex items-center gap-2">
                     <GraduationCap className="w-4 h-4" />
                     Školení
@@ -1096,6 +1119,10 @@ export default function AdminSettings() {
                   <TabsTrigger value="deadlines" className="flex items-center gap-2">
                     <Wrench className="w-4 h-4" />
                     Technické lhůty
+                  </TabsTrigger>
+                  <TabsTrigger value="medical" className="flex items-center gap-2">
+                    <Stethoscope className="w-4 h-4" />
+                    PLP
                   </TabsTrigger>
                 </TabsList>
 
@@ -1158,6 +1185,83 @@ export default function AdminSettings() {
                     body={deadlineEmailTemplate.body}
                   />
                 </TabsContent>
+
+                <TabsContent value="medical" className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>Předmět</Label>
+                    <Input
+                      value={medicalEmailTemplate.subject}
+                      onChange={(e) => 
+                        setMedicalEmailTemplate({ ...medicalEmailTemplate, subject: e.target.value })
+                      }
+                      placeholder="Souhrn lékařských prohlídek k obnovení - {reportDate}"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Tělo emailu</Label>
+                    <Textarea
+                      value={medicalEmailTemplate.body}
+                      onChange={(e) => 
+                        setMedicalEmailTemplate({ ...medicalEmailTemplate, body: e.target.value })
+                      }
+                      rows={8}
+                      placeholder="Dobrý den,\n\nzasíláme přehled lékařských prohlídek..."
+                    />
+                  </div>
+
+                  {/* Medical Email Template Preview */}
+                  <div className="border rounded-lg p-4 bg-muted/30">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Eye className="w-4 h-4" />
+                      <span className="text-sm font-medium">Náhled emailu (živý)</span>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <Badge variant="outline" className="text-xs">
+                        {"{totalCount}"} → Celkový počet prohlídek
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {"{expiringCount}"} → Počet brzy vypršujících
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {"{expiredCount}"} → Počet prošlých
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {"{reportDate}"} → Datum reportu
+                      </Badge>
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Ukázková data: 8 prohlídek (3 prošlé, 5 brzy vyprší)
+                    </div>
+                    
+                    <div className="border rounded bg-background p-4 space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="w-4 h-4 text-muted-foreground" />
+                        <strong>Předmět:</strong> 
+                        {medicalEmailTemplate.subject
+                          .replace(/\{totalCount\}/g, "8")
+                          .replace(/\{expiringCount\}/g, "5")
+                          .replace(/\{expiredCount\}/g, "3")
+                          .replace(/\{reportDate\}/g, new Date().toLocaleDateString("cs-CZ"))}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="w-4 h-4" />
+                        <strong>Datum:</strong> {new Date().toLocaleDateString("cs-CZ")}
+                      </div>
+                      <Separator className="my-2" />
+                      <div className="whitespace-pre-wrap text-sm">
+                        {medicalEmailTemplate.body
+                          .replace(/\{totalCount\}/g, "8")
+                          .replace(/\{expiringCount\}/g, "5")
+                          .replace(/\{expiredCount\}/g, "3")
+                          .replace(/\{reportDate\}/g, new Date().toLocaleDateString("cs-CZ"))}
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
@@ -1177,6 +1281,8 @@ export default function AdminSettings() {
           <BulkEmployeeImport />
           
           <BulkDeadlineImport />
+
+          <BulkMedicalImport />
         </TabsContent>
       </Tabs>
     </div>
