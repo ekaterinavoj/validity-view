@@ -38,7 +38,7 @@ import { DeadlineResponsiblesBadges } from "@/components/DeadlineResponsiblesBad
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { cn } from "@/lib/utils";
-import * as XLSX from "xlsx";
+import Papa from "papaparse";
 
 export default function ScheduledDeadlines() {
   const { deadlines, isLoading, error, refetch, archiveDeadline, isArchiving } = useDeadlines();
@@ -121,7 +121,7 @@ export default function ScheduledDeadlines() {
 
   // Status badge is now unified via StatusBadge component
 
-  const exportToExcel = () => {
+  const exportToCSV = () => {
     const data = filteredDeadlines.map(d => ({
       "Inventární č.": d.equipment?.inventory_number || "",
       "Zařízení": d.equipment?.name || "",
@@ -134,10 +134,13 @@ export default function ScheduledDeadlines() {
       "Firma": d.company || "",
     }));
     
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Technické události");
-    XLSX.writeFile(wb, `technicke-udalosti-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    const csv = Papa.unparse(data, { delimiter: ";" });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `technicke-udalosti-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
   };
 
   if (error) {
@@ -157,7 +160,7 @@ export default function ScheduledDeadlines() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <Button variant="outline" size="sm" onClick={exportToExcel}>
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

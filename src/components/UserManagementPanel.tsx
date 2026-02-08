@@ -31,13 +31,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck, Settings2 } from "lucide-react";
+import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck, Settings2, Download } from "lucide-react";
 import { ProfileEmployeeLink } from "@/components/ProfileEmployeeLink";
 import { AddUserModal } from "@/components/AddUserModal";
 import { ResetPasswordModal } from "@/components/ResetPasswordModal";
 import { ChangeEmailModal } from "@/components/ChangeEmailModal";
 import { ModuleAccessManager } from "@/components/ModuleAccessManager";
-import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -283,7 +283,7 @@ export function UserManagementPanel() {
     });
   }, [users, searchQuery, roleFilter]);
 
-  const exportToExcel = () => {
+  const exportToCSV = () => {
     const data = filteredUsers.map((u) => ({
       "Jméno": `${u.first_name} ${u.last_name}`,
       "Email": u.email,
@@ -291,10 +291,13 @@ export function UserManagementPanel() {
       "Role": u.roles.map(r => roleLabels[r] || r).join(", "),
     }));
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Uživatelé");
-    XLSX.writeFile(wb, `uzivatele_${new Date().toISOString().split("T")[0]}.xlsx`);
+    const csv = Papa.unparse(data, { delimiter: ";" });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `uzivatele_${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
 
     toast({ title: "Export úspěšný", description: `Exportováno ${data.length} uživatelů.` });
   };
@@ -432,9 +435,9 @@ export function UserManagementPanel() {
               <RefreshCw className="w-4 h-4 mr-2" />
               Obnovit
             </Button>
-            <Button variant="outline" size="sm" onClick={exportToExcel}>
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Excel
+            <Button variant="outline" size="sm" onClick={exportToCSV}>
+              <Download className="w-4 h-4 mr-2" />
+              CSV
             </Button>
             <Button variant="outline" size="sm" onClick={exportToPDF}>
               <FileDown className="w-4 h-4 mr-2" />

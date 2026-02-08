@@ -14,7 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import * as XLSX from "xlsx";
+import Papa from "papaparse";
 import { formatPeriodicity } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
@@ -138,10 +138,10 @@ export default function ScheduledExaminations() {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToCSV = () => {
     const dataToExport = selectedExaminations.size > 0 ? filteredExaminations.filter((e) => selectedExaminations.has(e.id)) : filteredExaminations;
 
-    const wsData = dataToExport.map((e) => ({
+    const data = dataToExport.map((e) => ({
       "Os. číslo": e.employeeNumber,
       Jméno: e.employeeName,
       Kategorie: e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
@@ -155,10 +155,13 @@ export default function ScheduledExaminations() {
       Stav: e.status === "valid" ? "Platné" : e.status === "warning" ? "Blíží se" : "Expirované",
     }));
 
-    const ws = XLSX.utils.json_to_sheet(wsData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Prohlídky");
-    XLSX.writeFile(wb, `prohlidky_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    const csv = Papa.unparse(data, { delimiter: ";" });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `prohlidky_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
   };
 
   const getCategoryBadge = (category: number | null) => {
@@ -200,7 +203,7 @@ export default function ScheduledExaminations() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <Button variant="outline" size="sm" onClick={exportToExcel}>
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
             <FileDown className="w-4 h-4 mr-2" />
             Export
           </Button>

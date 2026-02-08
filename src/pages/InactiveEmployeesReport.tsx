@@ -71,61 +71,6 @@ export default function InactiveEmployeesReport() {
     return inactiveTrainings.filter((t) => t.employeeId === employeeId);
   };
 
-  const exportToExcel = () => {
-    try {
-      const rows: any[] = [];
-      filteredEmployees.forEach((employee) => {
-        const trainings = getTrainingsForEmployee(employee.id);
-        if (trainings.length === 0) {
-          rows.push({
-            "Osobní číslo": employee.employeeNumber,
-            "Jméno": `${employee.firstName} ${employee.lastName}`,
-            "Email": employee.email,
-            "Pozice": employee.position,
-            "Středisko": employee.department,
-            "Stav zaměstnance": statusLabels[employee.status],
-            "Typ školení": "-",
-            "Školení platné do": "-",
-            "Datum školení": "-",
-            "Stav školení": "-",
-          });
-        } else {
-          trainings.forEach((training) => {
-            rows.push({
-              "Osobní číslo": employee.employeeNumber,
-              "Jméno": `${employee.firstName} ${employee.lastName}`,
-              "Email": employee.email,
-              "Pozice": employee.position,
-              "Středisko": employee.department,
-              "Stav zaměstnance": statusLabels[employee.status],
-              "Typ školení": training.type,
-              "Školení platné do": new Date(training.date).toLocaleDateString("cs-CZ"),
-              "Datum školení": new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
-              "Stav školení": training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
-            });
-          });
-        }
-      });
-
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Neaktivní zaměstnanci");
-      
-      const timestamp = new Date().toISOString().split("T")[0];
-      XLSX.writeFile(wb, `neaktivni_zamestnanci_${timestamp}.xlsx`);
-
-      toast({
-        title: "Export úspěšný",
-        description: `Exportováno ${rows.length} záznamů do Excel.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Chyba při exportu",
-        description: "Nepodařilo se exportovat data.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const exportToPDF = () => {
     try {
@@ -326,9 +271,9 @@ export default function InactiveEmployeesReport() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportToExcel}>
-            <FileSpreadsheet className="w-4 h-4 mr-2" />
-            Excel
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            CSV
           </Button>
           <Button variant="outline" size="sm" onClick={exportToPDF}>
             <FileDown className="w-4 h-4 mr-2" />
