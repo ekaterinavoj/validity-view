@@ -322,15 +322,7 @@ export default function History() {
           </Button>
           <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
-            CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportToPDF}>
-            <FileDown className="w-4 h-4 mr-2" />
-            PDF
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportToCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            CSV
+            Export CSV
           </Button>
         </div>
       </div>
