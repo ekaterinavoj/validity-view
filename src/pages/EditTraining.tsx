@@ -20,6 +20,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadTrainingDocument } from "@/lib/trainingDocuments";
 import { TrainingDocumentsList } from "@/components/TrainingDocumentsList";
+import { useAuth } from "@/contexts/AuthContext";
 
 
 const formSchema = z.object({
@@ -60,6 +61,8 @@ const mockTrainingData = {
 export default function EditTraining() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAdmin, isManager } = useAuth();
+  const canEdit = isAdmin || isManager;
   const [useCustomTrainer, setUseCustomTrainer] = useState(false);
   const [useCustomCompany, setUseCustomCompany] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -417,28 +420,30 @@ export default function EditTraining() {
               <div>
                 <Label className="text-sm font-medium">Nahrané dokumenty</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Dokumenty již nahrané k tomuto školení. Můžete je stáhnout, zobrazit nebo smazat.
+                  Dokumenty již nahrané k tomuto školení. Můžete je stáhnout nebo zobrazit{canEdit ? ", případně smazat" : ""}.
                 </p>
               </div>
-              <TrainingDocumentsList trainingId={id || ""} canDelete={true} />
+              <TrainingDocumentsList trainingId={id || ""} canDelete={canEdit} />
             </div>
 
-            {/* New Document Upload */}
-            <div className="space-y-3">
-              <div>
-                <Label className="text-sm font-medium">Přidat nové dokumenty</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Nahrajte protokoly, certifikáty nebo jiné dokumenty k tomuto školení
-                </p>
+            {/* New Document Upload - only for admin/manager */}
+            {canEdit && (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">Přidat nové dokumenty</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nahrajte protokoly, certifikáty nebo jiné dokumenty k tomuto školení
+                  </p>
+                </div>
+                <FileUploader
+                  files={uploadedFiles}
+                  onFilesChange={setUploadedFiles}
+                  maxFiles={10}
+                  maxSize={20}
+                  acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
+                />
               </div>
-              <FileUploader
-                files={uploadedFiles}
-                onFilesChange={setUploadedFiles}
-                maxFiles={10}
-                maxSize={20}
-                acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
-              />
-            </div>
+            )}
 
             <FormField
               control={form.control}
@@ -510,17 +515,19 @@ export default function EditTraining() {
             />
 
             <div className="flex gap-4 pt-4 border-t">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Uložit změny
-              </Button>
+              {canEdit && (
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Uložit změny
+                </Button>
+              )}
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={() => navigate("/scheduled-trainings")}
+                onClick={() => navigate("/trainings")}
                 disabled={isSubmitting}
               >
-                Zrušit
+                {canEdit ? "Zrušit" : "Zpět"}
               </Button>
             </div>
           </form>

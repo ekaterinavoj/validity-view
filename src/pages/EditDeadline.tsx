@@ -75,7 +75,8 @@ export default function EditDeadline() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { profile } = useAuth();
+  const { profile, isAdmin, isManager } = useAuth();
+  const canEdit = isAdmin || isManager;
   const { equipment } = useEquipment();
   const { deadlineTypes } = useDeadlineTypes();
   const { facilities } = useFacilities();
@@ -92,7 +93,6 @@ export default function EditDeadline() {
   const [responsibles, setResponsibles] = useState<ResponsiblesSelection>({ profileIds: [], groupIds: [] });
   const [responsiblesError, setResponsiblesError] = useState<string | null>(null);
   const { responsibles: existingResponsibles, setResponsibles: saveResponsibles, isLoading: responsiblesLoading } = useDeadlineResponsibles(id);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   const [periodValue, setPeriodValue] = useState<number>(1);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
@@ -187,22 +187,6 @@ export default function EditDeadline() {
     }
   }, [existingResponsibles]);
 
-  // Check if current user is admin
-  useEffect(() => {
-    async function checkAdmin() {
-      const { data: user } = await supabase.auth.getUser();
-      if (user?.user?.id) {
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.user.id)
-          .eq("role", "admin")
-          .limit(1);
-        setIsAdmin(!!(roles && roles.length > 0));
-      }
-    }
-    checkAdmin();
-  }, []);
 
   const onSubmit = async (data: FormValues) => {
     if (!id) return;
@@ -490,13 +474,13 @@ export default function EditDeadline() {
                   <div>
                     <Label className="text-sm font-medium">Nahrané dokumenty</Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Dokumenty již nahrané k této události. Můžete je stáhnout, zobrazit nebo smazat.
+                      Dokumenty již nahrané k této události. Můžete je stáhnout nebo zobrazit{canEdit ? ", případně smazat" : ""}.
                     </p>
                   </div>
                   <DeadlineDocumentsList
                     key={documentsKey}
                     deadlineId={id}
-                    canDelete={true}
+                    canDelete={canEdit}
                     onDocumentDeleted={() => setDocumentsKey(k => k + 1)}
                   />
                 </div>
@@ -523,22 +507,24 @@ export default function EditDeadline() {
                 )}
               </div>
 
-              {/* New Document Upload */}
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-sm font-medium">Přidat nové dokumenty</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Nahrajte protokoly, certifikáty nebo jiné dokumenty k této události
-                  </p>
+              {/* New Document Upload - only for admin/manager */}
+              {canEdit && (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium">Přidat nové dokumenty</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Nahrajte protokoly, certifikáty nebo jiné dokumenty k této události
+                    </p>
+                  </div>
+                  <FileUploader
+                    files={uploadedFiles}
+                    onFilesChange={setUploadedFiles}
+                    maxFiles={10}
+                    maxSize={20}
+                    acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
+                  />
                 </div>
-                <FileUploader
-                  files={uploadedFiles}
-                  onFilesChange={setUploadedFiles}
-                  maxFiles={10}
-                  maxSize={20}
-                  acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
-                />
-              </div>
+              )}
 
               <FormField
                 control={form.control}
@@ -628,17 +614,19 @@ export default function EditDeadline() {
               </div>
 
               <div className="flex gap-4">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Uložit změny
-                </Button>
+                {canEdit && (
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Uložit změny
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => navigate("/deadlines")}
                   disabled={isSubmitting}
                 >
-                  Zrušit
+                  {canEdit ? "Zrušit" : "Zpět"}
                 </Button>
               </div>
             </form>

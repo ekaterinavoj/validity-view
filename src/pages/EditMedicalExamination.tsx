@@ -48,7 +48,8 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function EditMedicalExamination() {
   const { id } = useParams();
-  const { profile, user } = useAuth();
+  const { profile, user, isAdmin, isManager } = useAuth();
+  const canEdit = isAdmin || isManager;
   const navigate = useNavigate();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -435,27 +436,29 @@ export default function EditMedicalExamination() {
                 <div>
                   <Label className="text-sm font-medium">Nahrané dokumenty</Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Dokumenty již nahrané k této prohlídce. Můžete je stáhnout, zobrazit nebo smazat.
+                    Dokumenty již nahrané k této prohlídce. Můžete je stáhnout nebo zobrazit{canEdit ? ", případně smazat" : ""}.
                   </p>
                 </div>
-                <MedicalDocumentsList examinationId={id} canDelete={true} />
+                <MedicalDocumentsList examinationId={id} canDelete={canEdit} />
               </div>
             )}
 
-            {/* New Document Upload */}
-            <div className="space-y-3">
-              <div>
-                <Label className="text-sm font-medium">Přidat nové dokumenty</Label>
-                <p className="text-xs text-muted-foreground mt-1">Nahrajte lékařské zprávy nebo jiné dokumenty</p>
+            {/* New Document Upload - only for admin/manager */}
+            {canEdit && (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">Přidat nové dokumenty</Label>
+                  <p className="text-xs text-muted-foreground mt-1">Nahrajte lékařské zprávy nebo jiné dokumenty</p>
+                </div>
+                <FileUploader 
+                  files={uploadedFiles} 
+                  onFilesChange={setUploadedFiles} 
+                  maxFiles={10} 
+                  maxSize={20} 
+                  acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} 
+                />
               </div>
-              <FileUploader 
-                files={uploadedFiles} 
-                onFilesChange={setUploadedFiles} 
-                maxFiles={10} 
-                maxSize={20} 
-                acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
-              />
-            </div>
+            )}
 
             <FormField
               control={form.control}
@@ -527,12 +530,14 @@ export default function EditMedicalExamination() {
 
             <div className="flex gap-4">
               <Button type="button" variant="outline" onClick={() => navigate("/plp")}>
-                Zrušit
+                {canEdit ? "Zrušit" : "Zpět"}
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Uložit změny
-              </Button>
+              {canEdit && (
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Uložit změny
+                </Button>
+              )}
             </div>
           </form>
         </Form>
