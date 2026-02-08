@@ -14,13 +14,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Edit, Plus, Trash2, Loader2, RefreshCw } from "lucide-react";
+import { Edit, Plus, Trash2, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useDepartments, Department } from "@/hooks/useDepartments";
+import { useDepartments, Department, DepartmentDependencies } from "@/hooks/useDepartments";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 
@@ -36,10 +36,12 @@ export default function Departments() {
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
+  const [deleteDependencies, setDeleteDependencies] = useState<DepartmentDependencies | null>(null);
+  const [checkingDeps, setCheckingDeps] = useState(false);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  const { departments, loading, error, createDepartment, updateDepartment, deleteDepartment, refetch } = useDepartments();
+  const { departments, loading, error, createDepartment, updateDepartment, deleteDepartment, checkDependencies, refetch } = useDepartments();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -58,9 +60,20 @@ export default function Departments() {
     setDialogOpen(true);
   };
 
-  const openDeleteDialog = (dept: Department) => {
+  const openDeleteDialog = async (dept: Department) => {
     setDepartmentToDelete(dept);
+    setCheckingDeps(true);
     setDeleteDialogOpen(true);
+    
+    try {
+      const deps = await checkDependencies(dept.id);
+      setDeleteDependencies(deps);
+    } catch (err) {
+      console.error("Error checking dependencies:", err);
+      setDeleteDependencies({ employeesCount: 0, equipmentCount: 0 });
+    } finally {
+      setCheckingDeps(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -82,6 +95,7 @@ export default function Departments() {
     
     setDeleteDialogOpen(false);
     setDepartmentToDelete(null);
+    setDeleteDependencies(null);
   };
 
   const handleDialogClose = (open: boolean) => {
@@ -247,16 +261,54 @@ export default function Departments() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Opravdu chcete smazat středisko?</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {deleteDependencies && (deleteDependencies.employeesCount > 0 || deleteDependencies.equipmentCount > 0) ? (
+                <>
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
+                  Nelze smazat středisko
+                </>
+              ) : (
+                "Opravdu chcete smazat středisko?"
+              )}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Tato akce je nevratná. Středisko "{departmentToDelete?.code}" bude trvale odstraněno z databáze.
+              {checkingDeps ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Kontrola závislostí...
+                </div>
+              ) : deleteDependencies && (deleteDependencies.employeesCount > 0 || deleteDependencies.equipmentCount > 0) ? (
+                <div className="space-y-2">
+                  <p>
+                    Středisko <strong>{departmentToDelete?.code}</strong> nelze smazat, protože je přiřazeno k:
+                  </p>
+                  <ul className="list-disc list-inside text-sm">
+                    {deleteDependencies.employeesCount > 0 && (
+                      <li>{deleteDependencies.employeesCount} zaměstnancům</li>
+                    )}
+                    {deleteDependencies.equipmentCount > 0 && (
+                      <li>{deleteDependencies.equipmentCount} zařízením</li>
+                    )}
+                  </ul>
+                  <p className="text-sm">
+                    Nejprve přesuňte nebo odeberte tyto záznamy.
+                  </p>
+                </div>
+              ) : (
+                <p>
+                  Středisko <strong>{departmentToDelete?.code}</strong> bude trvale odstraněno z databáze.
+                </p>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušit</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Smazat
-            </AlertDialogAction>
+            {(!deleteDependencies || (deleteDependencies.employeesCount === 0 && deleteDependencies.equipmentCount === 0)) && !checkingDeps && (
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Smazat
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

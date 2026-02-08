@@ -8,6 +8,10 @@ interface CreateEquipmentWithResponsibles {
   responsibleProfileIds?: string[];
 }
 
+export interface EquipmentDependencies {
+  deadlinesCount: number;
+}
+
 export function useEquipment() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -24,6 +28,17 @@ export function useEquipment() {
       return data as Equipment[];
     },
   });
+
+  const checkDependencies = async (id: string): Promise<EquipmentDependencies> => {
+    const { count } = await supabase
+      .from("deadlines")
+      .select("id", { count: "exact", head: true })
+      .eq("equipment_id", id);
+
+    return {
+      deadlinesCount: count || 0,
+    };
+  };
 
   const createMutation = useMutation({
     mutationFn: async ({ equipment: newEquipment, responsibleProfileIds = [] }: CreateEquipmentWithResponsibles) => {
@@ -100,11 +115,29 @@ export function useEquipment() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // First check for dependencies
+      const deps = await checkDependencies(id);
+      
+      if (deps.deadlinesCount > 0) {
+        throw new Error(`Zařízení nelze smazat, protože má ${deps.deadlinesCount} přiřazených technických událostí. Nejprve smažte nebo archivujte tyto události.`);
+      }
+
+      // Delete equipment responsibles first
+      await supabase.from("equipment_responsibles").delete().eq("equipment_id", id);
+
       const { error } = await supabase.from("equipment").delete().eq("id", id);
-      if (error) throw error;
+      if (error) {
+        // Parse FK error for better message
+        if (error.message.includes("foreign key constraint")) {
+          throw new Error("Zařízení nelze smazat, protože má přiřazené technické události. Nejprve smažte tyto události.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
+      queryClient.invalidateQueries({ queryKey: ["equipment-responsibles"] });
+      queryClient.invalidateQueries({ queryKey: ["all-equipment-responsibles"] });
       toast({ title: "Zařízení bylo smazáno" });
     },
     onError: (error: Error) => {
@@ -124,6 +157,7 @@ export function useEquipment() {
     createEquipment: createMutation.mutate,
     updateEquipment: updateMutation.mutate,
     deleteEquipment: deleteMutation.mutate,
+    checkDependencies,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
