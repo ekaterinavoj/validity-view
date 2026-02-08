@@ -1,14 +1,19 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Layers, FileText, File } from "lucide-react";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { Download, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Layers, FileText, File, List } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -192,6 +197,8 @@ export function FilePreviewDialog({
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState<number>(1.0);
   const [viewMode, setViewMode] = useState<ViewMode>(preferences.pdfViewMode || "scroll");
+  const [currentDocIndex, setCurrentDocIndex] = useState(0);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Determine files to show
   const allFiles = useMemo(() => {
@@ -214,6 +221,8 @@ export function FilePreviewDialog({
     );
   }, [allFiles]);
 
+  const showMultipleFiles = allFiles.length > 1;
+
   // Sync viewMode with user preference
   useEffect(() => {
     if (preferences.pdfViewMode) {
@@ -226,6 +235,7 @@ export function FilePreviewDialog({
     if (open) {
       setScale(1.0);
       setError(null);
+      setCurrentDocIndex(0);
       setViewMode(preferences.pdfViewMode || "scroll");
     }
   }, [open, preferences.pdfViewMode]);
@@ -291,26 +301,21 @@ export function FilePreviewDialog({
     onOpenChange(false);
   };
 
-  const handleDownloadAll = async () => {
-    if (onDownload) {
-      onDownload();
-      return;
-    }
-
-    // Download all files
-    for (const f of allFiles) {
-      const fileKey = f.name + (f.url || "");
-      const url = loadedUrls.get(fileKey) || f.url;
-      
-      if (url) {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = f.name || "soubor";
-        a.rel = "noreferrer";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }
+  const handleDownloadCurrent = () => {
+    const currentFile = allFiles[currentDocIndex];
+    if (!currentFile) return;
+    
+    const fileKey = currentFile.name + (currentFile.url || "");
+    const url = loadedUrls.get(fileKey) || currentFile.url;
+    
+    if (url) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = currentFile.name || "soubor";
+      a.rel = "noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     }
   };
 
@@ -335,22 +340,92 @@ export function FilePreviewDialog({
     return f.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f.name);
   };
 
+  const goToPrevDoc = () => {
+    setCurrentDocIndex((prev) => Math.max(prev - 1, 0));
+    contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const goToNextDoc = () => {
+    setCurrentDocIndex((prev) => Math.min(prev + 1, allFiles.length - 1));
+    contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const goToDoc = (index: number) => {
+    setCurrentDocIndex(index);
+    contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (!open) return null;
 
-  const showMultipleFiles = allFiles.length > 1;
+  const currentFile = allFiles[currentDocIndex];
   const dialogTitle = showMultipleFiles 
-    ? `Dokumenty (${allFiles.length})` 
+    ? `Dokument ${currentDocIndex + 1} z ${allFiles.length}` 
     : (allFiles[0]?.name || "Dokument");
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="px-6 py-4 border-b">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between pr-8">
-            <DialogTitle className="text-lg font-semibold truncate pr-4">
-              {dialogTitle}
-            </DialogTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              {/* Document Navigation for multiple files */}
+              {showMultipleFiles && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={goToPrevDoc}
+                    disabled={currentDocIndex === 0}
+                    title="Předchozí dokument"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2 min-w-[100px]">
+                        <List className="w-4 h-4" />
+                        <span className="text-xs">{currentDocIndex + 1} / {allFiles.length}</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto">
+                      {allFiles.map((f, index) => (
+                        <DropdownMenuItem
+                          key={index}
+                          onClick={() => goToDoc(index)}
+                          className={index === currentDocIndex ? "bg-accent" : ""}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {isFilePDF(f) ? (
+                              <FileText className="w-4 h-4 shrink-0 text-primary" />
+                            ) : (
+                              <File className="w-4 h-4 shrink-0 text-primary" />
+                            )}
+                            <span className="truncate text-sm">{f.name}</span>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={goToNextDoc}
+                    disabled={currentDocIndex === allFiles.length - 1}
+                    title="Další dokument"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+              
+              <DialogTitle className="text-base font-semibold truncate">
+                {currentFile?.name || dialogTitle}
+              </DialogTitle>
+            </div>
+            
+            <div className="flex items-center gap-2 shrink-0">
               {/* View Mode Toggle for PDFs */}
               {hasPDFs && !loading && (
                 <div className="flex items-center gap-1">
@@ -411,8 +486,8 @@ export function FilePreviewDialog({
               <Button
                 variant="outline"
                 size="icon"
-                onClick={handleDownloadAll}
-                title={showMultipleFiles ? "Stáhnout vše" : "Stáhnout"}
+                onClick={handleDownloadCurrent}
+                title="Stáhnout"
                 disabled={allFiles.length === 0}
               >
                 <Download className="w-4 h-4" />
@@ -421,83 +496,63 @@ export function FilePreviewDialog({
           </div>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 p-6">
+        <div 
+          ref={contentRef}
+          className="flex-1 overflow-y-auto p-6"
+        >
           {loading ? (
-            <div className="flex items-center justify-center h-[60vh]">
+            <div className="flex items-center justify-center h-full">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
           ) : error ? (
-            <div className="flex items-center justify-center h-[60vh]">
+            <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-4">
                 <p className="text-destructive">{error}</p>
-                <Button onClick={handleDownloadAll}>
+                <Button onClick={handleDownloadCurrent}>
                   <Download className="w-4 h-4 mr-2" />
                   Stáhnout soubor
                 </Button>
               </div>
             </div>
           ) : allFiles.length === 0 ? (
-            <div className="flex items-center justify-center h-[60vh]">
+            <div className="flex items-center justify-center h-full">
               <p className="text-muted-foreground">Žádné soubory k zobrazení</p>
             </div>
-          ) : (
-            <div className="space-y-8">
-              {allFiles.map((f, index) => {
-                const url = getFileUrl(f);
-                const isPDF = isFilePDF(f);
-                const isImage = isFileImage(f);
-
-                return (
-                  <div key={f.name + index}>
-                    {showMultipleFiles && index > 0 && (
-                      <Separator className="my-6" />
-                    )}
-                    
-                    <div className="border rounded-lg bg-muted/30 p-4">
-                      {isPDF ? (
-                        <PDFViewer
-                          url={url}
-                          fileName={f.name}
-                          scale={scale}
-                          viewMode={viewMode}
-                          showHeader={showMultipleFiles}
-                        />
-                      ) : isImage ? (
-                        <ImageViewer
-                          url={url}
-                          fileName={f.name}
-                          showHeader={showMultipleFiles}
-                        />
-                      ) : (
-                        <div className="space-y-2">
-                          {showMultipleFiles && (
-                            <div className="flex items-center gap-2 px-2">
-                              <File className="w-4 h-4 text-primary" />
-                              <span className="text-sm font-medium truncate">{f.name}</span>
-                            </div>
-                          )}
-                          <div className="flex flex-col items-center justify-center h-32 space-y-2">
-                            <p className="text-muted-foreground text-sm">
-                              Náhled není k dispozici pro tento typ souboru.
-                            </p>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => url && window.open(url, "_blank")}
-                            >
-                              <Download className="w-4 h-4 mr-2" />
-                              Stáhnout
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+          ) : currentFile ? (
+            <div className="border rounded-lg bg-muted/30 p-4">
+              {isFilePDF(currentFile) ? (
+                <PDFViewer
+                  url={getFileUrl(currentFile)}
+                  fileName={currentFile.name}
+                  scale={scale}
+                  viewMode={viewMode}
+                  showHeader={false}
+                />
+              ) : isFileImage(currentFile) ? (
+                <ImageViewer
+                  url={getFileUrl(currentFile)}
+                  fileName={currentFile.name}
+                  showHeader={false}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-32 space-y-2">
+                  <File className="w-12 h-12 text-muted-foreground" />
+                  <p className="text-muted-foreground text-sm">
+                    Náhled není k dispozici pro tento typ souboru.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleDownloadCurrent}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Stáhnout
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
-        </ScrollArea>
+          ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   );
