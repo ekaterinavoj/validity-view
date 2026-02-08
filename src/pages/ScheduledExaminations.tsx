@@ -3,7 +3,7 @@ import { StatusLegend } from "@/components/StatusLegend";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Plus, Download, Loader2, Archive, RefreshCw } from "lucide-react";
+import { Edit, Plus, Download, Loader2, Archive, RefreshCw, Eye } from "lucide-react";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -21,10 +21,12 @@ import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { examinations, loading: examinationsLoading, error: examinationsError, refetch } = useMedicalExaminations(true);
   const { facilities: facilitiesData } = useFacilities();
   const [selectedExaminations, setSelectedExaminations] = useState<Set<string>>(new Set());
@@ -207,10 +209,13 @@ export default function ScheduledExaminations() {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={() => navigate("/plp/new")}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nová prohlídka
-          </Button>
+          {/* Tlačítko pro vytvoření prohlídky - pouze admin */}
+          {isAdmin && (
+            <Button onClick={() => navigate("/plp/new")}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nová prohlídka
+            </Button>
+          )}
         </div>
       </div>
 
@@ -232,7 +237,8 @@ export default function ScheduledExaminations() {
         trainerLabel="doctors"
       />
 
-      {selectedExaminations.size > 0 && (
+      {/* Hromadná archivace - pouze admin */}
+      {isAdmin && selectedExaminations.size > 0 && (
         <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
           <span className="text-sm font-medium">Vybráno: {selectedExaminations.size}</span>
           <Button variant="destructive" size="sm" onClick={handleBulkArchive}>
@@ -246,9 +252,12 @@ export default function ScheduledExaminations() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40px]">
-                <Checkbox checked={selectedExaminations.size === filteredExaminations.length && filteredExaminations.length > 0} onCheckedChange={toggleSelectAll} />
-              </TableHead>
+              {/* Checkbox pouze pro admina */}
+              {isAdmin && (
+                <TableHead className="w-[40px]">
+                  <Checkbox checked={selectedExaminations.size === filteredExaminations.length && filteredExaminations.length > 0} onCheckedChange={toggleSelectAll} />
+                </TableHead>
+              )}
               <TableHead>Stav</TableHead>
               <TableHead>Platnost do</TableHead>
               <TableHead>Typ prohlídky</TableHead>
@@ -271,9 +280,12 @@ export default function ScheduledExaminations() {
             ) : (
               filteredExaminations.map((exam) => (
                 <TableRow key={exam.id}>
-                  <TableCell>
-                    <Checkbox checked={selectedExaminations.has(exam.id)} onCheckedChange={() => toggleSelectExamination(exam.id)} />
-                  </TableCell>
+                  {/* Checkbox pouze pro admina */}
+                  {isAdmin && (
+                    <TableCell>
+                      <Checkbox checked={selectedExaminations.has(exam.id)} onCheckedChange={() => toggleSelectExamination(exam.id)} />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <StatusBadge status={exam.status} />
                   </TableCell>
@@ -294,9 +306,16 @@ export default function ScheduledExaminations() {
                   </TableCell>
                   <TableCell>{exam.doctor || "-"}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                    {/* Admin může editovat, ostatní jen náhled */}
+                    {isAdmin ? (
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

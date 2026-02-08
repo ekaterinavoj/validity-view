@@ -8,6 +8,7 @@ import {
   MoreHorizontal,
   Edit,
   Archive,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,8 +40,11 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { cn } from "@/lib/utils";
 import Papa from "papaparse";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ScheduledDeadlines() {
+  const { isAdmin, isManager } = useAuth();
+  const canEdit = isAdmin || isManager;
   const { deadlines, isLoading, error, refetch, archiveDeadline, isArchiving } = useDeadlines();
   const { facilities } = useFacilities();
   const { uniqueProfiles, getEquipmentIdsByProfile } = useAllEquipmentResponsibles();
@@ -164,12 +168,15 @@ export default function ScheduledDeadlines() {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          <Link to="/deadlines/new">
-            <Button size="sm">
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Nová událost
-            </Button>
-          </Link>
+          {/* Tlačítko pro vytvoření události - jen admin a manažer */}
+          {canEdit && (
+            <Link to="/deadlines/new">
+              <Button size="sm">
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Nová událost
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -273,28 +280,37 @@ export default function ScheduledDeadlines() {
                       <DeadlineProtocolCell deadlineId={deadline.id} />
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link to={`/deadlines/edit/${deadline.id}`} className="flex items-center">
-                              <Edit className="w-4 h-4 mr-2" />
-                              Upravit
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => archiveDeadline(deadline.id)}
-                            disabled={isArchiving}
-                          >
-                            <Archive className="w-4 h-4 mr-2" />
-                            Archivovat
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {/* Admin a manažer mohou editovat, ostatní jen náhled */}
+                      {canEdit ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link to={`/deadlines/edit/${deadline.id}`} className="flex items-center">
+                                <Edit className="w-4 h-4 mr-2" />
+                                Upravit
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => archiveDeadline(deadline.id)}
+                              disabled={isArchiving}
+                            >
+                              <Archive className="w-4 h-4 mr-2" />
+                              Archivovat
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link to={`/deadlines/edit/${deadline.id}`}>
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

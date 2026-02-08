@@ -192,41 +192,47 @@ export const Layout = ({
                     Historie
                   </NavLink>
 
-                  <Link to="/trainings/new">
-                    <Button size="sm" className="ml-2 gap-2">
-                      <PlusCircle className="w-4 h-4" />
-                      Nové školení
-                    </Button>
-                  </Link>
+                  {/* Tlačítko pro vytvoření školení - jen admin a manažer */}
+                  {(isAdmin || isManager) && (
+                    <Link to="/trainings/new">
+                      <Button size="sm" className="ml-2 gap-2">
+                        <PlusCircle className="w-4 h-4" />
+                        Nové školení
+                      </Button>
+                    </Link>
+                  )}
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1", isTrainingOstatniActive && "text-foreground bg-card border-b-2 border-primary")}>
-                        Ostatní
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-48 bg-popover z-50">
-                      <DropdownMenuItem asChild>
-                        <Link to="/training-types" className="flex items-center gap-2 cursor-pointer">
-                          <BookOpen className="w-4 h-4" />
-                          Typy školení
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
-                          <Building2 className="w-4 h-4" />
-                          Střediska
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/inactive" className="flex items-center gap-2 cursor-pointer">
-                          <UserX className="w-4 h-4" />
-                          Pozastavená
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {/* Dropdown Ostatní - jen admin a manažer */}
+                  {(isAdmin || isManager) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1", isTrainingOstatniActive && "text-foreground bg-card border-b-2 border-primary")}>
+                          Ostatní
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-48 bg-popover z-50">
+                        <DropdownMenuItem asChild>
+                          <Link to="/training-types" className="flex items-center gap-2 cursor-pointer">
+                            <BookOpen className="w-4 h-4" />
+                            Typy školení
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
+                            <Building2 className="w-4 h-4" />
+                            Střediska
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/inactive" className="flex items-center gap-2 cursor-pointer">
+                            <UserX className="w-4 h-4" />
+                            Pozastavená
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </> : isDeadlineMode ? <>
                   {/* Deadline Mode Navigation */}
                   <NavLink to="/deadlines" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
@@ -239,41 +245,47 @@ export const Layout = ({
                     Historie
                   </NavLink>
 
-                  <Link to="/deadlines/new">
-                    <Button size="sm" className="ml-2 gap-2">
-                      <PlusCircle className="w-4 h-4" />
-                      Nová událost
-                    </Button>
-                  </Link>
+                  {/* Tlačítko pro vytvoření události - jen admin a manažer */}
+                  {(isAdmin || isManager) && (
+                    <Link to="/deadlines/new">
+                      <Button size="sm" className="ml-2 gap-2">
+                        <PlusCircle className="w-4 h-4" />
+                        Nová událost
+                      </Button>
+                    </Link>
+                  )}
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1", isDeadlineOstatniActive && "text-foreground bg-card border-b-2 border-primary")}>
-                        Ostatní
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-56 bg-popover z-50">
-                      <DropdownMenuItem asChild>
-                        <Link to="/deadlines/equipment" className="flex items-center gap-2 cursor-pointer">
-                          <Cog className="w-4 h-4" />
-                          Zařízení
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/deadlines/types" className="flex items-center gap-2 cursor-pointer">
-                          <Clock className="w-4 h-4" />
-                          Typy událostí
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/deadlines/groups" className="flex items-center gap-2 cursor-pointer">
-                          <UsersRound className="w-4 h-4" />
-                          Skupiny odpovědných osob
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {/* Dropdown Ostatní - jen admin a manažer */}
+                  {(isAdmin || isManager) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1", isDeadlineOstatniActive && "text-foreground bg-card border-b-2 border-primary")}>
+                          Ostatní
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56 bg-popover z-50">
+                        <DropdownMenuItem asChild>
+                          <Link to="/deadlines/equipment" className="flex items-center gap-2 cursor-pointer">
+                            <Cog className="w-4 h-4" />
+                            Zařízení
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/deadlines/types" className="flex items-center gap-2 cursor-pointer">
+                            <Clock className="w-4 h-4" />
+                            Typy událostí
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/deadlines/groups" className="flex items-center gap-2 cursor-pointer">
+                            <UsersRound className="w-4 h-4" />
+                            Skupiny odpovědných osob
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </> : <>
                   {/* PLP Mode Navigation */}
                   <NavLink to="/plp" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
@@ -281,17 +293,23 @@ export const Layout = ({
                     Naplánované
                   </NavLink>
 
-                  <Link to="/plp/new">
-                    <Button size="sm" className="ml-2 gap-2">
-                      <PlusCircle className="w-4 h-4" />
-                      Nová prohlídka
-                    </Button>
-                  </Link>
+                  {/* Tlačítko pro vytvoření prohlídky - pouze admin */}
+                  {isAdmin && (
+                    <Link to="/plp/new">
+                      <Button size="sm" className="ml-2 gap-2">
+                        <PlusCircle className="w-4 h-4" />
+                        Nová prohlídka
+                      </Button>
+                    </Link>
+                  )}
 
-                  <NavLink to="/plp/types" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1" activeClassName="text-foreground bg-card border-b-2 border-primary">
-                    <BookOpen className="w-4 h-4" />
-                    Typy prohlídek
-                  </NavLink>
+                  {/* Typy prohlídek - jen admin a manažer */}
+                  {(isAdmin || isManager) && (
+                    <NavLink to="/plp/types" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1" activeClassName="text-foreground bg-card border-b-2 border-primary">
+                      <BookOpen className="w-4 h-4" />
+                      Typy prohlídek
+                    </NavLink>
+                  )}
                 </>}
             </div>
 
