@@ -263,7 +263,7 @@ export const Layout = ({
                     <DropdownMenuItem asChild>
                       <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
                         <Building2 className="w-4 h-4" />
-                        Provozovny (číselník)
+                        Provozovny
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -280,30 +280,9 @@ export const Layout = ({
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link to="/admin/settings?tab=onboarding" className="flex items-center gap-2 cursor-pointer">
-                            <UserCheck className="w-4 h-4" />
-                            Onboarding
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/settings?tab=reminders" className="flex items-center gap-2 cursor-pointer">
-                            <Bell className="w-4 h-4" />
-                            Připomínky
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/settings?tab=email" className="flex items-center gap-2 cursor-pointer">
-                            <Mail className="w-4 h-4" />
-                            Emaily
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/settings?tab=data" className="flex items-center gap-2 cursor-pointer">
-                            <Database className="w-4 h-4" />
-                            Data
+                          <Link to="/admin/settings" className="flex items-center gap-2 cursor-pointer">
+                            <Settings className="w-4 h-4" />
+                            Administrace
                           </Link>
                         </DropdownMenuItem>
                       </>}
@@ -413,7 +392,7 @@ export const Layout = ({
                       <Activity className="w-4 h-4" />
                       Stav systému
                     </Link>
-                    <Link to="/admin/settings?tab=onboarding" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                    <Link to="/admin/settings" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                       <Settings className="w-4 h-4" />
                       Administrace
                     </Link>
