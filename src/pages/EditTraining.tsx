@@ -208,10 +208,10 @@ export default function EditTraining() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Provozovna *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte provozovnu" />
+                   <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                     <FormControl>
+                       <SelectTrigger disabled={!canEdit}>
+                         <SelectValue placeholder="Vyberte provozovnu" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -231,10 +231,10 @@ export default function EditTraining() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Školená osoba *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte školenu osobu" />
+                   <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                     <FormControl>
+                       <SelectTrigger disabled={!canEdit}>
+                         <SelectValue placeholder="Vyberte školenu osobu" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -252,10 +252,10 @@ export default function EditTraining() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Typ školení *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte typ školení" />
+                   <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                     <FormControl>
+                       <SelectTrigger disabled={!canEdit}>
+                         <SelectValue placeholder="Vyberte typ školení" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -277,22 +277,24 @@ export default function EditTraining() {
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
+                         <Button
+                           variant="outline"
+                           className="w-full justify-start text-left font-normal"
+                           disabled={!canEdit}
+                         >
+                           <CalendarIcon className="mr-2 h-4 w-4" />
+                           {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                         </Button>
+                       </FormControl>
+                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        initialFocus
-                      />
+                         mode="single"
+                         selected={field.value}
+                         onSelect={canEdit ? field.onChange : undefined}
+                         initialFocus
+                         disabled={!canEdit}
+                       />
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
@@ -318,13 +320,14 @@ export default function EditTraining() {
                 return (
                   <FormItem>
                     <PeriodicityInput
-                      value={periodicityValue}
-                      unit={periodicityUnit}
-                      onValueChange={handlePeriodicityValueChange}
-                      onUnitChange={handlePeriodicityUnitChange}
-                      label="Periodicita"
-                      required
-                    />
+                       value={periodicityValue}
+                       unit={periodicityUnit}
+                       onValueChange={canEdit ? handlePeriodicityValueChange : undefined}
+                       onUnitChange={canEdit ? handlePeriodicityUnitChange : undefined}
+                       label="Periodicita"
+                       required
+                       disabled={!canEdit}
+                     />
                     <FormMessage />
                   </FormItem>
                 );
@@ -359,13 +362,13 @@ export default function EditTraining() {
               <Label>Školitel</Label>
               <div className="space-y-2">
                 <Select 
-                  onValueChange={(value) => {
-                    setUseCustomTrainer(value === "custom");
-                    form.setValue("trainerId", value !== "custom" ? value : undefined);
-                  }}
-                  value={form.watch("trainerId") || ""}
-                  disabled={useCustomTrainer}
-                >
+                   onValueChange={(value) => {
+                     setUseCustomTrainer(value === "custom");
+                     form.setValue("trainerId", value !== "custom" ? value : undefined);
+                   }}
+                   value={form.watch("trainerId") || ""}
+                   disabled={useCustomTrainer || !canEdit}
+                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Vyberte školitele" />
                   </SelectTrigger>
@@ -381,11 +384,11 @@ export default function EditTraining() {
                     name="customTrainerName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormControl>
-                          <Input placeholder="Příjmení Jméno" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                         <FormControl>
+                           <Input placeholder="Příjmení Jméno" {...field} disabled={!canEdit} />
+                         </FormControl>
+                         <FormMessage />
+                       </FormItem>
                     )}
                   />
                 )}
@@ -396,13 +399,13 @@ export default function EditTraining() {
               <Label>Školící firma</Label>
               <div className="space-y-2">
                 <Select 
-                  onValueChange={(value) => {
-                    setUseCustomCompany(value === "custom");
-                    form.setValue("companyId", value !== "custom" ? value : undefined);
-                  }}
-                  value={form.watch("companyId") || ""}
-                  disabled={useCustomCompany}
-                >
+                   onValueChange={(value) => {
+                     setUseCustomCompany(value === "custom");
+                     form.setValue("companyId", value !== "custom" ? value : undefined);
+                   }}
+                   value={form.watch("companyId") || ""}
+                   disabled={useCustomCompany || !canEdit}
+                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Vyberte firmu" />
                   </SelectTrigger>
@@ -418,11 +421,11 @@ export default function EditTraining() {
                     name="customCompanyName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormControl>
-                          <Input placeholder="Název firmy" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                         <FormControl>
+                           <Input placeholder="Název firmy" {...field} disabled={!canEdit} />
+                         </FormControl>
+                         <FormMessage />
+                       </FormItem>
                     )}
                   />
                 )}

@@ -316,11 +316,11 @@ export default function EditDeadline() {
                 name="deadline_type_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Typ události *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Vyberte typ události" />
+                   <FormLabel>Typ události *</FormLabel>
+                     <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                       <FormControl>
+                         <SelectTrigger disabled={!canEdit}>
+                           <SelectValue placeholder="Vyberte typ události" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -341,11 +341,11 @@ export default function EditDeadline() {
                 name="facility"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Provozovna *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Vyberte provozovnu" />
+                     <FormLabel>Provozovna *</FormLabel>
+                     <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                       <FormControl>
+                         <SelectTrigger disabled={!canEdit}>
+                           <SelectValue placeholder="Vyberte provozovnu" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -366,11 +366,11 @@ export default function EditDeadline() {
                 name="equipment_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Zařízení *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Vyberte zařízení" />
+                     <FormLabel>Zařízení *</FormLabel>
+                     <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                       <FormControl>
+                         <SelectTrigger disabled={!canEdit}>
+                           <SelectValue placeholder="Vyberte zařízení" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -395,13 +395,14 @@ export default function EditDeadline() {
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
+                           <Button
+                             variant="outline"
+                             className={cn(
+                               "w-full pl-3 text-left font-normal",
+                               !field.value && "text-muted-foreground"
+                             )}
+                             disabled={!canEdit}
+                           >
                             {field.value ? (
                               format(field.value, "dd.MM.yyyy", { locale: cs })
                             ) : (
@@ -412,12 +413,13 @@ export default function EditDeadline() {
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          locale={cs}
-                        />
+                         <Calendar
+                           mode="single"
+                           selected={field.value}
+                           onSelect={canEdit ? field.onChange : undefined}
+                           locale={cs}
+                           disabled={!canEdit}
+                         />
                       </PopoverContent>
                     </Popover>
                     <FormMessage />
@@ -427,20 +429,21 @@ export default function EditDeadline() {
 
               {/* Periodicity Input */}
               <div className="space-y-2">
-                <PeriodicityInput
-                  value={periodValue}
-                  unit={periodUnit}
-                  onValueChange={(val) => {
-                    setPeriodValue(val);
-                    form.setValue("period_value", val);
-                  }}
-                  onUnitChange={(unit) => {
-                    setPeriodUnit(unit);
-                    form.setValue("period_unit", unit);
-                  }}
-                  label="Periodicita"
-                  required
-                />
+                 <PeriodicityInput
+                   value={periodValue}
+                   unit={periodUnit}
+                   onValueChange={canEdit ? (val) => {
+                     setPeriodValue(val);
+                     form.setValue("period_value", val);
+                   } : undefined}
+                   onUnitChange={canEdit ? (unit) => {
+                     setPeriodUnit(unit);
+                     form.setValue("period_unit", unit);
+                   } : undefined}
+                   label="Periodicita"
+                   required
+                   disabled={!canEdit}
+                 />
               </div>
 
               {nextCheckDate && (
@@ -459,9 +462,9 @@ export default function EditDeadline() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Provádějící</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Jméno technika" />
-                      </FormControl>
+                       <FormControl>
+                         <Input {...field} placeholder="Jméno technika" disabled={!canEdit} />
+                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -473,9 +476,9 @@ export default function EditDeadline() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Firma</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Servisní firma" />
-                      </FormControl>
+                       <FormControl>
+                         <Input {...field} placeholder="Servisní firma" disabled={!canEdit} />
+                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -541,15 +544,15 @@ export default function EditDeadline() {
               )}
 
               <FormField
-                control={form.control}
-                name="reminder_template_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Šablona připomenutí *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Vyberte šablonu" />
+                 control={form.control}
+                 name="reminder_template_id"
+                 render={({ field }) => (
+                   <FormItem>
+                     <FormLabel>Šablona připomenutí *</FormLabel>
+                     <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                       <FormControl>
+                         <SelectTrigger disabled={!canEdit}>
+                           <SelectValue placeholder="Vyberte šablonu" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
