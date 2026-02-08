@@ -63,10 +63,13 @@ import { useTrainings, TrainingWithDetails } from "@/hooks/useTrainings";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { RefreshCw } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isAdmin, isManager } = useAuth();
+  const canEdit = isAdmin || isManager;
   const { trainings, loading: trainingsLoading, error: trainingsError, refetch } = useTrainings(true);
   const { facilities: facilitiesData } = useFacilities();
   const [selectedTrainings, setSelectedTrainings] = useState<Set<string>>(new Set());
@@ -731,15 +734,19 @@ export default function ScheduledTrainings() {
                 : "Export PDF"
               }
             </Button>
-            <Button onClick={() => navigate("/new-training")}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nové školení
-            </Button>
+            {/* Tlačítko pro vytvoření školení - pouze admin a manažer */}
+            {canEdit && (
+              <Button onClick={() => navigate("/new-training")}>
+                <Plus className="w-4 h-4 mr-2" />
+                Nové školení
+              </Button>
+            )}
           </div>
         </div>
 
         {/* Bulk actions */}
-        {selectedTrainings.size > 0 && (
+        {/* Hromadné akce - pouze admin a manažer */}
+        {canEdit && selectedTrainings.size > 0 && (
           <Card className="p-4 bg-primary/5 border-primary/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -1181,15 +1188,18 @@ export default function ScheduledTrainings() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={
-                        filteredTrainings.length > 0 &&
-                        selectedTrainings.size === filteredTrainings.length
-                      }
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
+                  {/* Checkbox pouze pro admin a manažera */}
+                  {canEdit && (
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={
+                          filteredTrainings.length > 0 &&
+                          selectedTrainings.size === filteredTrainings.length
+                        }
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>Stav</TableHead>
                   <TableHead>Školení platné do</TableHead>
                   <TableHead>Typ školení</TableHead>
@@ -1217,12 +1227,15 @@ export default function ScheduledTrainings() {
                 ) : (
                   filteredTrainings.map((training) => (
                     <TableRow key={training.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedTrainings.has(training.id)}
-                          onCheckedChange={() => toggleSelectTraining(training.id)}
-                        />
-                      </TableCell>
+                      {/* Checkbox pouze pro admin a manažera */}
+                      {canEdit && (
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedTrainings.has(training.id)}
+                            onCheckedChange={() => toggleSelectTraining(training.id)}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <StatusBadge status={training.status} />
                       </TableCell>
@@ -1251,8 +1264,9 @@ export default function ScheduledTrainings() {
                       <TableCell className="text-center">
                         <TrainingProtocolCell trainingId={training.id} />
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                      <TableCell>
+                        {/* Admin a manažer mohou editovat, ostatní jen náhled */}
+                        {canEdit ? (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1260,7 +1274,15 @@ export default function ScheduledTrainings() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                        </div>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/edit-training/${training.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

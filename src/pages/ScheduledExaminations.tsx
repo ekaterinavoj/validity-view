@@ -26,7 +26,8 @@ import { useAuth } from "@/contexts/AuthContext";
 export default function ScheduledExaminations() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isManager } = useAuth();
+  const canEdit = isAdmin || isManager;
   const { examinations, loading: examinationsLoading, error: examinationsError, refetch } = useMedicalExaminations(true);
   const { facilities: facilitiesData } = useFacilities();
   const [selectedExaminations, setSelectedExaminations] = useState<Set<string>>(new Set());
@@ -209,8 +210,8 @@ export default function ScheduledExaminations() {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          {/* Tlačítko pro vytvoření prohlídky - pouze admin */}
-          {isAdmin && (
+          {/* Tlačítko pro vytvoření prohlídky - pouze admin a manažer */}
+          {canEdit && (
             <Button onClick={() => navigate("/plp/new")}>
               <Plus className="w-4 h-4 mr-2" />
               Nová prohlídka
@@ -237,8 +238,8 @@ export default function ScheduledExaminations() {
         trainerLabel="doctors"
       />
 
-      {/* Hromadná archivace - pouze admin */}
-      {isAdmin && selectedExaminations.size > 0 && (
+      {/* Hromadná archivace - pouze admin a manažer */}
+      {canEdit && selectedExaminations.size > 0 && (
         <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
           <span className="text-sm font-medium">Vybráno: {selectedExaminations.size}</span>
           <Button variant="destructive" size="sm" onClick={handleBulkArchive}>
@@ -252,8 +253,8 @@ export default function ScheduledExaminations() {
         <Table>
           <TableHeader>
             <TableRow>
-              {/* Checkbox pouze pro admina */}
-              {isAdmin && (
+              {/* Checkbox pouze pro admin a manažera */}
+              {canEdit && (
                 <TableHead className="w-[40px]">
                   <Checkbox checked={selectedExaminations.size === filteredExaminations.length && filteredExaminations.length > 0} onCheckedChange={toggleSelectAll} />
                 </TableHead>
@@ -280,8 +281,8 @@ export default function ScheduledExaminations() {
             ) : (
               filteredExaminations.map((exam) => (
                 <TableRow key={exam.id}>
-                  {/* Checkbox pouze pro admina */}
-                  {isAdmin && (
+                  {/* Checkbox pouze pro admin a manažera */}
+                  {canEdit && (
                     <TableCell>
                       <Checkbox checked={selectedExaminations.has(exam.id)} onCheckedChange={() => toggleSelectExamination(exam.id)} />
                     </TableCell>
@@ -306,8 +307,8 @@ export default function ScheduledExaminations() {
                   </TableCell>
                   <TableCell>{exam.doctor || "-"}</TableCell>
                   <TableCell>
-                    {/* Admin může editovat, ostatní jen náhled */}
-                    {isAdmin ? (
+                    {/* Admin a manažer mohou editovat, ostatní jen náhled */}
+                    {canEdit ? (
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
                         <Edit className="w-4 h-4" />
                       </Button>
