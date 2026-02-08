@@ -19,6 +19,7 @@ import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, Ey
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
 import { SendTestDeadlineEmail } from "@/components/SendTestDeadlineEmail";
 import { SendSingleTestEmail } from "@/components/SendSingleTestEmail";
+import { SendTestSmtpEmail } from "@/components/SendTestSmtpEmail";
 import { EmailHistory } from "@/components/EmailHistory";
 import { EmailTemplatePreview } from "@/components/EmailTemplatePreview";
 import { DeadlineEmailTemplatePreview } from "@/components/DeadlineEmailTemplatePreview";
@@ -892,7 +893,7 @@ export default function AdminSettings() {
                 {emailProvider.smtp_host && emailProvider.smtp_from_email ? (
                     <>
                       <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm font-medium">SMTP nakonfigurováno</p>
                         <p className="text-sm text-muted-foreground">
                           Server: {emailProvider.smtp_host}:{emailProvider.smtp_port} | 
@@ -900,6 +901,12 @@ export default function AdminSettings() {
                           {emailProvider.smtp_auth_enabled !== false ? " S autorizací" : " Bez autorizace"}
                         </p>
                       </div>
+                      <SendTestSmtpEmail 
+                        smtpHost={emailProvider.smtp_host}
+                        smtpPort={emailProvider.smtp_port}
+                        smtpFromEmail={emailProvider.smtp_from_email}
+                        smtpAuthEnabled={emailProvider.smtp_auth_enabled !== false}
+                      />
                     </>
                   ) : (
                     <>
