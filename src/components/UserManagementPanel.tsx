@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail } from "lucide-react";
+import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck } from "lucide-react";
 import { ProfileEmployeeLink } from "@/components/ProfileEmployeeLink";
 import { AddUserModal } from "@/components/AddUserModal";
 import { ResetPasswordModal } from "@/components/ResetPasswordModal";
@@ -48,6 +48,7 @@ interface UserProfile {
   position?: string;
   roles: string[];
   employee_id?: string | null;
+  approval_status?: string;
 }
 
 const roleLabels: Record<string, string> = {
@@ -93,6 +94,15 @@ export function UserManagementPanel() {
     newRole: string;
   } | null>(null);
   const [isLastAdminWarningOpen, setIsLastAdminWarningOpen] = useState(false);
+  
+  // Deactivation states
+  const [pendingDeactivation, setPendingDeactivation] = useState<{
+    userId: string;
+    userName: string;
+    userEmail: string;
+    action: "deactivate" | "reactivate";
+  } | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -117,6 +127,7 @@ export function UserManagementPanel() {
       const usersWithRoles: UserProfile[] = (profilesData || []).map((p) => ({
         ...p,
         roles: rolesData?.filter((r) => r.user_id === p.id).map((r) => r.role) || [],
+        approval_status: p.approval_status,
       }));
 
       setUsers(usersWithRoles);
@@ -193,6 +204,41 @@ export function UserManagementPanel() {
       });
     } finally {
       setPendingRoleChange(null);
+    }
+  };
+
+  const handleDeactivation = async () => {
+    if (!pendingDeactivation) return;
+    
+    setIsDeactivating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-deactivate-user", {
+        body: {
+          userId: pendingDeactivation.userId,
+          action: pendingDeactivation.action,
+        },
+      });
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      toast({
+        title: pendingDeactivation.action === "deactivate" ? "Uživatel deaktivován" : "Uživatel reaktivován",
+        description: pendingDeactivation.action === "deactivate"
+          ? `Účet ${pendingDeactivation.userEmail} byl deaktivován a uživatel se nemůže přihlásit.`
+          : `Účet ${pendingDeactivation.userEmail} byl reaktivován a uživatel se může přihlásit.`,
+      });
+      
+      await loadUsers();
+    } catch (error: any) {
+      toast({
+        title: "Chyba",
+        description: error.message || "Nepodařilo se změnit stav uživatele.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeactivating(false);
+      setPendingDeactivation(null);
     }
   };
 
@@ -376,6 +422,7 @@ export function UserManagementPanel() {
                 <TableRow>
                   <TableHead>Jméno</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Stav</TableHead>
                   <TableHead>Propojení se zaměstnancem</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Změnit roli</TableHead>
@@ -385,7 +432,7 @@ export function UserManagementPanel() {
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Žádní uživatelé nenalezeni
                     </TableCell>
                   </TableRow>
@@ -395,6 +442,7 @@ export function UserManagementPanel() {
                     const isCurrentUser = user.id === profile?.id;
                     const isAdmin = currentRole === "admin";
                     const userName = `${user.first_name} ${user.last_name}`.trim() || user.email;
+                    const isDeactivated = user.approval_status === "deactivated";
                     
                     return (
                       <TableRow key={user.id}>
@@ -405,6 +453,19 @@ export function UserManagementPanel() {
                           )}
                         </TableCell>
                         <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          {isDeactivated ? (
+                            <Badge variant="destructive" className="text-xs">
+                              <UserX className="w-3 h-3 mr-1" />
+                              Deaktivován
+                            </Badge>
+                          ) : (
+                            <Badge className="text-xs bg-primary text-primary-foreground">
+                              <UserCheck className="w-3 h-3 mr-1" />
+                              Aktivní
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {isAdmin ? (
                             <Badge variant="secondary" className="text-xs">
@@ -470,6 +531,29 @@ export function UserManagementPanel() {
                                 <Mail className="h-4 w-4 mr-2" />
                                 Změnit email
                               </DropdownMenuItem>
+                              {!isCurrentUser && (
+                                <DropdownMenuItem
+                                  onClick={() => setPendingDeactivation({
+                                    userId: user.id,
+                                    userName,
+                                    userEmail: user.email,
+                                    action: isDeactivated ? "reactivate" : "deactivate",
+                                  })}
+                                  className={isDeactivated ? "" : "text-destructive focus:text-destructive"}
+                                >
+                                  {isDeactivated ? (
+                                    <>
+                                      <UserCheck className="h-4 w-4 mr-2" />
+                                      Reaktivovat účet
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserX className="h-4 w-4 mr-2" />
+                                      Deaktivovat účet
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -547,6 +631,63 @@ export function UserManagementPanel() {
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setIsLastAdminWarningOpen(false)}>
               Rozumím
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Deactivation Confirmation Dialog */}
+      <AlertDialog open={!!pendingDeactivation} onOpenChange={() => setPendingDeactivation(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {pendingDeactivation?.action === "deactivate" ? (
+                <>
+                  <UserX className="w-5 h-5 text-destructive" />
+                  Deaktivovat uživatele
+                </>
+              ) : (
+                <>
+                  <UserCheck className="w-5 h-5 text-primary" />
+                  Reaktivovat uživatele
+                </>
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDeactivation?.action === "deactivate" ? (
+                <>
+                  Opravdu chcete deaktivovat účet uživatele{" "}
+                  <strong>{pendingDeactivation?.userName}</strong> ({pendingDeactivation?.userEmail})?
+                  <br /><br />
+                  Deaktivovaný uživatel se nebude moci přihlásit do systému.
+                </>
+              ) : (
+                <>
+                  Opravdu chcete reaktivovat účet uživatele{" "}
+                  <strong>{pendingDeactivation?.userName}</strong> ({pendingDeactivation?.userEmail})?
+                  <br /><br />
+                  Uživatel se bude moci opět přihlásit do systému.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeactivating}>Zrušit</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeactivation}
+              disabled={isDeactivating}
+              className={pendingDeactivation?.action === "deactivate" ? "bg-destructive hover:bg-destructive/90" : ""}
+            >
+              {isDeactivating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Zpracování...
+                </>
+              ) : pendingDeactivation?.action === "deactivate" ? (
+                "Deaktivovat"
+              ) : (
+                "Reaktivovat"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
