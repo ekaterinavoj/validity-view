@@ -171,7 +171,10 @@ export function FileUploader({
               Přetáhněte soubory sem nebo klikněte pro výběr
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Podporované formáty: {acceptedTypes.join(", ")} (max. {maxSize}MB)
+              Povolené formáty: {acceptedTypes.join(", ")} (max. {maxSize}MB)
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Náhled: pouze PDF a obrázky (JPG, PNG)
             </p>
             <p className="text-xs text-muted-foreground">
               Maximum {maxFiles} souborů
