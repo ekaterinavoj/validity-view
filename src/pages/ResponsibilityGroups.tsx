@@ -49,6 +49,14 @@ interface ResponsibilityGroup {
   description: string | null;
   is_active: boolean;
   created_at: string;
+  members?: {
+    id: string;
+    profile: {
+      first_name: string;
+      last_name: string;
+      email: string;
+    };
+  }[];
 }
 
 interface GroupMember {
@@ -99,11 +107,27 @@ export default function ResponsibilityGroups() {
     try {
       const { data, error } = await supabase
         .from("responsibility_groups")
-        .select("*")
+        .select(`
+          *,
+          members:responsibility_group_members(
+            id,
+            profile:profiles(first_name, last_name, email)
+          )
+        `)
         .order("name");
 
       if (error) throw error;
-      setGroups(data || []);
+      
+      // Transform members to handle nested profile correctly
+      const transformedData = (data || []).map(group => ({
+        ...group,
+        members: (group.members || []).map((m: any) => ({
+          id: m.id,
+          profile: Array.isArray(m.profile) ? m.profile[0] : m.profile
+        }))
+      }));
+      
+      setGroups(transformedData);
     } catch (error: any) {
       toast({
         title: "Chyba při načítání skupin",
@@ -354,6 +378,7 @@ export default function ResponsibilityGroups() {
             <TableHeader>
               <TableRow>
                 <TableHead>Název</TableHead>
+                <TableHead>Členové</TableHead>
                 <TableHead>Popis</TableHead>
                 <TableHead>Stav</TableHead>
                 <TableHead className="w-[200px]">Akce</TableHead>
@@ -362,7 +387,7 @@ export default function ResponsibilityGroups() {
             <TableBody>
               {groups.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Zatím nejsou vytvořeny žádné skupiny.
                   </TableCell>
                 </TableRow>
@@ -370,6 +395,24 @@ export default function ResponsibilityGroups() {
                 groups.map((group) => (
                   <TableRow key={group.id}>
                     <TableCell className="font-medium">{group.name}</TableCell>
+                    <TableCell>
+                      {group.members && group.members.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {group.members.slice(0, 3).map((member) => (
+                            <Badge key={member.id} variant="outline" className="text-xs">
+                              {member.profile?.first_name} {member.profile?.last_name}
+                            </Badge>
+                          ))}
+                          {group.members.length > 3 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{group.members.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Žádní členové</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {group.description || "—"}
                     </TableCell>
