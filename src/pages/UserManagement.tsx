@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Shield, UserCog, Search, X, AlertTriangle, Download, FileSpreadsheet, FileDown } from "lucide-react";
+import { Loader2, Shield, UserCog, Search, X, AlertTriangle, Download, FileDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
@@ -20,7 +20,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -226,25 +225,43 @@ export default function UserManagement() {
   const hasActiveFilters = searchQuery !== "" || roleFilter !== "all";
 
   // Export functions
-  const exportToExcel = () => {
+  const exportToCSV = () => {
     try {
-      const dataToExport = filteredUsers.map(user => ({
-        "Jméno": `${user.first_name} ${user.last_name}`,
-        "Email": user.email,
-        "Pozice": user.position || "-",
-        "Role": roleLabels[user.roles[0] as keyof typeof roleLabels] || "Uživatel",
-      }));
+      const headers = ["Jméno", "Email", "Pozice", "Role"];
+      const rows = filteredUsers.map(user => [
+        `${user.first_name} ${user.last_name}`,
+        user.email,
+        user.position || "-",
+        roleLabels[user.roles[0] as keyof typeof roleLabels] || "Uživatel",
+      ]);
 
-      const ws = XLSX.utils.json_to_sheet(dataToExport);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Uživatelé");
-      
+      const escapeCSV = (value: string) => {
+        if (value.includes(";") || value.includes('"') || value.includes("\n")) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      const csvContent = [
+        headers.map(escapeCSV).join(";"),
+        ...rows.map((row) => row.map(escapeCSV).join(";")),
+      ].join("\n");
+
+      const BOM = "\uFEFF";
+      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
       const timestamp = new Date().toISOString().split("T")[0];
-      XLSX.writeFile(wb, `uzivatele_${timestamp}.xlsx`);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `uzivatele_${timestamp}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
       toast({
         title: "Export úspěšný",
-        description: `Exportováno ${filteredUsers.length} uživatelů do Excel.`,
+        description: `Exportováno ${filteredUsers.length} uživatelů do CSV.`,
       });
     } catch (error) {
       toast({
@@ -312,9 +329,9 @@ export default function UserManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportToExcel}>
-            <FileSpreadsheet className="w-4 h-4 mr-2" />
-            Excel
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            CSV
           </Button>
           <Button variant="outline" size="sm" onClick={exportToPDF}>
             <FileDown className="w-4 h-4 mr-2" />

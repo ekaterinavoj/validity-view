@@ -446,6 +446,22 @@ export const BulkMedicalImport = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <ImportDescription
+          requiredColumns={[
+            { name: "employee_number nebo email", description: "identifikace zaměstnance (alespoň jedno)" },
+            { name: "examination_type_name", description: "název typu prohlídky (musí existovat v systému)" },
+            { name: "facility_code", description: "kód provozovny (např. qlar-jenec-dc3)" },
+            { name: "last_examination_date", description: "datum prohlídky ve formátu YYYY-MM-DD" },
+          ]}
+          optionalColumns={[
+            { name: "doctor", description: "jméno lékaře" },
+            { name: "medical_facility", description: "zdravotnické zařízení" },
+            { name: "result", description: "výsledek prohlídky" },
+            { name: "note", description: "poznámka" },
+          ]}
+          duplicateInfo="Stejný zaměstnanec + typ prohlídky = aktualizuje se existující záznam (overwrite)."
+        />
+
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={downloadTemplateXLSX}>
             <Download className="w-4 h-4 mr-2" />

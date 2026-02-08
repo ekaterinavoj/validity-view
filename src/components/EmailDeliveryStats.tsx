@@ -5,12 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
-import { Mail, CheckCircle2, XCircle, TrendingUp, AlertTriangle, RefreshCw, FileSpreadsheet, FileDown } from "lucide-react";
+import { Mail, CheckCircle2, XCircle, TrendingUp, AlertTriangle, RefreshCw, Download, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -200,87 +199,84 @@ export function EmailDeliveryStats() {
     loadStats();
   }, [days]);
 
-  // Export to Excel
-  const exportToExcel = () => {
+  // Export to CSV
+  const exportToCSV = () => {
     if (!stats) return;
     setExporting(true);
     
     try {
-      const wb = XLSX.utils.book_new();
+      const escapeCSV = (value: string | number) => {
+        const str = String(value);
+        if (str.includes(";") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
 
-      // Sheet 1: Summary statistics
-      const summaryData = [
-        ["Statistika doručování emailů", ""],
-        ["Období", `Posledních ${days} dní`],
-        ["Vygenerováno", format(new Date(), "d. M. yyyy HH:mm", { locale: cs })],
-        ["", ""],
-        ["Metrika", "Hodnota"],
-        ["Celkem odesláno", stats.totalSent],
-        ["Celkem neúspěšných", stats.totalFailed],
-        ["Úspěšnost (%)", stats.successRate.toFixed(1)],
-        ["Průměrný počet pokusů", stats.avgAttempts.toFixed(2)],
-      ];
-      const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
-      ws1["!cols"] = [{ wch: 25 }, { wch: 20 }];
-      XLSX.utils.book_append_sheet(wb, ws1, "Souhrn");
+      const lines: string[] = [];
+      
+      // Section 1: Summary statistics
+      lines.push("Statistika doručování emailů");
+      lines.push(`Období;Posledních ${days} dní`);
+      lines.push(`Vygenerováno;${format(new Date(), "d. M. yyyy HH:mm", { locale: cs })}`);
+      lines.push("");
+      lines.push("Metrika;Hodnota");
+      lines.push(`Celkem odesláno;${stats.totalSent}`);
+      lines.push(`Celkem neúspěšných;${stats.totalFailed}`);
+      lines.push(`Úspěšnost (%);${stats.successRate.toFixed(1)}`);
+      lines.push(`Průměrný počet pokusů;${stats.avgAttempts.toFixed(2)}`);
+      lines.push("");
 
-      // Sheet 2: Daily stats
+      // Section 2: Daily stats
       if (stats.dailyStats.length > 0) {
-        const dailyData = [
-          ["Datum", "Odesláno", "Přeposláno", "Neúspěšných"],
-          ...stats.dailyStats.map((d) => [d.date, d.sent, d.resent, d.failed]),
-        ];
-        const ws2 = XLSX.utils.aoa_to_sheet(dailyData);
-        ws2["!cols"] = [{ wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
-        XLSX.utils.book_append_sheet(wb, ws2, "Denní statistiky");
+        lines.push("Denní statistiky");
+        lines.push("Datum;Odesláno;Přeposláno;Neúspěšných");
+        stats.dailyStats.forEach((d) => {
+          lines.push([escapeCSV(d.date), d.sent, d.resent, d.failed].join(";"));
+        });
+        lines.push("");
       }
 
-      // Sheet 3: Failure reasons
+      // Section 3: Failure reasons
       if (stats.failureReasons.length > 0) {
-        const failureData = [
-          ["Důvod selhání", "Počet", "Procento (%)"],
-          ...stats.failureReasons.map((r) => [
-            r.reason,
-            r.count,
-            r.percentage.toFixed(1),
-          ]),
-        ];
-        const ws3 = XLSX.utils.aoa_to_sheet(failureData);
-        ws3["!cols"] = [{ wch: 25 }, { wch: 10 }, { wch: 12 }];
-        XLSX.utils.book_append_sheet(wb, ws3, "Důvody selhání");
+        lines.push("Důvody selhání");
+        lines.push("Důvod;Počet;Procento (%)");
+        stats.failureReasons.forEach((r) => {
+          lines.push([escapeCSV(r.reason), r.count, r.percentage.toFixed(1)].join(";"));
+        });
+        lines.push("");
       }
 
-      // Sheet 4: Provider stats
+      // Section 4: Provider stats
       if (stats.providerStats.length > 0) {
-        const providerData = [
-          ["Poskytovatel", "Úspěšných", "Neúspěšných", "Úspěšnost (%)"],
-          ...stats.providerStats.map((p) => [
-            p.provider,
-            p.sent,
-            p.failed,
-            p.successRate.toFixed(1),
-          ]),
-        ];
-        const ws4 = XLSX.utils.aoa_to_sheet(providerData);
-        ws4["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }];
-        XLSX.utils.book_append_sheet(wb, ws4, "Poskytovatelé");
+        lines.push("Statistiky poskytovatelů");
+        lines.push("Poskytovatel;Úspěšných;Neúspěšných;Úspěšnost (%)");
+        stats.providerStats.forEach((p) => {
+          lines.push([escapeCSV(p.provider), p.sent, p.failed, p.successRate.toFixed(1)].join(";"));
+        });
       }
 
+      const csvContent = "\uFEFF" + lines.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
       const timestamp = format(new Date(), "yyyy-MM-dd");
-      XLSX.writeFile(wb, `email_statistiky_${timestamp}.xlsx`, {
-        bookType: "xlsx",
-        type: "binary",
-      });
+      link.setAttribute("href", url);
+      link.setAttribute("download", `email_statistiky_${timestamp}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
       toast({
         title: "Export dokončen",
-        description: "Statistiky emailů byly exportovány do Excel souboru.",
+        description: "Statistiky emailů byly exportovány do CSV souboru.",
       });
     } catch (error) {
       console.error("Export error:", error);
       toast({
         title: "Chyba při exportu",
-        description: "Nepodařilo se exportovat data do Excel.",
+        description: "Nepodařilo se exportovat statistiky.",
         variant: "destructive",
       });
     } finally {
@@ -458,9 +454,9 @@ export function EmailDeliveryStats() {
             90 dní
           </Button>
           <div className="w-px bg-border mx-1" />
-          <Button variant="outline" size="sm" onClick={exportToExcel} disabled={exporting || !stats}>
-            <FileSpreadsheet className="w-4 h-4 mr-2" />
-            Excel
+          <Button variant="outline" size="sm" onClick={exportToCSV} disabled={exporting || !stats}>
+            <Download className="w-4 h-4 mr-2" />
+            CSV
           </Button>
           <Button variant="outline" size="sm" onClick={exportToPDF} disabled={exporting || !stats}>
             <FileDown className="w-4 h-4 mr-2" />

@@ -145,24 +145,43 @@ export default function Equipment() {
     setDialogOpen(false);
   };
 
-  const exportToExcel = () => {
-    const data = filteredEquipment.map(eq => ({
-      "Inv. číslo": eq.inventory_number,
-      "Název": eq.name,
-      "Typ": eq.equipment_type,
-      "Provozovna": eq.facility,
-      "Výrobce": eq.manufacturer || "",
-      "Model": eq.model || "",
-      "Sériové č.": eq.serial_number || "",
-      "Umístění": eq.location || "",
-      "Odpovědná osoba": eq.responsible_person || "",
-      "Stav": equipmentStatusLabels[eq.status],
-    }));
+  const exportToCSV = () => {
+    const headers = ["Inv. číslo", "Název", "Typ", "Provozovna", "Výrobce", "Model", "Sériové č.", "Umístění", "Odpovědná osoba", "Stav"];
+    const rows = filteredEquipment.map(eq => [
+      eq.inventory_number,
+      eq.name,
+      eq.equipment_type,
+      eq.facility,
+      eq.manufacturer || "",
+      eq.model || "",
+      eq.serial_number || "",
+      eq.location || "",
+      eq.responsible_person || "",
+      equipmentStatusLabels[eq.status],
+    ]);
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Zařízení");
-    XLSX.writeFile(wb, `zarizeni-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    const escapeCSV = (value: string) => {
+      if (value.includes(";") || value.includes('"') || value.includes("\n")) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    };
+
+    const csvContent = [
+      headers.map(escapeCSV).join(";"),
+      ...rows.map((row) => row.map(escapeCSV).join(";")),
+    ].join("\n");
+
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `zarizeni-${format(new Date(), "yyyy-MM-dd")}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (error) {
@@ -187,9 +206,9 @@ export default function Equipment() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <Button variant="outline" size="sm" onClick={exportToExcel}>
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
-            Export
+            Export CSV
           </Button>
           <Button size="sm" onClick={openCreateDialog}>
             <Plus className="w-4 h-4 mr-2" />
