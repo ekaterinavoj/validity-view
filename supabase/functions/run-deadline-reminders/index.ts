@@ -56,7 +56,6 @@ function isDueNow(
   schedule: ReminderSchedule,
   category: 'expired' | 'warning' | 'all'
 ): boolean {
-  // Master switch
   if (!frequency.enabled) {
     console.log("Reminders disabled via frequency.enabled");
     return false;
@@ -65,7 +64,6 @@ function isDueNow(
   const timezone = frequency.timezone || "Europe/Prague";
   const now = new Date();
   
-  // Format current time in target timezone
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     year: "numeric",
@@ -81,26 +79,22 @@ function isDueNow(
   const currentMinute = parseInt(parts.find(p => p.type === "minute")?.value || "0");
   const currentWeekdayEn = parts.find(p => p.type === "weekday")?.value || "";
   
-  // Map English weekday to number (0 = Sunday, 1 = Monday, etc.)
   const weekdayToNum: Record<string, number> = {
     "Sunday": 0, "Monday": 1, "Tuesday": 2, "Wednesday": 3,
     "Thursday": 4, "Friday": 5, "Saturday": 6
   };
   const currentDayNum = weekdayToNum[currentWeekdayEn] ?? now.getDay();
   
-  // Skip weekends if enabled
   if (schedule.skip_weekends && (currentDayNum === 0 || currentDayNum === 6)) {
     console.log("Skipping weekend");
     return false;
   }
 
-  // Dual mode - different logic for expired vs warning
   if (frequency.dual_mode && category !== 'all') {
     if (category === 'expired') {
       const expiredFreq = frequency.expired_frequency || 'daily';
       const [targetHour, targetMinute] = (frequency.expired_start_time || "08:00").split(":").map(Number);
       
-      // Check time window (within 60 minutes of target time)
       const currentMinutes = currentHour * 60 + currentMinute;
       const targetMinutes = targetHour * 60 + targetMinute;
       const isInWindow = currentMinutes >= targetMinutes && currentMinutes < targetMinutes + 60;
@@ -110,7 +104,6 @@ function isDueNow(
         return false;
       }
       
-      // For daily/twice_daily, always due if in time window
       if (expiredFreq === 'daily' || expiredFreq === 'twice_daily') {
         console.log(`Expired: Daily/twice_daily frequency, in time window - due now`);
         return true;
@@ -124,7 +117,6 @@ function isDueNow(
       const [targetHour, targetMinute] = (frequency.warning_start_time || "08:00").split(":").map(Number);
       const targetDayOfWeek = frequency.warning_day_of_week ?? 1;
       
-      // Check time window
       const currentMinutes = currentHour * 60 + currentMinute;
       const targetMinutes = targetHour * 60 + targetMinute;
       const isInWindow = currentMinutes >= targetMinutes && currentMinutes < targetMinutes + 60;
@@ -134,7 +126,6 @@ function isDueNow(
         return false;
       }
       
-      // Check day of week for weekly/biweekly
       if (warningFreq === 'weekly' || warningFreq === 'biweekly') {
         if (currentDayNum !== targetDayOfWeek) {
           console.log(`Warning: Wrong day. Current: ${currentDayNum}, Target: ${targetDayOfWeek}`);
@@ -147,7 +138,6 @@ function isDueNow(
     }
   }
 
-  // Single mode - original behavior (for 'all' category or non-dual mode)
   const [targetHour, targetMinute] = (frequency.start_time || "08:00").split(":").map(Number);
   const currentMinutes = currentHour * 60 + currentMinute;
   const targetMinutes = targetHour * 60 + targetMinute;
@@ -164,21 +154,17 @@ function isDueNow(
     case "weekly":
       return currentDayNum === (schedule.day_of_week ?? 1);
     case "biweekly":
-      // Simplified: check if it's the right day, week logic would need state
       return currentDayNum === (schedule.day_of_week ?? 1);
     case "monthly":
-      // Simplified: send on first occurrence of the day in month
       const dayOfMonth = now.getDate();
       return dayOfMonth <= 7 && currentDayNum === (schedule.day_of_week ?? 1);
     case "custom":
-      // For custom, we'd need to track last send date - simplified to daily for now
       return true;
     default:
       return true;
   }
 }
 
-// Calculate days until expiration
 function getDaysUntil(dateStr: string): number {
   const target = new Date(dateStr);
   const now = new Date();
@@ -188,13 +174,11 @@ function getDaysUntil(dateStr: string): number {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
-// Format date to Czech format
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString("cs-CZ");
 }
 
-// Format days with correct Czech grammar
 function formatDaysLabel(days: number): string {
   const absDays = Math.abs(days);
   let unit: string;
@@ -213,7 +197,6 @@ function formatDaysLabel(days: number): string {
   return `${days} ${unit}`;
 }
 
-// Replace template variables for summary email
 function replaceVariables(
   template: string, 
   totalCount: number, 
@@ -223,23 +206,19 @@ function replaceVariables(
 ): string {
   const today = new Date();
   let result = template
-    // Summary variables (new format)
     .replace(/\{+totalCount\}+/g, String(totalCount))
     .replace(/\{+expiringCount\}+/g, String(expiringCount))
     .replace(/\{+expiredCount\}+/g, String(expiredCount))
     .replace(/\{+reportDate\}+/g, formatDate(today.toISOString()))
-    // Legacy variables for backwards compatibility
     .replace(/\{+total_count\}+/g, String(totalCount))
     .replace(/\{+expiring_count\}+/g, String(expiringCount))
     .replace(/\{+expired_count\}+/g, String(expiredCount))
     .replace(/\{+report_date\}+/g, formatDate(today.toISOString()));
   
-  // If we have deadlines data, also replace individual deadline variables
   if (deadlines && deadlines.length > 0) {
     const sample = deadlines[0];
     
     result = result
-      // Modern format {{variable}}
       .replace(/\{\{equipment_name\}\}/g, sample.equipment_name)
       .replace(/\{\{equipment_inventory_number\}\}/g, sample.equipment_inventory_number)
       .replace(/\{\{deadline_type\}\}/g, sample.deadline_type_name)
@@ -250,7 +229,6 @@ function replaceVariables(
       .replace(/\{\{next_check_date\}\}/g, formatDate(sample.next_check_date))
       .replace(/\{\{facility\}\}/g, sample.facility)
       .replace(/\{\{responsible_person\}\}/g, sample.responsible_person || "-")
-      // Legacy format {variable}
       .replace(/\{equipmentName\}/g, sample.equipment_name)
       .replace(/\{inventoryNumber\}/g, sample.equipment_inventory_number)
       .replace(/\{deadlineType\}/g, sample.deadline_type_name)
@@ -264,7 +242,6 @@ function replaceVariables(
   return result;
 }
 
-// Build HTML table for deadlines list
 function buildDeadlinesTable(deadlines: DeadlineItem[], category: 'expired' | 'warning' | 'all'): string {
   if (deadlines.length === 0) {
     return "<p>Žádné technické události k zobrazení.</p>";
@@ -318,121 +295,225 @@ function buildDeadlinesTable(deadlines: DeadlineItem[], category: 'expired' | 'w
   return html;
 }
 
-// Get the run period key for idempotency
 function getRunPeriodKey(category: string = 'all'): string {
   const now = new Date();
   const dateKey = now.toISOString().split("T")[0];
   return `${dateKey}_${category}`;
 }
 
-// Send email via Resend
-async function sendViaResend(
+// Send email via native SMTP
+async function sendViaSMTP(
   recipients: string[],
   subject: string,
   body: string,
   deliveryMode: string,
-  fromEmail?: string,
-  fromName?: string
+  emailProvider: any
 ): Promise<{ success: boolean; error?: string; provider: string }> {
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  
-  if (!resendApiKey) {
-    console.log("RESEND_API_KEY not configured, falling back to SMTP");
-    return { success: false, error: "RESEND_API_KEY not configured", provider: "resend" };
+  const host = emailProvider.smtp_host;
+  const port = emailProvider.smtp_port || 587;
+  const fromEmail = emailProvider.smtp_from_email;
+  const fromName = emailProvider.smtp_from_name || "Deadline System";
+  const authEnabled = emailProvider.smtp_auth_enabled !== false;
+  const username = emailProvider.smtp_user;
+  const password = emailProvider.smtp_password;
+  const tlsMode = emailProvider.smtp_tls_mode || "starttls";
+
+  if (!host || !fromEmail) {
+    return { success: false, error: "SMTP not configured", provider: "smtp" };
   }
 
-  try {
-    const from = fromName && fromEmail ? `${fromName} <${fromEmail}>` : (fromEmail || "noreply@example.com");
-    
-    let toRecipients: string[];
-    let bccRecipients: string[] | undefined;
-    let ccRecipients: string[] | undefined;
+  let toRecipients: string[] = [];
+  let bccRecipients: string[] = [];
 
-    if (deliveryMode === "bcc") {
-      toRecipients = [fromEmail || recipients[0]];
-      bccRecipients = recipients;
-    } else if (deliveryMode === "cc") {
-      toRecipients = [recipients[0]];
-      if (recipients.length > 1) {
-        ccRecipients = recipients.slice(1);
-      }
+  if (deliveryMode === "bcc") {
+    toRecipients = [fromEmail];
+    bccRecipients = recipients;
+  } else {
+    toRecipients = recipients;
+  }
+
+  const allRecipients = [...toRecipients, ...bccRecipients].filter(Boolean);
+  if (allRecipients.length === 0) {
+    return { success: false, error: "No recipients", provider: "smtp" };
+  }
+
+  let connection: Deno.TcpConn | Deno.TlsConn | null = null;
+
+  try {
+    console.log(`Connecting to SMTP ${host}:${port}`);
+
+    if (tlsMode === "smtps") {
+      connection = await Deno.connectTls({ hostname: host, port });
     } else {
-      toRecipients = recipients;
+      connection = await Deno.connect({ hostname: host, port });
     }
 
-    const emailPayload: any = {
-      from,
-      to: toRecipients,
-      subject,
-      html: body,
+    const reader = connection.readable.getReader();
+    const writer = connection.writable.getWriter();
+
+    const readResponse = async (): Promise<string> => {
+      const decoder = new TextDecoder();
+      let response = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        response += decoder.decode(value, { stream: true });
+        if (response.includes("\r\n")) {
+          const lines = response.split("\r\n");
+          const lastLine = lines[lines.length - 2] || lines[lines.length - 1];
+          if (lastLine.length >= 4 && lastLine[3] !== '-') break;
+        }
+      }
+      return response;
     };
 
-    if (bccRecipients && bccRecipients.length > 0) {
-      emailPayload.bcc = bccRecipients;
-    }
-    if (ccRecipients && ccRecipients.length > 0) {
-      emailPayload.cc = ccRecipients;
-    }
+    const sendCommand = async (cmd: string): Promise<{ code: number; msg: string }> => {
+      const encoder = new TextEncoder();
+      await writer.write(encoder.encode(cmd + "\r\n"));
+      const resp = await readResponse();
+      return { code: parseInt(resp.substring(0, 3), 10), msg: resp };
+    };
 
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(emailPayload),
-    });
+    const greeting = await readResponse();
+    if (!greeting.startsWith("220")) throw new Error(`Invalid greeting: ${greeting}`);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Resend API error: ${response.status} - ${errorText}`);
+    let resp = await sendCommand(`EHLO ${host}`);
+    if (resp.code !== 250) {
+      resp = await sendCommand(`HELO ${host}`);
+      if (resp.code !== 250) throw new Error(`HELO failed: ${resp.msg}`);
     }
 
-    console.log("Email sent successfully via Resend");
-    return { success: true, provider: "resend" };
+    if (tlsMode === "starttls") {
+      resp = await sendCommand("STARTTLS");
+      if (resp.code === 220) {
+        reader.releaseLock();
+        writer.releaseLock();
+        connection = await Deno.startTls(connection as Deno.TcpConn, { hostname: host });
+        
+        const tlsReader = connection.readable.getReader();
+        const tlsWriter = connection.writable.getWriter();
+        
+        const sendTlsCommand = async (cmd: string): Promise<{ code: number; msg: string }> => {
+          const encoder = new TextEncoder();
+          await tlsWriter.write(encoder.encode(cmd + "\r\n"));
+          const decoder = new TextDecoder();
+          let response = "";
+          while (true) {
+            const { value, done } = await tlsReader.read();
+            if (done) break;
+            response += decoder.decode(value, { stream: true });
+            if (response.includes("\r\n")) break;
+          }
+          return { code: parseInt(response.substring(0, 3), 10), msg: response };
+        };
+
+        await sendTlsCommand(`EHLO ${host}`);
+        
+        if (authEnabled && username && password) {
+          await sendTlsCommand("AUTH LOGIN");
+          await sendTlsCommand(btoa(username));
+          await sendTlsCommand(btoa(password));
+        }
+
+        await sendTlsCommand(`MAIL FROM:<${fromEmail}>`);
+        for (const rcpt of allRecipients) {
+          await sendTlsCommand(`RCPT TO:<${rcpt}>`);
+        }
+        await sendTlsCommand("DATA");
+
+        const emailData = [
+          `From: "${fromName}" <${fromEmail}>`,
+          `To: ${toRecipients.join(", ")}`,
+          bccRecipients.length > 0 ? `Bcc: ${bccRecipients.join(", ")}` : "",
+          `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
+          "MIME-Version: 1.0",
+          `Content-Type: text/html; charset=UTF-8`,
+          "",
+          body,
+          ".",
+        ].filter(Boolean).join("\r\n");
+
+        await tlsWriter.write(new TextEncoder().encode(emailData + "\r\n"));
+        await sendTlsCommand("QUIT");
+        
+        tlsReader.releaseLock();
+        tlsWriter.releaseLock();
+        connection.close();
+        return { success: true, provider: "smtp" };
+      }
+    }
+
+    if (authEnabled && username && password) {
+      await sendCommand("AUTH LOGIN");
+      await sendCommand(btoa(username));
+      await sendCommand(btoa(password));
+    }
+
+    await sendCommand(`MAIL FROM:<${fromEmail}>`);
+    for (const rcpt of allRecipients) {
+      await sendCommand(`RCPT TO:<${rcpt}>`);
+    }
+    await sendCommand("DATA");
+
+    const emailData = [
+      `From: "${fromName}" <${fromEmail}>`,
+      `To: ${toRecipients.join(", ")}`,
+      bccRecipients.length > 0 ? `Bcc: ${bccRecipients.join(", ")}` : "",
+      `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
+      "MIME-Version: 1.0",
+      `Content-Type: text/html; charset=UTF-8`,
+      "",
+      body,
+      ".",
+    ].filter(Boolean).join("\r\n");
+
+    await writer.write(new TextEncoder().encode(emailData + "\r\n"));
+    await sendCommand("QUIT");
+    
+    reader.releaseLock();
+    writer.releaseLock();
+    connection.close();
+    console.log("Deadline reminder email sent via SMTP");
+    return { success: true, provider: "smtp" };
+    
   } catch (error: any) {
-    console.error("Resend error:", error.message);
-    return { success: false, error: error.message, provider: "resend" };
+    console.error("SMTP error:", error.message);
+    if (connection) try { connection.close(); } catch {}
+    return { success: false, error: error.message, provider: "smtp" };
   }
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Verify authorization - cron secret OR authenticated admin
   const cronSecret = req.headers.get("x-cron-secret");
   const envCronSecret = Deno.env.get("CRON_SECRET");
   const authHeader = req.headers.get("authorization");
   
   const isCronRequest = cronSecret && envCronSecret && cronSecret === envCronSecret;
   
-  // For non-cron requests, verify JWT and admin role
   let isAuthorizedAdmin = false;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   
   if (!isCronRequest && authHeader?.startsWith("Bearer ")) {
-    // Verify the user is an admin
     const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
     
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
+    const { data: userData } = await userSupabase.auth.getUser(token);
     
-    if (!claimsError && claimsData?.claims?.sub) {
-      const userId = claimsData.claims.sub;
+    if (userData?.user) {
       const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
       
-      // Check if user has admin role
       const { data: roles } = await serviceSupabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", userId)
+        .eq("user_id", userData.user.id)
         .eq("role", "admin")
         .limit(1);
       
@@ -472,7 +553,6 @@ const handler = async (req: Request): Promise<Response> => {
 
   console.log(`Starting deadline reminder run: triggered_by=${triggeredBy}, test_mode=${testMode}, forceCategory=${forceCategory}`);
 
-  // Fetch frequency and schedule settings
   const { data: settings } = await supabase
     .from("system_settings")
     .select("key, value")
@@ -485,7 +565,7 @@ const handler = async (req: Request): Promise<Response> => {
   let schedule: ReminderSchedule = { enabled: true, day_of_week: 1, skip_weekends: true };
   let moduleRecipients: { user_ids: string[], delivery_mode: string } = { user_ids: [], delivery_mode: "bcc" };
   let moduleEmailTemplate: { subject: string, body: string } | null = null;
-  let emailProviderSettings: { smtp_from_email: string, smtp_from_name: string } | null = null;
+  let emailProviderSettings: any = null;
   
   if (settings) {
     for (const s of settings) {
@@ -502,15 +582,23 @@ const handler = async (req: Request): Promise<Response> => {
         moduleEmailTemplate = s.value as { subject: string; body: string };
       }
       if (s.key === "email_provider" && s.value && typeof s.value === "object") {
-        emailProviderSettings = s.value as typeof emailProviderSettings;
+        emailProviderSettings = s.value;
       }
     }
   }
   
+  // Check if SMTP is configured
+  if (!emailProviderSettings?.smtp_host || !emailProviderSettings?.smtp_from_email) {
+    console.log("SMTP server is not configured");
+    return new Response(
+      JSON.stringify({ error: "SMTP server není nakonfigurován", emailsSent: 0 }),
+      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+
   console.log(`Frequency settings: dual_mode=${frequency.dual_mode}, enabled=${frequency.enabled}`);
   console.log(`Module recipients configured: ${moduleRecipients.user_ids?.length || 0} users`);
 
-  // Fetch all active reminder templates for lookup
   const { data: allTemplates } = await supabase
     .from("deadline_reminder_templates")
     .select("*")
@@ -536,7 +624,6 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
-  // Fetch active deadlines with related data
   const { data: deadlines, error: deadlinesError } = await supabase
     .from("deadlines")
     .select(`
@@ -556,7 +643,6 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
-  // Build deadline items with status categorization
   const allDeadlineItems: DeadlineItem[] = [];
   
   for (const d of deadlines || []) {
@@ -568,7 +654,6 @@ const handler = async (req: Request): Promise<Response> => {
     const daysUntil = getDaysUntil(d.next_check_date);
     const remindDays = d.remind_days_before || 30;
     
-    // Include if expired or within reminder window
     if (daysUntil <= remindDays) {
       const templateId = d.reminder_template_id || defaultTemplate.id;
       const template = templatesMap.get(templateId) || defaultTemplate;
@@ -592,7 +677,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
   }
 
-  // Sort by days until expiration (most urgent first)
   allDeadlineItems.sort((a, b) => a.days_until - b.days_until);
 
   const expiredItems = allDeadlineItems.filter(d => d.status === 'expired');
@@ -600,7 +684,6 @@ const handler = async (req: Request): Promise<Response> => {
 
   console.log(`Found ${expiredItems.length} expired and ${warningItems.length} warning deadlines`);
 
-  // Build final recipient list
   let finalRecipientEmails: string[] = [];
   
   if (moduleRecipients.user_ids && moduleRecipients.user_ids.length > 0) {
@@ -628,196 +711,102 @@ const handler = async (req: Request): Promise<Response> => {
   let totalEmailsFailed = 0;
   const results: any[] = [];
   const deliveryMode = moduleRecipients.delivery_mode || "bcc";
-  const fromEmail = emailProviderSettings?.smtp_from_email;
-  const fromName = emailProviderSettings?.smtp_from_name;
 
-  // Determine what to send based on dual mode
   if (frequency.dual_mode) {
     console.log("Dual mode enabled - sending separate emails for expired and warning");
 
-    // Check if expired emails are due now (or forced)
     const shouldSendExpired = forceCategory === 'expired' || forceCategory === 'all' || 
       (testMode && forceCategory !== 'warning') || 
       isDueNow(frequency, schedule, 'expired');
     
-    // Check if warning emails are due now (or forced)
     const shouldSendWarning = forceCategory === 'warning' || forceCategory === 'all' || 
       (testMode && forceCategory !== 'expired') || 
       isDueNow(frequency, schedule, 'warning');
 
-    // Send expired email
     if (shouldSendExpired && expiredItems.length > 0) {
       const weekStart = getRunPeriodKey('expired');
       
-      // Check idempotency for non-test mode
-      if (!testMode) {
-        const { data: existingRun } = await supabase
-          .from("deadline_reminder_logs")
-          .select("id")
-          .eq("week_start", weekStart)
-          .eq("is_test", false)
-          .limit(1);
-
-        if (existingRun && existingRun.length > 0) {
-          console.log(`Duplicate run detected for expired ${weekStart}, skipping`);
-        } else {
-          // Send expired email
-          const subjectTemplate = moduleEmailTemplate?.subject || defaultTemplate.email_subject;
-          const bodyTemplate = moduleEmailTemplate?.body || defaultTemplate.email_body;
-          
-          const subject = testMode 
-            ? `[TEST] ⚠️ PROŠLÉ TECHNICKÉ UDÁLOSTI - ${replaceVariables(subjectTemplate, expiredItems.length, 0, expiredItems.length, expiredItems)}`
-            : `⚠️ PROŠLÉ TECHNICKÉ UDÁLOSTI - ${replaceVariables(subjectTemplate, expiredItems.length, 0, expiredItems.length, expiredItems)}`;
-          
-          const bodyText = replaceVariables(bodyTemplate, expiredItems.length, 0, expiredItems.length, expiredItems);
-          const tableHtml = buildDeadlinesTable(expiredItems, 'expired');
-          const fullBody = `${bodyText.replace(/\n/g, "<br>")}<br><br>${tableHtml}`;
-          
-          const result = await sendViaResend(finalRecipientEmails, subject, fullBody, deliveryMode, fromEmail, fromName);
-          
-          await supabase.from("deadline_reminder_logs").insert({
-            template_id: defaultTemplate.id,
-            template_name: "Prošlé technické události",
-            recipient_emails: finalRecipientEmails,
-            email_subject: subject,
-            email_body: fullBody,
-            status: result.success ? "sent" : "failed",
-            error_message: result.error || null,
-            is_test: testMode,
-            week_start: weekStart,
-            delivery_mode: deliveryMode,
-            deadline_id: expiredItems[0]?.id || null,
-            equipment_id: expiredItems[0]?.equipment_id || null,
-            days_before: expiredItems[0]?.days_until || null,
-          });
-          
-          if (result.success) {
-            totalEmailsSent++;
-            console.log(`Sent expired deadline reminder with ${expiredItems.length} items`);
-          } else {
-            totalEmailsFailed++;
-          }
-          
-          results.push({ type: 'expired', count: expiredItems.length, success: result.success });
-        }
+      const subjectTemplate = moduleEmailTemplate?.subject || defaultTemplate.email_subject;
+      const bodyTemplate = moduleEmailTemplate?.body || defaultTemplate.email_body;
+      
+      const subject = testMode 
+        ? `[TEST] ⚠️ PROŠLÉ TECHNICKÉ UDÁLOSTI - ${replaceVariables(subjectTemplate, expiredItems.length, 0, expiredItems.length, expiredItems)}`
+        : `⚠️ PROŠLÉ TECHNICKÉ UDÁLOSTI - ${replaceVariables(subjectTemplate, expiredItems.length, 0, expiredItems.length, expiredItems)}`;
+      
+      const bodyText = replaceVariables(bodyTemplate, expiredItems.length, 0, expiredItems.length, expiredItems);
+      const tableHtml = buildDeadlinesTable(expiredItems, 'expired');
+      const fullBody = `${bodyText.replace(/\n/g, "<br>")}<br><br>${tableHtml}`;
+      
+      const result = await sendViaSMTP(finalRecipientEmails, subject, fullBody, deliveryMode, emailProviderSettings);
+      
+      await supabase.from("deadline_reminder_logs").insert({
+        template_id: defaultTemplate.id,
+        template_name: testMode ? "Prošlé technické události (TEST)" : "Prošlé technické události",
+        recipient_emails: finalRecipientEmails,
+        email_subject: subject,
+        email_body: fullBody,
+        status: result.success ? "sent" : "failed",
+        error_message: result.error || null,
+        is_test: testMode,
+        week_start: weekStart,
+        delivery_mode: deliveryMode,
+        deadline_id: expiredItems[0]?.id || null,
+        equipment_id: expiredItems[0]?.equipment_id || null,
+        days_before: expiredItems[0]?.days_until || null,
+      });
+      
+      if (result.success) {
+        totalEmailsSent++;
+        console.log(`Sent expired deadline reminder with ${expiredItems.length} items`);
       } else {
-        // Test mode - send without idempotency check
-        const subjectTemplate = moduleEmailTemplate?.subject || defaultTemplate.email_subject;
-        const bodyTemplate = moduleEmailTemplate?.body || defaultTemplate.email_body;
-        
-        const subject = `[TEST] ⚠️ PROŠLÉ TECHNICKÉ UDÁLOSTI - ${replaceVariables(subjectTemplate, expiredItems.length, 0, expiredItems.length, expiredItems)}`;
-        
-        const bodyText = replaceVariables(bodyTemplate, expiredItems.length, 0, expiredItems.length, expiredItems);
-        const tableHtml = buildDeadlinesTable(expiredItems, 'expired');
-        const fullBody = `${bodyText.replace(/\n/g, "<br>")}<br><br>${tableHtml}`;
-        
-        const result = await sendViaResend(finalRecipientEmails, subject, fullBody, deliveryMode, fromEmail, fromName);
-        
-        await supabase.from("deadline_reminder_logs").insert({
-          template_id: defaultTemplate.id,
-          template_name: "Prošlé technické události (TEST)",
-          recipient_emails: finalRecipientEmails,
-          email_subject: subject,
-          email_body: fullBody,
-          status: result.success ? "sent" : "failed",
-          error_message: result.error || null,
-          is_test: true,
-          week_start: weekStart,
-          delivery_mode: deliveryMode,
-        });
-        
-        if (result.success) totalEmailsSent++;
-        else totalEmailsFailed++;
-        
-        results.push({ type: 'expired', count: expiredItems.length, success: result.success });
+        totalEmailsFailed++;
       }
+      
+      results.push({ type: 'expired', count: expiredItems.length, success: result.success });
     }
 
-    // Send warning email
     if (shouldSendWarning && warningItems.length > 0) {
       const weekStart = getRunPeriodKey('warning');
       
-      if (!testMode) {
-        const { data: existingRun } = await supabase
-          .from("deadline_reminder_logs")
-          .select("id")
-          .eq("week_start", weekStart)
-          .eq("is_test", false)
-          .limit(1);
-
-        if (existingRun && existingRun.length > 0) {
-          console.log(`Duplicate run detected for warning ${weekStart}, skipping`);
-        } else {
-          const subjectTemplate = moduleEmailTemplate?.subject || defaultTemplate.email_subject;
-          const bodyTemplate = moduleEmailTemplate?.body || defaultTemplate.email_body;
-          
-          const subject = `📅 Blížící se technické události - ${replaceVariables(subjectTemplate, warningItems.length, warningItems.length, 0, warningItems)}`;
-          
-          const bodyText = replaceVariables(bodyTemplate, warningItems.length, warningItems.length, 0, warningItems);
-          const tableHtml = buildDeadlinesTable(warningItems, 'warning');
-          const fullBody = `${bodyText.replace(/\n/g, "<br>")}<br><br>${tableHtml}`;
-          
-          const result = await sendViaResend(finalRecipientEmails, subject, fullBody, deliveryMode, fromEmail, fromName);
-          
-          await supabase.from("deadline_reminder_logs").insert({
-            template_id: defaultTemplate.id,
-            template_name: "Blížící se technické události",
-            recipient_emails: finalRecipientEmails,
-            email_subject: subject,
-            email_body: fullBody,
-            status: result.success ? "sent" : "failed",
-            error_message: result.error || null,
-            is_test: testMode,
-            week_start: weekStart,
-            delivery_mode: deliveryMode,
-            deadline_id: warningItems[0]?.id || null,
-            equipment_id: warningItems[0]?.equipment_id || null,
-            days_before: warningItems[0]?.days_until || null,
-          });
-          
-          if (result.success) {
-            totalEmailsSent++;
-            console.log(`Sent warning deadline reminder with ${warningItems.length} items`);
-          } else {
-            totalEmailsFailed++;
-          }
-          
-          results.push({ type: 'warning', count: warningItems.length, success: result.success });
-        }
+      const subjectTemplate = moduleEmailTemplate?.subject || defaultTemplate.email_subject;
+      const bodyTemplate = moduleEmailTemplate?.body || defaultTemplate.email_body;
+      
+      const subject = testMode 
+        ? `[TEST] 📅 Blížící se technické události - ${replaceVariables(subjectTemplate, warningItems.length, warningItems.length, 0, warningItems)}`
+        : `📅 Blížící se technické události - ${replaceVariables(subjectTemplate, warningItems.length, warningItems.length, 0, warningItems)}`;
+      
+      const bodyText = replaceVariables(bodyTemplate, warningItems.length, warningItems.length, 0, warningItems);
+      const tableHtml = buildDeadlinesTable(warningItems, 'warning');
+      const fullBody = `${bodyText.replace(/\n/g, "<br>")}<br><br>${tableHtml}`;
+      
+      const result = await sendViaSMTP(finalRecipientEmails, subject, fullBody, deliveryMode, emailProviderSettings);
+      
+      await supabase.from("deadline_reminder_logs").insert({
+        template_id: defaultTemplate.id,
+        template_name: testMode ? "Blížící se technické události (TEST)" : "Blížící se technické události",
+        recipient_emails: finalRecipientEmails,
+        email_subject: subject,
+        email_body: fullBody,
+        status: result.success ? "sent" : "failed",
+        error_message: result.error || null,
+        is_test: testMode,
+        week_start: weekStart,
+        delivery_mode: deliveryMode,
+        deadline_id: warningItems[0]?.id || null,
+        equipment_id: warningItems[0]?.equipment_id || null,
+        days_before: warningItems[0]?.days_until || null,
+      });
+      
+      if (result.success) {
+        totalEmailsSent++;
+        console.log(`Sent warning deadline reminder with ${warningItems.length} items`);
       } else {
-        // Test mode
-        const subjectTemplate = moduleEmailTemplate?.subject || defaultTemplate.email_subject;
-        const bodyTemplate = moduleEmailTemplate?.body || defaultTemplate.email_body;
-        
-        const subject = `[TEST] 📅 Blížící se technické události - ${replaceVariables(subjectTemplate, warningItems.length, warningItems.length, 0, warningItems)}`;
-        
-        const bodyText = replaceVariables(bodyTemplate, warningItems.length, warningItems.length, 0, warningItems);
-        const tableHtml = buildDeadlinesTable(warningItems, 'warning');
-        const fullBody = `${bodyText.replace(/\n/g, "<br>")}<br><br>${tableHtml}`;
-        
-        const result = await sendViaResend(finalRecipientEmails, subject, fullBody, deliveryMode, fromEmail, fromName);
-        
-        await supabase.from("deadline_reminder_logs").insert({
-          template_id: defaultTemplate.id,
-          template_name: "Blížící se technické události (TEST)",
-          recipient_emails: finalRecipientEmails,
-          email_subject: subject,
-          email_body: fullBody,
-          status: result.success ? "sent" : "failed",
-          error_message: result.error || null,
-          is_test: true,
-          week_start: weekStart,
-          delivery_mode: deliveryMode,
-        });
-        
-        if (result.success) totalEmailsSent++;
-        else totalEmailsFailed++;
-        
-        results.push({ type: 'warning', count: warningItems.length, success: result.success });
+        totalEmailsFailed++;
       }
+      
+      results.push({ type: 'warning', count: warningItems.length, success: result.success });
     }
   } else {
-    // Single mode - original behavior
     if (allDeadlineItems.length === 0) {
       console.log("No deadlines require reminders");
       return new Response(
@@ -827,26 +816,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const weekStart = getRunPeriodKey('all');
-
-    // Check for duplicate run (idempotency) - skip for test mode
-    if (!testMode) {
-      const { data: existingRun } = await supabase
-        .from("deadline_reminder_logs")
-        .select("id")
-        .eq("week_start", weekStart)
-        .eq("is_test", false)
-        .limit(1);
-
-      if (existingRun && existingRun.length > 0) {
-        console.log(`Duplicate run detected for week ${weekStart}, skipping`);
-        return new Response(
-          JSON.stringify({ message: "Already sent for this period", emailsSent: 0 }),
-          { headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-    }
-
-    // Prepare and send single combined email
     const expiredCount = expiredItems.length;
     const expiringCount = warningItems.length;
     const totalCount = allDeadlineItems.length;
@@ -862,7 +831,7 @@ const handler = async (req: Request): Promise<Response> => {
     const tableHtml = buildDeadlinesTable(allDeadlineItems, 'all');
     const fullBody = `${bodyText.replace(/\n/g, "<br>")}<br><br>${tableHtml}`;
 
-    const result = await sendViaResend(finalRecipientEmails, subject, fullBody, deliveryMode, fromEmail, fromName);
+    const result = await sendViaSMTP(finalRecipientEmails, subject, fullBody, deliveryMode, emailProviderSettings);
 
     await supabase.from("deadline_reminder_logs").insert({
       template_id: defaultTemplate.id,
@@ -901,10 +870,14 @@ const handler = async (req: Request): Promise<Response> => {
 
   return new Response(
     JSON.stringify({
-      success: totalEmailsFailed === 0,
+      message: "Deadline reminder run completed",
+      triggeredBy,
+      testMode,
       emailsSent: totalEmailsSent,
       emailsFailed: totalEmailsFailed,
-      dualMode: frequency.dual_mode || false,
+      totalDeadlines: allDeadlineItems.length,
+      expiredCount: expiredItems.length,
+      warningCount: warningItems.length,
       results,
     }),
     { headers: { "Content-Type": "application/json", ...corsHeaders } }
