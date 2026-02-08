@@ -207,12 +207,15 @@ export default function ScheduledDeadlines() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={selectedIds.length === filteredDeadlines.length && filteredDeadlines.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
+                {/* Checkbox pouze pro admin a manažera */}
+                {canEdit && (
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedIds.length === filteredDeadlines.length && filteredDeadlines.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
+                )}
                 <TableHead>Stav</TableHead>
                 <TableHead>Inventární č.</TableHead>
                 <TableHead>Zařízení</TableHead>
@@ -242,12 +245,15 @@ export default function ScheduledDeadlines() {
                       deadline.status === "warning" && "bg-accent/30"
                     )}
                   >
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedIds.includes(deadline.id)}
-                        onCheckedChange={(checked) => handleSelectOne(deadline.id, !!checked)}
-                      />
-                    </TableCell>
+                    {/* Checkbox pouze pro admin a manažera */}
+                    {canEdit && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.includes(deadline.id)}
+                          onCheckedChange={(checked) => handleSelectOne(deadline.id, !!checked)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       <StatusBadge status={deadline.status as "valid" | "warning" | "expired"} />
                     </TableCell>

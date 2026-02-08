@@ -220,7 +220,13 @@ export default function ScheduledExaminations() {
         </div>
       </div>
 
-      <StatusLegend variant="training" />
+      {/* Legend + Count - above the table */}
+      <div className="flex items-center justify-between">
+        <StatusLegend variant="training" />
+        <p className="text-sm text-muted-foreground">
+          Celkem: {filteredExaminations.length} prohlídek
+        </p>
+      </div>
 
       <AdvancedFilters
         filters={filters}
