@@ -1,9 +1,12 @@
 import { cn } from "@/lib/utils";
+import { format, parseISO } from "date-fns";
+import { cs } from "date-fns/locale";
 
 export type EmployeeStatus = "employed" | "parental_leave" | "sick_leave" | "terminated";
 
 interface EmployeeStatusBadgeProps {
   status: EmployeeStatus;
+  statusStartDate?: string;
   className?: string;
 }
 
@@ -26,8 +29,13 @@ const statusConfig: Record<EmployeeStatus, { label: string; className: string }>
   },
 };
 
-export const EmployeeStatusBadge = ({ status, className }: EmployeeStatusBadgeProps) => {
+export const EmployeeStatusBadge = ({ status, statusStartDate, className }: EmployeeStatusBadgeProps) => {
   const config = statusConfig[status];
+  
+  // Format date if available and status is not "employed"
+  const formattedDate = statusStartDate && status !== "employed"
+    ? format(parseISO(statusStartDate), "d.M.yyyy", { locale: cs })
+    : null;
   
   return (
     <div className={cn("inline-flex items-center gap-2", className)}>
@@ -37,7 +45,14 @@ export const EmployeeStatusBadge = ({ status, className }: EmployeeStatusBadgePr
           config.className
         )}
       />
-      <span className="text-sm font-medium">{config.label}</span>
+      <span className="text-sm font-medium">
+        {config.label}
+        {formattedDate && (
+          <span className="text-xs text-muted-foreground ml-1">
+            (od {formattedDate})
+          </span>
+        )}
+      </span>
     </div>
   );
 };
