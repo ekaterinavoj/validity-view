@@ -14,6 +14,7 @@ export interface EmployeeWithDepartment {
   terminationDate?: string;
   statusStartDate?: string;
   notes?: string;
+  workCategory?: number | null;
   // Manager hierarchy fields
   managerEmployeeId?: string | null;
   managerEmail?: string | null;
@@ -45,6 +46,7 @@ export function useEmployees(statusFilter?: string) {
           status_start_date,
           notes,
           department_id,
+          work_category,
           manager_employee_id,
           manager_email,
           manager_first_name,
@@ -79,6 +81,7 @@ export function useEmployees(statusFilter?: string) {
         terminationDate: e.termination_date,
         statusStartDate: e.status_start_date,
         notes: e.notes,
+        workCategory: e.work_category,
         // Manager hierarchy fields
         managerEmployeeId: e.manager_employee_id,
         managerEmail: e.manager_email,
@@ -126,6 +129,7 @@ export function useInactiveEmployees() {
           status_start_date,
           notes,
           department_id,
+          work_category,
           manager_employee_id,
           manager_email,
           manager_first_name,
@@ -154,6 +158,7 @@ export function useInactiveEmployees() {
         terminationDate: e.termination_date,
         statusStartDate: e.status_start_date,
         notes: e.notes,
+        workCategory: e.work_category,
         // Manager hierarchy fields
         managerEmployeeId: e.manager_employee_id,
         managerEmail: e.manager_email,

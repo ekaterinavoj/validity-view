@@ -11,6 +11,7 @@ export interface MedicalExaminationWithDetails {
   employeeName: string;
   employeeId: string;
   employeeStatus: "employed" | "parental_leave" | "sick_leave" | "terminated";
+  employeeWorkCategory: number | null;
   facility: string;
   department: string;
   departmentId: string | null;
@@ -65,6 +66,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
             last_name,
             department_id,
             status,
+            work_category,
             departments (
               id,
               code,
@@ -119,6 +121,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           employeeName: `${e.employees?.first_name || ""} ${e.employees?.last_name || ""}`.trim(),
           employeeId: e.employee_id,
           employeeStatus: e.employees?.status as any,
+          employeeWorkCategory: e.employees?.work_category || null,
           facility: e.facility || e.medical_examination_types?.facility || "",
           department: e.employees?.departments?.code || "",
           departmentId: e.employees?.department_id,

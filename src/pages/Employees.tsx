@@ -41,6 +41,7 @@ const formSchema = z.object({
   employeeNumber: z.string().min(1, "Zadejte osobní číslo"),
   position: z.string().min(1, "Zadejte pracovní pozici"),
   departmentId: z.string().min(1, "Vyberte středisko"),
+  workCategory: z.string().optional(),
   status: z.enum(["employed", "parental_leave", "sick_leave", "terminated"]),
   terminationDate: z.date().optional(),
   statusStartDate: z.date().optional(),
@@ -192,6 +193,7 @@ export default function Employees() {
       employeeNumber: employee.employeeNumber,
       position: employee.position,
       departmentId: employee.departmentId || "",
+      workCategory: employee.workCategory?.toString() || "",
       status: employee.status,
       terminationDate: employee.terminationDate ? new Date(employee.terminationDate) : undefined,
       statusStartDate: employee.statusStartDate ? new Date(employee.statusStartDate) : undefined,
@@ -292,6 +294,7 @@ export default function Employees() {
         employee_number: data.employeeNumber,
         position: data.position,
         department_id: data.departmentId,
+        work_category: data.workCategory ? parseInt(data.workCategory) : null,
         status: data.status,
         termination_date: data.terminationDate ? format(data.terminationDate, "yyyy-MM-dd") : null,
         status_start_date: statusStartDate,
@@ -480,6 +483,45 @@ export default function Employees() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="workCategory"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kategorie práce</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Vyberte kategorii" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="1">
+                            <span className="font-medium">Kategorie 1</span>
+                            <span className="text-xs text-muted-foreground ml-2">- nejnižší riziko</span>
+                          </SelectItem>
+                          <SelectItem value="2">
+                            <span className="font-medium">Kategorie 2</span>
+                            <span className="text-xs text-muted-foreground ml-2">- zvýšené riziko</span>
+                          </SelectItem>
+                          <SelectItem value="3">
+                            <span className="font-medium">Kategorie 3</span>
+                            <span className="text-xs text-muted-foreground ml-2">- riziková</span>
+                          </SelectItem>
+                          <SelectItem value="4">
+                            <span className="font-medium">Kategorie 4</span>
+                            <span className="text-xs text-muted-foreground ml-2">- vysoké riziko</span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Kategorie dle rizikovosti práce (1-4)
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
