@@ -3,32 +3,24 @@ import { StatusLegend } from "@/components/StatusLegend";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Plus, FileDown, Loader2, Archive, RefreshCw, Eye, FileText } from "lucide-react";
+import { Edit, Plus, FileDown, Loader2, Archive, RefreshCw } from "lucide-react";
 import { useFacilities } from "@/hooks/useFacilities";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
+import { MedicalProtocolCell } from "@/components/MedicalProtocolCell";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { cs } from "date-fns/locale";
 import * as XLSX from "xlsx";
 import { formatPeriodicity } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useMedicalExaminations, MedicalExaminationWithDetails } from "@/hooks/useMedicalExaminations";
+import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { Badge } from "@/components/ui/badge";
-import { FilePreviewDialog } from "@/components/FilePreviewDialog";
-
-interface ExaminationDocument {
-  id: string;
-  file_name: string;
-  file_path: string;
-  file_type: string;
-}
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -38,39 +30,8 @@ export default function ScheduledExaminations() {
   const [selectedExaminations, setSelectedExaminations] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [documents, setDocuments] = useState<Record<string, ExaminationDocument[]>>({});
-  const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string; fileType: string } | null>(null);
 
-  // Load documents for all examinations
-  useEffect(() => {
-    const loadDocuments = async () => {
-      if (examinations.length === 0) return;
-      
-      const examIds = examinations.map(e => e.id);
-      const { data, error } = await supabase
-        .from("medical_examination_documents")
-        .select("id, examination_id, file_name, file_path, file_type")
-        .in("examination_id", examIds);
 
-      if (!error && data) {
-        const docsMap: Record<string, ExaminationDocument[]> = {};
-        data.forEach((doc: any) => {
-          if (!docsMap[doc.examination_id]) {
-            docsMap[doc.examination_id] = [];
-          }
-          docsMap[doc.examination_id].push({
-            id: doc.id,
-            file_name: doc.file_name,
-            file_path: doc.file_path,
-            file_type: doc.file_type,
-          });
-        });
-        setDocuments(docsMap);
-      }
-    };
-
-    loadDocuments();
-  }, [examinations]);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -211,29 +172,6 @@ export default function ScheduledExaminations() {
     return <Badge className={colors[category]}>{category}</Badge>;
   };
 
-  const handlePreviewDocument = async (doc: ExaminationDocument) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from("medical-documents")
-        .createSignedUrl(doc.file_path, 3600);
-
-      if (error) throw error;
-      if (data?.signedUrl) {
-        setPreviewDoc({
-          url: data.signedUrl,
-          fileName: doc.file_name,
-          fileType: doc.file_type,
-        });
-      }
-    } catch (err: any) {
-      toast({
-        title: "Chyba při načítání dokumentu",
-        description: err.message,
-        variant: "destructive",
-      });
-    }
-  };
-
   if (examinationsError) {
     return (
       <div className="space-y-6">
@@ -347,20 +285,8 @@ export default function ScheduledExaminations() {
                       <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    {documents[exam.id] && documents[exam.id].length > 0 ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handlePreviewDocument(documents[exam.id][0])}
-                        className="flex items-center gap-1"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <FileText className="w-4 h-4" />
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
+                  <TableCell className="text-center">
+                    <MedicalProtocolCell examinationId={exam.id} />
                   </TableCell>
                   <TableCell>{exam.doctor || "-"}</TableCell>
                   <TableCell>
@@ -375,11 +301,6 @@ export default function ScheduledExaminations() {
         </Table>
       </Card>
 
-      <FilePreviewDialog
-        open={!!previewDoc}
-        onOpenChange={(open) => !open && setPreviewDoc(null)}
-        file={previewDoc ? { name: previewDoc.fileName, url: previewDoc.url, type: previewDoc.fileType } : null}
-      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
