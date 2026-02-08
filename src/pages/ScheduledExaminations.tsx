@@ -115,18 +115,10 @@ export default function ScheduledExaminations() {
   };
 
   const handleBulkEdit = () => {
-    if (selectedExaminations.size === 0) {
-      toast({ title: "Žádné prohlídky vybrány", description: "Vyberte alespoň jednu prohlídku pro hromadnou úpravu.", variant: "destructive" });
-      return;
-    }
     setBulkEditDialogOpen(true);
   };
 
   const handleBulkArchive = () => {
-    if (selectedExaminations.size === 0) {
-      toast({ title: "Žádné prohlídky vybrány", description: "Vyberte alespoň jednu prohlídku pro archivaci.", variant: "destructive" });
-      return;
-    }
     setDeleteDialogOpen(true);
   };
 
