@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Save, X, Bell, Play, Loader2, GraduationCap, Wrench } from "lucide-react";
+import { Plus, Edit, Trash2, Save, X, Bell, Play, Loader2, GraduationCap, Wrench, Stethoscope } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -26,13 +26,14 @@ interface ReminderTemplate {
   created_at: string;
 }
 
-type ModuleType = "trainings" | "deadlines";
+type ModuleType = "trainings" | "deadlines" | "medical";
 
 export const ReminderTemplates = () => {
   const { toast } = useToast();
   const [activeModule, setActiveModule] = useState<ModuleType>("trainings");
   const [trainingTemplates, setTrainingTemplates] = useState<ReminderTemplate[]>([]);
   const [deadlineTemplates, setDeadlineTemplates] = useState<ReminderTemplate[]>([]);
+  const [medicalTemplates, setMedicalTemplates] = useState<ReminderTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ReminderTemplate | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -55,8 +56,16 @@ export const ReminderTemplates = () => {
   const [checkResult, setCheckResult] = useState<{ total_emails_sent: number; results: any[]; info?: string; message?: string } | null>(null);
 
   // Current templates based on active module
-  const templates = activeModule === "trainings" ? trainingTemplates : deadlineTemplates;
-  const tableName = activeModule === "trainings" ? "reminder_templates" : "deadline_reminder_templates";
+  const templates = activeModule === "trainings" 
+    ? trainingTemplates 
+    : activeModule === "deadlines" 
+      ? deadlineTemplates 
+      : medicalTemplates;
+  const tableName = activeModule === "trainings" 
+    ? "reminder_templates" 
+    : activeModule === "deadlines" 
+      ? "deadline_reminder_templates" 
+      : "medical_reminder_templates";
 
   useEffect(() => {
     loadTemplates();
@@ -103,6 +112,15 @@ export const ReminderTemplates = () => {
 
       if (deadlineError) throw deadlineError;
       setDeadlineTemplates(deadlineData || []);
+
+      // Load medical templates
+      const { data: medicalData, error: medicalError } = await supabase
+        .from("medical_reminder_templates")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (medicalError) throw medicalError;
+      setMedicalTemplates(medicalData || []);
     } catch (error: any) {
       toast({
         title: "Chyba při načítání šablon",
@@ -268,7 +286,7 @@ export const ReminderTemplates = () => {
         .replace(/\{\{days_remaining\}\}/g, "15");
       
       return { subject, body };
-    } else {
+    } else if (activeModule === "deadlines") {
       const subject = formData.email_subject
         .replace(/\{\{equipmentName\}\}/g, "Hasící přístroj A1")
         .replace(/\{\{deadlineType\}\}/g, "Revize")
@@ -280,11 +298,35 @@ export const ReminderTemplates = () => {
         .replace(/\{\{daysLeft\}\}/g, "15");
       
       return { subject, body };
+    } else {
+      const subject = formData.email_subject
+        .replace(/\{\{employeeName\}\}/g, "Jan Novák")
+        .replace(/\{\{examinationType\}\}/g, "Vstupní prohlídka")
+        .replace(/\{\{daysLeft\}\}/g, "15");
+      
+      const body = formData.email_body
+        .replace(/\{\{employeeName\}\}/g, "Jan Novák")
+        .replace(/\{\{examinationType\}\}/g, "Vstupní prohlídka")
+        .replace(/\{\{daysLeft\}\}/g, "15");
+      
+      return { subject, body };
     }
   };
 
-  const getModuleLabel = () => activeModule === "trainings" ? "školení" : "technických událostí";
-  const getModuleIcon = () => activeModule === "trainings" ? GraduationCap : Wrench;
+  const getModuleLabel = () => {
+    switch (activeModule) {
+      case "trainings": return "školení";
+      case "deadlines": return "technických událostí";
+      case "medical": return "lékařských prohlídek";
+    }
+  };
+  const getModuleIcon = () => {
+    switch (activeModule) {
+      case "trainings": return GraduationCap;
+      case "deadlines": return Wrench;
+      case "medical": return Stethoscope;
+    }
+  };
 
   const handleRunCheck = async () => {
     setRunningCheck(true);
@@ -328,14 +370,18 @@ export const ReminderTemplates = () => {
     <div className="space-y-6">
       {/* Module Tabs */}
       <Tabs value={activeModule} onValueChange={(v) => setActiveModule(v as ModuleType)}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="trainings" className="flex items-center gap-2">
             <GraduationCap className="w-4 h-4" />
             Školení
           </TabsTrigger>
           <TabsTrigger value="deadlines" className="flex items-center gap-2">
             <Wrench className="w-4 h-4" />
-            Technické události
+            Tech. události
+          </TabsTrigger>
+          <TabsTrigger value="medical" className="flex items-center gap-2">
+            <Stethoscope className="w-4 h-4" />
+            PLP
           </TabsTrigger>
         </TabsList>
       </Tabs>
