@@ -32,6 +32,7 @@ import NewDeadline from "./pages/NewDeadline";
 import EditDeadline from "./pages/EditDeadline";
 import Equipment from "./pages/Equipment";
 import DeadlineTypes from "./pages/DeadlineTypes";
+import ResponsibilityGroups from "./pages/ResponsibilityGroups";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,7 @@ const App = () => (
             <Route path="/deadlines/edit/:id" element={<ProtectedLayout><EditDeadline /></ProtectedLayout>} />
             <Route path="/deadlines/equipment" element={<ProtectedLayout><Equipment /></ProtectedLayout>} />
             <Route path="/deadlines/types" element={<ProtectedLayout><DeadlineTypes /></ProtectedLayout>} />
+            <Route path="/deadlines/groups" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><ResponsibilityGroups /></ProtectedLayout>} />
             
             {/* ============ SHARED / SETTINGS ============ */}
             <Route path="/statistics" element={<ProtectedLayout><Statistics /></ProtectedLayout>} />

@@ -34,7 +34,7 @@ import { AdvancedFilters } from "@/components/AdvancedFilters";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeadlineProtocolCell } from "@/components/DeadlineProtocolCell";
-import { EquipmentResponsiblesBadges } from "@/components/EquipmentResponsiblesBadges";
+import { DeadlineResponsiblesBadges } from "@/components/DeadlineResponsiblesBadges";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { cn } from "@/lib/utils";
@@ -264,7 +264,7 @@ export default function ScheduledDeadlines() {
                     </TableCell>
                     <TableCell>{deadline.performer || "-"}</TableCell>
                     <TableCell>
-                      <EquipmentResponsiblesBadges equipmentId={deadline.equipment_id} />
+                      <DeadlineResponsiblesBadges deadlineId={deadline.id} />
                     </TableCell>
                     <TableCell>
                       <DeadlineProtocolCell deadlineId={deadline.id} />

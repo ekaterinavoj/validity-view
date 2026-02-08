@@ -131,6 +131,25 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString("cs-CZ");
 }
 
+// Format days with correct Czech grammar
+function formatDaysLabel(days: number): string {
+  const absDays = Math.abs(days);
+  let unit: string;
+  
+  if (absDays === 1) {
+    unit = "den";
+  } else if (absDays >= 2 && absDays <= 4) {
+    unit = "dny";
+  } else {
+    unit = "dnů";
+  }
+  
+  if (days < 0) {
+    return `${absDays} ${unit} po termínu`;
+  }
+  return `${days} ${unit}`;
+}
+
 // Replace template variables for summary email
 function replaceVariables(
   template: string, 
@@ -177,7 +196,7 @@ function buildTrainingsTable(trainings: TrainingItem[]): string {
         <td style="border: 1px solid #e5e7eb; padding: 10px;">${formatDate(t.next_training_date)}</td>
         <td style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">
           <span style="background-color: ${statusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
-            ${t.days_until} dní
+            ${formatDaysLabel(t.days_until)}
           </span>
         </td>
       </tr>
