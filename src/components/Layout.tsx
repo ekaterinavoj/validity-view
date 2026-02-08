@@ -86,7 +86,7 @@ export const Layout = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-bold text-foreground">
-                Správa
+                Lhůtník
               </h1>
               
               {/* Mode Switcher Tabs */}

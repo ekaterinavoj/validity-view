@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
 
     console.log("Creating user with email:", email);
 
-    // Create user with admin API - use raw_user_meta_data compatible format
+    // Create user with admin API
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -99,21 +99,17 @@ Deno.serve(async (req) => {
         last_name: lastName || "",
         position: "",
       },
-      // Also set app_metadata for additional info
-      app_metadata: {
-        provider: "admin",
-        created_by: caller.id,
-      },
     });
+
+    let userId: string;
 
     if (createError) {
       console.error("Create user error:", createError);
 
-      // If trigger failed, try to create user without metadata and handle profile manually
+      // If it's a "Database error" from trigger, try to create user again without metadata
       if (createError.message.includes("Database error")) {
-        console.log("Trigger may have failed, attempting alternative approach...");
+        console.log("Trigger may have failed, attempting minimal creation...");
 
-        // Try creating with minimal data
         const { data: minimalUser, error: minimalError } = await supabaseAdmin.auth.admin.createUser({
           email,
           password,
@@ -128,78 +124,21 @@ Deno.serve(async (req) => {
           });
         }
 
-        const userId = minimalUser.user.id;
+        userId = minimalUser.user.id;
         console.log("User created with minimal data:", userId);
-
-        // Manually ensure profile exists (trigger might have created partial or none)
-        const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("id", userId).single();
-
-        if (!existingProfile) {
-          // Create profile manually
-          console.log("Creating profile manually for user:", userId);
-          const { error: insertError } = await supabaseAdmin.from("profiles").insert({
-            id: userId,
-            email: email,
-            first_name: firstName || "",
-            last_name: lastName || "",
-            position: "",
-            approval_status: "approved",
-            approved_at: new Date().toISOString(),
-            approved_by: caller.id,
-          });
-
-          if (insertError) {
-            console.error("Manual profile insert error:", insertError);
-          }
-        } else {
-          // Update existing profile
-          const profileUpdate: Record<string, any> = {
-            first_name: firstName || "",
-            last_name: lastName || "",
-            approval_status: "approved",
-            approved_at: new Date().toISOString(),
-            approved_by: caller.id,
-          };
-
-          if (employeeId) {
-            profileUpdate.employee_id = employeeId;
-          }
-
-          await supabaseAdmin.from("profiles").update(profileUpdate).eq("id", userId);
-        }
-
-        // Continue with role and module setup
-        await setupUserRolesAndModules(supabaseAdmin, userId, role, modules, caller.id, employeeId);
-
-        // Log to audit
-        await logAuditEntry(supabaseAdmin, userId, email, firstName, lastName, role, modules, employeeId, caller);
-
-        return new Response(
-          JSON.stringify({
-            success: true,
-            userId,
-            email,
-            message: `User ${email} created successfully`,
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
+      } else {
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-
-      return new Response(JSON.stringify({ error: createError.message }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    } else {
+      userId = newUser.user.id;
+      console.log("User created successfully:", userId);
     }
 
-    console.log("User created successfully:", newUser.user.id);
-
-    const userId = newUser.user.id;
-
-    // Wait a moment for the profile trigger to create the profile
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Wait for trigger to attempt profile creation
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     // Check if profile was created by trigger
     const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("id", userId).single();
@@ -221,10 +160,11 @@ Deno.serve(async (req) => {
 
       if (insertError) {
         console.error("Manual profile insert error:", insertError);
+        // Continue anyway - we'll try to update it
       }
     } else {
       // Update profile with name, employee link (if provided), and approval
-      const profileUpdate: Record<string, any> = {
+      const profileUpdate: Record<string, unknown> = {
         first_name: firstName || "",
         last_name: lastName || "",
         approval_status: "approved",
@@ -244,11 +184,49 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Setup roles and modules
-    await setupUserRolesAndModules(supabaseAdmin, userId, role, modules, caller.id, employeeId);
+    // Delete any existing roles and set the new one
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
+
+    const { error: roleError } = await supabaseAdmin.from("user_roles").insert({
+      user_id: userId,
+      role: role || "user",
+      created_by: caller.id,
+    });
+
+    if (roleError) {
+      console.error("Role insert error:", roleError);
+    }
+
+    // Delete existing module access and set new ones
+    await supabaseAdmin.from("user_module_access").delete().eq("user_id", userId);
+
+    // Determine which modules to grant
+    const modulesToGrant = role === "admin" ? ["trainings", "deadlines"] : modules || ["trainings", "deadlines"];
+
+    for (const mod of modulesToGrant) {
+      await supabaseAdmin.from("user_module_access").insert({
+        user_id: userId,
+        module: mod,
+        created_by: caller.id,
+      });
+    }
 
     // Log to audit
-    await logAuditEntry(supabaseAdmin, userId, email, firstName, lastName, role, modules, employeeId, caller);
+    await supabaseAdmin.from("audit_logs").insert({
+      table_name: "profiles",
+      record_id: userId,
+      action: "ADMIN_CREATE_USER",
+      new_data: {
+        email,
+        first_name: firstName,
+        last_name: lastName,
+        role: role || "user",
+        modules: modulesToGrant,
+        employee_id: employeeId,
+      },
+      user_id: caller.id,
+      user_email: caller.email,
+    });
 
     return new Response(
       JSON.stringify({
@@ -271,71 +249,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
-// Helper function to setup user roles and module access
-async function setupUserRolesAndModules(
-  supabaseAdmin: any,
-  userId: string,
-  role: string,
-  modules: string[] | undefined,
-  callerId: string,
-  employeeId: string | undefined,
-) {
-  // Delete any existing roles and set the new one
-  await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
-
-  const { error: roleError } = await supabaseAdmin.from("user_roles").insert({
-    user_id: userId,
-    role: role || "user",
-    created_by: callerId,
-  });
-
-  if (roleError) {
-    console.error("Role insert error:", roleError);
-  }
-
-  // Delete existing module access and set new ones
-  await supabaseAdmin.from("user_module_access").delete().eq("user_id", userId);
-
-  // Determine which modules to grant
-  const modulesToGrant = role === "admin" ? ["trainings", "deadlines"] : modules || ["trainings", "deadlines"];
-
-  for (const module of modulesToGrant) {
-    await supabaseAdmin.from("user_module_access").insert({
-      user_id: userId,
-      module: module,
-      created_by: callerId,
-    });
-  }
-}
-
-// Helper function to log audit entry
-async function logAuditEntry(
-  supabaseAdmin: any,
-  userId: string,
-  email: string,
-  firstName: string,
-  lastName: string,
-  role: string,
-  modules: string[] | undefined,
-  employeeId: string | undefined,
-  caller: any,
-) {
-  const modulesToGrant = role === "admin" ? ["trainings", "deadlines"] : modules || ["trainings", "deadlines"];
-
-  await supabaseAdmin.from("audit_logs").insert({
-    table_name: "profiles",
-    record_id: userId,
-    action: "ADMIN_CREATE_USER",
-    new_data: {
-      email,
-      first_name: firstName,
-      last_name: lastName,
-      role: role || "user",
-      modules: modulesToGrant,
-      employee_id: employeeId,
-    },
-    user_id: caller.id,
-    user_email: caller.email,
-  });
-}
