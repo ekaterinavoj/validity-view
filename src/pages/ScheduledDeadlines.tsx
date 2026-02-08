@@ -230,9 +230,9 @@ export default function ScheduledDeadlines() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredDeadlines.length === 0 ? (
+             {filteredDeadlines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canEdit ? 12 : 11} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
