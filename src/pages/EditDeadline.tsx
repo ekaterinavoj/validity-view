@@ -51,6 +51,8 @@ import {
   DeadlineDocument,
   DEADLINE_DOCUMENT_TYPE_LABELS
 } from "@/lib/deadlineDocuments";
+import { ResponsiblesPicker, ResponsiblesSelection } from "@/components/ResponsiblesPicker";
+import { useDeadlineResponsibles } from "@/hooks/useDeadlineResponsibles";
 
 const formSchema = z.object({
   deadline_type_id: z.string().min(1, "Vyberte typ události"),
@@ -86,6 +88,12 @@ export default function EditDeadline() {
   const [existingDocuments, setExistingDocuments] = useState<DeadlineDocument[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  
+  // Responsibles state
+  const [responsibles, setResponsibles] = useState<ResponsiblesSelection>({ profileIds: [], groupIds: [] });
+  const [responsiblesError, setResponsiblesError] = useState<string | null>(null);
+  const { responsibles: existingResponsibles, setResponsibles: saveResponsibles, isLoading: responsiblesLoading } = useDeadlineResponsibles(id);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -176,6 +184,32 @@ export default function EditDeadline() {
     loadDocuments();
   }, [id]);
 
+  // Load responsibles from fetched data
+  useEffect(() => {
+    if (existingResponsibles && existingResponsibles.length > 0) {
+      setResponsibles({
+        profileIds: existingResponsibles.filter(r => r.profile_id).map(r => r.profile_id!),
+        groupIds: existingResponsibles.filter(r => r.group_id).map(r => r.group_id!),
+      });
+    }
+  }, [existingResponsibles]);
+
+  // Check if current user is admin
+  useEffect(() => {
+    async function checkAdmin() {
+      const { data: user } = await supabase.auth.getUser();
+      if (user?.user?.id) {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.user.id)
+          .eq("role", "admin")
+          .limit(1);
+        setIsAdmin(!!(roles && roles.length > 0));
+      }
+    }
+    checkAdmin();
+  }, []);
   const handleDeleteDocument = async (doc: DeadlineDocument) => {
     setDeletingDocId(doc.id);
     
@@ -212,6 +246,13 @@ export default function EditDeadline() {
 
   const onSubmit = async (data: FormValues) => {
     if (!id) return;
+
+    // Validate responsibles selection
+    if (responsibles.profileIds.length === 0 && responsibles.groupIds.length === 0) {
+      setResponsiblesError("Vyberte alespoň jednu odpovědnou osobu nebo skupinu");
+      return;
+    }
+    setResponsiblesError(null);
     
     setIsSubmitting(true);
     try {
@@ -244,6 +285,15 @@ export default function EditDeadline() {
         .eq("id", id);
 
       if (error) throw error;
+
+      // Update responsibles (only if admin - non-admins can see but not change)
+      if (isAdmin) {
+        await saveResponsibles({
+          deadlineId: id,
+          profileIds: responsibles.profileIds,
+          groupIds: responsibles.groupIds,
+        });
+      }
 
       // Upload new documents if any
       if (uploadedFiles.length > 0) {
@@ -506,6 +556,27 @@ export default function EditDeadline() {
                   </div>
                 </div>
               )}
+
+              {/* Responsibles Section - REQUIRED */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Odpovědné osoby / skupiny *
+                  {!isAdmin && <span className="text-xs text-muted-foreground ml-2">(pouze admin může měnit)</span>}
+                </Label>
+                <ResponsiblesPicker
+                  value={responsibles}
+                  onChange={(val) => {
+                    setResponsibles(val);
+                    if (val.profileIds.length > 0 || val.groupIds.length > 0) {
+                      setResponsiblesError(null);
+                    }
+                  }}
+                  disabled={!isAdmin}
+                />
+                {responsiblesError && (
+                  <p className="text-sm font-medium text-destructive">{responsiblesError}</p>
+                )}
+              </div>
 
               {/* New Document Upload */}
               <div className="space-y-2">

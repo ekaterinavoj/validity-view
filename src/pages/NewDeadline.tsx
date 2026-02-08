@@ -50,6 +50,8 @@ import {
   calculateNextDate, 
   formatPeriodicityDisplay 
 } from "@/components/PeriodicityInput";
+import { ResponsiblesPicker, ResponsiblesSelection } from "@/components/ResponsiblesPicker";
+import { useDeadlineResponsibles } from "@/hooks/useDeadlineResponsibles";
 
 const formSchema = z.object({
   deadline_type_id: z.string().min(1, "Vyberte typ události"),
@@ -78,7 +80,9 @@ export default function NewDeadline() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
-
+  const [responsibles, setResponsibles] = useState<ResponsiblesSelection>({ profileIds: [], groupIds: [] });
+  const [responsiblesError, setResponsiblesError] = useState<string | null>(null);
+  const { addResponsibles } = useDeadlineResponsibles();
   const activeEquipment = equipment.filter(e => e.status === "active");
 
   const form = useForm<FormValues>({
@@ -128,6 +132,13 @@ export default function NewDeadline() {
     : null;
 
   const onSubmit = async (data: FormValues) => {
+    // Validate responsibles selection
+    if (responsibles.profileIds.length === 0 && responsibles.groupIds.length === 0) {
+      setResponsiblesError("Vyberte alespoň jednu odpovědnou osobu nebo skupinu");
+      return;
+    }
+    setResponsiblesError(null);
+
     setIsSubmitting(true);
     try {
       const next_check_date = calculateNextDate(data.last_check_date, data.period_value, data.period_unit as PeriodicityUnit);
@@ -158,6 +169,15 @@ export default function NewDeadline() {
       }).select().single();
 
       if (error) throw error;
+
+      // Add responsibles to the deadline
+      if (deadlineData) {
+        await addResponsibles({
+          deadlineId: deadlineData.id,
+          profileIds: responsibles.profileIds,
+          groupIds: responsibles.groupIds,
+        });
+      }
 
       // Upload documents if any
       if (uploadedFiles.length > 0 && deadlineData) {
@@ -387,6 +407,23 @@ export default function NewDeadline() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* Responsibles Section - REQUIRED */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Odpovědné osoby / skupiny *</Label>
+                <ResponsiblesPicker
+                  value={responsibles}
+                  onChange={(val) => {
+                    setResponsibles(val);
+                    if (val.profileIds.length > 0 || val.groupIds.length > 0) {
+                      setResponsiblesError(null);
+                    }
+                  }}
+                />
+                {responsiblesError && (
+                  <p className="text-sm font-medium text-destructive">{responsiblesError}</p>
+                )}
               </div>
 
               {/* File Upload Section */}
