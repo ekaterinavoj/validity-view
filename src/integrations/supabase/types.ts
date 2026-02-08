@@ -617,6 +617,288 @@ export type Database = {
         }
         Relationships: []
       }
+      medical_examination_documents: {
+        Row: {
+          description: string | null
+          document_type: string
+          examination_id: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          description?: string | null
+          document_type: string
+          examination_id: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          description?: string | null
+          document_type?: string
+          examination_id?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_examination_documents_examination_id_fkey"
+            columns: ["examination_id"]
+            isOneToOne: false
+            referencedRelation: "medical_examinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medical_examination_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          facility: string
+          id: string
+          name: string
+          period_days: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          facility: string
+          id?: string
+          name: string
+          period_days: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          facility?: string
+          id?: string
+          name?: string
+          period_days?: number
+        }
+        Relationships: []
+      }
+      medical_examinations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          doctor: string | null
+          employee_id: string
+          examination_type_id: string
+          facility: string
+          id: string
+          is_active: boolean
+          last_examination_date: string
+          medical_facility: string | null
+          next_examination_date: string
+          note: string | null
+          remind_days_before: number | null
+          reminder_template_id: string | null
+          repeat_days_after: number | null
+          requester: string | null
+          result: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          doctor?: string | null
+          employee_id: string
+          examination_type_id: string
+          facility: string
+          id?: string
+          is_active?: boolean
+          last_examination_date: string
+          medical_facility?: string | null
+          next_examination_date: string
+          note?: string | null
+          remind_days_before?: number | null
+          reminder_template_id?: string | null
+          repeat_days_after?: number | null
+          requester?: string | null
+          result?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          doctor?: string | null
+          employee_id?: string
+          examination_type_id?: string
+          facility?: string
+          id?: string
+          is_active?: boolean
+          last_examination_date?: string
+          medical_facility?: string | null
+          next_examination_date?: string
+          note?: string | null
+          remind_days_before?: number | null
+          reminder_template_id?: string | null
+          repeat_days_after?: number | null
+          requester?: string | null
+          result?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_examinations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_examinations_examination_type_id_fkey"
+            columns: ["examination_type_id"]
+            isOneToOne: false
+            referencedRelation: "medical_examination_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_examinations_reminder_template_id_fkey"
+            columns: ["reminder_template_id"]
+            isOneToOne: false
+            referencedRelation: "medical_reminder_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medical_reminder_logs: {
+        Row: {
+          created_at: string
+          days_before: number | null
+          delivery_mode: string | null
+          email_body: string
+          email_subject: string
+          employee_id: string | null
+          error_message: string | null
+          examination_id: string | null
+          id: string
+          is_test: boolean
+          recipient_emails: string[]
+          sent_at: string
+          status: string
+          template_id: string | null
+          template_name: string
+          week_start: string | null
+        }
+        Insert: {
+          created_at?: string
+          days_before?: number | null
+          delivery_mode?: string | null
+          email_body: string
+          email_subject: string
+          employee_id?: string | null
+          error_message?: string | null
+          examination_id?: string | null
+          id?: string
+          is_test?: boolean
+          recipient_emails: string[]
+          sent_at?: string
+          status?: string
+          template_id?: string | null
+          template_name: string
+          week_start?: string | null
+        }
+        Update: {
+          created_at?: string
+          days_before?: number | null
+          delivery_mode?: string | null
+          email_body?: string
+          email_subject?: string
+          employee_id?: string | null
+          error_message?: string | null
+          examination_id?: string | null
+          id?: string
+          is_test?: boolean
+          recipient_emails?: string[]
+          sent_at?: string
+          status?: string
+          template_id?: string | null
+          template_name?: string
+          week_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_reminder_logs_examination_id_fkey"
+            columns: ["examination_id"]
+            isOneToOne: false
+            referencedRelation: "medical_examinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_reminder_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "medical_reminder_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medical_reminder_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          email_body: string
+          email_subject: string
+          id: string
+          is_active: boolean
+          name: string
+          remind_days_before: number
+          repeat_interval_days: number | null
+          target_user_ids: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          email_body: string
+          email_subject: string
+          id?: string
+          is_active?: boolean
+          name: string
+          remind_days_before?: number
+          repeat_interval_days?: number | null
+          target_user_ids?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          email_body?: string
+          email_subject?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          remind_days_before?: number
+          repeat_interval_days?: number | null
+          target_user_ids?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -1246,6 +1528,10 @@ export type Database = {
     }
     Functions: {
       calculate_deadline_status: {
+        Args: { next_date: string }
+        Returns: string
+      }
+      calculate_examination_status: {
         Args: { next_date: string }
         Returns: string
       }

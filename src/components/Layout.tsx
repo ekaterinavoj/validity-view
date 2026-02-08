@@ -3,7 +3,7 @@ import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound } from "lucide-react";
+import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound, Stethoscope } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
@@ -28,15 +28,18 @@ export const Layout = ({
 
   // Determine if current route is a module-specific route
   const isDeadlineRoute = location.pathname.startsWith("/deadlines");
+  const isPlpRoute = location.pathname.startsWith("/plp");
   const isTrainingRoute = location.pathname.startsWith("/trainings") || location.pathname === "/" || location.pathname === "/scheduled-trainings" || location.pathname === "/history" || location.pathname === "/new-training" || location.pathname.startsWith("/edit-training") || location.pathname === "/employees" || location.pathname === "/training-types" || location.pathname === "/departments" || location.pathname === "/inactive" || location.pathname === "/facilities" || location.pathname === "/statistics";
 
   // Global pages don't belong to any module
-  const isGlobalPage = !isDeadlineRoute && !isTrainingRoute;
+  const isGlobalPage = !isDeadlineRoute && !isTrainingRoute && !isPlpRoute;
 
   // Get last selected module from localStorage, default to trainings
-  const [lastSelectedModule, setLastSelectedModule] = useState<"trainings" | "deadlines">(() => {
+  const [lastSelectedModule, setLastSelectedModule] = useState<"trainings" | "deadlines" | "plp">(() => {
     const saved = localStorage.getItem("last-selected-module");
-    return saved === "deadlines" ? "deadlines" : "trainings";
+    if (saved === "deadlines") return "deadlines";
+    if (saved === "plp") return "plp";
+    return "trainings";
   });
 
   // Update last selected module when navigating to module-specific routes
@@ -44,16 +47,19 @@ export const Layout = ({
     if (isDeadlineRoute) {
       localStorage.setItem("last-selected-module", "deadlines");
       setLastSelectedModule("deadlines");
+    } else if (isPlpRoute) {
+      localStorage.setItem("last-selected-module", "plp");
+      setLastSelectedModule("plp");
     } else if (isTrainingRoute) {
       localStorage.setItem("last-selected-module", "trainings");
       setLastSelectedModule("trainings");
     }
-    // Global pages don't update the last selected module
-  }, [isDeadlineRoute, isTrainingRoute]);
+  }, [isDeadlineRoute, isTrainingRoute, isPlpRoute]);
 
   // For mode switcher display - use last selected module on global pages
   const isDeadlineMode = isGlobalPage ? lastSelectedModule === "deadlines" : isDeadlineRoute;
-  const isTrainingMode = !isDeadlineMode;
+  const isPlpMode = isGlobalPage ? lastSelectedModule === "plp" : isPlpRoute;
+  const isTrainingMode = !isDeadlineMode && !isPlpMode;
   const getRoleBadge = () => {
     if (roles.includes("admin")) {
       return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-500/20 text-red-700 dark:text-red-300">Admin</span>;
@@ -80,6 +86,8 @@ export const Layout = ({
       navigate("/trainings");
     } else if (value === "deadlines") {
       navigate("/deadlines");
+    } else if (value === "plp") {
+      navigate("/plp");
     }
   };
   return <div className="min-h-screen bg-background">
@@ -92,15 +100,19 @@ export const Layout = ({
               </h1>
               
               {/* Mode Switcher Tabs */}
-              <Tabs value={isDeadlineMode ? "deadlines" : "trainings"} onValueChange={handleModeSwitch}>
-                <TabsList className="grid w-[280px] grid-cols-2">
+              <Tabs value={isPlpMode ? "plp" : isDeadlineMode ? "deadlines" : "trainings"} onValueChange={handleModeSwitch}>
+                <TabsList className="grid w-[380px] grid-cols-3">
                   <TabsTrigger value="trainings" className="flex items-center gap-2">
                     <GraduationCap className="w-4 h-4" />
                     Školení
                   </TabsTrigger>
                   <TabsTrigger value="deadlines" className="flex items-center gap-2">
                     <Wrench className="w-4 h-4" />
-                    Technické události
+                    Tech. události
+                  </TabsTrigger>
+                  <TabsTrigger value="plp" className="flex items-center gap-2">
+                    <Stethoscope className="w-4 h-4" />
+                    PLP
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -193,7 +205,7 @@ export const Layout = ({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </> : <>
+                </> : isDeadlineMode ? <>
                   {/* Deadline Mode Navigation */}
                   <NavLink to="/deadlines" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
                     <Calendar className="w-4 h-4" />
@@ -240,6 +252,24 @@ export const Layout = ({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                </> : <>
+                  {/* PLP Mode Navigation */}
+                  <NavLink to="/plp" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
+                    <Calendar className="w-4 h-4" />
+                    Naplánované
+                  </NavLink>
+
+                  <Link to="/plp/new">
+                    <Button size="sm" className="ml-2 gap-2">
+                      <PlusCircle className="w-4 h-4" />
+                      Nová prohlídka
+                    </Button>
+                  </Link>
+
+                  <NavLink to="/plp/types" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1" activeClassName="text-foreground bg-card border-b-2 border-primary">
+                    <BookOpen className="w-4 h-4" />
+                    Typy prohlídek
+                  </NavLink>
                 </>}
             </div>
 

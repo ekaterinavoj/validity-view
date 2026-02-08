@@ -54,6 +54,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
   const [role, setRole] = useState<"user" | "manager" | "admin">("user");
   const [moduleTrainings, setModuleTrainings] = useState(true);
   const [moduleDeadlines, setModuleDeadlines] = useState(true);
+  const [modulePlp, setModulePlp] = useState(true);
   const [employeeId, setEmployeeId] = useState("");
 
   useEffect(() => {
@@ -71,6 +72,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
     setRole("user");
     setModuleTrainings(true);
     setModuleDeadlines(true);
+    setModulePlp(true);
     setEmployeeId("");
   };
 
@@ -130,7 +132,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
     }
 
     // NEW: non-admin must have at least one module selected
-    if (!isAdminRole && !moduleTrainings && !moduleDeadlines) {
+    if (!isAdminRole && !moduleTrainings && !moduleDeadlines && !modulePlp) {
       toast({
         title: "Vyberte modul",
         description: "Uživatel musí mít přístup alespoň k jednomu modulu.",
@@ -144,6 +146,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
       const modules: string[] = [];
       if (moduleTrainings) modules.push("trainings");
       if (moduleDeadlines) modules.push("deadlines");
+      if (modulePlp) modules.push("plp");
 
       // NEW: build payload without employeeId for admin
       const payload: any = {
@@ -152,7 +155,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
         firstName,
         lastName,
         role,
-        modules: role === "admin" ? ["trainings", "deadlines"] : modules,
+        modules: role === "admin" ? ["trainings", "deadlines", "plp"] : modules,
       };
 
       if (!isAdminRole) {
@@ -339,6 +342,16 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
                   />
                   <Label htmlFor="module-deadlines" className="font-normal cursor-pointer">
                     Technické lhůty
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="module-plp"
+                    checked={modulePlp}
+                    onCheckedChange={(checked) => setModulePlp(!!checked)}
+                  />
+                  <Label htmlFor="module-plp" className="font-normal cursor-pointer">
+                    Lékařské prohlídky (PLP)
                   </Label>
                 </div>
               </div>
