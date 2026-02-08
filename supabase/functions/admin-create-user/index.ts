@@ -200,15 +200,21 @@ Deno.serve(async (req) => {
     // Delete existing module access and set new ones
     await supabaseAdmin.from("user_module_access").delete().eq("user_id", userId);
 
-    // Determine which modules to grant
-    const modulesToGrant = role === "admin" ? ["trainings", "deadlines"] : modules || ["trainings", "deadlines"];
+    // Determine which modules to grant - admins get all, others get what was requested
+    const allModules = ["trainings", "deadlines", "plp"];
+    const modulesToGrant = role === "admin" ? allModules : (modules || allModules);
+
+    console.log("Granting modules:", modulesToGrant, "for role:", role);
 
     for (const mod of modulesToGrant) {
-      await supabaseAdmin.from("user_module_access").insert({
+      const { error: moduleError } = await supabaseAdmin.from("user_module_access").insert({
         user_id: userId,
         module: mod,
         created_by: caller.id,
       });
+      if (moduleError) {
+        console.error(`Error inserting module ${mod}:`, moduleError);
+      }
     }
 
     // Log to audit
