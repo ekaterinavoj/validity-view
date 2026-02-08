@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface EquipmentResponsible {
   id: string;
@@ -26,6 +27,7 @@ export interface ProfileOption {
 export function useEquipmentResponsibles(equipmentId?: string) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, isAdmin, isManager } = useAuth();
 
   // Fetch responsibles for a specific equipment
   const { data: responsibles = [], isLoading, error, refetch } = useQuery({
@@ -60,19 +62,97 @@ export function useEquipmentResponsibles(equipmentId?: string) {
     enabled: !!equipmentId,
   });
 
-  // Fetch all available profiles for selection
+  // Fetch available profiles based on role:
+  // - Admins see all approved profiles
+  // - Managers see only themselves and their subordinates
   const { data: availableProfiles = [] } = useQuery({
-    queryKey: ["available-profiles"],
+    queryKey: ["available-profiles-for-equipment", user?.id, isAdmin, isManager],
     queryFn: async () => {
+      if (!user?.id) return [];
+
+      // Admins see all approved profiles
+      if (isAdmin) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email")
+          .eq("approval_status", "approved")
+          .order("last_name");
+
+        if (error) throw error;
+        return data as ProfileOption[];
+      }
+
+      // Managers see only themselves + their subordinates
+      if (isManager) {
+        // First, get the manager's employee_id from their profile
+        const { data: managerProfile, error: profileError } = await supabase
+          .from("profiles")
+          .select("employee_id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profileError) throw profileError;
+
+        // Get manager's own profile first
+        const { data: ownProfile, error: ownError } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email")
+          .eq("id", user.id)
+          .eq("approval_status", "approved")
+          .maybeSingle();
+
+        if (ownError) throw ownError;
+
+        const profiles: ProfileOption[] = ownProfile ? [ownProfile] : [];
+
+        // If manager has an employee_id, fetch subordinates
+        if (managerProfile?.employee_id) {
+          // Get subordinate employee IDs using the database function
+          const { data: subordinateIds, error: subError } = await supabase
+            .rpc("get_subordinate_employee_ids", { 
+              root_employee_id: managerProfile.employee_id 
+            });
+
+          if (subError) throw subError;
+
+          if (subordinateIds && subordinateIds.length > 0) {
+            // Get employee IDs (excluding the manager themselves)
+            const employeeIds = subordinateIds
+              .map((s: { employee_id: string }) => s.employee_id)
+              .filter((id: string) => id !== managerProfile.employee_id);
+
+            if (employeeIds.length > 0) {
+              // Get profiles linked to these employees
+              const { data: subordinateProfiles, error: subProfileError } = await supabase
+                .from("profiles")
+                .select("id, first_name, last_name, email")
+                .in("employee_id", employeeIds)
+                .eq("approval_status", "approved")
+                .order("last_name");
+
+              if (subProfileError) throw subProfileError;
+
+              if (subordinateProfiles) {
+                profiles.push(...subordinateProfiles);
+              }
+            }
+          }
+        }
+
+        return profiles;
+      }
+
+      // Regular users see only themselves
       const { data, error } = await supabase
         .from("profiles")
         .select("id, first_name, last_name, email")
-        .eq("approval_status", "approved")
-        .order("last_name");
+        .eq("id", user.id)
+        .eq("approval_status", "approved");
 
       if (error) throw error;
       return data as ProfileOption[];
     },
+    enabled: !!user?.id,
   });
 
   // Add responsible person
