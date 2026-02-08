@@ -72,19 +72,19 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><ModuleRedirect /></ProtectedRoute>} />
             <Route path="/trainings" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
             <Route path="/trainings/scheduled" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
-            <Route path="/trainings/history" element={<ProtectedLayout requiredModule="trainings"><History /></ProtectedLayout>} />
+            <Route path="/trainings/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="trainings"><History /></ProtectedLayout>} />
             <Route path="/trainings/new" element={<ProtectedLayout requiredModule="trainings"><NewTraining /></ProtectedLayout>} />
             <Route path="/trainings/edit/:id" element={<ProtectedLayout requiredModule="trainings"><EditTraining /></ProtectedLayout>} />
             {/* Legacy routes for backwards compatibility */}
             <Route path="/scheduled-trainings" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
-            <Route path="/history" element={<ProtectedLayout requiredModule="trainings"><History /></ProtectedLayout>} />
+            <Route path="/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="trainings"><History /></ProtectedLayout>} />
             <Route path="/new-training" element={<ProtectedLayout requiredModule="trainings"><NewTraining /></ProtectedLayout>} />
             <Route path="/edit-training/:id" element={<ProtectedLayout requiredModule="trainings"><EditTraining /></ProtectedLayout>} />
             
             {/* ============ DEADLINES MODULE ============ */}
             <Route path="/deadlines" element={<ProtectedLayout requiredModule="deadlines"><ScheduledDeadlines /></ProtectedLayout>} />
             <Route path="/deadlines/scheduled" element={<ProtectedLayout requiredModule="deadlines"><ScheduledDeadlines /></ProtectedLayout>} />
-            <Route path="/deadlines/history" element={<ProtectedLayout requiredModule="deadlines"><DeadlineHistory /></ProtectedLayout>} />
+            <Route path="/deadlines/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="deadlines"><DeadlineHistory /></ProtectedLayout>} />
             <Route path="/deadlines/new" element={<ProtectedLayout requiredModule="deadlines"><NewDeadline /></ProtectedLayout>} />
             <Route path="/deadlines/edit/:id" element={<ProtectedLayout requiredModule="deadlines"><EditDeadline /></ProtectedLayout>} />
             <Route path="/deadlines/equipment" element={<ProtectedLayout requiredModule="deadlines"><Equipment /></ProtectedLayout>} />
@@ -100,7 +100,7 @@ const App = () => (
             <Route path="/plp/types" element={<ProtectedLayout requiredModule="plp"><MedicalExaminationTypes /></ProtectedLayout>} />
             
             {/* ============ SHARED / SETTINGS ============ */}
-            <Route path="/statistics" element={<ProtectedLayout><Statistics /></ProtectedLayout>} />
+            <Route path="/statistics" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Statistics /></ProtectedLayout>} />
             <Route path="/employees" element={<ProtectedLayout><Employees /></ProtectedLayout>} />
             <Route path="/training-types" element={<ProtectedLayout><TrainingTypes /></ProtectedLayout>} />
             <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
