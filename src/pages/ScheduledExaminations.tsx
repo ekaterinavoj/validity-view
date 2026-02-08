@@ -1,5 +1,6 @@
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
+import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,7 +21,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function ScheduledExaminations() {
@@ -167,16 +167,6 @@ export default function ScheduledExaminations() {
     link.click();
   };
 
-  const getCategoryBadge = (category: number | null) => {
-    if (!category) return <span className="text-muted-foreground">-</span>;
-    const colors: Record<number, string> = {
-      1: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      2: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-      3: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-      4: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-    };
-    return <Badge className={colors[category]}>{category}</Badge>;
-  };
 
   if (examinationsError) {
     return (
@@ -300,7 +290,7 @@ export default function ScheduledExaminations() {
                   <TableCell className="font-medium">{exam.type}</TableCell>
                   <TableCell>{exam.employeeNumber}</TableCell>
                   <TableCell>{exam.employeeName}</TableCell>
-                  <TableCell>{getCategoryBadge(exam.employeeWorkCategory)}</TableCell>
+                  <TableCell><WorkCategoryBadge category={exam.employeeWorkCategory} /></TableCell>
                   <TableCell>
                     {exam.result ? (
                       <span className="text-sm">{exam.result}</span>

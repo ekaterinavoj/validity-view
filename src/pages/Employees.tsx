@@ -33,6 +33,7 @@ import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeStatusBadge, EmployeeStatus } from "@/components/EmployeeStatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
+import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),
@@ -73,6 +74,7 @@ export default function Employees() {
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -98,18 +100,22 @@ export default function Employees() {
       const matchesDepartment =
         departmentFilter === "all" || employee.department === departmentFilter;
       const matchesStatus = statusFilter === "all" || employee.status === statusFilter;
+      const matchesCategory = 
+        categoryFilter === "all" || 
+        (employee.workCategory !== null && employee.workCategory.toString() === categoryFilter);
 
-      return matchesSearch && matchesDepartment && matchesStatus;
+      return matchesSearch && matchesDepartment && matchesStatus && matchesCategory;
     });
-  }, [searchQuery, departmentFilter, statusFilter, employees]);
+  }, [searchQuery, departmentFilter, statusFilter, categoryFilter, employees]);
 
   const hasActiveFilters =
-    searchQuery !== "" || departmentFilter !== "all" || statusFilter !== "all";
+    searchQuery !== "" || departmentFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all";
 
   const clearFilters = () => {
     setSearchQuery("");
     setDepartmentFilter("all");
     setStatusFilter("all");
+    setCategoryFilter("all");
   };
 
   const exportToCSV = () => {
@@ -733,6 +739,19 @@ export default function Employees() {
               <SelectItem value="terminated">Ukončený</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Kategorie" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všechny kategorie</SelectItem>
+              <SelectItem value="1">Kategorie 1</SelectItem>
+              <SelectItem value="2">Kategorie 2</SelectItem>
+              <SelectItem value="3">Kategorie 3</SelectItem>
+              <SelectItem value="4">Kategorie 4</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {hasActiveFilters && (
@@ -786,8 +805,8 @@ export default function Employees() {
                 <TableCell className="text-sm text-muted-foreground">{employee.email}</TableCell>
                 <TableCell className="text-sm">{employee.position}</TableCell>
                 <TableCell className="text-sm">{employee.department}</TableCell>
-                <TableCell className="text-sm text-center">
-                  {employee.workCategory ? employee.workCategory : '-'}
+                <TableCell className="text-center">
+                  <WorkCategoryBadge category={employee.workCategory} />
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {employee.managerEmail ? (
