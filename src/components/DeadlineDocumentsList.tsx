@@ -40,7 +40,8 @@ export function DeadlineDocumentsList({
   const [documents, setDocuments] = useState<DeadlineDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [previewFile, setPreviewFile] = useState<{ name: string; url: string; type: string } | null>(null);
+  const [previewFiles, setPreviewFiles] = useState<{ name: string; url: string; type: string }[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -77,23 +78,25 @@ export function DeadlineDocumentsList({
     }
   };
 
-  const handlePreview = async (document: DeadlineDocument) => {
-    const { url, error } = await getDeadlineDocumentDownloadUrl(document.file_path);
-    if (error) {
-      toast({
-        title: "Chyba při načítání náhledu",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
+  // Preview all documents
+  const handlePreviewSingle = async (document: DeadlineDocument) => {
+    // Load all documents for preview
+    const files: { name: string; url: string; type: string }[] = [];
+    
+    for (const doc of documents) {
+      const { url, error } = await getDeadlineDocumentDownloadUrl(doc.file_path);
+      if (!error && url) {
+        files.push({
+          name: doc.file_name,
+          url,
+          type: doc.file_type,
+        });
+      }
     }
-
-    if (url) {
-      setPreviewFile({
-        name: document.file_name,
-        url,
-        type: document.file_type,
-      });
+    
+    if (files.length > 0) {
+      setPreviewFiles(files);
+      setShowPreview(true);
     }
   };
 
@@ -139,10 +142,10 @@ export function DeadlineDocumentsList({
   return (
     <>
       <FilePreviewDialog
-        open={!!previewFile}
-        onOpenChange={(open) => !open && setPreviewFile(null)}
-        file={previewFile || { name: "", url: "", type: "" }}
-        onDownload={previewFile ? () => window.open(previewFile.url, "_blank") : undefined}
+        open={showPreview}
+        onOpenChange={(open) => !open && setShowPreview(false)}
+        file={null}
+        files={previewFiles}
       />
       
       <div className="space-y-3">
@@ -181,7 +184,7 @@ export function DeadlineDocumentsList({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handlePreview(document)}
+                    onClick={() => handlePreviewSingle(document)}
                     title="Náhled"
                   >
                     <Eye className="w-4 h-4" />

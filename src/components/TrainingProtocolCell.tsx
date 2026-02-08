@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -13,7 +14,7 @@ import {
   getTrainingDocuments,
   getDocumentDownloadUrl,
 } from "@/lib/trainingDocuments";
-import { FilePreviewDialog } from "@/components/FilePreviewDialog";
+import { FilePreviewDialog, PreviewFile } from "@/components/FilePreviewDialog";
 
 interface TrainingProtocolCellProps {
   trainingId: string;
@@ -21,35 +22,19 @@ interface TrainingProtocolCellProps {
 
 export function TrainingProtocolCell({ trainingId }: TrainingProtocolCellProps) {
   const { toast } = useToast();
-  const [latestDocument, setLatestDocument] = useState<TrainingDocument | null>(null);
+  const [documents, setDocuments] = useState<TrainingDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string; fileType: string } | null>(null);
+  const [previewFiles, setPreviewFiles] = useState<PreviewFile[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     const loadDocuments = async () => {
       setLoading(true);
       const { data, error } = await getTrainingDocuments(trainingId);
       if (!error && data && data.length > 0) {
-        // Get the most recent document (protocol or certificate preferred)
-        // Priority: protocol > certificate > any other
-        const priorityOrder = ["protocol", "certificate", "attendance_sheet", "other"];
-        
-        // Sort by priority, then by upload date (newest first)
-        const sorted = [...data].sort((a, b) => {
-          const priorityA = priorityOrder.indexOf(a.document_type);
-          const priorityB = priorityOrder.indexOf(b.document_type);
-          
-          if (priorityA !== priorityB) {
-            return priorityA - priorityB;
-          }
-          
-          // Same priority - sort by date (newest first)
-          return new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime();
-        });
-        
-        setLatestDocument(sorted[0] || null);
+        setDocuments(data);
       } else {
-        setLatestDocument(null);
+        setDocuments([]);
       }
       setLoading(false);
     };
@@ -58,23 +43,30 @@ export function TrainingProtocolCell({ trainingId }: TrainingProtocolCellProps) 
   }, [trainingId]);
 
   const handlePreview = async () => {
-    if (!latestDocument) return;
+    if (documents.length === 0) return;
     
-    const { url, error } = await getDocumentDownloadUrl(latestDocument.file_path);
-    if (error) {
-      toast({
-        title: "Chyba při načítání dokumentu",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
+    // Load all document URLs
+    const files: PreviewFile[] = [];
+    
+    for (const doc of documents) {
+      const { url, error } = await getDocumentDownloadUrl(doc.file_path);
+      if (!error && url) {
+        files.push({
+          name: doc.file_name,
+          url,
+          type: doc.file_type,
+        });
+      }
     }
 
-    if (url) {
-      setPreviewDoc({
-        url,
-        fileName: latestDocument.file_name,
-        fileType: latestDocument.file_type,
+    if (files.length > 0) {
+      setPreviewFiles(files);
+      setShowPreview(true);
+    } else {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se načíst dokumenty.",
+        variant: "destructive",
       });
     }
   };
@@ -87,7 +79,7 @@ export function TrainingProtocolCell({ trainingId }: TrainingProtocolCellProps) 
     );
   }
 
-  if (!latestDocument) {
+  if (documents.length === 0) {
     return (
       <span className="text-xs text-muted-foreground">—</span>
     );
@@ -101,22 +93,35 @@ export function TrainingProtocolCell({ trainingId }: TrainingProtocolCellProps) 
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 relative"
               onClick={handlePreview}
             >
               <FileText className="w-4 h-4 text-primary" />
+              {documents.length > 1 && (
+                <Badge 
+                  variant="secondary" 
+                  className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] flex items-center justify-center"
+                >
+                  {documents.length}
+                </Badge>
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p className="text-xs">{latestDocument.file_name}</p>
+            <p className="text-xs">
+              {documents.length === 1 
+                ? documents[0].file_name 
+                : `${documents.length} dokumentů`}
+            </p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
       <FilePreviewDialog
-        open={!!previewDoc}
-        onOpenChange={(open) => !open && setPreviewDoc(null)}
-        file={previewDoc ? { name: previewDoc.fileName, url: previewDoc.url, type: previewDoc.fileType } : null}
+        open={showPreview}
+        onOpenChange={(open) => !open && setShowPreview(false)}
+        file={null}
+        files={previewFiles}
       />
     </>
   );

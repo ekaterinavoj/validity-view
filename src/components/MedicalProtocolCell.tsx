@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -9,7 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { FilePreviewDialog } from "@/components/FilePreviewDialog";
+import { FilePreviewDialog, PreviewFile } from "@/components/FilePreviewDialog";
 
 interface MedicalDocument {
   id: string;
@@ -26,9 +27,10 @@ interface MedicalProtocolCellProps {
 
 export function MedicalProtocolCell({ examinationId }: MedicalProtocolCellProps) {
   const { toast } = useToast();
-  const [latestDocument, setLatestDocument] = useState<MedicalDocument | null>(null);
+  const [documents, setDocuments] = useState<MedicalDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string; fileType: string } | null>(null);
+  const [previewFiles, setPreviewFiles] = useState<PreviewFile[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     const loadDocuments = async () => {
@@ -40,26 +42,9 @@ export function MedicalProtocolCell({ examinationId }: MedicalProtocolCellProps)
         .order("uploaded_at", { ascending: false });
 
       if (!error && data && data.length > 0) {
-        // Get the most recent document (protocol or certificate preferred)
-        // Priority: protocol > certificate > any other
-        const priorityOrder = ["protocol", "certificate", "medical_report", "other"];
-        
-        // Sort by priority, then by upload date (newest first)
-        const sorted = [...data].sort((a, b) => {
-          const priorityA = priorityOrder.indexOf(a.document_type);
-          const priorityB = priorityOrder.indexOf(b.document_type);
-          
-          if (priorityA !== priorityB) {
-            return priorityA - priorityB;
-          }
-          
-          // Same priority - sort by date (newest first)
-          return new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime();
-        });
-        
-        setLatestDocument(sorted[0] || null);
+        setDocuments(data);
       } else {
-        setLatestDocument(null);
+        setDocuments([]);
       }
       setLoading(false);
     };
@@ -68,25 +53,35 @@ export function MedicalProtocolCell({ examinationId }: MedicalProtocolCellProps)
   }, [examinationId]);
 
   const handlePreview = async () => {
-    if (!latestDocument) return;
+    if (documents.length === 0) return;
     
     try {
-      const { data, error } = await supabase.storage
-        .from("medical-documents")
-        .createSignedUrl(latestDocument.file_path, 3600);
-
-      if (error) throw error;
+      // Load all document URLs
+      const files: PreviewFile[] = [];
       
-      if (data?.signedUrl) {
-        setPreviewDoc({
-          url: data.signedUrl,
-          fileName: latestDocument.file_name,
-          fileType: latestDocument.file_type,
-        });
+      for (const doc of documents) {
+        const { data, error } = await supabase.storage
+          .from("medical-documents")
+          .createSignedUrl(doc.file_path, 3600);
+
+        if (!error && data?.signedUrl) {
+          files.push({
+            name: doc.file_name,
+            url: data.signedUrl,
+            type: doc.file_type,
+          });
+        }
+      }
+
+      if (files.length > 0) {
+        setPreviewFiles(files);
+        setShowPreview(true);
+      } else {
+        throw new Error("Nepodařilo se načíst dokumenty");
       }
     } catch (err: any) {
       toast({
-        title: "Chyba při načítání dokumentu",
+        title: "Chyba při načítání dokumentů",
         description: err.message,
         variant: "destructive",
       });
@@ -101,7 +96,7 @@ export function MedicalProtocolCell({ examinationId }: MedicalProtocolCellProps)
     );
   }
 
-  if (!latestDocument) {
+  if (documents.length === 0) {
     return (
       <span className="text-xs text-muted-foreground">—</span>
     );
@@ -115,22 +110,35 @@ export function MedicalProtocolCell({ examinationId }: MedicalProtocolCellProps)
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 relative"
               onClick={handlePreview}
             >
               <FileText className="w-4 h-4 text-primary" />
+              {documents.length > 1 && (
+                <Badge 
+                  variant="secondary" 
+                  className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] flex items-center justify-center"
+                >
+                  {documents.length}
+                </Badge>
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p className="text-xs">{latestDocument.file_name}</p>
+            <p className="text-xs">
+              {documents.length === 1 
+                ? documents[0].file_name 
+                : `${documents.length} dokumentů`}
+            </p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
       <FilePreviewDialog
-        open={!!previewDoc}
-        onOpenChange={(open) => !open && setPreviewDoc(null)}
-        file={previewDoc ? { name: previewDoc.fileName, url: previewDoc.url, type: previewDoc.fileType } : null}
+        open={showPreview}
+        onOpenChange={(open) => !open && setShowPreview(false)}
+        file={null}
+        files={previewFiles}
       />
     </>
   );
