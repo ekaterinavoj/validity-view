@@ -287,11 +287,11 @@ export default function EditMedicalExamination() {
               name="examinationTypeId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Typ prohlídky *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte typ prohlídky" />
+                   <FormLabel>Typ prohlídky *</FormLabel>
+                   <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                     <FormControl>
+                       <SelectTrigger disabled={!canEdit}>
+                         <SelectValue placeholder="Vyberte typ prohlídky" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -312,11 +312,11 @@ export default function EditMedicalExamination() {
               name="facility"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Provozovna *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte provozovnu" />
+                     <FormLabel>Provozovna *</FormLabel>
+                     <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                       <FormControl>
+                         <SelectTrigger disabled={!canEdit}>
+                           <SelectValue placeholder="Vyberte provozovnu" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -337,11 +337,11 @@ export default function EditMedicalExamination() {
               name="employeeId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Zaměstnanec *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte zaměstnance" />
+                     <FormLabel>Zaměstnanec *</FormLabel>
+                     <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                       <FormControl>
+                         <SelectTrigger disabled={!canEdit}>
+                           <SelectValue placeholder="Vyberte zaměstnance" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -366,14 +366,14 @@ export default function EditMedicalExamination() {
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
-                        </Button>
+                         <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={!canEdit}>
+                           <CalendarIcon className="mr-2 h-4 w-4" />
+                           {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                         </Button>
                       </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                       <Calendar mode="single" selected={field.value} onSelect={canEdit ? field.onChange : undefined} initialFocus disabled={!canEdit} />
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
@@ -381,17 +381,18 @@ export default function EditMedicalExamination() {
               )}
             />
 
-            <PeriodicityInput
-              value={form.watch("periodValue")}
-              unit={form.watch("periodUnit") as PeriodicityUnit}
-              onValueChange={(val) => form.setValue("periodValue", val)}
-              onUnitChange={(unit) => {
-                form.setValue("periodUnit", unit);
-                setPeriodUnit(unit);
-              }}
-              label="Periodicita"
-              required
-            />
+             <PeriodicityInput
+               value={form.watch("periodValue")}
+               unit={form.watch("periodUnit") as PeriodicityUnit}
+               onValueChange={canEdit ? (val) => form.setValue("periodValue", val) : undefined}
+               onUnitChange={canEdit ? (unit) => {
+                 form.setValue("periodUnit", unit);
+                 setPeriodUnit(unit);
+               } : undefined}
+               label="Periodicita"
+               required
+               disabled={!canEdit}
+             />
 
             {expirationDate && (
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
@@ -408,9 +409,9 @@ export default function EditMedicalExamination() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Lékař</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Jméno lékaře" />
-                    </FormControl>
+                       <FormControl>
+                         <Input {...field} placeholder="Jméno lékaře" disabled={!canEdit} />
+                       </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -421,9 +422,9 @@ export default function EditMedicalExamination() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Zdravotnické zařízení</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Název zařízení" />
-                    </FormControl>
+                       <FormControl>
+                         <Input {...field} placeholder="Název zařízení" disabled={!canEdit} />
+                       </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -436,9 +437,9 @@ export default function EditMedicalExamination() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Výsledek prohlídky</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="např. Způsobilý bez omezení" />
-                  </FormControl>
+                     <FormControl>
+                       <Input {...field} placeholder="např. Způsobilý bez omezení" disabled={!canEdit} />
+                     </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -475,15 +476,15 @@ export default function EditMedicalExamination() {
             )}
 
             <FormField
-              control={form.control}
-              name="reminderTemplateId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Šablona připomenutí *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte šablonu" />
+               control={form.control}
+               name="reminderTemplateId"
+               render={({ field }) => (
+                 <FormItem>
+                   <FormLabel>Šablona připomenutí *</FormLabel>
+                   <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                     <FormControl>
+                       <SelectTrigger disabled={!canEdit}>
+                         <SelectValue placeholder="Vyberte šablonu" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
