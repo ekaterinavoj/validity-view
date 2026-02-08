@@ -44,6 +44,7 @@ import { useDepartments } from "@/hooks/useDepartments";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EquipmentResponsiblesManager } from "@/components/EquipmentResponsiblesManager";
+import { EquipmentResponsiblesBadges } from "@/components/EquipmentResponsiblesBadges";
 import { ResponsiblePersonsPicker } from "@/components/ResponsiblePersonsPicker";
 import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColors } from "@/types/equipment";
 import { cn } from "@/lib/utils";
@@ -271,7 +272,9 @@ export default function Equipment() {
                     <TableCell>{eq.equipment_type}</TableCell>
                     <TableCell>{eq.facility}</TableCell>
                     <TableCell>{eq.location || "-"}</TableCell>
-                    <TableCell>{eq.responsible_person || "-"}</TableCell>
+                    <TableCell>
+                      <EquipmentResponsiblesBadges equipmentId={eq.id} />
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={cn(equipmentStatusColors[eq.status])}>
                         {equipmentStatusLabels[eq.status]}
