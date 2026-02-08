@@ -38,14 +38,22 @@ export default function Statistics() {
   // Combine all trainings for complete statistics
   const allTrainings = useMemo(() => [...activeTrainings, ...inactiveTrainings], [activeTrainings, inactiveTrainings]);
 
-  // Basic training statistics - computed from real data
-  const totalTrainings = activeTrainings.length;
-  const validTrainings = activeTrainings.filter(t => t.status === "valid").length;
-  const warningTrainings = activeTrainings.filter(t => t.status === "warning").length;
-  const expiredTrainings = activeTrainings.filter(t => t.status === "expired").length;
-  const uniqueEmployees = new Set(activeTrainings.map(t => t.employeeNumber)).size;
+  // Filter trainings by selected year (based on next_training_date)
+  const yearFilteredTrainings = useMemo(() => {
+    return activeTrainings.filter(t => {
+      const date = new Date(t.date);
+      return date.getFullYear().toString() === selectedYear;
+    });
+  }, [activeTrainings, selectedYear]);
 
-  // Trainings expiring in next 30/60/90 days
+  // Basic training statistics - filtered by year
+  const totalTrainings = yearFilteredTrainings.length;
+  const validTrainings = yearFilteredTrainings.filter(t => t.status === "valid").length;
+  const warningTrainings = yearFilteredTrainings.filter(t => t.status === "warning").length;
+  const expiredTrainings = yearFilteredTrainings.filter(t => t.status === "expired").length;
+  const uniqueEmployees = new Set(yearFilteredTrainings.map(t => t.employeeNumber)).size;
+
+  // Trainings expiring in next 30/60/90 days (always current, not year filtered)
   const today = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -70,9 +78,9 @@ export default function Statistics() {
     return diffDays >= 0 && diffDays <= 90;
   }).length, [activeTrainings, today]);
 
-  // Department statistics - computed from real data
+  // Department statistics - filtered by year
   const departmentStats = useMemo(() => {
-    return activeTrainings.reduce((acc, training) => {
+    return yearFilteredTrainings.reduce((acc, training) => {
       const dept = training.department || "Nezařazeno";
       if (!acc[dept]) {
         acc[dept] = {
@@ -88,7 +96,7 @@ export default function Statistics() {
       warning: number;
       expired: number;
     }>);
-  }, [activeTrainings]);
+  }, [yearFilteredTrainings]);
   const barData = useMemo(() => Object.entries(departmentStats).map(([dept, stats]) => ({
     department: dept || "Nezařazeno",
     platné: stats.valid,
@@ -96,9 +104,9 @@ export default function Statistics() {
     prošlé: stats.expired
   })), [departmentStats]);
 
-  // Facility statistics - computed from real data
+  // Facility statistics - filtered by year
   const facilityStats = useMemo(() => {
-    return activeTrainings.reduce((acc, training) => {
+    return yearFilteredTrainings.reduce((acc, training) => {
       const facility = training.facility || "Nezařazeno";
       if (!acc[facility]) {
         acc[facility] = {
@@ -117,7 +125,7 @@ export default function Statistics() {
       expired: number;
       total: number;
     }>);
-  }, [activeTrainings]);
+  }, [yearFilteredTrainings]);
   const facilityBarData = useMemo(() => Object.entries(facilityStats).map(([facility, stats]) => ({
     facility: facility || "Nezařazeno",
     platné: stats.valid,
@@ -126,9 +134,9 @@ export default function Statistics() {
     celkem: stats.total
   })).sort((a, b) => b.celkem - a.celkem), [facilityStats]);
 
-  // Training type statistics - computed from real data
+  // Training type statistics - filtered by year
   const trainingTypeStats = useMemo(() => {
-    const stats = activeTrainings.reduce((acc, training) => {
+    const stats = yearFilteredTrainings.reduce((acc, training) => {
       const type = training.type || "Neznámý typ";
       if (!acc[type]) {
         acc[type] = {
@@ -157,7 +165,7 @@ export default function Statistics() {
       prošlé: data.expired,
       periodicita: data.period
     })).sort((a, b) => b.počet - a.počet);
-  }, [activeTrainings]);
+  }, [yearFilteredTrainings]);
 
   // Training hours statistics by year - unique sessions only
   // If multiple people attend the same training on the same day, it counts as ONE session
@@ -214,9 +222,9 @@ export default function Statistics() {
       .sort((a, b) => b.year - a.year); // Sort by year descending
   }, [allTrainings, trainingTypes]);
 
-  // Trainer statistics - computed from real data
+  // Trainer statistics - filtered by year
   const trainerStats = useMemo(() => {
-    return activeTrainings.reduce((acc, training) => {
+    return yearFilteredTrainings.reduce((acc, training) => {
       const trainer = training.trainer || "Neurčeno";
       if (!acc[trainer]) {
         acc[trainer] = {
@@ -241,7 +249,7 @@ export default function Statistics() {
       employees: Set<string>;
       types: Set<string>;
     }>);
-  }, [activeTrainings]);
+  }, [yearFilteredTrainings]);
   const trainerData = useMemo(() => Object.entries(trainerStats).map(([name, stats]) => ({
     name,
     total: stats.total,
@@ -252,28 +260,25 @@ export default function Statistics() {
     types: stats.types.size
   })).filter(t => t.name !== "Neurčeno" || t.total > 0).sort((a, b) => b.total - a.total), [trainerStats]);
 
-  // Monthly distribution - based on next_training_date
+  // Monthly distribution - based on next_training_date (already filtered by year)
   const monthlyDistribution = useMemo(() => {
-    const months = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
+    const months = ["Led", "Úno", "Bře", "Dub", "Kvě", "Čvn", "Čvc", "Srp", "Zář", "Říj", "Lis", "Pro"];
     const distribution = months.map(m => ({
       měsíc: m,
-      naplánováno: 0,
+      aktivní: 0,
       prošlé: 0
     }));
-    activeTrainings.forEach(training => {
+    yearFilteredTrainings.forEach(training => {
       const date = new Date(training.date);
-      const year = date.getFullYear().toString();
-      if (year === selectedYear) {
-        const monthIndex = date.getMonth();
-        if (training.status === "expired") {
-          distribution[monthIndex].prošlé++;
-        } else {
-          distribution[monthIndex].naplánováno++;
-        }
+      const monthIndex = date.getMonth();
+      if (training.status === "expired") {
+        distribution[monthIndex].prošlé++;
+      } else {
+        distribution[monthIndex].aktivní++;
       }
     });
     return distribution;
-  }, [activeTrainings, selectedYear]);
+  }, [yearFilteredTrainings]);
 
   // Pie chart data for status distribution
   const statusPieData = useMemo(() => [{
@@ -621,7 +626,10 @@ export default function Statistics() {
             {/* Bar Chart - By department */}
             {barData.length > 0 && <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Školení podle oddělení</h3>
+                  <div>
+                    <h3 className="text-lg font-semibold">Školení podle oddělení ({selectedYear})</h3>
+                    <p className="text-sm text-muted-foreground">Počet školení v kusech (ks)</p>
+                  </div>
                   <Button variant="ghost" size="sm" onClick={() => copyChartAsImage(departmentChartRef, "Školení podle oddělení")}>
                     <Copy className="w-4 h-4" />
                   </Button>
@@ -632,11 +640,12 @@ export default function Statistics() {
                       <BarChart data={barData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                         <XAxis dataKey="department" stroke="hsl(var(--foreground))" fontSize={12} />
-                        <YAxis stroke="hsl(var(--foreground))" />
+                        <YAxis stroke="hsl(var(--foreground))" label={{ value: 'Počet (ks)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))' } }} />
                         <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="platné" fill="hsl(var(--status-valid))" />
-                        <Bar dataKey="brzy vyprší" fill="hsl(var(--status-warning))" />
-                        <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" />
+                        <Legend />
+                        <Bar dataKey="platné" name="Platné (ks)" fill="hsl(var(--status-valid))" />
+                        <Bar dataKey="brzy vyprší" name="Brzy vyprší (ks)" fill="hsl(var(--status-warning))" />
+                        <Bar dataKey="prošlé" name="Prošlé (ks)" fill="hsl(var(--status-expired))" />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartContainer>
@@ -646,7 +655,10 @@ export default function Statistics() {
             {/* Pie Chart - Status distribution */}
             {statusPieData.length > 0 && <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Rozdělení podle stavu</h3>
+                  <div>
+                    <h3 className="text-lg font-semibold">Rozdělení podle stavu ({selectedYear})</h3>
+                    <p className="text-sm text-muted-foreground">Procentuální podíl stavů školení</p>
+                  </div>
                   <Button variant="ghost" size="sm" onClick={() => copyChartAsImage(statusPieChartRef, "Rozdělení podle stavu")}>
                     <Copy className="w-4 h-4" />
                   </Button>
@@ -657,8 +669,9 @@ export default function Statistics() {
                       <PieChart>
                         <Pie data={statusPieData} cx="50%" cy="50%" labelLine={false} label={({
                     name,
-                    percent
-                  }) => `${name}: ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
+                    percent,
+                    value
+                  }) => `${name}: ${value} ks (${(percent * 100).toFixed(0)}%)`} outerRadius={100} fill="#8884d8" dataKey="value">
                           {statusPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                         </Pie>
                         <ChartTooltip content={<ChartTooltipContent />} />
@@ -678,12 +691,12 @@ export default function Statistics() {
               </div>
               <div ref={monthlyChartRef}>
                 <ChartContainer config={{
-              naplánováno: {
-                label: "Aktivní",
+              aktivní: {
+                label: "Aktivní školení (ks)",
                 color: "hsl(var(--chart-1))"
               },
               prošlé: {
-                label: "Prošlé",
+                label: "Prošlá školení (ks)",
                 color: "hsl(var(--status-expired))"
               }
             }} className="h-[300px]">
@@ -691,11 +704,11 @@ export default function Statistics() {
                     <BarChart data={monthlyDistribution}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="měsíc" stroke="hsl(var(--foreground))" fontSize={11} angle={-45} textAnchor="end" height={80} />
-                      <YAxis stroke="hsl(var(--foreground))" />
+                      <YAxis stroke="hsl(var(--foreground))" label={{ value: 'Počet školení', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))' } }} />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Legend />
-                      <Bar dataKey="naplánováno" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="aktivní" name="Aktivní (ks)" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="prošlé" name="Prošlé (ks)" fill="hsl(var(--status-expired))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -705,7 +718,10 @@ export default function Statistics() {
             {/* Training types trend */}
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Top typy školení</h3>
+                <div>
+                  <h3 className="text-lg font-semibold">Top typy školení ({selectedYear})</h3>
+                  <p className="text-sm text-muted-foreground">Počet školení v kusech (ks)</p>
+                </div>
                 <Button variant="ghost" size="sm" onClick={() => copyChartAsImage(topTypesChartRef, "Top typy školení")}>
                   <Copy className="w-4 h-4" />
                 </Button>
@@ -713,17 +729,17 @@ export default function Statistics() {
               <div ref={topTypesChartRef}>
                 <ChartContainer config={{
               počet: {
-                label: "Počet školení",
+                label: "Počet školení (ks)",
                 color: "hsl(var(--chart-2))"
               }
             }} className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={trainingTypeStats.slice(0, 8)} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis type="number" stroke="hsl(var(--foreground))" />
+                      <XAxis type="number" stroke="hsl(var(--foreground))" label={{ value: 'Počet (ks)', position: 'bottom', style: { fill: 'hsl(var(--muted-foreground))' } }} />
                       <YAxis dataKey="typ" type="category" stroke="hsl(var(--foreground))" fontSize={11} width={150} tickFormatter={value => value.length > 20 ? value.substring(0, 20) + '...' : value} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="počet" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="počet" name="Počet (ks)" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -733,16 +749,16 @@ export default function Statistics() {
 
           {/* Training types table */}
           {trainingTypeStats.length > 0 && <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Přehled podle typu školení</h3>
+              <h3 className="text-lg font-semibold mb-4">Přehled podle typu školení ({selectedYear})</h3>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Typ školení</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Celkem</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Platné</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Varování</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Prošlé</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Celkem (ks)</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Platné (ks)</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Varování (ks)</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Prošlé (ks)</th>
                       <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Periodicita</th>
                     </tr>
                   </thead>
@@ -762,16 +778,16 @@ export default function Statistics() {
 
           {/* Facility statistics table */}
           {facilityBarData.length > 0 && <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Přehled podle provozovny</h3>
+              <h3 className="text-lg font-semibold mb-4">Přehled podle provozovny ({selectedYear})</h3>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Provozovna</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Celkem</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Platné</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Varování</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Prošlé</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Celkem (ks)</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Platné (ks)</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Varování (ks)</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Prošlé (ks)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -789,7 +805,7 @@ export default function Statistics() {
 
           {/* Trainers table */}
           {trainerData.length > 0 && trainerData.some(t => t.name !== "Neurčeno") && <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Přehled školitelů</h3>
+              <h3 className="text-lg font-semibold mb-4">Přehled školitelů ({selectedYear})</h3>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
