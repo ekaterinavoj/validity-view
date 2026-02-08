@@ -1,4 +1,4 @@
-import { Loader2, Archive, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Archive, Trash2, AlertTriangle, ArchiveRestore } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,9 +15,10 @@ interface BulkArchiveDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedCount: number;
   onConfirm: () => void;
-  loading: boolean;
+  loading?: boolean;
+  isLoading?: boolean;
   entityName?: string;
-  mode?: "archive" | "delete";
+  mode?: "archive" | "delete" | "restore";
 }
 
 export function BulkArchiveDialog({
@@ -26,10 +27,13 @@ export function BulkArchiveDialog({
   selectedCount,
   onConfirm,
   loading,
+  isLoading,
   entityName = "záznamů",
   mode = "archive",
 }: BulkArchiveDialogProps) {
   const isDelete = mode === "delete";
+  const isRestore = mode === "restore";
+  const isLoadingState = loading ?? isLoading ?? false;
   
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -40,6 +44,11 @@ export function BulkArchiveDialog({
               <>
                 <AlertTriangle className="w-5 h-5 text-destructive" />
                 Trvale smazat vybrané záznamy?
+              </>
+            ) : isRestore ? (
+              <>
+                <ArchiveRestore className="w-5 h-5 text-primary" />
+                Obnovit vybrané záznamy?
               </>
             ) : (
               <>
@@ -56,6 +65,12 @@ export function BulkArchiveDialog({
                   <br />
                   <span className="text-destructive font-medium">Tato akce je nevratná!</span>
                 </>
+              ) : isRestore ? (
+                <>
+                  Bude obnoveno {selectedCount} {entityName}.
+                  <br />
+                  Záznamy budou přesunuty zpět mezi aktivní.
+                </>
               ) : (
                 <>
                   Bude archivováno {selectedCount} {entityName}.
@@ -67,20 +82,25 @@ export function BulkArchiveDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Zrušit</AlertDialogCancel>
+          <AlertDialogCancel disabled={isLoadingState}>Zrušit</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            disabled={loading}
+            disabled={isLoadingState}
             className={isDelete 
               ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" 
               : ""
             }
           >
-            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {isLoadingState && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {isDelete ? (
               <>
                 <Trash2 className="w-4 h-4 mr-2" />
                 Trvale smazat
+              </>
+            ) : isRestore ? (
+              <>
+                <ArchiveRestore className="w-4 h-4 mr-2" />
+                Obnovit
               </>
             ) : (
               <>

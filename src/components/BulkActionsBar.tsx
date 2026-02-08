@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Edit, Archive, Trash2, X } from "lucide-react";
+import { Edit, Archive, Trash2, X, ArchiveRestore } from "lucide-react";
 
 interface BulkActionsBarProps {
   selectedCount: number;
@@ -8,7 +8,10 @@ interface BulkActionsBarProps {
   onBulkEdit?: () => void;
   onBulkArchive?: () => void;
   onBulkDelete?: () => void;
+  onBulkRestore?: () => void;
   entityName?: string;
+  /** Use in history pages to show "Obnovit" instead of "Archivovat" */
+  showRestoreInsteadOfArchive?: boolean;
 }
 
 export function BulkActionsBar({
@@ -17,7 +20,9 @@ export function BulkActionsBar({
   onBulkEdit,
   onBulkArchive,
   onBulkDelete,
+  onBulkRestore,
   entityName = "záznamů",
+  showRestoreInsteadOfArchive = false,
 }: BulkActionsBarProps) {
   if (selectedCount === 0) return null;
 
@@ -40,7 +45,13 @@ export function BulkActionsBar({
               Hromadná úprava
             </Button>
           )}
-          {onBulkArchive && (
+          {onBulkRestore && (
+            <Button variant="outline" size="sm" onClick={onBulkRestore}>
+              <ArchiveRestore className="w-4 h-4 mr-2" />
+              Obnovit
+            </Button>
+          )}
+          {onBulkArchive && !showRestoreInsteadOfArchive && (
             <Button variant="outline" size="sm" onClick={onBulkArchive}>
               <Archive className="w-4 h-4 mr-2" />
               Archivovat
