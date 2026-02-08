@@ -284,12 +284,15 @@ export const Layout = ({
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
-                    <DropdownMenuItem asChild>
-                      <Link to="/employees" className="flex items-center gap-2 cursor-pointer">
-                        <Users className="w-4 h-4" />
-                        Zaměstnanci
-                      </Link>
-                    </DropdownMenuItem>
+                    {/* Zaměstnanci se nezobrazují v modulu Tech. události - nejsou tam potřeba */}
+                    {!isDeadlineMode && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/employees" className="flex items-center gap-2 cursor-pointer">
+                          <Users className="w-4 h-4" />
+                          Zaměstnanci
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem asChild>
                       <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
                         <Building2 className="w-4 h-4" />
