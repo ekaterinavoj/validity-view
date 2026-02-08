@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Loader2, Archive, Trash2, AlertTriangle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +17,7 @@ interface BulkArchiveDialogProps {
   onConfirm: () => void;
   loading: boolean;
   entityName?: string;
+  mode?: "archive" | "delete";
 }
 
 export function BulkArchiveDialog({
@@ -26,15 +27,43 @@ export function BulkArchiveDialog({
   onConfirm,
   loading,
   entityName = "záznamů",
+  mode = "archive",
 }: BulkArchiveDialogProps) {
+  const isDelete = mode === "delete";
+  
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Archivovat vybrané záznamy?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Bude archivováno {selectedCount} {entityName}. 
-            Archivované záznamy budou dostupné v historii.
+          <AlertDialogTitle className="flex items-center gap-2">
+            {isDelete ? (
+              <>
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+                Trvale smazat vybrané záznamy?
+              </>
+            ) : (
+              <>
+                <Archive className="w-5 h-5 text-muted-foreground" />
+                Archivovat vybrané záznamy?
+              </>
+            )}
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <p>
+              {isDelete ? (
+                <>
+                  Bude <span className="font-semibold text-destructive">trvale smazáno</span> {selectedCount} {entityName}.
+                  <br />
+                  <span className="text-destructive font-medium">Tato akce je nevratná!</span>
+                </>
+              ) : (
+                <>
+                  Bude archivováno {selectedCount} {entityName}.
+                  <br />
+                  Archivované záznamy budou dostupné v historii a lze je obnovit.
+                </>
+              )}
+            </p>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -42,10 +71,23 @@ export function BulkArchiveDialog({
           <AlertDialogAction
             onClick={onConfirm}
             disabled={loading}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className={isDelete 
+              ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" 
+              : ""
+            }
           >
             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Archivovat
+            {isDelete ? (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Trvale smazat
+              </>
+            ) : (
+              <>
+                <Archive className="w-4 h-4 mr-2" />
+                Archivovat
+              </>
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

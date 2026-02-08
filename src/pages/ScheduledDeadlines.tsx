@@ -125,26 +125,10 @@ export default function ScheduledDeadlines() {
   };
 
   const handleBulkEdit = () => {
-    if (selectedIds.length === 0) {
-      toast({
-        title: "Žádné události vybrány",
-        description: "Vyberte alespoň jednu událost pro hromadnou úpravu.",
-        variant: "destructive",
-      });
-      return;
-    }
     setBulkEditDialogOpen(true);
   };
 
   const handleBulkArchive = () => {
-    if (selectedIds.length === 0) {
-      toast({
-        title: "Žádné události vybrány",
-        description: "Vyberte alespoň jednu událost pro archivaci.",
-        variant: "destructive",
-      });
-      return;
-    }
     setArchiveDialogOpen(true);
   };
 
