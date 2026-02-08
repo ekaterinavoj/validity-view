@@ -119,7 +119,14 @@ export default function AdminSettings() {
     interval_days: 7,
     start_time: "08:00",
     timezone: "Europe/Prague",
-    enabled: true, // New field to pause reminders without changing cron
+    enabled: true,
+    // Duální frekvence - oddělené nastavení pro prošlé a blížící se expirace
+    dual_mode: false,
+    expired_frequency: "daily" as string, // Pro prošlá školení
+    expired_start_time: "08:00",
+    warning_frequency: "weekly" as string, // Pro blížící se expirace
+    warning_start_time: "08:00",
+    warning_day_of_week: 1,
   });
   
   const [reminderRecipients, setReminderRecipients] = useState({
@@ -511,79 +518,227 @@ export default function AdminSettings() {
 
               <Separator />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Frekvence</Label>
-                  <Select
-                    value={reminderFrequency.type}
-                    onValueChange={handleFrequencyPresetChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FREQUENCY_PRESETS.map((preset) => (
-                        <SelectItem key={preset.value} value={preset.value}>
-                          {preset.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {/* Dual mode toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Oddělená frekvence pro prošlé a blížící se</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Prošlá školení denně, blížící se expirace dle vlastního nastavení
+                  </p>
                 </div>
-
-                {reminderFrequency.type === "custom" && (
-                  <div className="space-y-2">
-                    <Label>Interval (dny)</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={reminderFrequency.interval_days}
-                      onChange={(e) => 
-                        setReminderFrequency({ 
-                          ...reminderFrequency, 
-                          interval_days: parseInt(e.target.value) || 7 
-                        })
-                      }
-                    />
-                  </div>
-                )}
-
-                {reminderFrequency.type !== "custom" && (
-                  <div className="space-y-2">
-                    <Label>Den v týdnu</Label>
-                    <Select
-                      value={String(reminderSchedule.day_of_week)}
-                      onValueChange={(value) => 
-                        setReminderSchedule({ ...reminderSchedule, day_of_week: parseInt(value) })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DAYS_OF_WEEK.map((day) => (
-                          <SelectItem key={day.value} value={String(day.value)}>
-                            {day.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <Switch
+                  checked={reminderFrequency.dual_mode || false}
+                  onCheckedChange={(checked) => 
+                    setReminderFrequency({ ...reminderFrequency, dual_mode: checked })
+                  }
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Čas odeslání</Label>
-                  <Input
-                    type="time"
-                    value={reminderFrequency.start_time}
-                    onChange={(e) => 
-                      setReminderFrequency({ ...reminderFrequency, start_time: e.target.value })
-                    }
-                  />
-                </div>
+              <Separator />
 
+              {reminderFrequency.dual_mode ? (
+                <>
+                  {/* Dual mode settings */}
+                  <div className="space-y-4">
+                    <div className="p-4 border rounded-lg bg-destructive/5 border-destructive/20">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertCircle className="w-4 h-4 text-destructive" />
+                        <Label className="text-destructive font-medium">Prošlá školení (expired)</Label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Frekvence</Label>
+                          <Select
+                            value={reminderFrequency.expired_frequency || "daily"}
+                            onValueChange={(value) => 
+                              setReminderFrequency({ ...reminderFrequency, expired_frequency: value })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="daily">Denně</SelectItem>
+                              <SelectItem value="twice_daily">2x denně</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm">Čas odeslání</Label>
+                          <Input
+                            type="time"
+                            value={reminderFrequency.expired_start_time || "08:00"}
+                            onChange={(e) => 
+                              setReminderFrequency({ ...reminderFrequency, expired_start_time: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 border rounded-lg bg-warning/5 border-warning/20">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Clock className="w-4 h-4 text-warning" />
+                        <Label className="text-warning font-medium">Blížící se expirace (warning)</Label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Frekvence</Label>
+                          <Select
+                            value={reminderFrequency.warning_frequency || "weekly"}
+                            onValueChange={(value) => 
+                              setReminderFrequency({ ...reminderFrequency, warning_frequency: value })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="daily">Denně</SelectItem>
+                              <SelectItem value="weekly">Týdně</SelectItem>
+                              <SelectItem value="biweekly">Každé 2 týdny</SelectItem>
+                              <SelectItem value="monthly">Měsíčně</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm">Čas odeslání</Label>
+                          <Input
+                            type="time"
+                            value={reminderFrequency.warning_start_time || "08:00"}
+                            onChange={(e) => 
+                              setReminderFrequency({ ...reminderFrequency, warning_start_time: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                      {(reminderFrequency.warning_frequency === "weekly" || reminderFrequency.warning_frequency === "biweekly") && (
+                        <div className="mt-3 space-y-2">
+                          <Label className="text-sm">Den v týdnu</Label>
+                          <Select
+                            value={String(reminderFrequency.warning_day_of_week || 1)}
+                            onValueChange={(value) => 
+                              setReminderFrequency({ ...reminderFrequency, warning_day_of_week: parseInt(value) })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DAYS_OF_WEEK.map((day) => (
+                                <SelectItem key={day.value} value={String(day.value)}>
+                                  {day.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Single mode settings (original) */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Frekvence</Label>
+                      <Select
+                        value={reminderFrequency.type}
+                        onValueChange={handleFrequencyPresetChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FREQUENCY_PRESETS.map((preset) => (
+                            <SelectItem key={preset.value} value={preset.value}>
+                              {preset.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {reminderFrequency.type === "custom" && (
+                      <div className="space-y-2">
+                        <Label>Interval (dny)</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={reminderFrequency.interval_days}
+                          onChange={(e) => 
+                            setReminderFrequency({ 
+                              ...reminderFrequency, 
+                              interval_days: parseInt(e.target.value) || 7 
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {reminderFrequency.type !== "custom" && (
+                      <div className="space-y-2">
+                        <Label>Den v týdnu</Label>
+                        <Select
+                          value={String(reminderSchedule.day_of_week)}
+                          onValueChange={(value) => 
+                            setReminderSchedule({ ...reminderSchedule, day_of_week: parseInt(value) })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DAYS_OF_WEEK.map((day) => (
+                              <SelectItem key={day.value} value={String(day.value)}>
+                                {day.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Čas odeslání</Label>
+                      <Input
+                        type="time"
+                        value={reminderFrequency.start_time}
+                        onChange={(e) => 
+                          setReminderFrequency({ ...reminderFrequency, start_time: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Časové pásmo</Label>
+                      <Select
+                        value={reminderFrequency.timezone}
+                        onValueChange={(value) => 
+                          setReminderFrequency({ ...reminderFrequency, timezone: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIMEZONES.map((tz) => (
+                            <SelectItem key={tz.value} value={tz.value}>
+                              {tz.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Common settings */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Časové pásmo</Label>
                   <Select
