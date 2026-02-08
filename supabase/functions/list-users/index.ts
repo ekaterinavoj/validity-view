@@ -87,10 +87,12 @@ serve(async (req) => {
       );
     }
 
-    // Return only necessary fields (id and last_sign_in_at)
+    // Return only necessary fields (id, last_sign_in_at, updated_at for password change tracking)
     const users = authData.users.map((user) => ({
       id: user.id,
       last_sign_in_at: user.last_sign_in_at,
+      updated_at: user.updated_at, // This is updated when password changes
+      created_at: user.created_at,
     }));
 
     console.log(`Returning ${users.length} users`);

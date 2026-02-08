@@ -50,6 +50,8 @@ interface UserProfile {
   roles: string[];
   employee_id?: string | null;
   approval_status?: string;
+  updated_at?: string; // From auth - indicates last password change
+  created_at?: string; // From auth
 }
 
 const roleLabels: Record<string, string> = {
@@ -131,10 +133,27 @@ export function UserManagementPanel() {
 
       if (rolesError) throw rolesError;
 
+      // Load auth user data (updated_at for password changes) - only for admins
+      let authUsersMap: Record<string, { updated_at?: string; created_at?: string }> = {};
+      try {
+        const { data: authData, error: authError } = await supabase.functions.invoke("list-users");
+        if (!authError && authData?.users) {
+          authUsersMap = authData.users.reduce((acc: Record<string, any>, u: any) => {
+            acc[u.id] = { updated_at: u.updated_at, created_at: u.created_at };
+            return acc;
+          }, {});
+        }
+      } catch (e) {
+        // Non-critical - auth data is optional
+        console.warn("Could not load auth user data:", e);
+      }
+
       const usersWithRoles: UserProfile[] = (profilesData || []).map((p) => ({
         ...p,
         roles: rolesData?.filter((r) => r.user_id === p.id).map((r) => r.role) || [],
         approval_status: p.approval_status,
+        updated_at: authUsersMap[p.id]?.updated_at,
+        created_at: authUsersMap[p.id]?.created_at,
       }));
 
       setUsers(usersWithRoles);
@@ -430,6 +449,7 @@ export function UserManagementPanel() {
                   <TableHead>Jméno</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Stav</TableHead>
+                  <TableHead>Poslední změna hesla</TableHead>
                   <TableHead>Propojení se zaměstnancem</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Změnit roli</TableHead>
@@ -439,7 +459,7 @@ export function UserManagementPanel() {
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Žádní uživatelé nenalezeni
                     </TableCell>
                   </TableRow>
@@ -471,6 +491,15 @@ export function UserManagementPanel() {
                               <UserCheck className="w-3 h-3 mr-1" />
                               Aktivní
                             </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {user.updated_at ? (
+                            <span title={new Date(user.updated_at).toLocaleString("cs-CZ")}>
+                              {new Date(user.updated_at).toLocaleDateString("cs-CZ")}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/50">—</span>
                           )}
                         </TableCell>
                         <TableCell>
