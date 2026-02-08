@@ -3,7 +3,7 @@ import { StatusLegend } from "@/components/StatusLegend";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Plus, FileDown, Loader2, Archive, RefreshCw } from "lucide-react";
+import { Edit, Plus, Download, Loader2, Archive, RefreshCw } from "lucide-react";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -204,8 +204,8 @@ export default function ScheduledExaminations() {
             Obnovit
           </Button>
           <Button variant="outline" size="sm" onClick={exportToCSV}>
-            <FileDown className="w-4 h-4 mr-2" />
-            Export
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
           </Button>
           <Button onClick={() => navigate("/plp/new")}>
             <Plus className="w-4 h-4 mr-2" />

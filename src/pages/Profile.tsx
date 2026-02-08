@@ -558,7 +558,7 @@ const Profile = () => {
                         </Button>}
                       <Button variant="outline" size="sm" onClick={handleExportUsers} disabled={filteredUsers.length === 0}>
                         <Download className="w-4 h-4 mr-2" />
-                        Export do CSV
+                        Export CSV
                       </Button>
                     </div>
                   </div>

@@ -456,11 +456,7 @@ export function EmailDeliveryStats() {
           <div className="w-px bg-border mx-1" />
           <Button variant="outline" size="sm" onClick={exportToCSV} disabled={exporting || !stats}>
             <Download className="w-4 h-4 mr-2" />
-            CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportToPDF} disabled={exporting || !stats}>
-            <FileDown className="w-4 h-4 mr-2" />
-            PDF
+            Export CSV
           </Button>
           <Button variant="ghost" size="sm" onClick={loadStats}>
             <RefreshCw className="w-4 h-4" />

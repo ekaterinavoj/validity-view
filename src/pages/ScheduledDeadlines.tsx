@@ -162,7 +162,7 @@ export default function ScheduledDeadlines() {
           </Button>
           <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
-            Export
+            Export CSV
           </Button>
           <Link to="/deadlines/new">
             <Button size="sm">
