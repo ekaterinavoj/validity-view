@@ -6,7 +6,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, PieChart, Pie, Cell } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
-import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { EmailDeliveryStats } from "@/components/EmailDeliveryStats";
@@ -308,101 +308,64 @@ export default function Statistics() {
     length: 5
   }, (_, i) => (currentYear - i).toString());
 
-  // Export to Excel
-  const exportToExcel = () => {
+  // Export to CSV
+  const exportToCSV = () => {
     try {
-      const wb = XLSX.utils.book_new();
-
-      // Sheet 1: Overall statistics
-      const statsData = [['Statistika', 'Hodnota'], ['Celkem aktivnich skoleni', totalTrainings], ['Platne skoleni', validTrainings], ['Brzy vyprsi', warningTrainings], ['Prosle skoleni', expiredTrainings], ['Vyprsi do 30 dni', expiring30], ['Vyprsi do 60 dni', expiring60], ['Vyprsi do 90 dni', expiring90], ['Unikatni zamestnanci', uniqueEmployees]];
-      const ws1 = XLSX.utils.aoa_to_sheet(statsData);
-      ws1['!cols'] = [{
-        wch: 25
-      }, {
-        wch: 15
-      }];
-      XLSX.utils.book_append_sheet(wb, ws1, 'Statistiky');
-
-      // Sheet 2: By department
-      const deptData = [['Oddeleni', 'Platne', 'Brzy vyprsi', 'Prosle'], ...barData.map(d => [d.department, d.platné, d["brzy vyprší"], d.prošlé])];
-      const ws2 = XLSX.utils.aoa_to_sheet(deptData);
-      ws2['!cols'] = [{
-        wch: 30
-      }, {
-        wch: 12
-      }, {
-        wch: 12
-      }, {
-        wch: 12
-      }];
-      XLSX.utils.book_append_sheet(wb, ws2, 'Podle oddeleni');
-
-      // Sheet 3: By training type
-      const typeData = [['Typ skoleni', 'Pocet', 'Platne', 'Varovani', 'Prosle', 'Periodicita (dni)'], ...trainingTypeStats.map(d => [d.typ, d.počet, d.platné, d.varování, d.prošlé, d.periodicita])];
-      const ws3 = XLSX.utils.aoa_to_sheet(typeData);
-      ws3['!cols'] = [{
-        wch: 30
-      }, {
-        wch: 10
-      }, {
-        wch: 10
-      }, {
-        wch: 10
-      }, {
-        wch: 10
-      }, {
-        wch: 15
-      }];
-      XLSX.utils.book_append_sheet(wb, ws3, 'Podle typu');
-
-      // Sheet 4: Trainers
-      const trainerExportData = [['Skolitel', 'Celkem skoleni', 'Platne', 'Varovani', 'Prosle', 'Zamestnanci', 'Typy skoleni'], ...trainerData.map(d => [d.name, d.total, d.valid, d.warning, d.expired, d.employees, d.types])];
-      const ws4 = XLSX.utils.aoa_to_sheet(trainerExportData);
-      ws4['!cols'] = [{
-        wch: 25
-      }, {
-        wch: 15
-      }, {
-        wch: 10
-      }, {
-        wch: 10
-      }, {
-        wch: 10
-      }, {
-        wch: 12
-      }, {
-        wch: 12
-      }];
-      XLSX.utils.book_append_sheet(wb, ws4, 'Skolitele');
-
-      // Sheet 5: Training hours by year
-      const hoursData = [['Rok', 'Unikatnich skoleni', 'Celkem hodin', 'Proskolenych osob'], ...trainingHoursStats.map(d => [d.year, d.sessions, d.hours.toFixed(1), d.people])];
-      const ws5 = XLSX.utils.aoa_to_sheet(hoursData);
-      ws5['!cols'] = [{
-        wch: 10
-      }, {
-        wch: 20
-      }, {
-        wch: 15
-      }, {
-        wch: 18
-      }];
-      XLSX.utils.book_append_sheet(wb, ws5, 'Hodiny podle roku');
-
-      const timestamp = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `statistiky_${timestamp}.xlsx`, {
-        bookType: 'xlsx',
-        type: 'binary'
+      // Combine all stats into one CSV with multiple sections
+      const allData: Record<string, string | number>[] = [];
+      
+      // Section 1: Overall statistics
+      allData.push({ "Sekce": "CELKOVÉ STATISTIKY" });
+      allData.push({ "Položka": "Celkem aktivních školení", "Hodnota": totalTrainings });
+      allData.push({ "Položka": "Platná školení", "Hodnota": validTrainings });
+      allData.push({ "Položka": "Brzy vyprší", "Hodnota": warningTrainings });
+      allData.push({ "Položka": "Prošlá školení", "Hodnota": expiredTrainings });
+      allData.push({ "Položka": "Unikátní zaměstnanci", "Hodnota": uniqueEmployees });
+      allData.push({});
+      
+      // Section 2: By department
+      allData.push({ "Sekce": "PODLE ODDĚLENÍ" });
+      barData.forEach(d => {
+        allData.push({ 
+          "Oddělení": d.department, 
+          "Platné": d.platné, 
+          "Brzy vyprší": d["brzy vyprší"], 
+          "Prošlé": d.prošlé 
+        });
       });
+      allData.push({});
+      
+      // Section 3: By training type
+      allData.push({ "Sekce": "PODLE TYPU ŠKOLENÍ" });
+      trainingTypeStats.forEach(d => {
+        allData.push({ 
+          "Typ školení": d.typ, 
+          "Počet": d.počet, 
+          "Platné": d.platné, 
+          "Varování": d.varování, 
+          "Prošlé": d.prošlé,
+          "Periodicita (dní)": d.periodicita 
+        });
+      });
+
+      const csv = Papa.unparse(allData, { delimiter: ";" });
+      const BOM = "\uFEFF";
+      const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      const timestamp = new Date().toISOString().split('T')[0];
+      link.download = `statistiky_${timestamp}.csv`;
+      link.click();
+      
       toast({
         title: "Export dokončen",
-        description: "Statistiky byly exportovány do Excel souboru."
+        description: "Statistiky byly exportovány do CSV souboru."
       });
     } catch (error) {
       console.error(error);
       toast({
         title: "Chyba při exportu",
-        description: "Nepodařilo se exportovat data do Excel.",
+        description: "Nepodařilo se exportovat data do CSV.",
         variant: "destructive"
       });
     }
@@ -506,9 +469,9 @@ export default function Statistics() {
               {years.map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={exportToExcel} disabled={trainingsLoading || typesLoading || totalTrainings === 0}>
-            <FileSpreadsheet className="w-4 h-4 mr-2" />
-            {trainingsLoading ? "Načítám..." : "Export do Excel"}
+          <Button variant="outline" onClick={exportToCSV} disabled={trainingsLoading || typesLoading || totalTrainings === 0}>
+            <FileDown className="w-4 h-4 mr-2" />
+            {trainingsLoading ? "Načítám..." : "Export CSV"}
           </Button>
           <Button variant="outline" onClick={exportToPDF} disabled={trainingsLoading || typesLoading || totalTrainings === 0}>
             <FileDown className="w-4 h-4 mr-2" />

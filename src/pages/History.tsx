@@ -176,39 +176,6 @@ export default function History() {
     }
   };
 
-  const exportToExcel = () => {
-    try {
-      const dataToExport = filteredHistory.map((training) => ({
-        "Datum": new Date(training.date).toLocaleDateString("cs-CZ"),
-        "Typ školení": training.type,
-        "Osobní číslo": training.employeeNumber,
-        "Jméno": training.employeeName,
-        "Stav zaměstnance": employeeStatusLabels[training.employeeStatus] || training.employeeStatus,
-        "Středisko": training.department,
-        "Školitel": training.trainer,
-        "Firma": training.company,
-        "Poznámka": training.note || "",
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(dataToExport);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Historie");
-      
-      const timestamp = new Date().toISOString().split("T")[0];
-      XLSX.writeFile(wb, `historie_skoleni_${timestamp}.xlsx`);
-
-      toast({
-        title: "Export úspěšný",
-        description: `Exportováno ${filteredHistory.length} záznamů do Excel.`,
-      });
-    } catch (err) {
-      toast({
-        title: "Chyba při exportu",
-        description: "Nepodařilo se exportovat data.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const exportToPDF = () => {
     try {
@@ -353,9 +320,9 @@ export default function History() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <Button variant="outline" size="sm" onClick={exportToExcel}>
-            <FileSpreadsheet className="w-4 h-4 mr-2" />
-            Excel
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            CSV
           </Button>
           <Button variant="outline" size="sm" onClick={exportToPDF}>
             <FileDown className="w-4 h-4 mr-2" />

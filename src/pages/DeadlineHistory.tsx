@@ -28,7 +28,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import * as XLSX from "xlsx";
+import Papa from "papaparse";
 
 export default function DeadlineHistory() {
   const { history, isLoading, error, refetch } = useDeadlineHistory();
@@ -116,7 +116,7 @@ export default function DeadlineHistory() {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToCSV = () => {
     const data = filteredHistory.map(d => ({
       "Inventární č.": d.equipment?.inventory_number || "",
       "Zařízení": d.equipment?.name || "",
@@ -130,10 +130,13 @@ export default function DeadlineHistory() {
       "Archivováno": d.deleted_at ? "Ano" : "Ne",
     }));
     
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Historie událostí");
-    XLSX.writeFile(wb, `historie-udalosti-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    const csv = Papa.unparse(data, { delimiter: ";" });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `historie-udalosti-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
   };
 
   if (error) {
@@ -168,7 +171,7 @@ export default function DeadlineHistory() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <Button variant="outline" size="sm" onClick={exportToExcel}>
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
