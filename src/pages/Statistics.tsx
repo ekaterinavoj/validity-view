@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, CheckCircle, XCircle, Clock, Activity, FileDown, FileSpreadsheet, TrendingUp, Users, AlertTriangle, Loader2 } from "lucide-react";
+import { Calendar, CheckCircle, XCircle, Clock, Activity, FileDown, FileSpreadsheet, TrendingUp, Users, AlertTriangle, Loader2, Timer } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, PieChart, Pie, Cell } from "recharts";
 import { useToast } from "@/hooks/use-toast";
@@ -158,6 +158,61 @@ export default function Statistics() {
       periodicita: data.period
     })).sort((a, b) => b.počet - a.počet);
   }, [activeTrainings]);
+
+  // Training hours statistics by year - unique sessions only
+  // If multiple people attend the same training on the same day, it counts as ONE session
+  const trainingHoursStats = useMemo(() => {
+    // Create a map of training type id to duration hours
+    const typeHoursMap = new Map<string, number>();
+    trainingTypes.forEach(t => {
+      typeHoursMap.set(t.id, t.durationHours || 1);
+    });
+    
+    // Group trainings by year -> (date + type) to get unique sessions
+    const yearStats: Record<number, {
+      uniqueSessions: Set<string>; // Set of "date|typeId" keys
+      sessionHours: Map<string, number>; // Map of session key to hours
+      totalPeople: number;
+    }> = {};
+    
+    allTrainings.forEach(training => {
+      const trainingDate = new Date(training.lastTrainingDate);
+      const year = trainingDate.getFullYear();
+      
+      if (!yearStats[year]) {
+        yearStats[year] = {
+          uniqueSessions: new Set(),
+          sessionHours: new Map(),
+          totalPeople: 0
+        };
+      }
+      
+      // Create unique session key: date + training type
+      const sessionKey = `${training.lastTrainingDate}|${training.trainingTypeId}`;
+      const hours = typeHoursMap.get(training.trainingTypeId) || 1;
+      
+      yearStats[year].uniqueSessions.add(sessionKey);
+      yearStats[year].sessionHours.set(sessionKey, hours);
+      yearStats[year].totalPeople++;
+    });
+    
+    // Calculate totals per year
+    return Object.entries(yearStats)
+      .map(([year, stats]) => {
+        let totalHours = 0;
+        stats.sessionHours.forEach(hours => {
+          totalHours += hours;
+        });
+        
+        return {
+          year: parseInt(year),
+          sessions: stats.uniqueSessions.size,
+          hours: totalHours,
+          people: stats.totalPeople
+        };
+      })
+      .sort((a, b) => b.year - a.year); // Sort by year descending
+  }, [allTrainings, trainingTypes]);
 
   // Trainer statistics - computed from real data
   const trainerStats = useMemo(() => {
@@ -319,6 +374,21 @@ export default function Statistics() {
         wch: 12
       }];
       XLSX.utils.book_append_sheet(wb, ws4, 'Skolitele');
+
+      // Sheet 5: Training hours by year
+      const hoursData = [['Rok', 'Unikatnich skoleni', 'Celkem hodin', 'Proskolenych osob'], ...trainingHoursStats.map(d => [d.year, d.sessions, d.hours.toFixed(1), d.people])];
+      const ws5 = XLSX.utils.aoa_to_sheet(hoursData);
+      ws5['!cols'] = [{
+        wch: 10
+      }, {
+        wch: 20
+      }, {
+        wch: 15
+      }, {
+        wch: 18
+      }];
+      XLSX.utils.book_append_sheet(wb, ws5, 'Hodiny podle roku');
+
       const timestamp = new Date().toISOString().split('T')[0];
       XLSX.writeFile(wb, `statistiky_${timestamp}.xlsx`, {
         bookType: 'xlsx',
@@ -539,6 +609,50 @@ export default function Statistics() {
               </div>
             </Card>
           </div>
+
+          {/* Training Hours Statistics Table */}
+          {trainingHoursStats.length > 0 && <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Timer className="w-5 h-5 text-primary" />
+                Odškolené hodiny podle roků
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Statistika unikátních školení - pokud více lidí absolvuje stejné školení ve stejný den, počítá se jako jedno školení.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Rok</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Unikátních školení</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Celkem hodin</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Proškolených osob</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trainingHoursStats.map((stat, index) => <tr key={index} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
+                        <td className="py-3 px-4 font-bold text-foreground">{stat.year}</td>
+                        <td className="py-3 px-4 text-right font-semibold text-primary">{stat.sessions}</td>
+                        <td className="py-3 px-4 text-right font-semibold text-emerald-600 dark:text-emerald-400">{stat.hours.toFixed(1)} h</td>
+                        <td className="py-3 px-4 text-right text-muted-foreground">{stat.people}</td>
+                      </tr>)}
+                    {/* Total row */}
+                    <tr className="border-t-2 border-border bg-muted/50">
+                      <td className="py-3 px-4 font-bold text-foreground">Celkem</td>
+                      <td className="py-3 px-4 text-right font-bold text-primary">
+                        {trainingHoursStats.reduce((sum, s) => sum + s.sessions, 0)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        {trainingHoursStats.reduce((sum, s) => sum + s.hours, 0).toFixed(1)} h
+                      </td>
+                      <td className="py-3 px-4 text-right font-bold text-muted-foreground">
+                        {trainingHoursStats.reduce((sum, s) => sum + s.people, 0)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </Card>}
 
           {/* Charts */}
           <div className="grid gap-6 lg:grid-cols-2">
