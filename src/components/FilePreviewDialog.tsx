@@ -146,11 +146,30 @@ export function FilePreviewDialog({
               </div>
             </div>
           ) : isPDF ? (
-            <iframe
-              src={previewUrl}
+            <object
+              data={previewUrl}
+              type="application/pdf"
               className="w-full h-[70vh] border-0 rounded"
-              title={fileName}
-            />
+            >
+              {/* Fallback pro prohlížeče, které blokují PDF v object tagu */}
+              <div className="flex flex-col items-center justify-center h-[70vh] space-y-4">
+                <p className="text-muted-foreground text-center">
+                  Náhled PDF není v tomto prohlížeči k dispozici.
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={handleDownload}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Stáhnout PDF
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => window.open(previewUrl, "_blank")}
+                  >
+                    Otevřít v novém okně
+                  </Button>
+                </div>
+              </div>
+            </object>
           ) : isImage ? (
             <div className="flex items-center justify-center">
               <img
