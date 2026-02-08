@@ -24,7 +24,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useEmployees, EmployeeWithDepartment } from "@/hooks/useEmployees";
 import { useDepartments } from "@/hooks/useDepartments";
@@ -121,6 +121,7 @@ export default function Employees() {
         "Pozice",
         "Středisko",
         "Stav",
+        "Datum od",
       ];
 
       const rows = filteredEmployees.map((employee) => [
@@ -131,6 +132,9 @@ export default function Employees() {
         employee.position,
         employee.department,
         getStatusLabel(employee.status),
+        employee.statusStartDate || employee.terminationDate 
+          ? format(parseISO(employee.statusStartDate || employee.terminationDate || ""), "dd.MM.yyyy", { locale: cs })
+          : "",
       ]);
 
       const escapeCSV = (value: string) => {
