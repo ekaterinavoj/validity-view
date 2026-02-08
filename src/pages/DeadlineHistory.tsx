@@ -29,11 +29,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Papa from "papaparse";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function DeadlineHistory() {
   const { history, isLoading, error, refetch } = useDeadlineHistory();
   const { facilities } = useFacilities();
   const { toast } = useToast();
+  const { isAdmin, isManager } = useAuth();
+  const canEdit = isAdmin || isManager;
   const [archiveFilter, setArchiveFilter] = useState<string>("active");
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
@@ -208,7 +211,7 @@ export default function DeadlineHistory() {
                 <TableHead>Příští kontrola</TableHead>
                 <TableHead>Provádějící</TableHead>
                 <TableHead>Stav</TableHead>
-                {archiveFilter !== "active" && <TableHead className="w-12"></TableHead>}
+                {canEdit && archiveFilter !== "active" && <TableHead className="w-12"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -257,7 +260,7 @@ export default function DeadlineHistory() {
                         </Badge>
                       </div>
                     </TableCell>
-                    {archiveFilter !== "active" && (
+                    {canEdit && archiveFilter !== "active" && (
                       <TableCell>
                         {deadline.deleted_at && (
                           <Button

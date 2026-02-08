@@ -8,12 +8,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Loader2, RefreshCw, FileSpreadsheet, FileDown, ArchiveRestore, Archive } from "lucide-react";
+import { Download, Loader2, RefreshCw, ArchiveRestore, Archive } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTrainingHistory } from "@/hooks/useTrainingHistory";
@@ -24,6 +23,7 @@ import { useFacilities } from "@/hooks/useFacilities";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useAuth } from "@/contexts/AuthContext";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
@@ -41,6 +41,8 @@ const employeeStatusColors: Record<string, string> = {
 
 export default function History() {
   const { toast } = useToast();
+  const { isAdmin, isManager } = useAuth();
+  const canEdit = isAdmin || isManager;
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState<string>("all");
   const [archiveFilter, setArchiveFilter] = useState<string>("active"); // "all", "active", "archived"
   const [restoringId, setRestoringId] = useState<string | null>(null);
@@ -395,7 +397,7 @@ export default function History() {
                 {(archiveFilter === "all" || archiveFilter === "archived") && (
                   <TableHead>Stav</TableHead>
                 )}
-                {archiveFilter !== "active" && (
+                {canEdit && archiveFilter !== "active" && (
                   <TableHead>Akce</TableHead>
                 )}
               </TableRow>
@@ -441,7 +443,7 @@ export default function History() {
                         )}
                       </TableCell>
                     )}
-                    {archiveFilter !== "active" && (
+                    {canEdit && archiveFilter !== "active" && (
                       <TableCell>
                         {training.isArchived && (
                           <Button
