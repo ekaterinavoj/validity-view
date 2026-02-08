@@ -104,11 +104,15 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
 
       const transformedData: MedicalExaminationWithDetails[] = (data || [])
         .filter((e: any) => {
+          const isActive = e.is_active;
           const employeeStatus = e.employees?.status;
+          
           if (activeOnly) {
-            return employeeStatus === "employed";
+            // Show only active examinations (employee is employed and examination is active)
+            return isActive && employeeStatus === "employed";
           } else {
-            return employeeStatus !== "employed";
+            // Show suspended examinations (inactive or employee not employed)
+            return !isActive || employeeStatus !== "employed";
           }
         })
         .map((e: any) => ({
