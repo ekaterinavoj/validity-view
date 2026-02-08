@@ -20,11 +20,17 @@ export const Layout = ({
     roles,
     isAdmin,
     isManager,
+    hasModuleAccess,
     signOut
   } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Check module access
+  const canAccessTrainings = hasModuleAccess("trainings");
+  const canAccessDeadlines = hasModuleAccess("deadlines");
+  const canAccessPlp = hasModuleAccess("plp");
 
   // Determine if current route is a module-specific route
   const isDeadlineRoute = location.pathname.startsWith("/deadlines");
@@ -34,11 +40,17 @@ export const Layout = ({
   // Global pages don't belong to any module
   const isGlobalPage = !isDeadlineRoute && !isTrainingRoute && !isPlpRoute;
 
-  // Get last selected module from localStorage, default to trainings
+  // Get last selected module from localStorage, default to first accessible module
   const [lastSelectedModule, setLastSelectedModule] = useState<"trainings" | "deadlines" | "plp">(() => {
     const saved = localStorage.getItem("last-selected-module");
-    if (saved === "deadlines") return "deadlines";
-    if (saved === "plp") return "plp";
+    // Return saved if user has access to it
+    if (saved === "deadlines" && canAccessDeadlines) return "deadlines";
+    if (saved === "plp" && canAccessPlp) return "plp";
+    if (saved === "trainings" && canAccessTrainings) return "trainings";
+    // Fallback to first accessible module
+    if (canAccessTrainings) return "trainings";
+    if (canAccessDeadlines) return "deadlines";
+    if (canAccessPlp) return "plp";
     return "trainings";
   });
 
@@ -82,14 +94,17 @@ export const Layout = ({
 
   // Always navigate when clicking a module tab (even if already active)
   const handleModeSwitch = (value: string) => {
-    if (value === "trainings") {
+    if (value === "trainings" && canAccessTrainings) {
       navigate("/trainings");
-    } else if (value === "deadlines") {
+    } else if (value === "deadlines" && canAccessDeadlines) {
       navigate("/deadlines");
-    } else if (value === "plp") {
+    } else if (value === "plp" && canAccessPlp) {
       navigate("/plp");
     }
   };
+
+  // Count accessible modules for grid layout
+  const accessibleModulesCount = [canAccessTrainings, canAccessDeadlines, canAccessPlp].filter(Boolean).length;
   return <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
@@ -99,23 +114,36 @@ export const Layout = ({
                 Lhůtník
               </h1>
               
-              {/* Mode Switcher Tabs */}
-              <Tabs value={isPlpMode ? "plp" : isDeadlineMode ? "deadlines" : "trainings"} onValueChange={handleModeSwitch}>
-                <TabsList className="grid w-[380px] grid-cols-3">
-                  <TabsTrigger value="trainings" className="flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4" />
-                    Školení
-                  </TabsTrigger>
-                  <TabsTrigger value="deadlines" className="flex items-center gap-2">
-                    <Wrench className="w-4 h-4" />
-                    Tech. události
-                  </TabsTrigger>
-                  <TabsTrigger value="plp" className="flex items-center gap-2">
-                    <Stethoscope className="w-4 h-4" />
-                    PLP
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+              {/* Mode Switcher Tabs - Only show accessible modules */}
+              {accessibleModulesCount > 0 && (
+                <Tabs value={isPlpMode ? "plp" : isDeadlineMode ? "deadlines" : "trainings"} onValueChange={handleModeSwitch}>
+                  <TabsList className={cn(
+                    "grid",
+                    accessibleModulesCount === 1 && "w-[140px] grid-cols-1",
+                    accessibleModulesCount === 2 && "w-[280px] grid-cols-2",
+                    accessibleModulesCount === 3 && "w-[380px] grid-cols-3"
+                  )}>
+                    {canAccessTrainings && (
+                      <TabsTrigger value="trainings" className="flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4" />
+                        Školení
+                      </TabsTrigger>
+                    )}
+                    {canAccessDeadlines && (
+                      <TabsTrigger value="deadlines" className="flex items-center gap-2">
+                        <Wrench className="w-4 h-4" />
+                        Tech. události
+                      </TabsTrigger>
+                    )}
+                    {canAccessPlp && (
+                      <TabsTrigger value="plp" className="flex items-center gap-2">
+                        <Stethoscope className="w-4 h-4" />
+                        PLP
+                      </TabsTrigger>
+                    )}
+                  </TabsList>
+                </Tabs>
+              )}
             </div>
             
             {profile && <div className="flex items-center gap-2">
