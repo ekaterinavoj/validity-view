@@ -69,7 +69,8 @@ export default function EditMedicalExamination() {
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   // Always add new files without replacing existing ones - no checkbox needed
-  const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [previewFiles, setPreviewFiles] = useState<{ url: string; name: string; type: string }[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
@@ -179,9 +180,19 @@ export default function EditMedicalExamination() {
   }, [lastExaminationDate, periodValue, watchedPeriodUnit]);
 
   const handlePreviewDocument = async (doc: ExistingDocument) => {
-    const url = await getMedicalDocumentUrl(doc.file_path);
-    if (url) {
-      setPreviewFile({ url, name: doc.file_name, type: doc.file_type });
+    // Load all documents for preview
+    const files: { url: string; name: string; type: string }[] = [];
+    
+    for (const d of existingDocuments) {
+      const url = await getMedicalDocumentUrl(d.file_path);
+      if (url) {
+        files.push({ url, name: d.file_name, type: d.file_type });
+      }
+    }
+    
+    if (files.length > 0) {
+      setPreviewFiles(files);
+      setShowPreview(true);
     }
   };
 
@@ -618,9 +629,10 @@ export default function EditMedicalExamination() {
       </Card>
 
       <FilePreviewDialog
-        open={!!previewFile}
-        onOpenChange={(open) => !open && setPreviewFile(null)}
-        file={previewFile ? { name: previewFile.name, url: previewFile.url, type: previewFile.type } : null}
+        open={showPreview}
+        onOpenChange={(open) => !open && setShowPreview(false)}
+        file={null}
+        files={previewFiles}
       />
     </div>
   );

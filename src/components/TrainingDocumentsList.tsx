@@ -38,7 +38,8 @@ export function TrainingDocumentsList({
   const [documents, setDocuments] = useState<TrainingDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [previewFile, setPreviewFile] = useState<{ name: string; url: string; type: string } | null>(null);
+  const [previewFiles, setPreviewFiles] = useState<{ name: string; url: string; type: string }[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -75,7 +76,29 @@ export function TrainingDocumentsList({
     }
   };
 
-  const handlePreview = async (document: TrainingDocument) => {
+  // Load all document URLs and open preview
+  const handlePreviewAll = async () => {
+    const files: { name: string; url: string; type: string }[] = [];
+    
+    for (const doc of documents) {
+      const { url, error } = await getDocumentDownloadUrl(doc.file_path);
+      if (!error && url) {
+        files.push({
+          name: doc.file_name,
+          url,
+          type: doc.file_type,
+        });
+      }
+    }
+    
+    if (files.length > 0) {
+      setPreviewFiles(files);
+      setShowPreview(true);
+    }
+  };
+
+  // Preview single document
+  const handlePreviewSingle = async (document: TrainingDocument) => {
     const { url, error } = await getDocumentDownloadUrl(document.file_path);
     if (error) {
       toast({
@@ -87,11 +110,22 @@ export function TrainingDocumentsList({
     }
 
     if (url) {
-      setPreviewFile({
-        name: document.file_name,
-        url,
-        type: document.file_type,
-      });
+      // Load all documents but start from this one
+      const files: { name: string; url: string; type: string }[] = [];
+      
+      for (const doc of documents) {
+        const { url: docUrl } = await getDocumentDownloadUrl(doc.file_path);
+        if (docUrl) {
+          files.push({
+            name: doc.file_name,
+            url: docUrl,
+            type: doc.file_type,
+          });
+        }
+      }
+      
+      setPreviewFiles(files);
+      setShowPreview(true);
     }
   };
 
@@ -136,10 +170,10 @@ export function TrainingDocumentsList({
   return (
     <>
       <FilePreviewDialog
-        open={!!previewFile}
-        onOpenChange={(open) => !open && setPreviewFile(null)}
-        file={previewFile || { name: "", url: "", type: "" }}
-        onDownload={previewFile ? () => window.open(previewFile.url, "_blank") : undefined}
+        open={showPreview}
+        onOpenChange={(open) => !open && setShowPreview(false)}
+        file={null}
+        files={previewFiles}
       />
       
       <div className="space-y-3">
@@ -178,7 +212,7 @@ export function TrainingDocumentsList({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handlePreview(document)}
+                    onClick={() => handlePreviewSingle(document)}
                     title="Náhled"
                   >
                     <Eye className="w-4 h-4" />
