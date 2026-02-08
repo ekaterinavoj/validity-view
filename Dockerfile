@@ -1,5 +1,6 @@
 # =============================================
 # Frontend Dockerfile - Multi-stage build
+# Vite React Application with Nginx
 # =============================================
 
 # Stage 1: Build
@@ -32,11 +33,24 @@ RUN npm run build
 # Stage 2: Production
 FROM nginx:alpine AS production
 
+# Install wget for healthcheck
+RUN apk add --no-cache wget
+
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built assets from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Create non-root user for security
+RUN adduser -D -H -u 1001 -s /sbin/nologin nginx-user
+
+# Set proper permissions
+RUN chown -R nginx-user:nginx-user /usr/share/nginx/html && \
+    chown -R nginx-user:nginx-user /var/cache/nginx && \
+    chown -R nginx-user:nginx-user /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx-user:nginx-user /var/run/nginx.pid
 
 # Expose port
 EXPOSE 80

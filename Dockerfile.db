@@ -2,17 +2,42 @@
 # PostgreSQL Database Dockerfile
 # Pro lokální vývoj nebo self-hosted nasazení
 # =============================================
+# POZNÁMKA: Tento Dockerfile je určen pouze pro
+# self-hosted nasazení. Pro produkci doporučujeme
+# použít Supabase Cloud nebo managed PostgreSQL.
+# =============================================
 
 FROM postgres:15-alpine
+
+# Metadata
+LABEL maintainer="Training System"
+LABEL description="PostgreSQL database for Training Management System"
+LABEL version="1.0"
 
 # Environment variables
 ENV POSTGRES_USER=postgres
 ENV POSTGRES_PASSWORD=postgres
 ENV POSTGRES_DB=training_system
+ENV PGDATA=/var/lib/postgresql/data/pgdata
+
+# Locale settings for Czech
+ENV LANG=cs_CZ.UTF-8
+ENV LC_ALL=cs_CZ.UTF-8
 
 # Copy initialization scripts (migrations)
 # Note: Scripts in /docker-entrypoint-initdb.d/ run on first container start
 COPY ./docker/init-db.sql /docker-entrypoint-initdb.d/01-init.sql
+
+# Create directory for custom configurations
+RUN mkdir -p /etc/postgresql/conf.d
+
+# Custom PostgreSQL configuration for better performance
+RUN echo "shared_buffers = 256MB" >> /etc/postgresql/conf.d/custom.conf && \
+    echo "work_mem = 16MB" >> /etc/postgresql/conf.d/custom.conf && \
+    echo "maintenance_work_mem = 128MB" >> /etc/postgresql/conf.d/custom.conf && \
+    echo "effective_cache_size = 768MB" >> /etc/postgresql/conf.d/custom.conf && \
+    echo "log_timezone = 'Europe/Prague'" >> /etc/postgresql/conf.d/custom.conf && \
+    echo "timezone = 'Europe/Prague'" >> /etc/postgresql/conf.d/custom.conf
 
 # Expose PostgreSQL port
 EXPOSE 5432
