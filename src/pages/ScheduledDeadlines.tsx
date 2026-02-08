@@ -6,7 +6,7 @@ import {
   Download,
   PlusCircle,
   MoreHorizontal,
-  Pencil,
+  Edit,
   Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -282,7 +282,7 @@ export default function ScheduledDeadlines() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
                             <Link to={`/deadlines/edit/${deadline.id}`} className="flex items-center">
-                              <Pencil className="w-4 h-4 mr-2" />
+                              <Edit className="w-4 h-4 mr-2" />
                               Upravit
                             </Link>
                           </DropdownMenuItem>

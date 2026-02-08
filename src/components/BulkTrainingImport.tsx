@@ -15,6 +15,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ImportDescription } from "@/components/ImportDescription";
+import { downloadCSVTemplate } from "@/lib/csvExport";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
