@@ -1,85 +1,234 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Send email via SMTP
+// Send email via native SMTP (no external library)
 async function sendViaSMTP(
   to: string,
   subject: string,
   body: string,
   config: any
 ): Promise<{ success: boolean; error?: string; diagnostics?: any }> {
+  const host = config.smtp_host;
+  const port = config.smtp_port || 587;
+  const fromEmail = config.smtp_from_email;
+  const fromName = config.smtp_from_name || "Training System";
+  const authEnabled = config.smtp_auth_enabled !== false;
+  const username = config.smtp_user;
+  const password = config.smtp_password;
+  const tlsMode = config.smtp_tls_mode || "starttls";
+
   const diagnostics: any = {
-    host: config.smtp_host,
-    port: config.smtp_port,
-    authEnabled: config.smtp_auth_enabled !== false,
-    tlsMode: config.smtp_tls_mode || "starttls",
-    fromEmail: config.smtp_from_email,
+    host,
+    port,
+    authEnabled,
+    tlsMode,
+    fromEmail,
   };
 
+  if (!host || !fromEmail) {
+    return { 
+      success: false, 
+      error: "SMTP host and from email are not configured", 
+      diagnostics 
+    };
+  }
+
+  let connection: Deno.TcpConn | Deno.TlsConn | null = null;
+  let isTlsConnection = false;
+
   try {
-    // Build connection config
-    const connectionConfig: any = {
-      hostname: config.smtp_host,
-      port: config.smtp_port || 587,
+    console.log(`Connecting to SMTP server ${host}:${port}`);
+
+    // Initial connection
+    if (tlsMode === "smtps") {
+      connection = await Deno.connectTls({ hostname: host, port });
+      isTlsConnection = true;
+    } else {
+      connection = await Deno.connect({ hostname: host, port });
+      isTlsConnection = false;
+    }
+
+    const reader = connection.readable.getReader();
+    const writer = connection.writable.getWriter();
+
+    // Helper to read response
+    const readResponse = async (): Promise<string> => {
+      const decoder = new TextDecoder();
+      let response = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        response += decoder.decode(value, { stream: true });
+        if (response.includes("\r\n")) {
+          const lines = response.split("\r\n");
+          const lastLine = lines[lines.length - 2] || lines[lines.length - 1];
+          if (lastLine.length >= 4 && lastLine[3] !== '-') break;
+        }
+      }
+      return response;
     };
 
-    // TLS configuration
-    if (config.smtp_tls_mode === "smtps") {
-      connectionConfig.tls = true;
-    } else if (config.smtp_tls_mode === "starttls") {
-      connectionConfig.tls = false; // Will upgrade via STARTTLS
-    } else {
-      connectionConfig.tls = false;
+    // Helper to send command
+    const sendCommand = async (cmd: string): Promise<{ code: number; msg: string }> => {
+      const encoder = new TextEncoder();
+      await writer.write(encoder.encode(cmd + "\r\n"));
+      const resp = await readResponse();
+      return { code: parseInt(resp.substring(0, 3), 10), msg: resp };
+    };
+
+    // Read greeting
+    const greeting = await readResponse();
+    if (!greeting.startsWith("220")) throw new Error(`Invalid greeting: ${greeting}`);
+
+    // EHLO
+    let resp = await sendCommand(`EHLO ${host}`);
+    if (resp.code !== 250) {
+      resp = await sendCommand(`HELO ${host}`);
+      if (resp.code !== 250) throw new Error(`HELO failed: ${resp.msg}`);
     }
 
-    // Auth configuration - only if enabled
-    if (config.smtp_auth_enabled !== false) {
-      const smtpPassword = config.smtp_password || Deno.env.get("SMTP_PASSWORD");
-      if (!smtpPassword) {
-        return { 
-          success: false, 
-          error: "SMTP heslo není nastaveno. Nastavte heslo v konfiguraci SMTP.",
-          diagnostics: { ...diagnostics, errorType: "missing_password" }
-        };
+    // STARTTLS if needed and not already TLS
+    if (tlsMode === "starttls" && !isTlsConnection) {
+      resp = await sendCommand("STARTTLS");
+      if (resp.code === 220) {
+        reader.releaseLock();
+        writer.releaseLock();
+        connection = await Deno.startTls(connection as Deno.TcpConn, { hostname: host });
+        isTlsConnection = true;
+        
+        // Continue with TLS connection
+        const tlsReader = connection.readable.getReader();
+        const tlsWriter = connection.writable.getWriter();
+        
+        await sendEmailContent(tlsWriter, tlsReader, host, authEnabled, username, password, 
+          fromEmail, fromName, to, subject, body);
+        
+        tlsReader.releaseLock();
+        tlsWriter.releaseLock();
+        connection.close();
+        console.log("Test email sent successfully via SMTP with STARTTLS");
+        return { success: true, diagnostics };
       }
-      connectionConfig.auth = {
-        username: config.smtp_user,
-        password: smtpPassword,
-      };
     }
 
-    console.log("SMTP connection config:", {
-      ...connectionConfig,
-      auth: connectionConfig.auth ? { username: connectionConfig.auth.username, password: "***" } : "none"
-    });
-
-    const client = new SMTPClient({
-      connection: connectionConfig,
-    });
-
-    await client.send({
-      from: `${config.smtp_from_name || "Training System"} <${config.smtp_from_email}>`,
-      to: to,
-      subject: subject,
-      html: body,
-    });
-
-    await client.close();
+    // Send email with current connection
+    await sendEmailContent(writer, reader, host, authEnabled, username, password,
+      fromEmail, fromName, to, subject, body);
+    
+    reader.releaseLock();
+    writer.releaseLock();
+    connection.close();
+    console.log("Test email sent successfully via SMTP");
     return { success: true, diagnostics };
+    
   } catch (error: any) {
-    console.error("SMTP error:", error);
+    console.error("SMTP error:", error.message);
+    if (connection) try { connection.close(); } catch {}
     return { 
       success: false, 
       error: error.message,
       diagnostics: { ...diagnostics, errorDetails: error.toString() }
     };
   }
+}
+
+async function sendEmailContent(
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  host: string,
+  authEnabled: boolean,
+  username: string,
+  password: string,
+  fromEmail: string,
+  fromName: string,
+  to: string,
+  subject: string,
+  body: string
+): Promise<void> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const readResp = async (): Promise<string> => {
+    let response = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      response += decoder.decode(value, { stream: true });
+      if (response.includes("\r\n")) {
+        const lines = response.split("\r\n");
+        const lastLine = lines[lines.length - 2] || lines[lines.length - 1];
+        if (lastLine.length >= 4 && lastLine[3] !== '-') break;
+      }
+    }
+    return response;
+  };
+
+  const sendCmd = async (cmd: string): Promise<{ code: number; msg: string }> => {
+    await writer.write(encoder.encode(cmd + "\r\n"));
+    const resp = await readResp();
+    return { code: parseInt(resp.substring(0, 3), 10), msg: resp };
+  };
+
+  // Re-EHLO after STARTTLS
+  let resp = await sendCmd(`EHLO ${host}`);
+  if (resp.code !== 250) throw new Error(`EHLO failed: ${resp.msg}`);
+
+  // AUTH if enabled
+  if (authEnabled && username && password) {
+    resp = await sendCmd("AUTH LOGIN");
+    if (resp.code === 334) {
+      resp = await sendCmd(btoa(username));
+      if (resp.code === 334) {
+        resp = await sendCmd(btoa(password));
+        if (resp.code !== 235) throw new Error(`AUTH failed: ${resp.msg}`);
+      } else throw new Error(`AUTH username failed: ${resp.msg}`);
+    } else {
+      const authPlain = btoa(`\0${username}\0${password}`);
+      resp = await sendCmd(`AUTH PLAIN ${authPlain}`);
+      if (resp.code !== 235) throw new Error(`AUTH PLAIN failed: ${resp.msg}`);
+    }
+  }
+
+  // MAIL FROM
+  resp = await sendCmd(`MAIL FROM:<${fromEmail}>`);
+  if (resp.code !== 250) throw new Error(`MAIL FROM failed: ${resp.msg}`);
+
+  // RCPT TO
+  resp = await sendCmd(`RCPT TO:<${to}>`);
+  if (resp.code !== 250 && resp.code !== 251) throw new Error(`RCPT TO failed: ${resp.msg}`);
+
+  // DATA
+  resp = await sendCmd("DATA");
+  if (resp.code !== 354) throw new Error(`DATA failed: ${resp.msg}`);
+
+  // Build email
+  const fromHeader = fromName ? `"${fromName}" <${fromEmail}>` : fromEmail;
+  const date = new Date().toUTCString();
+  const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2)}@${host}>`;
+
+  let message = `From: ${fromHeader}\r\n`;
+  message += `To: ${to}\r\n`;
+  message += `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=\r\n`;
+  message += `Date: ${date}\r\n`;
+  message += `Message-ID: ${messageId}\r\n`;
+  message += `MIME-Version: 1.0\r\n`;
+  message += `Content-Type: text/html; charset=UTF-8\r\n`;
+  message += `Content-Transfer-Encoding: base64\r\n\r\n`;
+  message += btoa(unescape(encodeURIComponent(body)));
+  message += `\r\n.\r\n`;
+
+  await writer.write(encoder.encode(message));
+  
+  const dataResp = await readResp();
+  const dataCode = parseInt(dataResp.substring(0, 3), 10);
+  if (dataCode !== 250) throw new Error(`Message rejected: ${dataResp}`);
+
+  await sendCmd("QUIT");
 }
 
 const handler = async (req: Request): Promise<Response> => {
