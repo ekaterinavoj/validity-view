@@ -68,7 +68,7 @@ export default function EditMedicalExamination() {
   const [loading, setLoading] = useState(true);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
-  const [replaceMode, setReplaceMode] = useState(false);
+  // Always add new files without replacing existing ones - no checkbox needed
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const { toast } = useToast();
 
@@ -247,13 +247,7 @@ export default function EditMedicalExamination() {
 
       if (updateError) throw updateError;
 
-      // Handle document replacement if selected
-      if (replaceMode && uploadedFiles.length > 0) {
-        // Delete existing documents
-        for (const doc of existingDocuments) {
-          await deleteMedicalDocument(doc.id, doc.file_path);
-        }
-      }
+      // New files are always added to existing documents (no replacement)
 
       // Upload new files
       if (uploadedFiles.length > 0) {
@@ -539,9 +533,6 @@ export default function EditMedicalExamination() {
                 maxFiles={10} 
                 maxSize={20} 
                 acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
-                showReplaceOption={existingDocuments.length > 0}
-                replaceMode={replaceMode}
-                onReplaceModeChange={setReplaceMode}
               />
             </div>
 

@@ -21,9 +21,6 @@ interface FileUploaderProps {
   maxFiles?: number;
   maxSize?: number; // in MB
   acceptedTypes?: string[];
-  showReplaceOption?: boolean;
-  replaceMode?: boolean;
-  onReplaceModeChange?: (replace: boolean) => void;
 }
 
 const DOCUMENT_TYPES = [
@@ -39,9 +36,6 @@ export function FileUploader({
   maxFiles = 10,
   maxSize = 20, // 20MB default
   acceptedTypes = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"],
-  showReplaceOption = false,
-  replaceMode = true,
-  onReplaceModeChange,
 }: FileUploaderProps) {
   const { toast } = useToast();
   const [dragActive, setDragActive] = useState(false);
@@ -151,30 +145,6 @@ export function FileUploader({
 
   return (
     <div className="space-y-4">
-      {showReplaceOption && (
-        <Card className="p-4 bg-accent/50">
-          <div className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              id="replace-mode"
-              checked={!replaceMode}
-              onChange={(e) => onReplaceModeChange?.(!e.target.checked)}
-              className="mt-1 w-4 h-4 rounded border-border text-primary focus:ring-primary"
-            />
-            <div className="flex-1">
-              <label htmlFor="replace-mode" className="text-sm font-medium cursor-pointer">
-                Přidat nové soubory a ponechat původní
-              </label>
-              <p className="text-xs text-muted-foreground mt-1">
-                {replaceMode 
-                  ? "Nové soubory nahradí všechny stávající dokumenty" 
-                  : "Nové soubory budou přidány ke stávajícím dokumentům"}
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-
       <div
         className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
           dragActive
