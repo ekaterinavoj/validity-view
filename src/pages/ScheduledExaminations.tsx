@@ -3,9 +3,9 @@ import { StatusLegend } from "@/components/StatusLegend";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Plus, FileDown, Loader2, Archive, RefreshCw } from "lucide-react";
+import { Edit, Plus, FileDown, Loader2, Archive, RefreshCw, Eye, FileText } from "lucide-react";
 import { useFacilities } from "@/hooks/useFacilities";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
@@ -20,6 +20,15 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useMedicalExaminations, MedicalExaminationWithDetails } from "@/hooks/useMedicalExaminations";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { Badge } from "@/components/ui/badge";
+import { FilePreviewDialog } from "@/components/FilePreviewDialog";
+
+interface ExaminationDocument {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+}
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -29,6 +38,39 @@ export default function ScheduledExaminations() {
   const [selectedExaminations, setSelectedExaminations] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [documents, setDocuments] = useState<Record<string, ExaminationDocument[]>>({});
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string; fileType: string } | null>(null);
+
+  // Load documents for all examinations
+  useEffect(() => {
+    const loadDocuments = async () => {
+      if (examinations.length === 0) return;
+      
+      const examIds = examinations.map(e => e.id);
+      const { data, error } = await supabase
+        .from("medical_examination_documents")
+        .select("id, examination_id, file_name, file_path, file_type")
+        .in("examination_id", examIds);
+
+      if (!error && data) {
+        const docsMap: Record<string, ExaminationDocument[]> = {};
+        data.forEach((doc: any) => {
+          if (!docsMap[doc.examination_id]) {
+            docsMap[doc.examination_id] = [];
+          }
+          docsMap[doc.examination_id].push({
+            id: doc.id,
+            file_name: doc.file_name,
+            file_path: doc.file_path,
+            file_type: doc.file_type,
+          });
+        });
+        setDocuments(docsMap);
+      }
+    };
+
+    loadDocuments();
+  }, [examinations]);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -141,12 +183,12 @@ export default function ScheduledExaminations() {
     const wsData = dataToExport.map((e) => ({
       "Os. číslo": e.employeeNumber,
       Jméno: e.employeeName,
-      Středisko: e.department,
-      Provozovna: getFacilityName(e.facility),
+      Kategorie: e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
       "Typ prohlídky": e.type,
       "Datum prohlídky": format(new Date(e.lastExaminationDate), "dd.MM.yyyy"),
       "Platnost do": format(new Date(e.nextExaminationDate), "dd.MM.yyyy"),
       Periodicita: formatPeriodicity(e.period),
+      Výsledek: e.result || "-",
       Lékař: e.doctor,
       "Zdravotnické zařízení": e.medicalFacility,
       Stav: e.status === "valid" ? "Platné" : e.status === "warning" ? "Blíží se" : "Expirované",
@@ -156,6 +198,40 @@ export default function ScheduledExaminations() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Prohlídky");
     XLSX.writeFile(wb, `prohlidky_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+  };
+
+  const getCategoryBadge = (category: number | null) => {
+    if (!category) return <span className="text-muted-foreground">-</span>;
+    const colors: Record<number, string> = {
+      1: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      2: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+      3: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+      4: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+    };
+    return <Badge className={colors[category]}>{category}</Badge>;
+  };
+
+  const handlePreviewDocument = async (doc: ExaminationDocument) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("medical-documents")
+        .createSignedUrl(doc.file_path, 3600);
+
+      if (error) throw error;
+      if (data?.signedUrl) {
+        setPreviewDoc({
+          url: data.signedUrl,
+          fileName: doc.file_name,
+          fileType: doc.file_type,
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Chyba při načítání dokumentu",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
 
   if (examinationsError) {
@@ -236,10 +312,10 @@ export default function ScheduledExaminations() {
               <TableHead>Typ prohlídky</TableHead>
               <TableHead>Os. číslo</TableHead>
               <TableHead>Jméno</TableHead>
-              <TableHead>Středisko</TableHead>
-              <TableHead>Provozovna</TableHead>
+              <TableHead>Kategorie</TableHead>
+              <TableHead>Výsledek</TableHead>
+              <TableHead>Protokol</TableHead>
               <TableHead>Lékař</TableHead>
-              <TableHead>Periodicita</TableHead>
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -263,10 +339,30 @@ export default function ScheduledExaminations() {
                   <TableCell className="font-medium">{exam.type}</TableCell>
                   <TableCell>{exam.employeeNumber}</TableCell>
                   <TableCell>{exam.employeeName}</TableCell>
-                  <TableCell>{exam.department}</TableCell>
-                  <TableCell>{getFacilityName(exam.facility)}</TableCell>
+                  <TableCell>{getCategoryBadge(exam.employeeWorkCategory)}</TableCell>
+                  <TableCell>
+                    {exam.result ? (
+                      <span className="text-sm">{exam.result}</span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {documents[exam.id] && documents[exam.id].length > 0 ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handlePreviewDocument(documents[exam.id][0])}
+                        className="flex items-center gap-1"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <FileText className="w-4 h-4" />
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>{exam.doctor || "-"}</TableCell>
-                  <TableCell>{formatPeriodicity(exam.period)}</TableCell>
                   <TableCell>
                     <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
                       <Edit className="w-4 h-4" />
@@ -278,6 +374,12 @@ export default function ScheduledExaminations() {
           </TableBody>
         </Table>
       </Card>
+
+      <FilePreviewDialog
+        open={!!previewDoc}
+        onOpenChange={(open) => !open && setPreviewDoc(null)}
+        file={previewDoc ? { name: previewDoc.fileName, url: previewDoc.url, type: previewDoc.fileType } : null}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
