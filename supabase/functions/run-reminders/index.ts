@@ -268,59 +268,239 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Send email via Resend with BCC/To/CC support
-async function sendViaResend(
+// Send email via SMTP with BCC/To/CC support
+async function sendViaSMTP(
   recipients: string[], 
   subject: string, 
   body: string, 
   deliveryMode: string,
-  fromEmail?: string, 
-  fromName?: string
-): Promise<{ success: boolean; error?: string; provider: string; statusCode?: number }> {
-  const apiKey = Deno.env.get("RESEND_API_KEY");
-  if (!apiKey) {
-    return { success: false, error: "RESEND_API_KEY not configured", provider: "resend" };
+  emailProvider: any
+): Promise<{ success: boolean; error?: string; provider: string }> {
+  const host = emailProvider.smtp_host;
+  const port = emailProvider.smtp_port || 587;
+  const fromEmail = emailProvider.smtp_from_email;
+  const fromName = emailProvider.smtp_from_name || "Training System";
+  const authEnabled = emailProvider.smtp_auth_enabled !== false;
+  const username = emailProvider.smtp_user;
+  const password = emailProvider.smtp_password;
+  const tlsMode = emailProvider.smtp_tls_mode || "starttls";
+
+  if (!host || !fromEmail) {
+    return { success: false, error: "SMTP host and from email are not configured", provider: "smtp" };
   }
+
+  // Build recipient lists based on delivery mode
+  let toRecipients: string[] = [];
+  let ccRecipients: string[] = [];
+  let bccRecipients: string[] = [];
+
+  if (deliveryMode === "bcc") {
+    toRecipients = [fromEmail]; // Send to self
+    bccRecipients = recipients;
+  } else if (deliveryMode === "cc") {
+    toRecipients = [recipients[0]];
+    if (recipients.length > 1) {
+      ccRecipients = recipients.slice(1);
+    }
+  } else {
+    // "to" mode
+    toRecipients = recipients;
+  }
+
+  const allRecipients = [...toRecipients, ...ccRecipients, ...bccRecipients].filter(Boolean);
+
+  if (allRecipients.length === 0) {
+    return { success: false, error: "No recipients specified", provider: "smtp" };
+  }
+
+  let connection: Deno.TcpConn | Deno.TlsConn | null = null;
 
   try {
-    const emailPayload: any = {
-      from: `${fromName || "Training System"} <${fromEmail || "onboarding@resend.dev"}>`,
-      subject,
-      html: body,
+    console.log(`Connecting to SMTP server ${host}:${port}`);
+
+    // Initial connection
+    if (tlsMode === "smtps") {
+      connection = await Deno.connectTls({ hostname: host, port });
+    } else {
+      connection = await Deno.connect({ hostname: host, port });
+    }
+
+    const reader = connection.readable.getReader();
+    const writer = connection.writable.getWriter();
+
+    // Helper to read response
+    const readResponse = async (): Promise<string> => {
+      const decoder = new TextDecoder();
+      let response = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        response += decoder.decode(value, { stream: true });
+        if (response.includes("\r\n")) {
+          const lines = response.split("\r\n");
+          const lastLine = lines[lines.length - 2] || lines[lines.length - 1];
+          if (lastLine.length >= 4 && lastLine[3] !== '-') break;
+        }
+      }
+      return response;
     };
 
-    // Set recipients based on delivery mode
-    if (deliveryMode === "bcc") {
-      emailPayload.to = [fromEmail || "onboarding@resend.dev"]; // Send to self
-      emailPayload.bcc = recipients;
-    } else if (deliveryMode === "cc") {
-      emailPayload.to = [recipients[0]];
-      if (recipients.length > 1) {
-        emailPayload.cc = recipients.slice(1);
+    // Helper to send command
+    const sendCommand = async (cmd: string): Promise<{ code: number; msg: string }> => {
+      const encoder = new TextEncoder();
+      await writer.write(encoder.encode(cmd + "\r\n"));
+      const resp = await readResponse();
+      return { code: parseInt(resp.substring(0, 3), 10), msg: resp };
+    };
+
+    // Read greeting
+    const greeting = await readResponse();
+    if (!greeting.startsWith("220")) throw new Error(`Invalid greeting: ${greeting}`);
+
+    // EHLO
+    let resp = await sendCommand(`EHLO ${host}`);
+    if (resp.code !== 250) {
+      resp = await sendCommand(`HELO ${host}`);
+      if (resp.code !== 250) throw new Error(`HELO failed: ${resp.msg}`);
+    }
+
+    // STARTTLS if needed
+    if (tlsMode === "starttls" && connection instanceof Deno.TcpConn) {
+      resp = await sendCommand("STARTTLS");
+      if (resp.code === 220) {
+        reader.releaseLock();
+        writer.releaseLock();
+        connection = await Deno.startTls(connection, { hostname: host });
+        
+        // Get new reader/writer
+        const tlsReader = connection.readable.getReader();
+        const tlsWriter = connection.writable.getWriter();
+        
+        // Send email with TLS connection
+        await sendEmailContent(tlsWriter, tlsReader, host, authEnabled, username, password, 
+          fromEmail, fromName, toRecipients, ccRecipients, bccRecipients, allRecipients, subject, body);
+        
+        tlsReader.releaseLock();
+        tlsWriter.releaseLock();
+        connection.close();
+        return { success: true, provider: "smtp" };
       }
-    } else {
-      // "to" mode
-      emailPayload.to = recipients;
     }
 
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(emailPayload),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      return { success: false, error, provider: "resend", statusCode: response.status };
-    }
-
-    return { success: true, provider: "resend" };
+    // Send email with current connection
+    await sendEmailContent(writer, reader, host, authEnabled, username, password,
+      fromEmail, fromName, toRecipients, ccRecipients, bccRecipients, allRecipients, subject, body);
+    
+    reader.releaseLock();
+    writer.releaseLock();
+    connection.close();
+    console.log("Email sent successfully via SMTP");
+    return { success: true, provider: "smtp" };
+    
   } catch (error: any) {
-    return { success: false, error: error.message, provider: "resend" };
+    console.error("SMTP error:", error.message);
+    if (connection) try { connection.close(); } catch {}
+    return { success: false, error: error.message, provider: "smtp" };
   }
+}
+
+async function sendEmailContent(
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  host: string,
+  authEnabled: boolean,
+  username: string,
+  password: string,
+  fromEmail: string,
+  fromName: string,
+  toRecipients: string[],
+  ccRecipients: string[],
+  bccRecipients: string[],
+  allRecipients: string[],
+  subject: string,
+  body: string
+): Promise<void> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const readResp = async (): Promise<string> => {
+    let response = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      response += decoder.decode(value, { stream: true });
+      if (response.includes("\r\n")) {
+        const lines = response.split("\r\n");
+        const lastLine = lines[lines.length - 2] || lines[lines.length - 1];
+        if (lastLine.length >= 4 && lastLine[3] !== '-') break;
+      }
+    }
+    return response;
+  };
+
+  const sendCmd = async (cmd: string): Promise<{ code: number; msg: string }> => {
+    await writer.write(encoder.encode(cmd + "\r\n"));
+    const resp = await readResp();
+    return { code: parseInt(resp.substring(0, 3), 10), msg: resp };
+  };
+
+  // Re-EHLO after STARTTLS
+  let resp = await sendCmd(`EHLO ${host}`);
+  if (resp.code !== 250) throw new Error(`EHLO failed: ${resp.msg}`);
+
+  // AUTH if enabled
+  if (authEnabled && username && password) {
+    resp = await sendCmd("AUTH LOGIN");
+    if (resp.code === 334) {
+      resp = await sendCmd(btoa(username));
+      if (resp.code === 334) {
+        resp = await sendCmd(btoa(password));
+        if (resp.code !== 235) throw new Error(`AUTH failed: ${resp.msg}`);
+      } else throw new Error(`AUTH username failed: ${resp.msg}`);
+    } else {
+      const authPlain = btoa(`\0${username}\0${password}`);
+      resp = await sendCmd(`AUTH PLAIN ${authPlain}`);
+      if (resp.code !== 235) throw new Error(`AUTH PLAIN failed: ${resp.msg}`);
+    }
+  }
+
+  // MAIL FROM
+  resp = await sendCmd(`MAIL FROM:<${fromEmail}>`);
+  if (resp.code !== 250) throw new Error(`MAIL FROM failed: ${resp.msg}`);
+
+  // RCPT TO
+  for (const recipient of allRecipients) {
+    resp = await sendCmd(`RCPT TO:<${recipient}>`);
+    if (resp.code !== 250 && resp.code !== 251) throw new Error(`RCPT TO failed: ${resp.msg}`);
+  }
+
+  // DATA
+  resp = await sendCmd("DATA");
+  if (resp.code !== 354) throw new Error(`DATA failed: ${resp.msg}`);
+
+  // Build email
+  const fromHeader = fromName ? `"${fromName}" <${fromEmail}>` : fromEmail;
+  const date = new Date().toUTCString();
+  const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2)}@${host}>`;
+
+  let message = `From: ${fromHeader}\r\n`;
+  message += `To: ${toRecipients.join(", ")}\r\n`;
+  if (ccRecipients.length > 0) message += `Cc: ${ccRecipients.join(", ")}\r\n`;
+  message += `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=\r\n`;
+  message += `Date: ${date}\r\n`;
+  message += `Message-ID: ${messageId}\r\n`;
+  message += `MIME-Version: 1.0\r\n`;
+  message += `Content-Type: text/html; charset=UTF-8\r\n`;
+  message += `Content-Transfer-Encoding: base64\r\n\r\n`;
+  message += btoa(unescape(encodeURIComponent(body)));
+  message += `\r\n.\r\n`;
+
+  await writer.write(encoder.encode(message));
+  const dataResp = await readResp();
+  const dataCode = parseInt(dataResp.substring(0, 3), 10);
+  if (dataCode !== 250) throw new Error(`Message rejected: ${dataResp}`);
+
+  await sendCmd("QUIT");
 }
 
 interface SendEmailResult {
@@ -331,7 +511,7 @@ interface SendEmailResult {
   attemptErrors: string[];
 }
 
-// Send email with provider selection and exponential backoff retry
+// Send email with exponential backoff retry
 async function sendEmail(
   recipients: string[],
   subject: string,
@@ -345,13 +525,12 @@ async function sendEmail(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     console.log(`Email send attempt ${attempt}/${maxAttempts}`);
     
-    const result = await sendViaResend(
+    const result = await sendViaSMTP(
       recipients, 
       subject, 
       body, 
       deliveryMode,
-      emailProvider.smtp_from_email, 
-      emailProvider.smtp_from_name
+      emailProvider
     );
     
     if (result.success) {
@@ -391,7 +570,7 @@ async function sendEmail(
   return {
     success: false,
     error: attemptErrors[attemptErrors.length - 1],
-    provider: "resend",
+    provider: "smtp",
     attempts: maxAttempts,
     attemptErrors,
   };
