@@ -5,7 +5,6 @@ import {
   RefreshCw,
   Download,
   PlusCircle,
-  MoreHorizontal,
   Edit,
   Archive,
   Eye,
@@ -20,12 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useDeadlines } from "@/hooks/useDeadlines";
 import { useFacilities } from "@/hooks/useFacilities";
@@ -230,7 +223,7 @@ export default function ScheduledDeadlines() {
                 <TableHead>Provádějící</TableHead>
                 <TableHead>Odpovědní</TableHead>
                 <TableHead>Protokol</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -282,30 +275,13 @@ export default function ScheduledDeadlines() {
                     <TableCell>
                       {/* Admin a manažer mohou editovat, ostatní jen náhled */}
                       {canEdit ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link to={`/deadlines/edit/${deadline.id}`} className="flex items-center">
-                                <Edit className="w-4 h-4 mr-2" />
-                                Upravit
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => archiveDeadline(deadline.id)}
-                              disabled={isArchiving}
-                            >
-                              <Archive className="w-4 h-4 mr-2" />
-                              Archivovat
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link to={`/deadlines/edit/${deadline.id}`}>
+                            <Edit className="w-4 h-4" />
+                          </Link>
+                        </Button>
                       ) : (
-                        <Button variant="ghost" size="icon" asChild>
+                        <Button variant="ghost" size="sm" asChild>
                           <Link to={`/deadlines/edit/${deadline.id}`}>
                             <Eye className="w-4 h-4" />
                           </Link>
