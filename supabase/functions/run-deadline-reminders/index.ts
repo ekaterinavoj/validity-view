@@ -338,30 +338,68 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
-  // Fetch equipment_responsibles junction table for responsible persons
-  const equipmentIds = (deadlines || []).map(d => (d.equipment as any)?.id).filter(Boolean);
+  // Fetch deadline_responsibles junction table (new system)
+  const deadlineIds = (deadlines || []).map(d => d.id).filter(Boolean);
   
-  let responsiblesMap = new Map<string, string[]>(); // equipment_id -> profile_id[]
+  // Map: deadline_id -> Set of profile_ids (both direct and via groups)
+  let deadlineResponsiblesMap = new Map<string, Set<string>>();
   
-  if (equipmentIds.length > 0) {
-    const { data: responsibles } = await supabase
-      .from("equipment_responsibles")
-      .select("equipment_id, profile_id")
-      .in("equipment_id", equipmentIds);
+  if (deadlineIds.length > 0) {
+    // Fetch direct profile responsibles
+    const { data: directResponsibles } = await supabase
+      .from("deadline_responsibles")
+      .select("deadline_id, profile_id")
+      .in("deadline_id", deadlineIds)
+      .not("profile_id", "is", null);
     
-    if (responsibles) {
-      for (const r of responsibles) {
-        const existing = responsiblesMap.get(r.equipment_id) || [];
-        existing.push(r.profile_id);
-        responsiblesMap.set(r.equipment_id, existing);
+    if (directResponsibles) {
+      for (const r of directResponsibles) {
+        const existing = deadlineResponsiblesMap.get(r.deadline_id) || new Set();
+        existing.add(r.profile_id);
+        deadlineResponsiblesMap.set(r.deadline_id, existing);
+      }
+    }
+    
+    // Fetch group responsibles and their members
+    const { data: groupResponsibles } = await supabase
+      .from("deadline_responsibles")
+      .select("deadline_id, group_id")
+      .in("deadline_id", deadlineIds)
+      .not("group_id", "is", null);
+    
+    if (groupResponsibles && groupResponsibles.length > 0) {
+      const groupIds = groupResponsibles.map(r => r.group_id);
+      
+      // Fetch members of these groups
+      const { data: groupMembers } = await supabase
+        .from("responsibility_group_members")
+        .select("group_id, profile_id")
+        .in("group_id", groupIds);
+      
+      if (groupMembers) {
+        // Build group -> members map
+        const groupMembersMap = new Map<string, string[]>();
+        for (const m of groupMembers) {
+          const existing = groupMembersMap.get(m.group_id) || [];
+          existing.push(m.profile_id);
+          groupMembersMap.set(m.group_id, existing);
+        }
+        
+        // Add group members to deadline responsibles
+        for (const gr of groupResponsibles) {
+          const members = groupMembersMap.get(gr.group_id) || [];
+          const existing = deadlineResponsiblesMap.get(gr.deadline_id) || new Set();
+          members.forEach(m => existing.add(m));
+          deadlineResponsiblesMap.set(gr.deadline_id, existing);
+        }
       }
     }
   }
 
-  // Fetch all profile emails for quick lookup
+  // Collect all profile IDs for email lookup
   const allProfileIds = new Set<string>();
-  for (const ids of responsiblesMap.values()) {
-    ids.forEach(id => allProfileIds.add(id));
+  for (const profileSet of deadlineResponsiblesMap.values()) {
+    profileSet.forEach(id => allProfileIds.add(id));
   }
   // Also add template target_user_ids
   for (const template of templatesMap.values()) {
@@ -387,8 +425,8 @@ const handler = async (req: Request): Promise<Response> => {
 
   // Group deadlines by template for batch sending
   const deadlinesByTemplate = new Map<string, DeadlineItem[]>();
-  // Track recipients per template (combine responsible persons + template targets)
-  const recipientsByTemplate = new Map<string, Set<string>>();
+  // Track recipients per deadline (from deadline_responsibles)
+  const recipientsByDeadline = new Map<string, Set<string>>();
   
   for (const d of deadlines || []) {
     const equipment = d.equipment as any;
@@ -423,19 +461,18 @@ const handler = async (req: Request): Promise<Response> => {
       existingItems.push(item);
       deadlinesByTemplate.set(template.id, existingItems);
       
-      // Collect recipients for this template
-      const recipientSet = recipientsByTemplate.get(template.id) || new Set<string>();
+      // Collect recipients from deadline_responsibles (new system)
+      const deadlineProfileIds = deadlineResponsiblesMap.get(d.id) || new Set();
+      const recipientSet = new Set<string>();
       
-      // 1. Add responsible persons from equipment_responsibles junction table
-      const equipmentResponsibles = responsiblesMap.get(equipment.id) || [];
-      for (const profileId of equipmentResponsibles) {
+      for (const profileId of deadlineProfileIds) {
         const email = profileEmailMap.get(profileId);
         if (email) {
           recipientSet.add(email);
         }
       }
       
-      recipientsByTemplate.set(template.id, recipientSet);
+      recipientsByDeadline.set(d.id, recipientSet);
     }
   }
 
@@ -490,15 +527,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
   }
   
-  // 2. Fallback to responsible persons if no module recipients configured
+  // 2. Fallback to deadline_responsibles (new system) if no module recipients configured
   if (finalRecipientEmails.length === 0) {
-    console.log("No module recipients, falling back to responsible persons");
+    console.log("No module recipients, falling back to deadline responsibles");
     const allResponsibleEmails = new Set<string>();
-    for (const [templateId, items] of deadlinesByTemplate) {
-      const recipientSet = recipientsByTemplate.get(templateId);
-      if (recipientSet) {
-        recipientSet.forEach(email => allResponsibleEmails.add(email));
-      }
+    
+    // Collect all emails from deadline_responsibles
+    for (const [deadlineId, recipientSet] of recipientsByDeadline) {
+      recipientSet.forEach(email => allResponsibleEmails.add(email));
     }
     
     // Fallback to template target_user_ids if still empty

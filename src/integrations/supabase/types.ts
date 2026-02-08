@@ -227,6 +227,55 @@ export type Database = {
         }
         Relationships: []
       }
+      deadline_responsibles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deadline_id: string
+          group_id: string | null
+          id: string
+          profile_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deadline_id: string
+          group_id?: string | null
+          id?: string
+          profile_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deadline_id?: string
+          group_id?: string | null
+          id?: string
+          profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deadline_responsibles_deadline_id_fkey"
+            columns: ["deadline_id"]
+            isOneToOne: false
+            referencedRelation: "deadlines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deadline_responsibles_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "responsibility_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deadline_responsibles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deadline_types: {
         Row: {
           created_at: string
@@ -809,6 +858,75 @@ export type Database = {
         }
         Relationships: []
       }
+      responsibility_group_members: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          group_id: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          group_id: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          group_id?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "responsibility_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "responsibility_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "responsibility_group_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      responsibility_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           created_at: string
@@ -1114,6 +1232,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_deadline_responsible: {
+        Args: { _deadline_id: string; _user_id: string }
         Returns: boolean
       }
       is_email_allowed: { Args: { _email: string }; Returns: boolean }
