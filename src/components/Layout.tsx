@@ -187,10 +187,12 @@ export const Layout = ({
                     Naplánovaná
                   </NavLink>
                   
-                  <NavLink to="/trainings/history" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
-                    <History className="w-4 h-4" />
-                    Historie
-                  </NavLink>
+                  {(isAdmin || isManager) && (
+                    <NavLink to="/trainings/history" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
+                      <History className="w-4 h-4" />
+                      Historie
+                    </NavLink>
+                  )}
 
                   {/* Tlačítko pro vytvoření školení - jen admin a manažer */}
                   {(isAdmin || isManager) && (
@@ -240,10 +242,12 @@ export const Layout = ({
                     Naplánované
                   </NavLink>
                   
-                  <NavLink to="/deadlines/history" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
-                    <History className="w-4 h-4" />
-                    Historie
-                  </NavLink>
+                  {(isAdmin || isManager) && (
+                    <NavLink to="/deadlines/history" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
+                      <History className="w-4 h-4" />
+                      Historie
+                    </NavLink>
+                  )}
 
                   {/* Tlačítko pro vytvoření události - jen admin a manažer */}
                   {(isAdmin || isManager) && (
@@ -396,10 +400,12 @@ export const Layout = ({
                     <Calendar className="w-4 h-4" />
                     Naplánovaná školení
                   </Link>
-                  <Link to="/trainings/history" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/trainings/history" || location.pathname === "/history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                    <History className="w-4 h-4" />
-                    Historie školení
-                  </Link>
+                  {(isAdmin || isManager) && (
+                    <Link to="/trainings/history" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/trainings/history" || location.pathname === "/history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                      <History className="w-4 h-4" />
+                      Historie školení
+                    </Link>
+                  )}
                   <Link to="/trainings/new" onClick={closeMobileMenu} className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground">
                     <PlusCircle className="w-4 h-4" />
                     Nové školení
@@ -409,10 +415,12 @@ export const Layout = ({
                     <Calendar className="w-4 h-4" />
                     Naplánované lhůty
                   </Link>
-                  <Link to="/deadlines/history" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/deadlines/history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                    <History className="w-4 h-4" />
-                    Historie lhůt
-                  </Link>
+                  {(isAdmin || isManager) && (
+                    <Link to="/deadlines/history" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/deadlines/history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                      <History className="w-4 h-4" />
+                      Historie lhůt
+                    </Link>
+                  )}
                   <Link to="/deadlines/new" onClick={closeMobileMenu} className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground">
                     <PlusCircle className="w-4 h-4" />
                     Nová lhůta
