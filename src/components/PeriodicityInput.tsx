@@ -62,7 +62,7 @@ export function calculateNextDate(startDate: Date, value: number, unit: Periodic
 }
 
 /**
- * Format periodicity for display in tables ("každé 2 roky", "každých 6 měsíců"...)
+ * Format periodicity for display in tables ("každý 1 rok", "každé 2 roky"...)
  */
 export function formatPeriodicityDisplay(value: number, unit: PeriodicityUnit): string {
   if (unit === "years") {
@@ -79,6 +79,16 @@ export function formatPeriodicityDisplay(value: number, unit: PeriodicityUnit): 
   if (value === 1) return "každý 1 den";
   if (value >= 2 && value <= 4) return `každé ${value} dny`;
   return `každých ${value} dnů`;
+}
+
+/**
+ * Format days count with correct Czech grammar (1 den, 2 dny, 5 dnů)
+ */
+export function formatDaysWithGrammar(days: number): string {
+  const absDays = Math.abs(days);
+  if (absDays === 1) return `${absDays} den`;
+  if (absDays >= 2 && absDays <= 4) return `${absDays} dny`;
+  return `${absDays} dnů`;
 }
 
 const UNIT_LABELS: Record<PeriodicityUnit, string> = {

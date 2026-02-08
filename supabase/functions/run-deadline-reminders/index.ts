@@ -64,19 +64,57 @@ function formatDaysLabel(days: number): string {
   return `${days} ${unit}`;
 }
 
-// Replace template variables for email
+// Replace template variables for summary email
+// Supports multiple formats: {variable}, {{variable}}, and older single-variable names
 function replaceVariables(
   template: string, 
   totalCount: number, 
   expiringCount: number, 
-  expiredCount: number
+  expiredCount: number,
+  deadlines?: DeadlineItem[]
 ): string {
   const today = new Date();
-  return template
-    .replace(/{totalCount}/g, String(totalCount))
-    .replace(/{expiringCount}/g, String(expiringCount))
-    .replace(/{expiredCount}/g, String(expiredCount))
-    .replace(/{reportDate}/g, formatDate(today.toISOString()));
+  let result = template
+    // Summary variables (new format)
+    .replace(/\{+totalCount\}+/g, String(totalCount))
+    .replace(/\{+expiringCount\}+/g, String(expiringCount))
+    .replace(/\{+expiredCount\}+/g, String(expiredCount))
+    .replace(/\{+reportDate\}+/g, formatDate(today.toISOString()))
+    // Legacy variables for backwards compatibility
+    .replace(/\{+total_count\}+/g, String(totalCount))
+    .replace(/\{+expiring_count\}+/g, String(expiringCount))
+    .replace(/\{+expired_count\}+/g, String(expiredCount))
+    .replace(/\{+report_date\}+/g, formatDate(today.toISOString()));
+  
+  // If we have deadlines data, also replace individual deadline variables
+  // with sample/first deadline data for preview purposes
+  if (deadlines && deadlines.length > 0) {
+    const sample = deadlines[0];
+    
+    result = result
+      // Modern format {{variable}}
+      .replace(/\{\{equipment_name\}\}/g, sample.equipment_name)
+      .replace(/\{\{equipment_inventory_number\}\}/g, sample.equipment_inventory_number)
+      .replace(/\{\{deadline_type\}\}/g, sample.deadline_type_name)
+      .replace(/\{\{deadline_type_name\}\}/g, sample.deadline_type_name)
+      .replace(/\{\{days_remaining\}\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
+      .replace(/\{\{days_left\}\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
+      .replace(/\{\{check_date\}\}/g, formatDate(sample.next_check_date))
+      .replace(/\{\{next_check_date\}\}/g, formatDate(sample.next_check_date))
+      .replace(/\{\{facility\}\}/g, sample.facility)
+      .replace(/\{\{responsible_person\}\}/g, sample.responsible_person || "-")
+      // Legacy format {variable}
+      .replace(/\{equipmentName\}/g, sample.equipment_name)
+      .replace(/\{inventoryNumber\}/g, sample.equipment_inventory_number)
+      .replace(/\{deadlineType\}/g, sample.deadline_type_name)
+      .replace(/\{daysLeft\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
+      .replace(/\{daysRemaining\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
+      .replace(/\{checkDate\}/g, formatDate(sample.next_check_date))
+      .replace(/\{nextCheckDate\}/g, formatDate(sample.next_check_date))
+      .replace(/\{responsiblePerson\}/g, sample.responsible_person || "-");
+  }
+  
+  return result;
 }
 
 // Build HTML table for deadlines list
@@ -792,12 +830,12 @@ const handler = async (req: Request): Promise<Response> => {
   const bodyTemplate = moduleEmailTemplate?.body || defaultTemplate.email_body;
 
   const subject = testMode 
-    ? `[TEST] ${replaceVariables(subjectTemplate, totalCount, expiringCount, expiredCount)}`
-    : replaceVariables(subjectTemplate, totalCount, expiringCount, expiredCount);
+    ? `[TEST] ${replaceVariables(subjectTemplate, totalCount, expiringCount, expiredCount, allDeadlineItems)}`
+    : replaceVariables(subjectTemplate, totalCount, expiringCount, expiredCount, allDeadlineItems);
   
-  const bodyText = replaceVariables(bodyTemplate, totalCount, expiringCount, expiredCount);
+  const bodyText = replaceVariables(bodyTemplate, totalCount, expiringCount, expiredCount, allDeadlineItems);
   const tableHtml = buildDeadlinesTable(allDeadlineItems);
-  const fullBody = `${bodyText}${tableHtml}`;
+  const fullBody = `${bodyText.replace(/\n/g, "<br>")}<br><br>${tableHtml}`;
   
   const deliveryMode = moduleRecipients.delivery_mode || "bcc";
   const fromEmail = (emailProviderSettings as { smtp_from_email?: string, smtp_from_name?: string } | null)?.smtp_from_email;

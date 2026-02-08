@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, addDays, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { cs } from "date-fns/locale";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,13 +46,21 @@ import { uploadDeadlineDocument } from "@/lib/deadlineDocuments";
 import { ResponsiblesPicker, ResponsiblesSelection } from "@/components/ResponsiblesPicker";
 import { useDeadlineResponsibles } from "@/hooks/useDeadlineResponsibles";
 import { DeadlineDocumentsList } from "@/components/DeadlineDocumentsList";
+import { 
+  PeriodicityInput, 
+  PeriodicityUnit, 
+  daysToPeriodicityUnit, 
+  periodicityToDays, 
+  calculateNextDate 
+} from "@/components/PeriodicityInput";
 
 const formSchema = z.object({
   deadline_type_id: z.string().min(1, "Vyberte typ události"),
   equipment_id: z.string().min(1, "Vyberte zařízení"),
   facility: z.string().min(1, "Vyberte provozovnu"),
   last_check_date: z.date({ required_error: "Vyberte datum poslední kontroly" }),
-  period_days: z.number().min(1, "Zadejte periodu"),
+  period_value: z.number().min(1, "Zadejte periodicitu"),
+  period_unit: z.enum(["days", "months", "years"]),
   performer: z.string().optional(),
   company: z.string().optional(),
   note: z.string().optional(),
@@ -86,19 +94,23 @@ export default function EditDeadline() {
   const { responsibles: existingResponsibles, setResponsibles: saveResponsibles, isLoading: responsiblesLoading } = useDeadlineResponsibles(id);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const [periodValue, setPeriodValue] = useState<number>(1);
+  const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      period_value: 1,
+      period_unit: "years",
       remind_days_before: 30,
       repeat_days_after: 30,
     },
   });
 
   const lastCheckDate = form.watch("last_check_date");
-  const periodDays = form.watch("period_days");
 
-  const nextCheckDate = lastCheckDate && periodDays
-    ? addDays(lastCheckDate, periodDays)
+  const nextCheckDate = lastCheckDate && periodValue
+    ? calculateNextDate(lastCheckDate, periodValue, periodUnit)
     : null;
 
   // Load reminder templates
@@ -138,12 +150,19 @@ export default function EditDeadline() {
         return;
       }
 
+      // Convert period_days to value+unit
+      const periodFromDb = data.deadline_types?.period_days || 365;
+      const { value: pValue, unit: pUnit } = daysToPeriodicityUnit(periodFromDb);
+      setPeriodValue(pValue);
+      setPeriodUnit(pUnit);
+
       form.reset({
         deadline_type_id: data.deadline_type_id,
         equipment_id: data.equipment_id,
         facility: data.facility,
         last_check_date: parseISO(data.last_check_date),
-        period_days: data.deadline_types?.period_days || 365,
+        period_value: pValue,
+        period_unit: pUnit,
         performer: data.performer || "",
         company: data.company || "",
         note: data.note || "",
@@ -197,13 +216,17 @@ export default function EditDeadline() {
     
     setIsSubmitting(true);
     try {
-      const next_check_date = addDays(data.last_check_date, data.period_days);
+      // Calculate next check date using periodicity
+      const periodDays = periodicityToDays(periodValue, periodUnit);
+      const next_check_date = calculateNextDate(data.last_check_date, periodValue, periodUnit);
       const today = new Date();
+      const thirtyDaysFromNow = new Date(today);
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
       
       let status: "valid" | "warning" | "expired" = "valid";
       if (next_check_date < today) {
         status = "expired";
-      } else if (next_check_date <= addDays(today, 30)) {
+      } else if (next_check_date <= thirtyDaysFromNow) {
         status = "warning";
       }
 
@@ -404,28 +427,29 @@ export default function EditDeadline() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="period_days"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Perioda (dní) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        onChange={e => field.onChange(parseInt(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Periodicity Input */}
+              <div className="space-y-2">
+                <PeriodicityInput
+                  value={periodValue}
+                  unit={periodUnit}
+                  onValueChange={(val) => {
+                    setPeriodValue(val);
+                    form.setValue("period_value", val);
+                  }}
+                  onUnitChange={(unit) => {
+                    setPeriodUnit(unit);
+                    form.setValue("period_unit", unit);
+                  }}
+                  label="Periodicita"
+                  required
+                />
+              </div>
 
               {nextCheckDate && (
-                <Alert>
-                  <AlertDescription>
-                    Příští kontrola: <strong>{format(nextCheckDate, "dd.MM.yyyy")}</strong>
+                <Alert className="bg-primary/10 border-primary/30">
+                  <AlertDescription className="flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4" />
+                    <span>Příští kontrola: <strong>{format(nextCheckDate, "dd.MM.yyyy", { locale: cs })}</strong></span>
                   </AlertDescription>
                 </Alert>
               )}

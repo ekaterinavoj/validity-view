@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatDaysBeforeExpiry, formatDays } from "@/lib/czechGrammar";
 
 interface ReminderTemplate {
   id: string;
@@ -417,12 +418,12 @@ export const ReminderTemplates = () => {
                         <div className="flex flex-wrap gap-4 text-sm">
                           <div className="flex items-center gap-2">
                             <span className="text-muted-foreground">Připomenout:</span>
-                            <span className="font-medium">{template.remind_days_before} dní před vypršením</span>
+                            <span className="font-medium">{formatDaysBeforeExpiry(template.remind_days_before)}</span>
                           </div>
                           {template.repeat_interval_days && template.repeat_interval_days > 0 && (
                             <div className="flex items-center gap-2">
                               <span className="text-muted-foreground">Opakovat každých:</span>
-                              <span className="font-medium">{template.repeat_interval_days} dní</span>
+                              <span className="font-medium">{formatDays(template.repeat_interval_days)}</span>
                             </div>
                           )}
                         </div>
