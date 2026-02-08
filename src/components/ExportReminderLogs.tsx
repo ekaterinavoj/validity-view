@@ -2,16 +2,9 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Download, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
-import * as XLSX from "xlsx";
 
 interface ReminderLogExport {
   id: string;
@@ -137,74 +130,14 @@ export function ExportReminderLogs() {
       setExporting(false);
     }
   };
-
-  const exportToExcel = async () => {
-    setExporting(true);
-    try {
-      const logs = await fetchLogs();
-      const data = formatLogsForExport(logs);
-
-      // Create workbook
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(data);
-
-      // Set column widths
-      ws["!cols"] = [
-        { wch: 36 },  // ID
-        { wch: 20 },  // Datum
-        { wch: 12 },  // Stav
-        { wch: 6 },   // Test
-        { wch: 20 },  // Šablona
-        { wch: 25 },  // Zaměstnanec
-        { wch: 25 },  // Školení
-        { wch: 30 },  // Příjemci
-        { wch: 40 },  // Předmět
-        { wch: 12 },  // Provider
-        { wch: 40 },  // Chyba
-      ];
-
-      XLSX.utils.book_append_sheet(wb, ws, "Reminder Logs");
-
-      // Download
-      XLSX.writeFile(wb, `reminder-logs-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
-
-      toast({
-        title: "Export dokončen",
-        description: `Exportováno ${logs.length} záznamů do Excel`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Chyba při exportu",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setExporting(false);
-    }
-  };
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" disabled={exporting}>
-          {exporting ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Download className="w-4 h-4 mr-2" />
-          )}
-          Export
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={exportToCSV}>
-          <FileText className="w-4 h-4 mr-2" />
-          Export do CSV
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={exportToExcel}>
-          <FileSpreadsheet className="w-4 h-4 mr-2" />
-          Export do Excel
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button variant="outline" disabled={exporting} onClick={exportToCSV}>
+      {exporting ? (
+        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+      ) : (
+        <Download className="w-4 h-4 mr-2" />
+      )}
+      Export CSV
+    </Button>
   );
 }

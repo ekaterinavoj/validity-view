@@ -249,15 +249,15 @@ export default function History() {
       ]);
 
       const escapeCSV = (value: string) => {
-        if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+        if (value.includes(";") || value.includes('"') || value.includes("\n")) {
           return `"${value.replace(/"/g, '""')}"`;
         }
         return value;
       };
 
       const csvContent = [
-        headers.map(escapeCSV).join(","),
-        ...rows.map((row) => row.map(escapeCSV).join(",")),
+        headers.map(escapeCSV).join(";"),
+        ...rows.map((row) => row.map(escapeCSV).join(";")),
       ].join("\n");
 
       const BOM = "\uFEFF";

@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Trash2, Plus, CalendarClock, FileSpreadsheet, FileDown, Upload, X, FileText, FileImage, File, Eye, Loader2, Archive, ArchiveRestore } from "lucide-react";
+import { Edit, Trash2, Plus, CalendarClock, FileDown, Upload, X, FileText, FileImage, File, Eye, Loader2, Archive, ArchiveRestore, Download } from "lucide-react";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { useFacilities } from "@/hooks/useFacilities";
 import { Progress } from "@/components/ui/progress";
@@ -542,15 +542,15 @@ export default function ScheduledTrainings() {
       ]);
 
       const escapeCSV = (value: string) => {
-        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        if (value.includes(';') || value.includes('"') || value.includes('\n')) {
           return `"${value.replace(/"/g, '""')}"`;
         }
         return value;
       };
 
       const csvContent = [
-        headers.map(escapeCSV).join(','),
-        ...rows.map(row => row.map(escapeCSV).join(','))
+        headers.map(escapeCSV).join(';'),
+        ...rows.map(row => row.map(escapeCSV).join(';'))
       ].join('\n');
 
       const BOM = '\uFEFF';
@@ -579,84 +579,7 @@ export default function ScheduledTrainings() {
     }
   };
 
-  const exportToExcel = () => {
-    try {
-      const trainingsToExport = selectedTrainings.size > 0
-        ? filteredTrainings.filter(t => selectedTrainings.has(t.id))
-        : filteredTrainings;
-
-      if (trainingsToExport.length === 0) {
-        toast({
-          title: "Žádná data k exportu",
-          description: "Nejsou k dispozici žádná školení pro export.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const wb = XLSX.utils.book_new();
-
-      const statusMap = {
-        valid: "Platne",
-        warning: "Brzy vyprsi",
-        expired: "Prosle"
-      };
-
-      const data = [
-        ['Stav', 'Skoleni platne do', 'Typ skoleni', 'Osobni cislo', 'Jmeno', 'Provozovna', 'Stredisko', 'Datum skoleni', 'Skolitel', 'Firma', 'Zadavatel', 'Periodicita', 'Poznamka'],
-        ...trainingsToExport.map(t => [
-          statusMap[t.status],
-          new Date(t.date).toLocaleDateString("cs-CZ"),
-          t.type,
-          t.employeeNumber,
-          t.employeeName,
-          getFacilityName(t.facility),
-          t.department,
-          new Date(t.lastTrainingDate).toLocaleDateString("cs-CZ"),
-          t.trainer || '',
-          t.company || '',
-          t.requester || '',
-          formatPeriodicity(t.period),
-          t.note || ''
-        ])
-      ];
-
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      
-      ws['!cols'] = [
-        { wch: 12 },
-        { wch: 15 },
-        { wch: 25 },
-        { wch: 12 },
-        { wch: 20 },
-        { wch: 40 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 20 },
-        { wch: 25 },
-        { wch: 20 },
-        { wch: 12 },
-        { wch: 30 }
-      ];
-
-      XLSX.utils.book_append_sheet(wb, ws, 'Skoleni');
-
-      const timestamp = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `skoleni_export_${timestamp}.xlsx`);
-
-      toast({
-        title: "Export dokončen",
-        description: `Exportováno ${trainingsToExport.length} školení.`,
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Chyba při exportu",
-        description: "Nepodařilo se exportovat data do Excel.",
-        variant: "destructive",
-      });
-    }
-  };
+  // exportToExcel replaced with exportToCSV above
 
   const exportToPDF = () => {
     try {
@@ -794,11 +717,11 @@ export default function ScheduledTrainings() {
               <CalendarClock className="w-4 h-4 mr-2" />
               Vybrat expirující (30 dní)
             </Button>
-            <Button variant="outline" onClick={exportToExcel}>
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
+            <Button variant="outline" onClick={exportToCSV}>
+              <Download className="w-4 h-4 mr-2" />
               {selectedTrainings.size > 0 
-                ? `Export Excel (${selectedTrainings.size})`
-                : "Export Excel"
+                ? `Export CSV (${selectedTrainings.size})`
+                : "Export CSV"
               }
             </Button>
             <Button variant="outline" onClick={exportToPDF}>
