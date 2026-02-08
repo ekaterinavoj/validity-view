@@ -37,6 +37,7 @@ import ResponsibilityGroups from "./pages/ResponsibilityGroups";
 // PLP module pages (Medical examinations)
 import ScheduledExaminations from "./pages/ScheduledExaminations";
 import NewMedicalExamination from "./pages/NewMedicalExamination";
+import EditMedicalExamination from "./pages/EditMedicalExamination";
 import MedicalExaminationTypes from "./pages/MedicalExaminationTypes";
 
 const queryClient = new QueryClient();
@@ -86,6 +87,7 @@ const App = () => (
             <Route path="/plp" element={<ProtectedLayout><ScheduledExaminations /></ProtectedLayout>} />
             <Route path="/plp/scheduled" element={<ProtectedLayout><ScheduledExaminations /></ProtectedLayout>} />
             <Route path="/plp/new" element={<ProtectedLayout><NewMedicalExamination /></ProtectedLayout>} />
+            <Route path="/plp/edit/:id" element={<ProtectedLayout><EditMedicalExamination /></ProtectedLayout>} />
             <Route path="/plp/types" element={<ProtectedLayout><MedicalExaminationTypes /></ProtectedLayout>} />
             
             {/* ============ SHARED / SETTINGS ============ */}

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Stethoscope } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -42,18 +43,20 @@ const DELIVERY_MODES = [
 interface ModuleRecipientsSelectorProps {
   onTrainingRecipientsChange?: (recipients: ModuleRecipients) => void;
   onDeadlineRecipientsChange?: (recipients: ModuleRecipients) => void;
+  onMedicalRecipientsChange?: (recipients: ModuleRecipients) => void;
 }
 
 export function ModuleRecipientsSelector({ 
   onTrainingRecipientsChange, 
-  onDeadlineRecipientsChange 
+  onDeadlineRecipientsChange,
+  onMedicalRecipientsChange,
 }: ModuleRecipientsSelectorProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [groups, setGroups] = useState<ResponsibilityGroup[]>([]);
-  const [activeModule, setActiveModule] = useState<"training" | "deadlines">("training");
+  const [activeModule, setActiveModule] = useState<"training" | "deadlines" | "medical">("training");
   
   // Training module recipients
   const [trainingRecipients, setTrainingRecipients] = useState<ModuleRecipients>({
@@ -61,10 +64,16 @@ export function ModuleRecipientsSelector({
     delivery_mode: "bcc",
   });
   
-  // Deadlines module recipients (includes group support)
+  // Deadlines module recipients
   const [deadlineRecipients, setDeadlineRecipients] = useState<ModuleRecipients>({
     user_ids: [],
     group_ids: [],
+    delivery_mode: "bcc",
+  });
+  
+  // Medical/PLP module recipients
+  const [medicalRecipients, setMedicalRecipients] = useState<ModuleRecipients>({
+    user_ids: [],
     delivery_mode: "bcc",
   });
 
@@ -128,7 +137,7 @@ export function ModuleRecipientsSelector({
       const { data: settings } = await supabase
         .from("system_settings")
         .select("*")
-        .in("key", ["reminder_recipients", "deadline_reminder_recipients"]);
+        .in("key", ["reminder_recipients", "deadline_reminder_recipients", "medical_reminder_recipients"]);
       
       settings?.forEach((setting) => {
         if (setting.key === "reminder_recipients" && setting.value && typeof setting.value === 'object' && !Array.isArray(setting.value)) {
@@ -144,6 +153,13 @@ export function ModuleRecipientsSelector({
             ...prev, 
             user_ids: Array.isArray(val.user_ids) ? val.user_ids as string[] : prev.user_ids,
             group_ids: Array.isArray(val.group_ids) ? val.group_ids as string[] : [],
+            delivery_mode: typeof val.delivery_mode === 'string' ? val.delivery_mode : prev.delivery_mode,
+          }));
+        } else if (setting.key === "medical_reminder_recipients" && setting.value && typeof setting.value === 'object' && !Array.isArray(setting.value)) {
+          const val = setting.value as Record<string, unknown>;
+          setMedicalRecipients(prev => ({ 
+            ...prev, 
+            user_ids: Array.isArray(val.user_ids) ? val.user_ids as string[] : prev.user_ids,
             delivery_mode: typeof val.delivery_mode === 'string' ? val.delivery_mode : prev.delivery_mode,
           }));
         }
@@ -186,10 +202,12 @@ export function ModuleRecipientsSelector({
       await Promise.all([
         saveSetting("reminder_recipients", trainingRecipients),
         saveSetting("deadline_reminder_recipients", deadlineRecipients),
+        saveSetting("medical_reminder_recipients", medicalRecipients),
       ]);
       
       onTrainingRecipientsChange?.(trainingRecipients);
       onDeadlineRecipientsChange?.(deadlineRecipients);
+      onMedicalRecipientsChange?.(medicalRecipients);
       
       toast({
         title: "Uloženo",
@@ -206,7 +224,7 @@ export function ModuleRecipientsSelector({
     }
   };
 
-  const handleRecipientToggle = (module: "training" | "deadlines", userId: string, checked: boolean) => {
+  const handleRecipientToggle = (module: "training" | "deadlines" | "medical", userId: string, checked: boolean) => {
     if (module === "training") {
       setTrainingRecipients(prev => ({
         ...prev,
@@ -214,8 +232,15 @@ export function ModuleRecipientsSelector({
           ? [...prev.user_ids, userId]
           : prev.user_ids.filter(id => id !== userId),
       }));
-    } else {
+    } else if (module === "deadlines") {
       setDeadlineRecipients(prev => ({
+        ...prev,
+        user_ids: checked 
+          ? [...prev.user_ids, userId]
+          : prev.user_ids.filter(id => id !== userId),
+      }));
+    } else {
+      setMedicalRecipients(prev => ({
         ...prev,
         user_ids: checked 
           ? [...prev.user_ids, userId]
@@ -254,8 +279,8 @@ export function ModuleRecipientsSelector({
     return parts.join(", ");
   };
 
-  const renderRecipientsList = (module: "training" | "deadlines") => {
-    const recipients = module === "training" ? trainingRecipients : deadlineRecipients;
+  const renderRecipientsList = (module: "training" | "deadlines" | "medical") => {
+    const recipients = module === "training" ? trainingRecipients : module === "deadlines" ? deadlineRecipients : medicalRecipients;
     const showGroups = module === "deadlines";
     
     return (
@@ -274,8 +299,10 @@ export function ModuleRecipientsSelector({
               onValueChange={(value) => {
                 if (module === "training") {
                   setTrainingRecipients({ ...trainingRecipients, delivery_mode: value });
-                } else {
+                } else if (module === "deadlines") {
                   setDeadlineRecipients({ ...deadlineRecipients, delivery_mode: value });
+                } else {
+                  setMedicalRecipients({ ...medicalRecipients, delivery_mode: value });
                 }
               }}
             >
@@ -403,16 +430,36 @@ export function ModuleRecipientsSelector({
           </div>
         )}
 
-        {recipients.user_ids.length === 0 && (!showGroups || (deadlineRecipients.group_ids || []).length === 0) && (
-          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
-            <p className="text-sm text-destructive">
-              Připomínky pro tento modul nebudou odesílány, dokud nevyberete alespoň jednoho příjemce{showGroups ? " nebo skupinu" : ""}.
-            </p>
-          </div>
-        )}
+  if (module === "deadlines" && ((deadlineRecipients.group_ids || []).length === 0 && recipients.user_ids.length === 0)) {
+          return (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
+              <p className="text-sm text-destructive">
+                Připomínky pro tento modul nebudou odesílány, dokud nevyberete alespoň jednoho příjemce nebo skupinu.
+              </p>
+            </div>
+          );
+        }
+        
+        if (recipients.user_ids.length === 0 && module !== "deadlines") {
+          return (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
+              <p className="text-sm text-destructive">
+                Připomínky pro tento modul nebudou odesílány, dokud nevyberete alespoň jednoho příjemce.
+              </p>
+            </div>
+          );
+        }
+        
+        return null;
+      })()}
       </div>
     );
+  };
+
+  const getMedicalRecipientsCount = () => {
+    return medicalRecipients.user_ids.length;
   };
 
   const getDeadlineRecipientsCount = () => {
