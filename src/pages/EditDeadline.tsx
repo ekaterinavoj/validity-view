@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, addDays, parseISO } from "date-fns";
 import { cs } from "date-fns/locale";
-import { CalendarIcon, Loader2, Trash2 } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -42,17 +42,10 @@ import { useToast } from "@/hooks/use-toast";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { cn } from "@/lib/utils";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
-import { 
-  uploadDeadlineDocument, 
-  getDeadlineDocuments, 
-  deleteDeadlineDocument,
-  getDeadlineDocumentDownloadUrl,
-  formatFileSize,
-  DeadlineDocument,
-  DEADLINE_DOCUMENT_TYPE_LABELS
-} from "@/lib/deadlineDocuments";
+import { uploadDeadlineDocument } from "@/lib/deadlineDocuments";
 import { ResponsiblesPicker, ResponsiblesSelection } from "@/components/ResponsiblesPicker";
 import { useDeadlineResponsibles } from "@/hooks/useDeadlineResponsibles";
+import { DeadlineDocumentsList } from "@/components/DeadlineDocumentsList";
 
 const formSchema = z.object({
   deadline_type_id: z.string().min(1, "Vyberte typ události"),
@@ -85,9 +78,7 @@ export default function EditDeadline() {
   
   // Document management state
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [existingDocuments, setExistingDocuments] = useState<DeadlineDocument[]>([]);
-  const [documentsLoading, setDocumentsLoading] = useState(true);
-  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [documentsKey, setDocumentsKey] = useState(0); // For refreshing documents list
   
   // Responsibles state
   const [responsibles, setResponsibles] = useState<ResponsiblesSelection>({ profileIds: [], groupIds: [] });
@@ -167,23 +158,6 @@ export default function EditDeadline() {
     loadDeadline();
   }, [id, form, navigate, toast]);
 
-  // Load existing documents
-  useEffect(() => {
-    async function loadDocuments() {
-      if (!id) return;
-      
-      setDocumentsLoading(true);
-      const { data, error } = await getDeadlineDocuments(id);
-      
-      if (!error && data) {
-        setExistingDocuments(data);
-      }
-      setDocumentsLoading(false);
-    }
-
-    loadDocuments();
-  }, [id]);
-
   // Load responsibles from fetched data
   useEffect(() => {
     if (existingResponsibles && existingResponsibles.length > 0) {
@@ -210,39 +184,6 @@ export default function EditDeadline() {
     }
     checkAdmin();
   }, []);
-  const handleDeleteDocument = async (doc: DeadlineDocument) => {
-    setDeletingDocId(doc.id);
-    
-    const { error } = await deleteDeadlineDocument(doc.id, doc.file_path);
-    
-    if (error) {
-      toast({
-        title: "Chyba při mazání dokumentu",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      setExistingDocuments(prev => prev.filter(d => d.id !== doc.id));
-      toast({ title: "Dokument byl smazán" });
-    }
-    
-    setDeletingDocId(null);
-  };
-
-  const handleDownloadDocument = async (doc: DeadlineDocument) => {
-    const { url, error } = await getDeadlineDocumentDownloadUrl(doc.file_path);
-    
-    if (error || !url) {
-      toast({
-        title: "Chyba při stahování",
-        description: error?.message || "Nepodařilo se získat odkaz ke stažení",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    window.open(url, "_blank");
-  };
 
   const onSubmit = async (data: FormValues) => {
     if (!id) return;
@@ -520,40 +461,15 @@ export default function EditDeadline() {
               </div>
 
               {/* Existing Documents */}
-              {existingDocuments.length > 0 && (
+              {id && (
                 <div className="space-y-2">
                   <Label>Existující dokumenty</Label>
-                  <div className="border rounded-lg divide-y">
-                    {existingDocuments.map(doc => (
-                      <div key={doc.id} className="p-3 flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadDocument(doc)}
-                            className="text-sm font-medium text-primary hover:underline truncate block"
-                          >
-                            {doc.file_name}
-                          </button>
-                          <p className="text-xs text-muted-foreground">
-                            {DEADLINE_DOCUMENT_TYPE_LABELS[doc.document_type as keyof typeof DEADLINE_DOCUMENT_TYPE_LABELS] || doc.document_type} • {formatFileSize(doc.file_size)}
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteDocument(doc)}
-                          disabled={deletingDocId === doc.id}
-                        >
-                          {deletingDocId === doc.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          )}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                  <DeadlineDocumentsList
+                    key={documentsKey}
+                    deadlineId={id}
+                    canDelete={true}
+                    onDocumentDeleted={() => setDocumentsKey(k => k + 1)}
+                  />
                 </div>
               )}
 

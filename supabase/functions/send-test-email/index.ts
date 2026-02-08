@@ -7,62 +7,60 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Send email via Resend
-async function sendViaResend(to: string, subject: string, body: string, fromEmail: string, fromName: string): Promise<{ success: boolean; error?: string }> {
-  const apiKey = Deno.env.get("RESEND_API_KEY");
-  if (!apiKey) {
-    return { success: false, error: "RESEND_API_KEY not configured" };
-  }
-
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        from: `${fromName} <${fromEmail || "onboarding@resend.dev"}>`,
-        to: [to],
-        subject,
-        html: body,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      return { success: false, error };
-    }
-
-    return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-}
-
 // Send email via SMTP
 async function sendViaSMTP(
   to: string,
   subject: string,
   body: string,
   config: any
-): Promise<{ success: boolean; error?: string }> {
-  const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-  if (!smtpPassword) {
-    return { success: false, error: "SMTP_PASSWORD not configured" };
-  }
+): Promise<{ success: boolean; error?: string; diagnostics?: any }> {
+  const diagnostics: any = {
+    host: config.smtp_host,
+    port: config.smtp_port,
+    authEnabled: config.smtp_auth_enabled !== false,
+    tlsMode: config.smtp_tls_mode || "starttls",
+    fromEmail: config.smtp_from_email,
+  };
 
   try {
+    // Build connection config
+    const connectionConfig: any = {
+      hostname: config.smtp_host,
+      port: config.smtp_port || 587,
+    };
+
+    // TLS configuration
+    if (config.smtp_tls_mode === "smtps") {
+      connectionConfig.tls = true;
+    } else if (config.smtp_tls_mode === "starttls") {
+      connectionConfig.tls = false; // Will upgrade via STARTTLS
+    } else {
+      connectionConfig.tls = false;
+    }
+
+    // Auth configuration - only if enabled
+    if (config.smtp_auth_enabled !== false) {
+      const smtpPassword = config.smtp_password || Deno.env.get("SMTP_PASSWORD");
+      if (!smtpPassword) {
+        return { 
+          success: false, 
+          error: "SMTP heslo není nastaveno. Nastavte heslo v konfiguraci SMTP.",
+          diagnostics: { ...diagnostics, errorType: "missing_password" }
+        };
+      }
+      connectionConfig.auth = {
+        username: config.smtp_user,
+        password: smtpPassword,
+      };
+    }
+
+    console.log("SMTP connection config:", {
+      ...connectionConfig,
+      auth: connectionConfig.auth ? { username: connectionConfig.auth.username, password: "***" } : "none"
+    });
+
     const client = new SMTPClient({
-      connection: {
-        hostname: config.smtp_host,
-        port: config.smtp_port || 587,
-        tls: config.smtp_tls_mode === "smtps",
-        auth: {
-          username: config.smtp_user,
-          password: smtpPassword,
-        },
-      },
+      connection: connectionConfig,
     });
 
     await client.send({
@@ -73,10 +71,14 @@ async function sendViaSMTP(
     });
 
     await client.close();
-    return { success: true };
+    return { success: true, diagnostics };
   } catch (error: any) {
     console.error("SMTP error:", error);
-    return { success: false, error: error.message };
+    return { 
+      success: false, 
+      error: error.message,
+      diagnostics: { ...diagnostics, errorDetails: error.toString() }
+    };
   }
 }
 
@@ -144,55 +146,85 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("key", "email_provider")
       .single();
 
-    const emailProvider = settings?.value || { provider: "resend" };
-    const subject = "Testovací email - Systém správy školení";
-    const htmlBody = `
-      <h1>Testovací email</h1>
-      <p>Tento email potvrzuje, že konfigurace emailů funguje správně.</p>
-      <p>Poskytovatel: <strong>${emailProvider.provider}</strong></p>
-      <p>Datum a čas: ${new Date().toLocaleString("cs-CZ")}</p>
-      <hr>
-      <p><small>Systém správy školení</small></p>
-    `;
-
-    let result: { success: boolean; error?: string };
-    let providerUsed = emailProvider.provider;
-
-    if (emailProvider.provider === "smtp" || emailProvider.provider === "smtp_with_resend_fallback") {
-      result = await sendViaSMTP(email, subject, htmlBody, emailProvider);
-      providerUsed = "smtp";
-      
-      // Fallback to Resend if SMTP fails
-      if (!result.success && emailProvider.provider === "smtp_with_resend_fallback") {
-        console.log("SMTP failed, falling back to Resend:", result.error);
-        result = await sendViaResend(email, subject, htmlBody, emailProvider.smtp_from_email, emailProvider.smtp_from_name);
-        if (result.success) {
-          providerUsed = "resend (fallback)";
-        }
-      }
-    } else {
-      result = await sendViaResend(email, subject, htmlBody, "onboarding@resend.dev", "Training System");
-      providerUsed = "resend";
-    }
-
-    if (!result.success) {
-      // Check if it's a configuration issue vs actual sending error
-      const isConfigError = result.error?.includes("not configured");
+    const emailProvider = settings?.value || {};
+    
+    // Check if SMTP is configured
+    if (!emailProvider.smtp_host || !emailProvider.smtp_from_email) {
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: isConfigError 
-            ? `Email služba není nakonfigurována. Pro odesílání emailů nastavte RESEND_API_KEY nebo SMTP.`
-            : `Nepodařilo se odeslat: ${result.error}`, 
-          provider: providerUsed,
-          configurationRequired: isConfigError
+          error: "SMTP server není nakonfigurován. Vyplňte SMTP host a email odesílatele.",
+          configurationRequired: true,
+          provider: "smtp"
         }),
-        { status: isConfigError ? 200 : 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const subject = "Testovací email - Systém správy školení";
+    const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #3b82f6; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; }
+          .footer { padding: 15px; text-align: center; color: #64748b; font-size: 12px; }
+          .info { background: white; padding: 15px; border-radius: 6px; margin: 15px 0; }
+          .success { color: #16a34a; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>✓ Testovací email</h1>
+          </div>
+          <div class="content">
+            <p class="success">Konfigurace SMTP serveru funguje správně!</p>
+            <p>Tento email potvrzuje, že váš SMTP server je nakonfigurován a emaily jsou úspěšně odesílány.</p>
+            
+            <div class="info">
+              <strong>Konfigurace:</strong><br>
+              Server: ${emailProvider.smtp_host}:${emailProvider.smtp_port || 587}<br>
+              Odesílatel: ${emailProvider.smtp_from_email}<br>
+              Autorizace: ${emailProvider.smtp_auth_enabled !== false ? "Ano" : "Ne"}<br>
+              Zabezpečení: ${emailProvider.smtp_tls_mode || "starttls"}
+            </div>
+            
+            <p>Datum a čas: ${new Date().toLocaleString("cs-CZ", { timeZone: "Europe/Prague" })}</p>
+          </div>
+          <div class="footer">
+            <p>Systém správy školení a technických lhůt</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const result = await sendViaSMTP(email, subject, htmlBody, emailProvider);
+
+    if (!result.success) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: `Nepodařilo se odeslat email: ${result.error}`,
+          provider: "smtp",
+          diagnostics: result.diagnostics
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: `Test email sent via ${providerUsed}`, provider: providerUsed }),
+      JSON.stringify({ 
+        success: true, 
+        message: `Testovací email byl úspěšně odeslán na ${email}`, 
+        provider: "smtp",
+        diagnostics: result.diagnostics
+      }),
       { headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
