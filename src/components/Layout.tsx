@@ -70,14 +70,14 @@ export const Layout = ({
     return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-500/20 text-green-700 dark:text-green-300">Uživatel</span>;
   };
 
-  // Training mode "Ostatní" dropdown active state (facilities removed - now global)
-  const isTrainingOstatniActive = ["/employees", "/training-types", "/departments", "/inactive"].some(path => location.pathname === path);
+  // Training mode "Ostatní" dropdown active state (employees moved to global)
+  const isTrainingOstatniActive = ["/training-types", "/departments", "/inactive"].some(path => location.pathname === path);
 
   // Deadline mode "Ostatní" dropdown active state (facilities removed - now global)
   const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types", "/deadlines/groups"].some(path => location.pathname === path);
 
-  // System/Data dropdown active state (includes facilities)
-  const isSystemDataActive = location.pathname === "/facilities";
+  // System/Data dropdown active state (includes facilities and employees)
+  const isSystemDataActive = location.pathname === "/facilities" || location.pathname === "/employees";
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   // Always navigate when clicking a module tab (even if already active)
@@ -179,12 +179,6 @@ export const Layout = ({
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-48 bg-popover z-50">
-                      <DropdownMenuItem asChild>
-                        <Link to="/employees" className="flex items-center gap-2 cursor-pointer">
-                          <Users className="w-4 h-4" />
-                          Školené osoby
-                        </Link>
-                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to="/training-types" className="flex items-center gap-2 cursor-pointer">
                           <BookOpen className="w-4 h-4" />
@@ -291,6 +285,12 @@ export const Layout = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
                     <DropdownMenuItem asChild>
+                      <Link to="/employees" className="flex items-center gap-2 cursor-pointer">
+                        <Users className="w-4 h-4" />
+                        Zaměstnanci
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
                         <Building2 className="w-4 h-4" />
                         Provozovny
@@ -374,10 +374,6 @@ export const Layout = ({
             <div className="space-y-1 pt-2 border-t border-border">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ostatní</p>
               {isTrainingMode ? <>
-                  <Link to="/employees" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/employees" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                    <Users className="w-4 h-4" />
-                    Školené osoby
-                  </Link>
                   <Link to="/training-types" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/training-types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <BookOpen className="w-4 h-4" />
                     Typy školení
@@ -400,6 +396,10 @@ export const Layout = ({
                     Typy lhůt
                   </Link>
                 </>}
+              <Link to="/employees" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/employees" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                <Users className="w-4 h-4" />
+                Zaměstnanci
+              </Link>
               <Link to="/facilities" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/facilities" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                 <Building2 className="w-4 h-4" />
                 Provozovny

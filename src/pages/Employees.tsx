@@ -347,7 +347,7 @@ export default function Employees() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold text-foreground">Školené osoby</h2>
+          <h2 className="text-3xl font-bold text-foreground">Zaměstnanci</h2>
         </div>
         <ErrorDisplay
           title="Nepodařilo se načíst zaměstnance"
@@ -370,7 +370,7 @@ export default function Employees() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-foreground">Školené osoby</h2>
+        <h2 className="text-3xl font-bold text-foreground">Zaměstnanci</h2>
 
         <div className="flex gap-2">
           <BulkEmployeeImport />

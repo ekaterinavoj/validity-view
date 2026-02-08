@@ -31,11 +31,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck } from "lucide-react";
+import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck, Settings2 } from "lucide-react";
 import { ProfileEmployeeLink } from "@/components/ProfileEmployeeLink";
 import { AddUserModal } from "@/components/AddUserModal";
 import { ResetPasswordModal } from "@/components/ResetPasswordModal";
 import { ChangeEmailModal } from "@/components/ChangeEmailModal";
+import { ModuleAccessManager } from "@/components/ModuleAccessManager";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -85,6 +86,12 @@ export function UserManagementPanel() {
     currentEmail: string;
     userName: string;
   }>({ open: false, userId: "", currentEmail: "", userName: "" });
+  const [moduleAccessModal, setModuleAccessModal] = useState<{
+    open: boolean;
+    userId: string;
+    userName: string;
+    isAdmin: boolean;
+  }>({ open: false, userId: "", userName: "", isAdmin: false });
   
   // Role change states
   const [pendingRoleChange, setPendingRoleChange] = useState<{
@@ -531,6 +538,17 @@ export function UserManagementPanel() {
                                 <Mail className="h-4 w-4 mr-2" />
                                 Změnit email
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setModuleAccessModal({
+                                  open: true,
+                                  userId: user.id,
+                                  userName,
+                                  isAdmin,
+                                })}
+                              >
+                                <Settings2 className="h-4 w-4 mr-2" />
+                                Moduly
+                              </DropdownMenuItem>
                               {!isCurrentUser && (
                                 <DropdownMenuItem
                                   onClick={() => setPendingDeactivation({
@@ -591,6 +609,16 @@ export function UserManagementPanel() {
         userId={changeEmailModal.userId}
         currentEmail={changeEmailModal.currentEmail}
         userName={changeEmailModal.userName}
+        onSuccess={loadUsers}
+      />
+
+      {/* Module Access Manager Modal */}
+      <ModuleAccessManager
+        open={moduleAccessModal.open}
+        onOpenChange={(open) => setModuleAccessModal(prev => ({ ...prev, open }))}
+        userId={moduleAccessModal.userId}
+        userName={moduleAccessModal.userName}
+        isAdmin={moduleAccessModal.isAdmin}
         onSuccess={loadUsers}
       />
 
