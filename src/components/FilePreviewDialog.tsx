@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, X, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Layers, FileText } from "lucide-react";
+import { Download, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Layers, FileText } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -62,6 +62,7 @@ export function FilePreviewDialog({
       setScale(1.0);
       setNumPages(0);
       setPdfError(false);
+      setViewMode("scroll"); // Always start in scroll mode
     }
   }, [open, file]);
 
@@ -199,7 +200,6 @@ export function FilePreviewDialog({
   const goToNextPage = () => setPageNumber((prev) => Math.min(prev + 1, numPages));
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.25, 3.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.5));
-  const toggleViewMode = () => setViewMode((prev) => prev === "single" ? "scroll" : "single");
 
   // Generate array of page numbers for scroll mode
   const pageNumbers = useMemo(() => {
@@ -215,29 +215,19 @@ export function FilePreviewDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pr-8">
             <DialogTitle className="text-lg font-semibold truncate pr-4">
               {fileName || "Dokument"}
             </DialogTitle>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleDownload}
-                title="Stáhnout"
-                disabled={!file}
-              >
-                <Download className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleClose}
-                title="Zavřít"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleDownload}
+              title="Stáhnout"
+              disabled={!file}
+            >
+              <Download className="w-4 h-4" />
+            </Button>
           </div>
         </DialogHeader>
         
@@ -390,7 +380,7 @@ export function FilePreviewDialog({
                     <div className="flex flex-col items-center gap-4">
                       {pageNumbers.map((page) => (
                         <div key={page} className="relative">
-                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-background/80 px-2 py-0.5 rounded text-xs text-muted-foreground">
+                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-background/80 px-2 py-0.5 rounded text-xs text-muted-foreground z-10">
                             {page} / {numPages}
                           </div>
                           <Page 
