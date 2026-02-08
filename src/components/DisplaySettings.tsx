@@ -17,7 +17,9 @@ import {
   Bell,
   Volume2,
   AlertTriangle,
-  BadgeCheck
+  BadgeCheck,
+  FileText,
+  Layers
 } from "lucide-react";
 import { useUserPreferences, UserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
@@ -127,6 +129,51 @@ export function DisplaySettings() {
               checked={preferences.animationsEnabled}
               onCheckedChange={(checked) => updatePreference("animationsEnabled", checked)}
             />
+          </SettingRow>
+        </CardContent>
+      </Card>
+
+      {/* PDF & Documents */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Dokumenty
+          </CardTitle>
+          <CardDescription>
+            Nastavení zobrazení PDF a dokumentů
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <SettingRow
+            icon={<Layers className="w-4 h-4" />}
+            label="Výchozí zobrazení PDF"
+            description="Jak se mají zobrazovat stránky v náhledu PDF"
+          >
+            <Select
+              value={preferences.pdfViewMode}
+              onValueChange={(value: UserPreferences["pdfViewMode"]) => 
+                updatePreference("pdfViewMode", value)
+              }
+            >
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="scroll">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4" />
+                    Všechny stránky
+                  </div>
+                </SelectItem>
+                <SelectItem value="single">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Jedna stránka
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </SettingRow>
         </CardContent>
       </Card>

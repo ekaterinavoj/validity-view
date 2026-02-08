@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -27,6 +28,7 @@ export function FilePreviewDialog({
   file,
   onDownload,
 }: FilePreviewDialogProps) {
+  const { preferences, updatePreference } = useUserPreferences();
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,14 @@ export function FilePreviewDialog({
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [pdfError, setPdfError] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("scroll");
+  const [viewMode, setViewMode] = useState<ViewMode>(preferences.pdfViewMode || "scroll");
+
+  // Sync viewMode with user preference
+  useEffect(() => {
+    if (preferences.pdfViewMode) {
+      setViewMode(preferences.pdfViewMode);
+    }
+  }, [preferences.pdfViewMode]);
 
   // Memoize file properties to avoid recalculating
   const { fileName, fileType, isPDF, isImage } = useMemo(() => {
@@ -62,9 +71,10 @@ export function FilePreviewDialog({
       setScale(1.0);
       setNumPages(0);
       setPdfError(false);
-      setViewMode("scroll"); // Always start in scroll mode
+      // Use stored preference
+      setViewMode(preferences.pdfViewMode || "scroll");
     }
-  }, [open, file]);
+  }, [open, file, preferences.pdfViewMode]);
 
   // Update preview URL when file changes or dialog opens
   useEffect(() => {
@@ -201,6 +211,12 @@ export function FilePreviewDialog({
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.25, 3.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.5));
 
+  // Handle view mode change and save preference
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    updatePreference("pdfViewMode", mode);
+  };
+
   // Generate array of page numbers for scroll mode
   const pageNumbers = useMemo(() => {
     return Array.from({ length: numPages }, (_, i) => i + 1);
@@ -256,7 +272,7 @@ export function FilePreviewDialog({
                     <Button
                       variant={viewMode === "single" ? "secondary" : "ghost"}
                       size="sm"
-                      onClick={() => setViewMode("single")}
+                      onClick={() => handleViewModeChange("single")}
                       title="Jedna stránka"
                       className="gap-1"
                     >
@@ -266,7 +282,7 @@ export function FilePreviewDialog({
                     <Button
                       variant={viewMode === "scroll" ? "secondary" : "ghost"}
                       size="sm"
-                      onClick={() => setViewMode("scroll")}
+                      onClick={() => handleViewModeChange("scroll")}
                       title="Všechny stránky"
                       className="gap-1"
                     >
