@@ -7,6 +7,7 @@ import {
   Search,
   Clock,
 } from "lucide-react";
+import { formatDays } from "@/lib/czechGrammar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -162,7 +163,7 @@ export default function DeadlineTypes() {
                   <TableRow key={type.id}>
                     <TableCell className="font-medium">{type.name}</TableCell>
                     <TableCell>{type.facility}</TableCell>
-                    <TableCell>{type.period_days} dní</TableCell>
+                    <TableCell>{formatDays(type.period_days)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {type.description || "-"}
                     </TableCell>
