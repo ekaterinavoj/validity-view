@@ -50,6 +50,8 @@ interface AdvancedFiltersProps {
   responsiblePersons?: ResponsiblePerson[];
   resultCount?: number;
   totalCount?: number;
+  /** Label for trainers/doctors filter - defaults to "školitelé" */
+  trainerLabel?: "trainers" | "doctors";
 }
 
 export function AdvancedFilters({
@@ -68,6 +70,7 @@ export function AdvancedFilters({
   responsiblePersons,
   resultCount,
   totalCount,
+  trainerLabel = "trainers",
 }: AdvancedFiltersProps) {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [filterName, setFilterName] = useState("");
@@ -194,16 +197,16 @@ export function AdvancedFilters({
             </SelectContent>
           </Select>
 
-          {/* Trainer Filter */}
+          {/* Trainer/Doctor Filter */}
           <Select
             value={filters.trainerFilter}
             onValueChange={(value) => onFilterChange("trainerFilter", value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Školitel" />
+              <SelectValue placeholder={trainerLabel === "doctors" ? "Lékař" : "Školitel"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Všichni školitelé</SelectItem>
+              <SelectItem value="all">{trainerLabel === "doctors" ? "Všichni lékaři" : "Všichni školitelé"}</SelectItem>
               {trainers.map((trainer) => (
                 <SelectItem key={trainer} value={trainer}>
                   {trainer}

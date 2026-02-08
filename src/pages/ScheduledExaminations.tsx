@@ -226,6 +226,7 @@ export default function ScheduledExaminations() {
         departments={departments}
         trainingTypes={examinationTypes}
         trainers={doctors}
+        trainerLabel="doctors"
       />
 
       {selectedExaminations.size > 0 && (
