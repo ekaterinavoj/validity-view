@@ -314,6 +314,7 @@ async function sendViaSMTP(
   }
 
   let connection: Deno.TcpConn | Deno.TlsConn | null = null;
+  let isTlsConnection = false;
 
   try {
     console.log(`Connecting to SMTP server ${host}:${port}`);
@@ -321,8 +322,10 @@ async function sendViaSMTP(
     // Initial connection
     if (tlsMode === "smtps") {
       connection = await Deno.connectTls({ hostname: host, port });
+      isTlsConnection = true;
     } else {
       connection = await Deno.connect({ hostname: host, port });
+      isTlsConnection = false;
     }
 
     const reader = connection.readable.getReader();
@@ -364,13 +367,14 @@ async function sendViaSMTP(
       if (resp.code !== 250) throw new Error(`HELO failed: ${resp.msg}`);
     }
 
-    // STARTTLS if needed
-    if (tlsMode === "starttls" && connection instanceof Deno.TcpConn) {
+    // STARTTLS if needed and not already TLS
+    if (tlsMode === "starttls" && !isTlsConnection) {
       resp = await sendCommand("STARTTLS");
       if (resp.code === 220) {
         reader.releaseLock();
         writer.releaseLock();
-        connection = await Deno.startTls(connection, { hostname: host });
+        connection = await Deno.startTls(connection as Deno.TcpConn, { hostname: host });
+        isTlsConnection = true;
         
         // Get new reader/writer
         const tlsReader = connection.readable.getReader();
