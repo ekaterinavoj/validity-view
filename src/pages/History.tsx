@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -24,6 +25,8 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from "@/contexts/AuthContext";
+import { BulkActionsBar } from "@/components/BulkActionsBar";
+import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
@@ -43,9 +46,14 @@ export default function History() {
   const { toast } = useToast();
   const { isAdmin, isManager } = useAuth();
   const canEdit = isAdmin || isManager;
+  const canBulkActions = isAdmin; // Only admins can do bulk actions in history
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState<string>("all");
   const [archiveFilter, setArchiveFilter] = useState<string>("active"); // "all", "active", "archived"
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkRestoreDialogOpen, setBulkRestoreDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
   
   // Include archived trainings when filter is "all" or "archived"
   const includeArchived = archiveFilter === "all" || archiveFilter === "archived";
@@ -151,6 +159,26 @@ export default function History() {
     });
   }, [filters, trainings, employeeStatusFilter, archiveFilter]);
 
+  // Get only archived items for selection
+  const archivedItems = useMemo(() => 
+    filteredHistory.filter(t => t.isArchived),
+    [filteredHistory]
+  );
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === archivedItems.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(archivedItems.map(t => t.id));
+    }
+  };
+
+  const handleSelectItem = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   const handleRestoreTraining = async (trainingId: string) => {
     setRestoringId(trainingId);
     try {
@@ -175,6 +203,64 @@ export default function History() {
       });
     } finally {
       setRestoringId(null);
+    }
+  };
+
+  const handleBulkRestore = async () => {
+    setBulkActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("trainings")
+        .update({ deleted_at: null })
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Školení obnovena",
+        description: `Bylo obnoveno ${selectedIds.length} školení.`,
+      });
+
+      setSelectedIds([]);
+      setBulkRestoreDialogOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast({
+        title: "Chyba při obnovení",
+        description: err.message || "Nepodařilo se obnovit školení.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("trainings")
+        .delete()
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Školení smazána",
+        description: `Bylo trvale smazáno ${selectedIds.length} školení.`,
+      });
+
+      setSelectedIds([]);
+      setBulkDeleteDialogOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast({
+        title: "Chyba při mazání",
+        description: err.message || "Nepodařilo se smazat školení.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -380,11 +466,31 @@ export default function History() {
         totalCount={trainings.length}
       />
 
+      {/* Bulk Actions Bar - only for admins when viewing archived */}
+      {canBulkActions && archiveFilter !== "active" && archivedItems.length > 0 && (
+        <BulkActionsBar
+          selectedCount={selectedIds.length}
+          onClearSelection={() => setSelectedIds([])}
+          onBulkRestore={() => setBulkRestoreDialogOpen(true)}
+          onBulkDelete={() => setBulkDeleteDialogOpen(true)}
+          entityName="školení"
+        />
+      )}
+
       <Card className="p-6">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                {canBulkActions && archiveFilter !== "active" && (
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={archivedItems.length > 0 && selectedIds.length === archivedItems.length}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Vybrat vše"
+                    />
+                  </TableHead>
+                )}
                 <TableHead>Datum</TableHead>
                 <TableHead>Typ školení</TableHead>
                 <TableHead>Osobní číslo</TableHead>
@@ -405,13 +511,24 @@ export default function History() {
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={archiveFilter === "active" ? 9 : 11} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={archiveFilter === "active" ? 10 : 13} className="text-center py-8 text-muted-foreground">
                     Žádná historie nenalezena
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredHistory.map((training) => (
                   <TableRow key={training.id} className={training.isArchived ? "bg-muted/50" : ""}>
+                    {canBulkActions && archiveFilter !== "active" && (
+                      <TableCell>
+                        {training.isArchived && (
+                          <Checkbox
+                            checked={selectedIds.includes(training.id)}
+                            onCheckedChange={() => handleSelectItem(training.id)}
+                            aria-label={`Vybrat ${training.employeeName}`}
+                          />
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className="whitespace-nowrap">
                       {new Date(training.date).toLocaleDateString("cs-CZ")}
                     </TableCell>
@@ -492,6 +609,28 @@ export default function History() {
           <span>Ukončený</span>
         </div>
       </div>
+
+      {/* Bulk Restore Dialog */}
+      <BulkArchiveDialog
+        open={bulkRestoreDialogOpen}
+        onOpenChange={setBulkRestoreDialogOpen}
+        selectedCount={selectedIds.length}
+        onConfirm={handleBulkRestore}
+        loading={bulkActionLoading}
+        mode="restore"
+        entityName="školení"
+      />
+
+      {/* Bulk Delete Dialog */}
+      <BulkArchiveDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        selectedCount={selectedIds.length}
+        onConfirm={handleBulkDelete}
+        loading={bulkActionLoading}
+        mode="delete"
+        entityName="školení"
+      />
     </div>
   );
 }

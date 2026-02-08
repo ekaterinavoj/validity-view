@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { RefreshCw, Download, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -30,6 +31,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Papa from "papaparse";
 import { useAuth } from "@/contexts/AuthContext";
+import { BulkActionsBar } from "@/components/BulkActionsBar";
+import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 
 export default function DeadlineHistory() {
   const { history, isLoading, error, refetch } = useDeadlineHistory();
@@ -37,8 +40,13 @@ export default function DeadlineHistory() {
   const { toast } = useToast();
   const { isAdmin, isManager } = useAuth();
   const canEdit = isAdmin || isManager;
+  const canBulkActions = isAdmin; // Only admins can do bulk actions in history
   const [archiveFilter, setArchiveFilter] = useState<string>("active");
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkRestoreDialogOpen, setBulkRestoreDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   const facilityList = useMemo(() => 
     facilities.map(f => f.code),
@@ -96,6 +104,26 @@ export default function DeadlineHistory() {
     });
   }, [history, filters, archiveFilter]);
 
+  // Get only archived items for selection
+  const archivedItems = useMemo(() => 
+    filteredHistory.filter(d => d.deleted_at),
+    [filteredHistory]
+  );
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === archivedItems.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(archivedItems.map(d => d.id));
+    }
+  };
+
+  const handleSelectItem = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   const handleRestore = async (id: string) => {
     setRestoringId(id);
     try {
@@ -116,6 +144,64 @@ export default function DeadlineHistory() {
       });
     } finally {
       setRestoringId(null);
+    }
+  };
+
+  const handleBulkRestore = async () => {
+    setBulkActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("deadlines")
+        .update({ deleted_at: null })
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Události obnoveny",
+        description: `Bylo obnoveno ${selectedIds.length} událostí.`,
+      });
+
+      setSelectedIds([]);
+      setBulkRestoreDialogOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast({
+        title: "Chyba při obnovení",
+        description: err.message || "Nepodařilo se obnovit události.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("deadlines")
+        .delete()
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Události smazány",
+        description: `Bylo trvale smazáno ${selectedIds.length} událostí.`,
+      });
+
+      setSelectedIds([]);
+      setBulkDeleteDialogOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast({
+        title: "Chyba při mazání",
+        description: err.message || "Nepodařilo se smazat události.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -198,11 +284,31 @@ export default function DeadlineHistory() {
         totalCount={history.length}
       />
 
+      {/* Bulk Actions Bar - only for admins when viewing archived */}
+      {canBulkActions && archiveFilter !== "active" && archivedItems.length > 0 && (
+        <BulkActionsBar
+          selectedCount={selectedIds.length}
+          onClearSelection={() => setSelectedIds([])}
+          onBulkRestore={() => setBulkRestoreDialogOpen(true)}
+          onBulkDelete={() => setBulkDeleteDialogOpen(true)}
+          entityName="událostí"
+        />
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                {canBulkActions && archiveFilter !== "active" && (
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={archivedItems.length > 0 && selectedIds.length === archivedItems.length}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Vybrat vše"
+                    />
+                  </TableHead>
+                )}
                 <TableHead>Inventární č.</TableHead>
                 <TableHead>Zařízení</TableHead>
                 <TableHead>Typ události</TableHead>
@@ -217,7 +323,7 @@ export default function DeadlineHistory() {
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canBulkActions && archiveFilter !== "active" ? 10 : 9} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné záznamy
                   </TableCell>
                 </TableRow>
@@ -227,6 +333,17 @@ export default function DeadlineHistory() {
                     key={deadline.id}
                     className={cn(deadline.deleted_at && "opacity-60")}
                   >
+                    {canBulkActions && archiveFilter !== "active" && (
+                      <TableCell>
+                        {deadline.deleted_at && (
+                          <Checkbox
+                            checked={selectedIds.includes(deadline.id)}
+                            onCheckedChange={() => handleSelectItem(deadline.id)}
+                            aria-label={`Vybrat ${deadline.equipment?.name}`}
+                          />
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className="font-mono text-sm">
                       {deadline.equipment?.inventory_number}
                     </TableCell>
@@ -281,6 +398,28 @@ export default function DeadlineHistory() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Bulk Restore Dialog */}
+      <BulkArchiveDialog
+        open={bulkRestoreDialogOpen}
+        onOpenChange={setBulkRestoreDialogOpen}
+        selectedCount={selectedIds.length}
+        onConfirm={handleBulkRestore}
+        loading={bulkActionLoading}
+        mode="restore"
+        entityName="událostí"
+      />
+
+      {/* Bulk Delete Dialog */}
+      <BulkArchiveDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        selectedCount={selectedIds.length}
+        onConfirm={handleBulkDelete}
+        loading={bulkActionLoading}
+        mode="delete"
+        entityName="událostí"
+      />
     </div>
   );
 }
