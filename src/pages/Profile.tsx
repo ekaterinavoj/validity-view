@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, KeyRound, Mail, Shield, Search, Bell, Clock, Download, Users, TrendingUp, UserX } from "lucide-react";
+import { User, Save, KeyRound, Mail, Shield, Search, Bell, Clock, Download, Users, TrendingUp, UserX, Palette } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -15,8 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Papa from "papaparse";
 import { format, subMonths } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { ReminderTemplates } from "@/components/ReminderTemplates";
-import { ReminderLogs } from "@/components/ReminderLogs";
+import { DisplaySettings } from "@/components/DisplaySettings";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -431,12 +430,12 @@ const Profile = () => {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full" style={{
-        gridTemplateColumns: isAdmin ? 'repeat(3, 1fr)' : '1fr'
-      }}>
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="profile">Můj profil</TabsTrigger>
-          {isAdmin && <TabsTrigger value="templates">Šablony</TabsTrigger>}
-          {isAdmin && <TabsTrigger value="logs">Historie</TabsTrigger>}
+          <TabsTrigger value="display" className="flex items-center gap-2">
+            <Palette className="w-4 h-4" />
+            Zobrazení
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -666,14 +665,10 @@ const Profile = () => {
             </>}
         </TabsContent>
 
-
-        {isAdmin && <TabsContent value="templates">
-            <ReminderTemplates />
-          </TabsContent>}
-
-        {isAdmin && <TabsContent value="logs">
-            <ReminderLogs />
-          </TabsContent>}
+        {/* Display Settings Tab */}
+        <TabsContent value="display" className="space-y-6">
+          <DisplaySettings />
+        </TabsContent>
 
       </Tabs>
 

@@ -15,7 +15,9 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope } from "lucide-react";
+import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope, FileText } from "lucide-react";
+import { ReminderTemplates } from "@/components/ReminderTemplates";
+import { ReminderLogs } from "@/components/ReminderLogs";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
 import { SendTestDeadlineEmail } from "@/components/SendTestDeadlineEmail";
 import { SendTestMedicalEmail } from "@/components/SendTestMedicalEmail";
@@ -96,7 +98,7 @@ export default function AdminSettings() {
   
   // Get initial tab from URL query param, default to "onboarding"
   const tabParam = searchParams.get("tab");
-  const validTabs = ["onboarding", "display", "reminders", "email", "user-management", "data"];
+  const validTabs = ["onboarding", "user-management", "reminders", "email", "templates", "history", "data"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
   const [activeTab, setActiveTab] = useState(initialTab);
   
@@ -468,14 +470,14 @@ export default function AdminSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
             Onboarding
           </TabsTrigger>
-          <TabsTrigger value="display" className="flex items-center gap-2">
-            <Palette className="w-4 h-4" />
-            Zobrazení
+          <TabsTrigger value="user-management" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Uživatelé
           </TabsTrigger>
           <TabsTrigger value="reminders" className="flex items-center gap-2">
             <Clock className="w-4 h-4" />
@@ -485,9 +487,13 @@ export default function AdminSettings() {
             <Mail className="w-4 h-4" />
             Emaily
           </TabsTrigger>
-          <TabsTrigger value="user-management" className="flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            Uživatelé
+          <TabsTrigger value="templates" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Šablony
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <History className="w-4 h-4" />
+            Historie
           </TabsTrigger>
           <TabsTrigger value="data" className="flex items-center gap-2">
             <Database className="w-4 h-4" />
@@ -498,11 +504,6 @@ export default function AdminSettings() {
         {/* Onboarding Tab */}
         <TabsContent value="onboarding" className="space-y-6">
           <OnboardingSettings />
-        </TabsContent>
-
-        {/* Display Tab */}
-        <TabsContent value="display" className="space-y-6">
-          <DisplaySettings />
         </TabsContent>
 
         {/* Reminders Tab */}
@@ -1281,7 +1282,15 @@ export default function AdminSettings() {
           <UserManagementPanel />
         </TabsContent>
 
+        {/* Templates Tab */}
+        <TabsContent value="templates" className="space-y-6">
+          <ReminderTemplates />
+        </TabsContent>
 
+        {/* History Tab */}
+        <TabsContent value="history" className="space-y-6">
+          <ReminderLogs />
+        </TabsContent>
 
         {/* Data Tab */}
         <TabsContent value="data" className="space-y-6">
