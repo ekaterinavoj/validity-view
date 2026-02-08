@@ -24,6 +24,7 @@ import SystemStatus from "./pages/SystemStatus";
 import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ModuleRedirect } from "./components/ModuleRedirect";
 
 // Deadline module pages
 import ScheduledDeadlines from "./pages/ScheduledDeadlines";
@@ -42,8 +43,16 @@ import MedicalExaminationTypes from "./pages/MedicalExaminationTypes";
 
 const queryClient = new QueryClient();
 
-const ProtectedLayout = ({ children, requiredRoles }: { children: React.ReactNode; requiredRoles?: Array<"admin" | "manager" | "user"> }) => (
-  <ProtectedRoute requiredRoles={requiredRoles}>
+const ProtectedLayout = ({ 
+  children, 
+  requiredRoles,
+  requiredModule 
+}: { 
+  children: React.ReactNode; 
+  requiredRoles?: Array<"admin" | "manager" | "user">;
+  requiredModule?: "trainings" | "deadlines" | "plp";
+}) => (
+  <ProtectedRoute requiredRoles={requiredRoles} requiredModule={requiredModule}>
     <Layout>{children}</Layout>
   </ProtectedRoute>
 );
@@ -60,35 +69,35 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             
             {/* ============ TRAININGS MODULE ============ */}
-            <Route path="/" element={<ProtectedLayout><ScheduledTrainings /></ProtectedLayout>} />
-            <Route path="/trainings" element={<ProtectedLayout><ScheduledTrainings /></ProtectedLayout>} />
-            <Route path="/trainings/scheduled" element={<ProtectedLayout><ScheduledTrainings /></ProtectedLayout>} />
-            <Route path="/trainings/history" element={<ProtectedLayout><History /></ProtectedLayout>} />
-            <Route path="/trainings/new" element={<ProtectedLayout><NewTraining /></ProtectedLayout>} />
-            <Route path="/trainings/edit/:id" element={<ProtectedLayout><EditTraining /></ProtectedLayout>} />
+            <Route path="/" element={<ProtectedRoute><ModuleRedirect /></ProtectedRoute>} />
+            <Route path="/trainings" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
+            <Route path="/trainings/scheduled" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
+            <Route path="/trainings/history" element={<ProtectedLayout requiredModule="trainings"><History /></ProtectedLayout>} />
+            <Route path="/trainings/new" element={<ProtectedLayout requiredModule="trainings"><NewTraining /></ProtectedLayout>} />
+            <Route path="/trainings/edit/:id" element={<ProtectedLayout requiredModule="trainings"><EditTraining /></ProtectedLayout>} />
             {/* Legacy routes for backwards compatibility */}
-            <Route path="/scheduled-trainings" element={<ProtectedLayout><ScheduledTrainings /></ProtectedLayout>} />
-            <Route path="/history" element={<ProtectedLayout><History /></ProtectedLayout>} />
-            <Route path="/new-training" element={<ProtectedLayout><NewTraining /></ProtectedLayout>} />
-            <Route path="/edit-training/:id" element={<ProtectedLayout><EditTraining /></ProtectedLayout>} />
+            <Route path="/scheduled-trainings" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
+            <Route path="/history" element={<ProtectedLayout requiredModule="trainings"><History /></ProtectedLayout>} />
+            <Route path="/new-training" element={<ProtectedLayout requiredModule="trainings"><NewTraining /></ProtectedLayout>} />
+            <Route path="/edit-training/:id" element={<ProtectedLayout requiredModule="trainings"><EditTraining /></ProtectedLayout>} />
             
             {/* ============ DEADLINES MODULE ============ */}
-            <Route path="/deadlines" element={<ProtectedLayout><ScheduledDeadlines /></ProtectedLayout>} />
-            <Route path="/deadlines/scheduled" element={<ProtectedLayout><ScheduledDeadlines /></ProtectedLayout>} />
-            <Route path="/deadlines/history" element={<ProtectedLayout><DeadlineHistory /></ProtectedLayout>} />
-            <Route path="/deadlines/new" element={<ProtectedLayout><NewDeadline /></ProtectedLayout>} />
-            <Route path="/deadlines/edit/:id" element={<ProtectedLayout><EditDeadline /></ProtectedLayout>} />
-            <Route path="/deadlines/equipment" element={<ProtectedLayout><Equipment /></ProtectedLayout>} />
-            <Route path="/deadlines/types" element={<ProtectedLayout><DeadlineTypes /></ProtectedLayout>} />
-            <Route path="/deadlines/groups" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><ResponsibilityGroups /></ProtectedLayout>} />
+            <Route path="/deadlines" element={<ProtectedLayout requiredModule="deadlines"><ScheduledDeadlines /></ProtectedLayout>} />
+            <Route path="/deadlines/scheduled" element={<ProtectedLayout requiredModule="deadlines"><ScheduledDeadlines /></ProtectedLayout>} />
+            <Route path="/deadlines/history" element={<ProtectedLayout requiredModule="deadlines"><DeadlineHistory /></ProtectedLayout>} />
+            <Route path="/deadlines/new" element={<ProtectedLayout requiredModule="deadlines"><NewDeadline /></ProtectedLayout>} />
+            <Route path="/deadlines/edit/:id" element={<ProtectedLayout requiredModule="deadlines"><EditDeadline /></ProtectedLayout>} />
+            <Route path="/deadlines/equipment" element={<ProtectedLayout requiredModule="deadlines"><Equipment /></ProtectedLayout>} />
+            <Route path="/deadlines/types" element={<ProtectedLayout requiredModule="deadlines"><DeadlineTypes /></ProtectedLayout>} />
+            <Route path="/deadlines/groups" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="deadlines"><ResponsibilityGroups /></ProtectedLayout>} />
             
             
             {/* ============ PLP MODULE (Medical Examinations) ============ */}
-            <Route path="/plp" element={<ProtectedLayout><ScheduledExaminations /></ProtectedLayout>} />
-            <Route path="/plp/scheduled" element={<ProtectedLayout><ScheduledExaminations /></ProtectedLayout>} />
-            <Route path="/plp/new" element={<ProtectedLayout><NewMedicalExamination /></ProtectedLayout>} />
-            <Route path="/plp/edit/:id" element={<ProtectedLayout><EditMedicalExamination /></ProtectedLayout>} />
-            <Route path="/plp/types" element={<ProtectedLayout><MedicalExaminationTypes /></ProtectedLayout>} />
+            <Route path="/plp" element={<ProtectedLayout requiredModule="plp"><ScheduledExaminations /></ProtectedLayout>} />
+            <Route path="/plp/scheduled" element={<ProtectedLayout requiredModule="plp"><ScheduledExaminations /></ProtectedLayout>} />
+            <Route path="/plp/new" element={<ProtectedLayout requiredModule="plp"><NewMedicalExamination /></ProtectedLayout>} />
+            <Route path="/plp/edit/:id" element={<ProtectedLayout requiredModule="plp"><EditMedicalExamination /></ProtectedLayout>} />
+            <Route path="/plp/types" element={<ProtectedLayout requiredModule="plp"><MedicalExaminationTypes /></ProtectedLayout>} />
             
             {/* ============ SHARED / SETTINGS ============ */}
             <Route path="/statistics" element={<ProtectedLayout><Statistics /></ProtectedLayout>} />

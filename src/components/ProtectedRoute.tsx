@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Layout } from "./Layout";
 
 type RequiredRole = "admin" | "manager" | "user";
+type RequiredModule = "trainings" | "deadlines" | "plp";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRoles?: RequiredRole[];
+  requiredModule?: RequiredModule;
 }
 
-export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps) => {
+export const ProtectedRoute = ({ children, requiredRoles, requiredModule }: ProtectedRouteProps) => {
   const {
     user,
     loading,
@@ -22,6 +24,7 @@ export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps)
     isPending,
     roles,
     rolesLoaded,
+    hasModuleAccess,
     signOut,
     refreshProfile,
   } = useAuth();
@@ -201,6 +204,46 @@ export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps)
         </Layout>
       );
     }
+  }
+
+  // Check module access if requiredModule is specified
+  if (requiredModule && !hasModuleAccess(requiredModule)) {
+    const moduleLabels: Record<RequiredModule, string> = {
+      trainings: "Školení",
+      deadlines: "Technické události",
+      plp: "Lékařské prohlídky",
+    };
+
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Card className="w-full max-w-md border-destructive/20">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                <ShieldX className="w-8 h-8 text-destructive" />
+              </div>
+              <CardTitle className="text-xl">Přístup k modulu odepřen</CardTitle>
+              <CardDescription className="text-base">
+                Nemáte přístup k modulu <strong>{moduleLabels[requiredModule]}</strong>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground text-center">
+                Kontaktujte administrátora, pokud potřebujete přístup k tomuto modulu.
+              </p>
+
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => window.history.back()}
+              >
+                Zpět
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
   }
 
   return <>{children}</>;

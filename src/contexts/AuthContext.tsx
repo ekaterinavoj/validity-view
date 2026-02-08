@@ -14,12 +14,14 @@ interface Profile {
 }
 
 type UserRole = "admin" | "manager" | "user";
+type ModuleAccess = "trainings" | "deadlines" | "plp";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   roles: UserRole[];
+  moduleAccess: ModuleAccess[];
   loading: boolean;
   rolesLoaded: boolean;
   profileLoaded: boolean;
@@ -27,6 +29,7 @@ interface AuthContextType {
   isPending: boolean;
   isApproved: boolean;
   hasRole: (role: UserRole) => boolean;
+  hasModuleAccess: (module: ModuleAccess) => boolean;
   isAdmin: boolean;
   isManager: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
@@ -42,6 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<UserRole[]>([]);
+  const [moduleAccess, setModuleAccess] = useState<ModuleAccess[]>([]);
   const [loading, setLoading] = useState(true);
   // Start with true so we don't show spinner on initial load before we know if there's a user
   const [rolesLoaded, setRolesLoaded] = useState(true);
@@ -103,12 +107,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const loadModuleAccess = async (userId: string, userRoles: UserRole[]): Promise<ModuleAccess[]> => {
+    try {
+      // Admins have access to all modules - no need to query DB
+      if (userRoles.includes("admin")) {
+        const allModules: ModuleAccess[] = ["trainings", "deadlines", "plp"];
+        setModuleAccess(allModules);
+        return allModules;
+      }
+
+      const { data, error } = await supabase
+        .from("user_module_access")
+        .select("module")
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Error loading module access:", error);
+        return [];
+      }
+
+      const modules = (data?.map((r) => r.module) || []).filter(
+        (m): m is ModuleAccess => m === "trainings" || m === "deadlines" || m === "plp"
+      );
+      setModuleAccess(modules);
+      return modules;
+    } catch (error) {
+      console.error("Error loading module access:", error);
+      return [];
+    }
+  };
+
   const loadUserData = async (userId: string) => {
-    await Promise.all([loadProfile(userId), loadRoles(userId)]);
+    const [, userRoles] = await Promise.all([loadProfile(userId), loadRoles(userId)]);
+    // Load module access after roles (needs to know if admin)
+    await loadModuleAccess(userId, userRoles);
   };
 
   const hasRole = (role: UserRole): boolean => {
     return roles.includes(role);
+  };
+
+  const hasModuleAccess = (module: ModuleAccess): boolean => {
+    // Admins always have access to all modules
+    if (roles.includes("admin")) return true;
+    return moduleAccess.includes(module);
   };
 
   const isAdmin = roles.includes("admin");
@@ -135,6 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Clear stale data immediately
         setProfile(null);
         setRoles([]);
+        setModuleAccess([]);
         setProfileLoaded(false);
         setRolesLoaded(false);
         setProfileError(null);
@@ -150,6 +193,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setProfile(null);
         setRoles([]);
+        setModuleAccess([]);
         setProfileError(null);
         setProfileLoaded(true);
         setRolesLoaded(true);
@@ -272,6 +316,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await supabase.auth.signOut();
       setProfile(null);
       setRoles([]);
+      setModuleAccess([]);
       setProfileError(null);
       setProfileLoaded(true);
       setRolesLoaded(true);
@@ -295,6 +340,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         session,
         profile,
         roles,
+        moduleAccess,
         loading,
         rolesLoaded,
         profileLoaded,
@@ -302,6 +348,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isPending,
         isApproved,
         hasRole,
+        hasModuleAccess,
         isAdmin,
         isManager,
         signIn,
