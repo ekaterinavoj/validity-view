@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope } from "lucide-react";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
 import { SendTestDeadlineEmail } from "@/components/SendTestDeadlineEmail";
+import { SendTestMedicalEmail } from "@/components/SendTestMedicalEmail";
 import { SendSingleTestEmail } from "@/components/SendSingleTestEmail";
 import { SendTestSmtpEmail } from "@/components/SendTestSmtpEmail";
 import { EmailHistory } from "@/components/EmailHistory";
@@ -871,16 +872,24 @@ export default function AdminSettings() {
                   />
                 </div>
               </div>
-              <Separator />
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Technické lhůty</Label>
-                <SendTestDeadlineEmail 
-                  hasRecipients={deadlineRecipients.user_ids.length > 0}
-                  isEnabled={reminderFrequency.enabled}
-                />
-              </div>
-              <Separator />
-              <EmailHistory />
+               <Separator />
+               <div className="space-y-2">
+                 <Label className="text-sm font-medium">Technické lhůty</Label>
+                 <SendTestDeadlineEmail 
+                   hasRecipients={deadlineRecipients.user_ids.length > 0}
+                   isEnabled={reminderFrequency.enabled}
+                 />
+               </div>
+               <Separator />
+               <div className="space-y-2">
+                 <Label className="text-sm font-medium">PLP (Lékařské prohlídky)</Label>
+                 <SendTestMedicalEmail 
+                   hasRecipients={reminderRecipients.user_ids.length > 0}
+                   isEnabled={reminderFrequency.enabled}
+                 />
+               </div>
+               <Separator />
+               <EmailHistory />
             </CardContent>
           </Card>
 
