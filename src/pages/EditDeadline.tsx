@@ -462,8 +462,13 @@ export default function EditDeadline() {
 
               {/* Existing Documents */}
               {id && (
-                <div className="space-y-2">
-                  <Label>Existující dokumenty</Label>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium">Nahrané dokumenty</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Dokumenty již nahrané k této události. Můžete je stáhnout, zobrazit nebo smazat.
+                    </p>
+                  </div>
                   <DeadlineDocumentsList
                     key={documentsKey}
                     deadlineId={id}
@@ -495,8 +500,13 @@ export default function EditDeadline() {
               </div>
 
               {/* New Document Upload */}
-              <div className="space-y-2">
-                <Label>Přidat nové dokumenty</Label>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">Přidat nové dokumenty</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nahrajte protokoly, certifikáty nebo jiné dokumenty k této události
+                  </p>
+                </div>
                 <FileUploader
                   files={uploadedFiles}
                   onFilesChange={setUploadedFiles}

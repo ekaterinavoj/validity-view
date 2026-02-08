@@ -427,8 +427,13 @@ export default function NewDeadline() {
               </div>
 
               {/* File Upload Section */}
-              <div className="space-y-2">
-                <Label>Dokumenty k události</Label>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">Dokumenty (protokol, certifikát)</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nahrajte protokoly, certifikáty nebo jiné dokumenty k této události
+                  </p>
+                </div>
                 <FileUploader
                   files={uploadedFiles}
                   onFilesChange={setUploadedFiles}
