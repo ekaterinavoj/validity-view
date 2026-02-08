@@ -45,6 +45,127 @@ Webová aplikace pro evidenci školení zaměstnanců, technických lhůt zaří
 - **Konfigurace**: Host, port, TLS/STARTTLS, autentizace
 - **Šablony**: HTML s proměnnými
 
+---
+
+## 🔧 Instalace pro administrátory serveru
+
+Tato sekce obsahuje kompletní pokyny pro nasazení aplikace na produkční server.
+
+### 1. Požadavky na server
+
+| Komponenta | Požadavek |
+|------------|-----------|
+| **OS** | Linux (Ubuntu 22.04+, Debian 11+, CentOS 8+) |
+| **Docker** | 24.0+ |
+| **Docker Compose** | 2.20+ |
+| **RAM** | Min. 2 GB |
+| **Disk** | Min. 10 GB |
+| **Síť** | Veřejná IP nebo doménové jméno |
+| **Porty** | 80 (HTTP), 443 (HTTPS) |
+
+### 2. Instalace Dockeru
+
+```bash
+# Ubuntu/Debian
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+
+# Odhlaste se a přihlaste znovu, nebo:
+newgrp docker
+
+# Ověření instalace
+docker --version
+docker-compose --version
+```
+
+### 3. Příprava projektu
+
+```bash
+# Klonování repozitáře
+git clone <YOUR_GIT_URL>
+cd <YOUR_PROJECT_NAME>
+
+# Vytvoření .env souboru
+cp docker/.env.example .env
+nano .env  # nebo vim/vi
+```
+
+### 4. Konfigurace prostředí
+
+Upravte soubor `.env`:
+
+```env
+# ============================================
+# SUPABASE / LOVABLE CLOUD
+# ============================================
+VITE_SUPABASE_URL=https://xgtwutpbojltmktprdui.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key
+VITE_SUPABASE_PROJECT_ID=xgtwutpbojltmktprdui
+
+# ============================================
+# CRON ZABEZPEČENÍ
+# ============================================
+# Vygenerujte: openssl rand -hex 32
+CRON_SECRET=your-generated-secret-key
+```
+
+### 5. Build a spuštění
+
+```bash
+# Build a spuštění (na pozadí)
+docker-compose up -d --build
+
+# Sledování logů
+docker-compose logs -f frontend
+
+# Ověření běhu
+docker ps
+curl http://localhost:80
+```
+
+### 6. Konfigurace CRON úloh
+
+Otevřete crontab: `crontab -e`
+
+```bash
+# Připomínky - každou hodinu
+0 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/send-training-reminders" -H "x-cron-secret: $CRON_SECRET" >> /var/log/reminders.log 2>&1
+5 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-deadline-reminders" -H "x-cron-secret: $CRON_SECRET" >> /var/log/reminders.log 2>&1
+10 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-medical-reminders" -H "x-cron-secret: $CRON_SECRET" >> /var/log/reminders.log 2>&1
+```
+
+### 7. Nastavení HTTPS (volitelné)
+
+Pro produkční nasazení doporučujeme použít reverse proxy s SSL:
+
+```bash
+# Instalace Certbot pro Let's Encrypt
+sudo apt install certbot python3-certbot-nginx
+
+# Získání certifikátu
+sudo certbot --nginx -d vasedomena.cz
+```
+
+### 8. První přihlášení
+
+1. Otevřete aplikaci v prohlížeči: `http://vasedomena.cz`
+2. Zaregistrujte se jako první uživatel (automaticky získá roli admin)
+3. V administraci nakonfigurujte SMTP pro odesílání emailů
+4. Nastavte CRON_SECRET v Lovable Cloud
+
+### 9. Checklist po instalaci
+
+- [ ] Docker kontejner běží (`docker ps`)
+- [ ] Aplikace je dostupná v prohlížeči
+- [ ] První admin uživatel vytvořen
+- [ ] SMTP nakonfigurován a otestován
+- [ ] CRON úlohy nastaveny
+- [ ] CRON_SECRET synchronizován s Lovable Cloud
+- [ ] SSL certifikát nainstalován (produkce)
+- [ ] Zálohovací strategie nastavena
+
+---
+
 ## 🚀 Lokální vývoj
 
 ### Požadavky
@@ -306,6 +427,149 @@ Parametry na každém záznamu:
 - **Moduly**: trainings, deadlines, plp
 - **JWT verifikace** v Edge funkcích
 - **x-cron-secret** pro automatizaci
+
+---
+
+## 💾 Zálohování databáze
+
+### Automatické zálohy (Lovable Cloud)
+
+Lovable Cloud automaticky provádí denní zálohy databáze s retencí 7 dní. Pro přístup k zálohám kontaktujte podporu Lovable.
+
+### Manuální export dat
+
+#### Export přes SQL (doporučeno)
+
+V Lovable Cloud → Run SQL můžete exportovat data do CSV:
+
+```sql
+-- Export školení
+COPY (SELECT * FROM trainings WHERE deleted_at IS NULL) TO STDOUT WITH CSV HEADER;
+
+-- Export zaměstnanců
+COPY (SELECT * FROM employees) TO STDOUT WITH CSV HEADER;
+
+-- Export technických událostí
+COPY (SELECT * FROM deadlines WHERE deleted_at IS NULL) TO STDOUT WITH CSV HEADER;
+
+-- Export lékařských prohlídek
+COPY (SELECT * FROM medical_examinations WHERE deleted_at IS NULL) TO STDOUT WITH CSV HEADER;
+```
+
+#### Export přes pg_dump (pro administrátory)
+
+Pokud máte přímý přístup k databázi:
+
+```bash
+# Kompletní záloha
+pg_dump -h db.xgtwutpbojltmktprdui.supabase.co -U postgres -d postgres \
+  --no-owner --no-privileges \
+  -f backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Pouze data (bez struktury)
+pg_dump -h db.xgtwutpbojltmktprdui.supabase.co -U postgres -d postgres \
+  --data-only --no-owner \
+  -f data_backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Komprimovaná záloha
+pg_dump -h db.xgtwutpbojltmktprdui.supabase.co -U postgres -d postgres \
+  --no-owner --no-privileges \
+  | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+```
+
+### Zálohovací skript
+
+Vytvořte `/opt/scripts/backup-db.sh`:
+
+```bash
+#!/bin/bash
+# ============================================
+# Automatické zálohování databáze
+# ============================================
+
+# Konfigurace
+DB_HOST="db.xgtwutpbojltmktprdui.supabase.co"
+DB_USER="postgres"
+DB_NAME="postgres"
+BACKUP_DIR="/var/backups/training-system"
+RETENTION_DAYS=30
+
+# Vytvoření adresáře
+mkdir -p $BACKUP_DIR
+
+# Název souboru
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="$BACKUP_DIR/backup_$TIMESTAMP.sql.gz"
+
+# Záloha
+echo "[$(date)] Spouštím zálohu..."
+PGPASSWORD="$DB_PASSWORD" pg_dump -h $DB_HOST -U $DB_USER -d $DB_NAME \
+  --no-owner --no-privileges \
+  | gzip > $BACKUP_FILE
+
+# Kontrola úspěchu
+if [ $? -eq 0 ]; then
+  echo "[$(date)] Záloha úspěšně vytvořena: $BACKUP_FILE"
+  echo "[$(date)] Velikost: $(du -h $BACKUP_FILE | cut -f1)"
+else
+  echo "[$(date)] CHYBA: Záloha selhala!"
+  exit 1
+fi
+
+# Mazání starých záloh
+echo "[$(date)] Mažu zálohy starší než $RETENTION_DAYS dní..."
+find $BACKUP_DIR -name "backup_*.sql.gz" -mtime +$RETENTION_DAYS -delete
+
+echo "[$(date)] Hotovo"
+```
+
+### Nastavení automatického zálohování
+
+```bash
+# Oprávnění
+chmod +x /opt/scripts/backup-db.sh
+
+# Crontab - záloha každý den ve 3:00
+echo "0 3 * * * DB_PASSWORD='your-db-password' /opt/scripts/backup-db.sh >> /var/log/db-backup.log 2>&1" | crontab -
+
+# Nebo pro týdenní zálohy (neděle 3:00)
+echo "0 3 * * 0 DB_PASSWORD='your-db-password' /opt/scripts/backup-db.sh >> /var/log/db-backup.log 2>&1" | crontab -
+```
+
+### Obnova ze zálohy
+
+```bash
+# Rozbalení
+gunzip backup_20250208_030000.sql.gz
+
+# Obnova
+PGPASSWORD="your-password" psql -h db.xgtwutpbojltmktprdui.supabase.co \
+  -U postgres -d postgres < backup_20250208_030000.sql
+```
+
+### Záloha souborů (Storage)
+
+Dokumenty ze Storage se zálohují samostatně:
+
+```bash
+# Seznam bucketů
+# - training-documents
+# - deadline-documents  
+# - medical-documents
+
+# Pro zálohu Storage kontaktujte podporu Lovable
+# nebo použijte Supabase CLI (pokud je dostupné)
+```
+
+### Doporučená strategie zálohování
+
+| Typ zálohy | Frekvence | Retence | Úložiště |
+|------------|-----------|---------|----------|
+| **Denní** | Každý den 3:00 | 7 dní | Lokální server |
+| **Týdenní** | Neděle 3:00 | 4 týdny | Vzdálené úložiště (S3, GCS) |
+| **Měsíční** | 1. den měsíce | 12 měsíců | Archiv (offline) |
+
+---
 
 ## 📁 Struktura projektu
 
