@@ -277,10 +277,10 @@ export default function ScheduledExaminations() {
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+               <TableBody>
             {filteredExaminations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={canEdit ? 11 : 10} className="text-center text-muted-foreground py-8">
                   Žádné prohlídky k zobrazení.
                 </TableCell>
               </TableRow>

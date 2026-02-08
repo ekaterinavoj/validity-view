@@ -1220,7 +1220,7 @@ export default function ScheduledTrainings() {
               <TableBody>
                 {filteredTrainings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={canEdit ? 15 : 14} className="text-center py-8 text-muted-foreground">
                       Žádná školení nenalezena
                     </TableCell>
                   </TableRow>
