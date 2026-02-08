@@ -64,6 +64,8 @@ import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { BulkActionsBar } from "@/components/BulkActionsBar";
+import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();

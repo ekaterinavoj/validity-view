@@ -6,7 +6,6 @@ import {
   Download,
   PlusCircle,
   Edit,
-  Archive,
   Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,17 +30,26 @@ import { DeadlineProtocolCell } from "@/components/DeadlineProtocolCell";
 import { DeadlineResponsiblesBadges } from "@/components/DeadlineResponsiblesBadges";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
+import { BulkActionsBar } from "@/components/BulkActionsBar";
+import { BulkEditDeadlinesDialog } from "@/components/BulkEditDeadlinesDialog";
+import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import Papa from "papaparse";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function ScheduledDeadlines() {
+  const { toast } = useToast();
   const { isAdmin, isManager } = useAuth();
   const canEdit = isAdmin || isManager;
   const { deadlines, isLoading, error, refetch, archiveDeadline, isArchiving } = useDeadlines();
   const { facilities } = useFacilities();
   const { uniqueProfiles, getEquipmentIdsByProfile } = useAllEquipmentResponsibles();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [archiveLoading, setArchiveLoading] = useState(false);
 
   // Create filter options
   const facilityList = useMemo(() => 
@@ -116,7 +124,60 @@ export default function ScheduledDeadlines() {
     );
   };
 
-  // Status badge is now unified via StatusBadge component
+  const handleBulkEdit = () => {
+    if (selectedIds.length === 0) {
+      toast({
+        title: "Žádné události vybrány",
+        description: "Vyberte alespoň jednu událost pro hromadnou úpravu.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setBulkEditDialogOpen(true);
+  };
+
+  const handleBulkArchive = () => {
+    if (selectedIds.length === 0) {
+      toast({
+        title: "Žádné události vybrány",
+        description: "Vyberte alespoň jednu událost pro archivaci.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setArchiveDialogOpen(true);
+  };
+
+  const confirmBulkArchive = async () => {
+    if (selectedIds.length === 0) return;
+
+    setArchiveLoading(true);
+    try {
+      const { error } = await supabase
+        .from("deadlines")
+        .update({ deleted_at: new Date().toISOString() })
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Události archivovány",
+        description: `Úspěšně archivováno ${selectedIds.length} událostí.`,
+      });
+
+      setSelectedIds([]);
+      setArchiveDialogOpen(false);
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Chyba při archivaci",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
 
   const exportToCSV = () => {
     const data = filteredDeadlines.map(d => ({
@@ -161,7 +222,6 @@ export default function ScheduledDeadlines() {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          {/* Tlačítko pro vytvoření události - jen admin a manažer */}
           {canEdit && (
             <Link to="/deadlines/new">
               <Button size="sm">
@@ -194,7 +254,18 @@ export default function ScheduledDeadlines() {
         totalCount={deadlines.length}
       />
 
-      {/* Legend + Count - above the table */}
+      {/* Bulk Actions Bar */}
+      {canEdit && (
+        <BulkActionsBar
+          selectedCount={selectedIds.length}
+          onClearSelection={() => setSelectedIds([])}
+          onBulkEdit={handleBulkEdit}
+          onBulkArchive={handleBulkArchive}
+          entityName="událostí"
+        />
+      )}
+
+      {/* Legend + Count */}
       <div className="flex items-center justify-between">
         <StatusLegend variant="deadline" />
         <p className="text-sm text-muted-foreground">
@@ -207,7 +278,6 @@ export default function ScheduledDeadlines() {
           <Table>
             <TableHeader>
               <TableRow>
-                {/* Checkbox pouze pro admin a manažera */}
                 {canEdit && (
                   <TableHead className="w-12">
                     <Checkbox
@@ -245,7 +315,6 @@ export default function ScheduledDeadlines() {
                       deadline.status === "warning" && "bg-accent/30"
                     )}
                   >
-                    {/* Checkbox pouze pro admin a manažera */}
                     {canEdit && (
                       <TableCell>
                         <Checkbox
@@ -279,7 +348,6 @@ export default function ScheduledDeadlines() {
                       <DeadlineProtocolCell deadlineId={deadline.id} />
                     </TableCell>
                     <TableCell>
-                      {/* Admin a manažer mohou editovat, ostatní jen náhled */}
                       {canEdit ? (
                         <Button variant="ghost" size="sm" asChild>
                           <Link to={`/deadlines/edit/${deadline.id}`}>
@@ -301,6 +369,27 @@ export default function ScheduledDeadlines() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Bulk Edit Dialog */}
+      <BulkEditDeadlinesDialog
+        open={bulkEditDialogOpen}
+        onOpenChange={setBulkEditDialogOpen}
+        selectedIds={selectedIds}
+        onSuccess={() => {
+          setSelectedIds([]);
+          refetch();
+        }}
+      />
+
+      {/* Bulk Archive Dialog */}
+      <BulkArchiveDialog
+        open={archiveDialogOpen}
+        onOpenChange={setArchiveDialogOpen}
+        selectedCount={selectedIds.length}
+        onConfirm={confirmBulkArchive}
+        loading={archiveLoading}
+        entityName="událostí"
+      />
     </div>
   );
 }
