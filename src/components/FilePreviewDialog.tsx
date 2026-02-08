@@ -39,12 +39,8 @@ export function FilePreviewDialog({
 
   // Update preview URL when file changes or dialog opens
   useEffect(() => {
-    // Reset state when dialog closes
-    if (!open) {
-      return;
-    }
+    if (!open) return;
 
-    // No file provided
     if (!file) {
       setPreviewUrl("");
       setLoading(false);
@@ -55,41 +51,109 @@ export function FilePreviewDialog({
     setLoading(true);
     setError(null);
 
+    // Local file (selected/uploaded in browser)
     if (file instanceof File) {
-      // For File objects, create object URL
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
       setLoading(false);
-      
-      // Cleanup on unmount or when file changes
+
       return () => {
         URL.revokeObjectURL(url);
       };
-    } else {
-      // For remote URLs, use them directly
-      const url = (file as { url: string }).url;
-      if (url) {
-        setPreviewUrl(url);
-        setLoading(false);
-      } else {
-        setPreviewUrl("");
-        setError("URL není k dispozici");
-        setLoading(false);
-      }
     }
-  }, [file, open]);
+
+    const remoteUrl = (file as { url: string }).url;
+    if (!remoteUrl) {
+      setPreviewUrl("");
+      setError("URL není k dispozici");
+      setLoading(false);
+      return;
+    }
+
+    // PDFs: load as Blob -> blob: URL.
+    // This avoids Chrome/extensions blocking embedded cross-origin PDF viewers.
+    if (isPDF) {
+      let blobUrl: string | null = null;
+      const controller = new AbortController();
+
+      (async () => {
+        try {
+          const res = await fetch(remoteUrl, { signal: controller.signal });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const blob = await res.blob();
+          blobUrl = URL.createObjectURL(blob);
+          setPreviewUrl(blobUrl);
+        } catch (e: any) {
+          if (e?.name === "AbortError") return;
+          // Fallback: keep original URL for at least download attempt
+          setPreviewUrl(remoteUrl);
+          setError("Náhled PDF se nepodařilo načíst — použijte Stažení.");
+        } finally {
+          setLoading(false);
+        }
+      })();
+
+      return () => {
+        controller.abort();
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+      };
+    }
+
+    // Images/other: use remote URL directly
+    setPreviewUrl(remoteUrl);
+    setLoading(false);
+  }, [file, open, isPDF]);
 
   const handleClose = () => {
     setError(null);
     onOpenChange(false);
   };
 
-  const handleDownload = () => {
+  const triggerBrowserDownload = (url: string, name: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name || "soubor";
+    a.rel = "noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const handleDownload = async () => {
     if (onDownload) {
       onDownload();
-    } else if (previewUrl) {
-      // Fallback: open URL in new tab for download
-      window.open(previewUrl, "_blank");
+      return;
+    }
+
+    if (!file) return;
+
+    try {
+      setError(null);
+      setLoading(true);
+
+      if (file instanceof File) {
+        const url = URL.createObjectURL(file);
+        triggerBrowserDownload(url, file.name);
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        return;
+      }
+
+      const remoteUrl = (file as { url: string }).url;
+      if (!remoteUrl) {
+        setError("URL není k dispozici");
+        return;
+      }
+
+      const res = await fetch(remoteUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      triggerBrowserDownload(blobUrl, fileName || "soubor");
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (e: any) {
+      setError(`Stažení selhalo: ${e?.message ?? "Neznámá chyba"}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -112,7 +176,7 @@ export function FilePreviewDialog({
                 size="icon"
                 onClick={handleDownload}
                 title="Stáhnout"
-                disabled={!previewUrl}
+                disabled={!file}
               >
                 <Download className="w-4 h-4" />
               </Button>
@@ -156,16 +220,10 @@ export function FilePreviewDialog({
                 <p className="text-muted-foreground text-center">
                   Náhled PDF není v tomto prohlížeči k dispozici.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex justify-center">
                   <Button onClick={handleDownload}>
                     <Download className="w-4 h-4 mr-2" />
                     Stáhnout PDF
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => window.open(previewUrl, "_blank")}
-                  >
-                    Otevřít v novém okně
                   </Button>
                 </div>
               </div>
