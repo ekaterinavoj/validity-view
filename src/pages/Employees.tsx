@@ -765,6 +765,7 @@ export default function Employees() {
               <TableHead>Email</TableHead>
               <TableHead>Pozice</TableHead>
               <TableHead>Středisko</TableHead>
+              <TableHead>Kategorie</TableHead>
               <TableHead>Nadřízený</TableHead>
               <TableHead>Stav</TableHead>
               <TableHead className="w-[100px]"></TableHead>
@@ -773,7 +774,7 @@ export default function Employees() {
           <TableBody>
             {filteredEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Žádní zaměstnanci nenalezeni
                 </TableCell>
               </TableRow>
@@ -785,6 +786,9 @@ export default function Employees() {
                 <TableCell className="text-sm text-muted-foreground">{employee.email}</TableCell>
                 <TableCell className="text-sm">{employee.position}</TableCell>
                 <TableCell className="text-sm">{employee.department}</TableCell>
+                <TableCell className="text-sm text-center">
+                  {employee.workCategory ? employee.workCategory : '-'}
+                </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {employee.managerEmail ? (
                     <span title={employee.managerEmail}>
