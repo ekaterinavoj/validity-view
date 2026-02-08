@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # =============================================
+  # Frontend - Vite React Application
+  # =============================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY}
+        - VITE_SUPABASE_PROJECT_ID=${VITE_SUPABASE_PROJECT_ID}
+    container_name: training-frontend
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - training-network
+
+  # =============================================
+  # Database - PostgreSQL
+  # =============================================
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    container_name: training-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-training_system}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d training_system"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - training-network
+
+  # =============================================
+  # Optional: Supabase Studio (Local Development)
+  # =============================================
+  # Uncomment for local Supabase-like experience
+  # studio:
+  #   image: supabase/studio:latest
+  #   container_name: training-studio
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - STUDIO_PG_META_URL=http://db:5432
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+  #   depends_on:
+  #     - db
+  #   networks:
+  #     - training-network
+
+networks:
+  training-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

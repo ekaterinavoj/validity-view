@@ -1,0 +1,25 @@
+# =============================================
+# PostgreSQL Database Dockerfile
+# Pro lokální vývoj nebo self-hosted nasazení
+# =============================================
+
+FROM postgres:15-alpine
+
+# Environment variables
+ENV POSTGRES_USER=postgres
+ENV POSTGRES_PASSWORD=postgres
+ENV POSTGRES_DB=training_system
+
+# Copy initialization scripts (migrations)
+# Note: Scripts in /docker-entrypoint-initdb.d/ run on first container start
+COPY ./docker/init-db.sql /docker-entrypoint-initdb.d/01-init.sql
+
+# Expose PostgreSQL port
+EXPOSE 5432
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+  CMD pg_isready -U postgres -d training_system || exit 1
+
+# Data volume
+VOLUME /var/lib/postgresql/data

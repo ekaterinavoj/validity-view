@@ -1,0 +1,54 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+build
+
+# Testing
+coverage
+
+# Environment files (use docker secrets instead)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+
+# Supabase local
+.supabase
+
+# Docker (prevent recursive copy)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation (not needed in container)
+README.md
+docs/
+
+# Tests
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
