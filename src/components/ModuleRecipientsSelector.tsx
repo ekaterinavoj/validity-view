@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Loader2, UserCheck, AlertCircle, GraduationCap, Wrench, Save } from "lucide-react";
+import { Loader2, UserCheck, AlertCircle, GraduationCap, Wrench, Save, Users } from "lucide-react";
 
 interface UserWithRole {
   id: string;
@@ -20,8 +20,16 @@ interface UserWithRole {
   role: string;
 }
 
+interface ResponsibilityGroup {
+  id: string;
+  name: string;
+  is_active: boolean;
+  member_count: number;
+}
+
 interface ModuleRecipients {
   user_ids: string[];
+  group_ids?: string[];
   delivery_mode: string;
 }
 
@@ -44,6 +52,7 @@ export function ModuleRecipientsSelector({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [groups, setGroups] = useState<ResponsibilityGroup[]>([]);
   const [activeModule, setActiveModule] = useState<"training" | "deadlines">("training");
   
   // Training module recipients
@@ -52,9 +61,10 @@ export function ModuleRecipientsSelector({
     delivery_mode: "bcc",
   });
   
-  // Deadlines module recipients
+  // Deadlines module recipients (includes group support)
   const [deadlineRecipients, setDeadlineRecipients] = useState<ModuleRecipients>({
     user_ids: [],
+    group_ids: [],
     delivery_mode: "bcc",
   });
 
@@ -91,6 +101,29 @@ export function ModuleRecipientsSelector({
       
       setUsers(usersWithRoles);
 
+      // Load responsibility groups with member count
+      const { data: groupsData, error: groupsError } = await supabase
+        .from("responsibility_groups")
+        .select(`
+          id,
+          name,
+          is_active,
+          members:responsibility_group_members(id)
+        `)
+        .eq("is_active", true)
+        .order("name");
+      
+      if (groupsError) throw groupsError;
+      
+      const groupsWithCount = (groupsData || []).map(g => ({
+        id: g.id,
+        name: g.name,
+        is_active: g.is_active,
+        member_count: Array.isArray(g.members) ? g.members.length : 0,
+      }));
+      
+      setGroups(groupsWithCount);
+
       // Load settings
       const { data: settings } = await supabase
         .from("system_settings")
@@ -110,6 +143,7 @@ export function ModuleRecipientsSelector({
           setDeadlineRecipients(prev => ({ 
             ...prev, 
             user_ids: Array.isArray(val.user_ids) ? val.user_ids as string[] : prev.user_ids,
+            group_ids: Array.isArray(val.group_ids) ? val.group_ids as string[] : [],
             delivery_mode: typeof val.delivery_mode === 'string' ? val.delivery_mode : prev.delivery_mode,
           }));
         }
@@ -190,17 +224,39 @@ export function ModuleRecipientsSelector({
     }
   };
 
-  const getSelectedDisplay = (recipients: ModuleRecipients) => {
-    const selected = users.filter(u => recipients.user_ids.includes(u.id));
-    if (selected.length === 0) return "Žádní příjemci";
-    if (selected.length <= 2) {
-      return selected.map(u => `${u.first_name} ${u.last_name}`).join(", ");
+  const handleGroupToggle = (groupId: string, checked: boolean) => {
+    setDeadlineRecipients(prev => ({
+      ...prev,
+      group_ids: checked 
+        ? [...(prev.group_ids || []), groupId]
+        : (prev.group_ids || []).filter(id => id !== groupId),
+    }));
+  };
+
+  const getSelectedDisplay = (recipients: ModuleRecipients, includeGroups = false) => {
+    const selectedUsers = users.filter(u => recipients.user_ids.includes(u.id));
+    const selectedGroups = includeGroups 
+      ? groups.filter(g => recipients.group_ids?.includes(g.id))
+      : [];
+    
+    const totalCount = selectedUsers.length + selectedGroups.length;
+    
+    if (totalCount === 0) return "Žádní příjemci";
+    
+    const parts: string[] = [];
+    if (selectedUsers.length > 0) {
+      parts.push(`${selectedUsers.length} uživatel${selectedUsers.length === 1 ? '' : selectedUsers.length < 5 ? 'é' : 'ů'}`);
     }
-    return `${selected.length} příjemců`;
+    if (selectedGroups.length > 0) {
+      parts.push(`${selectedGroups.length} skupin${selectedGroups.length === 1 ? 'a' : selectedGroups.length < 5 ? 'y' : ''}`);
+    }
+    
+    return parts.join(", ");
   };
 
   const renderRecipientsList = (module: "training" | "deadlines") => {
     const recipients = module === "training" ? trainingRecipients : deadlineRecipients;
+    const showGroups = module === "deadlines";
     
     return (
       <div className="space-y-4">
@@ -208,7 +264,7 @@ export function ModuleRecipientsSelector({
           <div className="flex-1">
             <Label>Vybraní příjemci</Label>
             <p className="text-sm text-muted-foreground mt-1">
-              {getSelectedDisplay(recipients)}
+              {getSelectedDisplay(recipients, showGroups)}
             </p>
           </div>
           <div className="w-48">
@@ -239,9 +295,61 @@ export function ModuleRecipientsSelector({
 
         <Separator />
 
+        {/* Groups section - only for deadlines module */}
+        {showGroups && groups.length > 0 && (
+          <>
+            <div>
+              <Label className="mb-2 flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Skupiny odpovědných osob
+              </Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Všichni členové vybrané skupiny obdrží připomínky
+              </p>
+              <ScrollArea className="h-[150px] border rounded-md p-3">
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {groups.map((group) => (
+                      <div 
+                        key={group.id} 
+                        className="flex items-center space-x-3 p-2 hover:bg-muted rounded-md"
+                      >
+                        <Checkbox
+                          id={`group-${group.id}`}
+                          checked={deadlineRecipients.group_ids?.includes(group.id) || false}
+                          onCheckedChange={(checked) => 
+                            handleGroupToggle(group.id, checked as boolean)
+                          }
+                        />
+                        <label 
+                          htmlFor={`group-${group.id}`}
+                          className="flex-1 cursor-pointer flex items-center gap-2"
+                        >
+                          <Users className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium">{group.name}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {group.member_count} {group.member_count === 1 ? 'člen' : group.member_count < 5 ? 'členové' : 'členů'}
+                          </Badge>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+            <Separator />
+          </>
+        )}
+
         <div>
-          <Label className="mb-2 block">Vybrat příjemce z uživatelů systému</Label>
-          <ScrollArea className="h-[250px] border rounded-md p-3">
+          <Label className="mb-2 block">
+            {showGroups ? "Jednotliví uživatelé (kromě skupin)" : "Vybrat příjemce z uživatelů systému"}
+          </Label>
+          <ScrollArea className="h-[200px] border rounded-md p-3">
             {loading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -295,16 +403,20 @@ export function ModuleRecipientsSelector({
           </div>
         )}
 
-        {recipients.user_ids.length === 0 && (
+        {recipients.user_ids.length === 0 && (!showGroups || (deadlineRecipients.group_ids || []).length === 0) && (
           <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
             <p className="text-sm text-destructive">
-              Připomínky pro tento modul nebudou odesílány, dokud nevyberete alespoň jednoho příjemce.
+              Připomínky pro tento modul nebudou odesílány, dokud nevyberete alespoň jednoho příjemce{showGroups ? " nebo skupinu" : ""}.
             </p>
           </div>
         )}
       </div>
     );
+  };
+
+  const getDeadlineRecipientsCount = () => {
+    return deadlineRecipients.user_ids.length + (deadlineRecipients.group_ids?.length || 0);
   };
 
   return (
@@ -341,9 +453,9 @@ export function ModuleRecipientsSelector({
             <TabsTrigger value="deadlines" className="flex items-center gap-2">
               <Wrench className="w-4 h-4" />
               Technické lhůty
-              {deadlineRecipients.user_ids.length > 0 && (
+              {getDeadlineRecipientsCount() > 0 && (
                 <Badge variant="secondary" className="ml-1">
-                  {deadlineRecipients.user_ids.length}
+                  {getDeadlineRecipientsCount()}
                 </Badge>
               )}
             </TabsTrigger>
