@@ -34,6 +34,11 @@ import Equipment from "./pages/Equipment";
 import DeadlineTypes from "./pages/DeadlineTypes";
 import ResponsibilityGroups from "./pages/ResponsibilityGroups";
 
+// PLP module pages (Medical examinations)
+import ScheduledExaminations from "./pages/ScheduledExaminations";
+import NewMedicalExamination from "./pages/NewMedicalExamination";
+import MedicalExaminationTypes from "./pages/MedicalExaminationTypes";
+
 const queryClient = new QueryClient();
 
 const ProtectedLayout = ({ children, requiredRoles }: { children: React.ReactNode; requiredRoles?: Array<"admin" | "manager" | "user"> }) => (
@@ -75,6 +80,13 @@ const App = () => (
             <Route path="/deadlines/equipment" element={<ProtectedLayout><Equipment /></ProtectedLayout>} />
             <Route path="/deadlines/types" element={<ProtectedLayout><DeadlineTypes /></ProtectedLayout>} />
             <Route path="/deadlines/groups" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><ResponsibilityGroups /></ProtectedLayout>} />
+            
+            
+            {/* ============ PLP MODULE (Medical Examinations) ============ */}
+            <Route path="/plp" element={<ProtectedLayout><ScheduledExaminations /></ProtectedLayout>} />
+            <Route path="/plp/scheduled" element={<ProtectedLayout><ScheduledExaminations /></ProtectedLayout>} />
+            <Route path="/plp/new" element={<ProtectedLayout><NewMedicalExamination /></ProtectedLayout>} />
+            <Route path="/plp/types" element={<ProtectedLayout><MedicalExaminationTypes /></ProtectedLayout>} />
             
             {/* ============ SHARED / SETTINGS ============ */}
             <Route path="/statistics" element={<ProtectedLayout><Statistics /></ProtectedLayout>} />
