@@ -4,7 +4,7 @@ import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Plus, Download, Loader2, Archive, RefreshCw, Eye } from "lucide-react";
+import { Edit, Plus, Download, RefreshCw, Eye } from "lucide-react";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -17,11 +17,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import Papa from "papaparse";
 import { formatPeriodicity } from "@/lib/utils";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { useAuth } from "@/contexts/AuthContext";
+import { BulkActionsBar } from "@/components/BulkActionsBar";
+import { BulkEditExaminationsDialog } from "@/components/BulkEditExaminationsDialog";
+import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -31,10 +33,9 @@ export default function ScheduledExaminations() {
   const { examinations, loading: examinationsLoading, error: examinationsError, refetch } = useMedicalExaminations(true);
   const { facilities: facilitiesData } = useFacilities();
   const [selectedExaminations, setSelectedExaminations] = useState<Set<string>>(new Set());
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-
-
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -113,6 +114,14 @@ export default function ScheduledExaminations() {
     setSelectedExaminations(newSelected);
   };
 
+  const handleBulkEdit = () => {
+    if (selectedExaminations.size === 0) {
+      toast({ title: "Žádné prohlídky vybrány", description: "Vyberte alespoň jednu prohlídku pro hromadnou úpravu.", variant: "destructive" });
+      return;
+    }
+    setBulkEditDialogOpen(true);
+  };
+
   const handleBulkArchive = () => {
     if (selectedExaminations.size === 0) {
       toast({ title: "Žádné prohlídky vybrány", description: "Vyberte alespoň jednu prohlídku pro archivaci.", variant: "destructive" });
@@ -167,7 +176,6 @@ export default function ScheduledExaminations() {
     link.click();
   };
 
-
   if (examinationsError) {
     return (
       <div className="space-y-6">
@@ -182,7 +190,6 @@ export default function ScheduledExaminations() {
       <div className="space-y-6">
         <PageHeaderSkeleton />
         <TableSkeleton columns={11} />
-        
       </div>
     );
   }
@@ -200,7 +207,6 @@ export default function ScheduledExaminations() {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          {/* Tlačítko pro vytvoření prohlídky - pouze admin a manažer */}
           {canEdit && (
             <Button onClick={() => navigate("/plp/new")}>
               <Plus className="w-4 h-4 mr-2" />
@@ -210,7 +216,7 @@ export default function ScheduledExaminations() {
         </div>
       </div>
 
-      {/* Legend + Count - above the table */}
+      {/* Legend + Count */}
       <div className="flex items-center justify-between">
         <StatusLegend variant="training" />
         <p className="text-sm text-muted-foreground">
@@ -234,22 +240,21 @@ export default function ScheduledExaminations() {
         trainerLabel="doctors"
       />
 
-      {/* Hromadná archivace - pouze admin a manažer */}
-      {canEdit && selectedExaminations.size > 0 && (
-        <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
-          <span className="text-sm font-medium">Vybráno: {selectedExaminations.size}</span>
-          <Button variant="destructive" size="sm" onClick={handleBulkArchive}>
-            <Archive className="w-4 h-4 mr-2" />
-            Archivovat
-          </Button>
-        </div>
+      {/* Bulk Actions Bar */}
+      {canEdit && (
+        <BulkActionsBar
+          selectedCount={selectedExaminations.size}
+          onClearSelection={() => setSelectedExaminations(new Set())}
+          onBulkEdit={handleBulkEdit}
+          onBulkArchive={handleBulkArchive}
+          entityName="prohlídek"
+        />
       )}
 
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
-              {/* Checkbox pouze pro admin a manažera */}
               {canEdit && (
                 <TableHead className="w-[40px]">
                   <Checkbox checked={selectedExaminations.size === filteredExaminations.length && filteredExaminations.length > 0} onCheckedChange={toggleSelectAll} />
@@ -267,7 +272,7 @@ export default function ScheduledExaminations() {
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
-               <TableBody>
+          <TableBody>
             {filteredExaminations.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={canEdit ? 11 : 10} className="text-center text-muted-foreground py-8">
@@ -277,7 +282,6 @@ export default function ScheduledExaminations() {
             ) : (
               filteredExaminations.map((exam) => (
                 <TableRow key={exam.id}>
-                  {/* Checkbox pouze pro admin a manažera */}
                   {canEdit && (
                     <TableCell>
                       <Checkbox checked={selectedExaminations.has(exam.id)} onCheckedChange={() => toggleSelectExamination(exam.id)} />
@@ -303,7 +307,6 @@ export default function ScheduledExaminations() {
                   </TableCell>
                   <TableCell>{exam.doctor || "-"}</TableCell>
                   <TableCell>
-                    {/* Admin a manažer mohou editovat, ostatní jen náhled */}
                     {canEdit ? (
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
                         <Edit className="w-4 h-4" />
@@ -321,22 +324,26 @@ export default function ScheduledExaminations() {
         </Table>
       </Card>
 
+      {/* Bulk Edit Dialog */}
+      <BulkEditExaminationsDialog
+        open={bulkEditDialogOpen}
+        onOpenChange={setBulkEditDialogOpen}
+        selectedIds={Array.from(selectedExaminations)}
+        onSuccess={() => {
+          setSelectedExaminations(new Set());
+          refetch();
+        }}
+      />
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Archivovat vybrané prohlídky?</AlertDialogTitle>
-            <AlertDialogDescription>Bude archivováno {selectedExaminations.size} prohlídek. Archivované záznamy budou dostupné v historii.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Zrušit</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmBulkArchive} disabled={loading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Archivovat
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Bulk Archive Dialog */}
+      <BulkArchiveDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        selectedCount={selectedExaminations.size}
+        onConfirm={confirmBulkArchive}
+        loading={loading}
+        entityName="prohlídek"
+      />
     </div>
   );
 }
