@@ -4,7 +4,7 @@ import {
   Plus,
   RefreshCw,
   Download,
-  Pencil,
+  Edit,
   Trash2,
   Search,
   Wrench,
@@ -261,7 +261,7 @@ export default function Equipment() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(eq)}>
-                          <Pencil className="w-4 h-4" />
+                          <Edit className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"

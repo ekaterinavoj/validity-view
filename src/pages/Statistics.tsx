@@ -1,19 +1,19 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, CheckCircle, XCircle, Clock, Activity, FileDown, FileSpreadsheet, TrendingUp, Users, AlertTriangle, Loader2, Timer } from "lucide-react";
+import { Calendar, CheckCircle, XCircle, Clock, Activity, Download, TrendingUp, Users, AlertTriangle, Loader2, Timer, Copy } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, PieChart, Pie, Cell } from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useMemo } from "react";
-import Papa from 'papaparse';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { useState, useMemo, useRef } from "react";
+import { exportToCSV } from "@/lib/csvExport";
 import { EmailDeliveryStats } from "@/components/EmailDeliveryStats";
 import { useTrainings } from "@/hooks/useTrainings";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import html2canvas from "html2canvas";
+
 export default function Statistics() {
   const {
     toast
@@ -308,129 +308,132 @@ export default function Statistics() {
     length: 5
   }, (_, i) => (currentYear - i).toString());
 
-  // Export to CSV
-  const exportToCSV = () => {
+  // Chart refs for copying
+  const departmentChartRef = useRef<HTMLDivElement>(null);
+  const statusPieChartRef = useRef<HTMLDivElement>(null);
+  const monthlyChartRef = useRef<HTMLDivElement>(null);
+  const topTypesChartRef = useRef<HTMLDivElement>(null);
+
+  // Copy chart as image
+  const copyChartAsImage = async (chartRef: React.RefObject<HTMLDivElement>, chartName: string) => {
+    if (!chartRef.current) return;
+    
     try {
-      // Combine all stats into one CSV with multiple sections
+      const canvas = await html2canvas(chartRef.current, {
+        backgroundColor: null,
+        scale: 2,
+      });
+      
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+            toast({
+              title: "Graf zkopírován",
+              description: `Graf "${chartName}" byl zkopírován do schránky jako obrázek.`,
+            });
+          } catch (err) {
+            // Fallback: download the image
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${chartName.replace(/\s+/g, '_').toLowerCase()}.png`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast({
+              title: "Graf stažen",
+              description: `Graf "${chartName}" byl stažen jako obrázek (kopírování do schránky není podporováno).`,
+            });
+          }
+        }
+      }, 'image/png');
+    } catch (error) {
+      console.error('Error copying chart:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se zkopírovat graf.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Export CSV with multiple datasets
+  const handleExportCSV = () => {
+    try {
+      // Training hours data
+      const hoursData = trainingHoursStats.map(stat => ({
+        "Rok": stat.year,
+        "Unikátních školení": stat.sessions,
+        "Celkem hodin": stat.hours.toFixed(1),
+        "Proškolených osob": stat.people
+      }));
+
+      // Training types data
+      const typesData = trainingTypeStats.map(d => ({
+        "Typ školení": d.typ,
+        "Počet": d.počet,
+        "Platné": d.platné,
+        "Varování": d.varování,
+        "Prošlé": d.prošlé,
+        "Periodicita (dní)": d.periodicita
+      }));
+
+      // Trainer data
+      const trainersData = trainerData.filter(t => t.name !== "Neurčeno").map(t => ({
+        "Školitel": t.name,
+        "Celkem školení": t.total,
+        "Platná": t.valid,
+        "Varování": t.warning,
+        "Prošlá": t.expired,
+        "Zaměstnanců": t.employees,
+        "Typů školení": t.types
+      }));
+
+      // Facility data
+      const facilityData = facilityBarData.map(f => ({
+        "Provozovna": f.facility,
+        "Celkem": f.celkem,
+        "Platné": f.platné,
+        "Brzy vyprší": f["brzy vyprší"],
+        "Prošlé": f.prošlé
+      }));
+
+      // Combine all into one export with sections
       const allData: Record<string, string | number>[] = [];
       
-      // Section 1: Overall statistics
-      allData.push({ "Sekce": "CELKOVÉ STATISTIKY" });
-      allData.push({ "Položka": "Celkem aktivních školení", "Hodnota": totalTrainings });
-      allData.push({ "Položka": "Platná školení", "Hodnota": validTrainings });
-      allData.push({ "Položka": "Brzy vyprší", "Hodnota": warningTrainings });
-      allData.push({ "Položka": "Prošlá školení", "Hodnota": expiredTrainings });
-      allData.push({ "Položka": "Unikátní zaměstnanci", "Hodnota": uniqueEmployees });
+      allData.push({ "SEKCE": "ODŠKOLENÉ HODINY" });
+      hoursData.forEach(row => allData.push(row));
       allData.push({});
       
-      // Section 2: By department
-      allData.push({ "Sekce": "PODLE ODDĚLENÍ" });
-      barData.forEach(d => {
-        allData.push({ 
-          "Oddělení": d.department, 
-          "Platné": d.platné, 
-          "Brzy vyprší": d["brzy vyprší"], 
-          "Prošlé": d.prošlé 
-        });
-      });
+      allData.push({ "SEKCE": "TYPY ŠKOLENÍ" });
+      typesData.forEach(row => allData.push(row));
       allData.push({});
       
-      // Section 3: By training type
-      allData.push({ "Sekce": "PODLE TYPU ŠKOLENÍ" });
-      trainingTypeStats.forEach(d => {
-        allData.push({ 
-          "Typ školení": d.typ, 
-          "Počet": d.počet, 
-          "Platné": d.platné, 
-          "Varování": d.varování, 
-          "Prošlé": d.prošlé,
-          "Periodicita (dní)": d.periodicita 
-        });
+      allData.push({ "SEKCE": "PŘEHLED ŠKOLITELŮ" });
+      trainersData.forEach(row => allData.push(row));
+      allData.push({});
+      
+      allData.push({ "SEKCE": "PROVOZOVNY" });
+      facilityData.forEach(row => allData.push(row));
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      exportToCSV({
+        filename: `statistiky_${timestamp}.csv`,
+        data: allData,
       });
 
-      const csv = Papa.unparse(allData, { delimiter: ";" });
-      const BOM = "\uFEFF";
-      const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      const timestamp = new Date().toISOString().split('T')[0];
-      link.download = `statistiky_${timestamp}.csv`;
-      link.click();
-      
       toast({
         title: "Export dokončen",
-        description: "Statistiky byly exportovány do CSV souboru."
+        description: "Statistiky byly exportovány do CSV souboru.",
       });
     } catch (error) {
       console.error(error);
       toast({
         title: "Chyba při exportu",
         description: "Nepodařilo se exportovat data do CSV.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Export to PDF
-  const exportToPDF = async () => {
-    try {
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      let yPosition = 20;
-      pdf.setFontSize(20);
-      pdf.text('Statistiky skoleni', pageWidth / 2, yPosition, {
-        align: 'center'
-      });
-      yPosition += 10;
-      pdf.setFontSize(10);
-      const date = new Date().toLocaleDateString('cs-CZ');
-      pdf.text(`Vygenerovano: ${date}`, pageWidth / 2, yPosition, {
-        align: 'center'
-      });
-      yPosition += 15;
-      pdf.setFontSize(14);
-      pdf.text('Celkove statistiky', 15, yPosition);
-      yPosition += 5;
-      autoTable(pdf, {
-        startY: yPosition,
-        head: [['Statistika', 'Hodnota']],
-        body: [['Celkem aktivnich skoleni', totalTrainings.toString()], ['Platne skoleni', validTrainings.toString()], ['Brzy vyprsi', warningTrainings.toString()], ['Prosle skoleni', expiredTrainings.toString()], ['Vyprsi do 30 dni', expiring30.toString()], ['Unikatni zamestnanci', uniqueEmployees.toString()]],
-        theme: 'striped',
-        headStyles: {
-          fillColor: [66, 66, 66]
-        },
-        margin: {
-          left: 15
-        }
-      });
-      yPosition = (pdf as any).lastAutoTable.finalY + 15;
-      pdf.setFontSize(14);
-      pdf.text('Skoleni podle oddeleni', 15, yPosition);
-      yPosition += 5;
-      autoTable(pdf, {
-        startY: yPosition,
-        head: [['Oddeleni', 'Platne', 'Brzy vyprsi', 'Prosle']],
-        body: barData.map(d => [d.department, d.platné.toString(), d["brzy vyprší"].toString(), d.prošlé.toString()]),
-        theme: 'striped',
-        headStyles: {
-          fillColor: [66, 66, 66]
-        },
-        margin: {
-          left: 15
-        }
-      });
-      const timestamp = new Date().toISOString().split('T')[0];
-      pdf.save(`statistiky_${timestamp}.pdf`);
-      toast({
-        title: "Export dokončen",
-        description: "Statistiky byly exportovány do PDF souboru."
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Chyba při exportu",
-        description: "Nepodařilo se exportovat statistiky do PDF.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -469,13 +472,9 @@ export default function Statistics() {
               {years.map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={exportToCSV} disabled={trainingsLoading || typesLoading || totalTrainings === 0}>
-            <FileDown className="w-4 h-4 mr-2" />
+          <Button variant="outline" onClick={handleExportCSV} disabled={trainingsLoading || typesLoading || totalTrainings === 0}>
+            <Download className="w-4 h-4 mr-2" />
             {trainingsLoading ? "Načítám..." : "Export CSV"}
-          </Button>
-          <Button variant="outline" onClick={exportToPDF} disabled={trainingsLoading || typesLoading || totalTrainings === 0}>
-            <FileDown className="w-4 h-4 mr-2" />
-            {trainingsLoading ? "Načítám..." : "Export do PDF"}
           </Button>
         </div>
       </div>
@@ -621,86 +620,114 @@ export default function Statistics() {
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Bar Chart - By department */}
             {barData.length > 0 && <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Školení podle oddělení</h3>
-                <ChartContainer config={chartConfig} className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="department" stroke="hsl(var(--foreground))" fontSize={12} />
-                      <YAxis stroke="hsl(var(--foreground))" />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="platné" fill="hsl(var(--status-valid))" />
-                      <Bar dataKey="brzy vyprší" fill="hsl(var(--status-warning))" />
-                      <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Školení podle oddělení</h3>
+                  <Button variant="ghost" size="sm" onClick={() => copyChartAsImage(departmentChartRef, "Školení podle oddělení")}>
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div ref={departmentChartRef}>
+                  <ChartContainer config={chartConfig} className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={barData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="department" stroke="hsl(var(--foreground))" fontSize={12} />
+                        <YAxis stroke="hsl(var(--foreground))" />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="platné" fill="hsl(var(--status-valid))" />
+                        <Bar dataKey="brzy vyprší" fill="hsl(var(--status-warning))" />
+                        <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
               </Card>}
 
             {/* Pie Chart - Status distribution */}
             {statusPieData.length > 0 && <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Rozdělení podle stavu</h3>
-                <ChartContainer config={chartConfig} className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={statusPieData} cx="50%" cy="50%" labelLine={false} label={({
-                  name,
-                  percent
-                }) => `${name}: ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
-                        {statusPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Rozdělení podle stavu</h3>
+                  <Button variant="ghost" size="sm" onClick={() => copyChartAsImage(statusPieChartRef, "Rozdělení podle stavu")}>
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div ref={statusPieChartRef}>
+                  <ChartContainer config={chartConfig} className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={statusPieData} cx="50%" cy="50%" labelLine={false} label={({
+                    name,
+                    percent
+                  }) => `${name}: ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
+                          {statusPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                        </Pie>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
               </Card>}
 
             {/* Monthly distribution */}
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Měsíční přehled ({selectedYear})</h3>
-              <ChartContainer config={{
-            naplánováno: {
-              label: "Aktivní",
-              color: "hsl(var(--chart-1))"
-            },
-            prošlé: {
-              label: "Prošlé",
-              color: "hsl(var(--status-expired))"
-            }
-          }} className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyDistribution}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="měsíc" stroke="hsl(var(--foreground))" fontSize={11} angle={-45} textAnchor="end" height={80} />
-                    <YAxis stroke="hsl(var(--foreground))" />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend />
-                    <Bar dataKey="naplánováno" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Měsíční přehled ({selectedYear})</h3>
+                <Button variant="ghost" size="sm" onClick={() => copyChartAsImage(monthlyChartRef, `Měsíční přehled ${selectedYear}`)}>
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+              <div ref={monthlyChartRef}>
+                <ChartContainer config={{
+              naplánováno: {
+                label: "Aktivní",
+                color: "hsl(var(--chart-1))"
+              },
+              prošlé: {
+                label: "Prošlé",
+                color: "hsl(var(--status-expired))"
+              }
+            }} className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlyDistribution}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="měsíc" stroke="hsl(var(--foreground))" fontSize={11} angle={-45} textAnchor="end" height={80} />
+                      <YAxis stroke="hsl(var(--foreground))" />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Legend />
+                      <Bar dataKey="naplánováno" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="prošlé" fill="hsl(var(--status-expired))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
             </Card>
 
             {/* Training types trend */}
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Top typy školení</h3>
-              <ChartContainer config={{
-            počet: {
-              label: "Počet školení",
-              color: "hsl(var(--chart-2))"
-            }
-          }} className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={trainingTypeStats.slice(0, 8)} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis type="number" stroke="hsl(var(--foreground))" />
-                    <YAxis dataKey="typ" type="category" stroke="hsl(var(--foreground))" fontSize={11} width={150} tickFormatter={value => value.length > 20 ? value.substring(0, 20) + '...' : value} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="počet" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Top typy školení</h3>
+                <Button variant="ghost" size="sm" onClick={() => copyChartAsImage(topTypesChartRef, "Top typy školení")}>
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+              <div ref={topTypesChartRef}>
+                <ChartContainer config={{
+              počet: {
+                label: "Počet školení",
+                color: "hsl(var(--chart-2))"
+              }
+            }} className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={trainingTypeStats.slice(0, 8)} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis type="number" stroke="hsl(var(--foreground))" />
+                      <YAxis dataKey="typ" type="category" stroke="hsl(var(--foreground))" fontSize={11} width={150} tickFormatter={value => value.length > 20 ? value.substring(0, 20) + '...' : value} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="počet" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
             </Card>
           </div>
 
