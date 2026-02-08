@@ -17,7 +17,7 @@ import { format, subMonths } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { ReminderTemplates } from "@/components/ReminderTemplates";
 import { ReminderLogs } from "@/components/ReminderLogs";
-import { BulkTrainingImport } from "@/components/BulkTrainingImport";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 interface UserProfile {
@@ -432,12 +432,11 @@ const Profile = () => {
 
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full" style={{
-        gridTemplateColumns: isAdmin ? 'repeat(4, 1fr)' : '1fr'
+        gridTemplateColumns: isAdmin ? 'repeat(3, 1fr)' : '1fr'
       }}>
           <TabsTrigger value="profile">Můj profil</TabsTrigger>
           {isAdmin && <TabsTrigger value="templates">Šablony</TabsTrigger>}
           {isAdmin && <TabsTrigger value="logs">Historie</TabsTrigger>}
-          {isAdmin && <TabsTrigger value="import">Import</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -676,9 +675,6 @@ const Profile = () => {
             <ReminderLogs />
           </TabsContent>}
 
-        {isAdmin && <TabsContent value="import">
-            <BulkTrainingImport />
-          </TabsContent>}
       </Tabs>
 
       {/* Dialog pro změnu hesla */}
