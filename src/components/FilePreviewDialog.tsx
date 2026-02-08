@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, X, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { Download, X, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Layers, FileText } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -19,6 +19,8 @@ interface FilePreviewDialogProps {
   onDownload?: () => void;
 }
 
+type ViewMode = "single" | "scroll";
+
 export function FilePreviewDialog({
   open,
   onOpenChange,
@@ -34,6 +36,7 @@ export function FilePreviewDialog({
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [pdfError, setPdfError] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("scroll");
 
   // Memoize file properties to avoid recalculating
   const { fileName, fileType, isPDF, isImage } = useMemo(() => {
@@ -196,6 +199,12 @@ export function FilePreviewDialog({
   const goToNextPage = () => setPageNumber((prev) => Math.min(prev + 1, numPages));
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.25, 3.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.5));
+  const toggleViewMode = () => setViewMode((prev) => prev === "single" ? "scroll" : "single");
+
+  // Generate array of page numbers for scroll mode
+  const pageNumbers = useMemo(() => {
+    return Array.from({ length: numPages }, (_, i) => i + 1);
+  }, [numPages]);
 
   // Don't render content if no file
   if (!open) {
@@ -251,31 +260,74 @@ export function FilePreviewDialog({
             <div className="flex flex-col items-center">
               {/* PDF Controls */}
               {numPages > 0 && !pdfError && (
-                <div className="flex items-center gap-4 mb-4 p-2 bg-muted rounded-lg">
+                <div className="flex items-center gap-4 mb-4 p-2 bg-muted rounded-lg flex-wrap justify-center">
+                  {/* View Mode Toggle */}
                   <div className="flex items-center gap-1">
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={goToPrevPage}
-                      disabled={pageNumber <= 1}
-                      title="Předchozí strana"
+                      variant={viewMode === "single" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("single")}
+                      title="Jedna stránka"
+                      className="gap-1"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <FileText className="w-4 h-4" />
+                      <span className="hidden sm:inline text-xs">Jedna</span>
                     </Button>
-                    <span className="text-sm min-w-[80px] text-center">
-                      {pageNumber} / {numPages}
-                    </span>
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={goToNextPage}
-                      disabled={pageNumber >= numPages}
-                      title="Další strana"
+                      variant={viewMode === "scroll" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("scroll")}
+                      title="Všechny stránky"
+                      className="gap-1"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <Layers className="w-4 h-4" />
+                      <span className="hidden sm:inline text-xs">Vše</span>
                     </Button>
                   </div>
+
                   <div className="w-px h-6 bg-border" />
+
+                  {/* Page Navigation (only in single mode) */}
+                  {viewMode === "single" && (
+                    <>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={goToPrevPage}
+                          disabled={pageNumber <= 1}
+                          title="Předchozí strana"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <span className="text-sm min-w-[80px] text-center">
+                          {pageNumber} / {numPages}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={goToNextPage}
+                          disabled={pageNumber >= numPages}
+                          title="Další strana"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="w-px h-6 bg-border" />
+                    </>
+                  )}
+
+                  {/* Page count indicator in scroll mode */}
+                  {viewMode === "scroll" && (
+                    <>
+                      <span className="text-sm text-muted-foreground">
+                        {numPages} {numPages === 1 ? "stránka" : numPages < 5 ? "stránky" : "stránek"}
+                      </span>
+                      <div className="w-px h-6 bg-border" />
+                    </>
+                  )}
+
+                  {/* Zoom Controls */}
                   <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
@@ -303,7 +355,7 @@ export function FilePreviewDialog({
               )}
 
               {/* PDF Document */}
-              <div className="overflow-auto max-h-[60vh] border rounded-lg bg-muted p-4">
+              <div className="overflow-auto max-h-[60vh] border rounded-lg bg-muted p-4 w-full">
                 <Document
                   file={previewUrl}
                   onLoadSuccess={onDocumentLoadSuccess}
@@ -325,12 +377,32 @@ export function FilePreviewDialog({
                     </div>
                   }
                 >
-                  <Page 
-                    pageNumber={pageNumber} 
-                    scale={scale}
-                    renderTextLayer={true}
-                    renderAnnotationLayer={true}
-                  />
+                  {viewMode === "single" ? (
+                    <div className="flex justify-center">
+                      <Page 
+                        pageNumber={pageNumber} 
+                        scale={scale}
+                        renderTextLayer={true}
+                        renderAnnotationLayer={true}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-4">
+                      {pageNumbers.map((page) => (
+                        <div key={page} className="relative">
+                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-background/80 px-2 py-0.5 rounded text-xs text-muted-foreground">
+                            {page} / {numPages}
+                          </div>
+                          <Page 
+                            pageNumber={page} 
+                            scale={scale}
+                            renderTextLayer={true}
+                            renderAnnotationLayer={true}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </Document>
               </div>
             </div>
