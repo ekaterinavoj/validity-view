@@ -1204,7 +1204,7 @@ export default function ScheduledTrainings() {
                   <TableHead>Periodicita</TableHead>
                   <TableHead>Poznámka</TableHead>
                   <TableHead className="text-center">Protokol</TableHead>
-                  <TableHead className="text-right">Akce</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
