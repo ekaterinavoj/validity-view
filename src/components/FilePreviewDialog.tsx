@@ -1,7 +1,13 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, X, Loader2 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { Download, X, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/esm/Page/AnnotationLayer.css";
+import "react-pdf/dist/esm/Page/TextLayer.css";
+
+// Set up PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface FilePreviewDialogProps {
   open: boolean;
@@ -19,6 +25,12 @@ export function FilePreviewDialog({
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // PDF viewer state
+  const [numPages, setNumPages] = useState<number>(0);
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [scale, setScale] = useState<number>(1.0);
+  const [pdfError, setPdfError] = useState<boolean>(false);
 
   // Memoize file properties to avoid recalculating
   const { fileName, fileType, isPDF, isImage } = useMemo(() => {
@@ -36,6 +48,16 @@ export function FilePreviewDialog({
       isImage: type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name),
     };
   }, [file]);
+
+  // Reset PDF state when dialog opens/closes or file changes
+  useEffect(() => {
+    if (open) {
+      setPageNumber(1);
+      setScale(1.0);
+      setNumPages(0);
+      setPdfError(false);
+    }
+  }, [open, file]);
 
   // Update preview URL when file changes or dialog opens
   useEffect(() => {
@@ -157,6 +179,21 @@ export function FilePreviewDialog({
     }
   };
 
+  // PDF navigation handlers
+  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
+    setNumPages(numPages);
+    setPdfError(false);
+  }, []);
+
+  const onDocumentLoadError = useCallback(() => {
+    setPdfError(true);
+  }, []);
+
+  const goToPrevPage = () => setPageNumber((prev) => Math.max(prev - 1, 1));
+  const goToNextPage = () => setPageNumber((prev) => Math.min(prev + 1, numPages));
+  const zoomIn = () => setScale((prev) => Math.min(prev + 0.25, 3.0));
+  const zoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.5));
+
   // Don't render content if no file
   if (!open) {
     return null;
@@ -201,33 +238,99 @@ export function FilePreviewDialog({
             <div className="flex items-center justify-center h-[70vh]">
               <div className="text-center space-y-4">
                 <p className="text-destructive">{error}</p>
-                {previewUrl && (
-                  <Button onClick={handleDownload}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Stáhnout soubor
-                  </Button>
-                )}
+                <Button onClick={handleDownload}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Stáhnout soubor
+                </Button>
               </div>
             </div>
           ) : isPDF ? (
-            <object
-              data={previewUrl}
-              type="application/pdf"
-              className="w-full h-[70vh] border-0 rounded"
-            >
-              {/* Fallback pro prohlížeče, které blokují PDF v object tagu */}
-              <div className="flex flex-col items-center justify-center h-[70vh] space-y-4">
-                <p className="text-muted-foreground text-center">
-                  Náhled PDF není v tomto prohlížeči k dispozici.
-                </p>
-                <div className="flex justify-center">
-                  <Button onClick={handleDownload}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Stáhnout PDF
-                  </Button>
+            <div className="flex flex-col items-center">
+              {/* PDF Controls */}
+              {numPages > 0 && !pdfError && (
+                <div className="flex items-center gap-4 mb-4 p-2 bg-muted rounded-lg">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={goToPrevPage}
+                      disabled={pageNumber <= 1}
+                      title="Předchozí strana"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm min-w-[80px] text-center">
+                      {pageNumber} / {numPages}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={goToNextPage}
+                      disabled={pageNumber >= numPages}
+                      title="Další strana"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="w-px h-6 bg-border" />
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={zoomOut}
+                      disabled={scale <= 0.5}
+                      title="Oddálit"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm min-w-[50px] text-center">
+                      {Math.round(scale * 100)}%
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={zoomIn}
+                      disabled={scale >= 3.0}
+                      title="Přiblížit"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
+              )}
+
+              {/* PDF Document */}
+              <div className="overflow-auto max-h-[60vh] border rounded-lg bg-muted p-4">
+                <Document
+                  file={previewUrl}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  onLoadError={onDocumentLoadError}
+                  loading={
+                    <div className="flex items-center justify-center h-[50vh]">
+                      <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                    </div>
+                  }
+                  error={
+                    <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
+                      <p className="text-muted-foreground text-center">
+                        Náhled PDF se nepodařilo načíst.
+                      </p>
+                      <Button onClick={handleDownload}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Stáhnout PDF
+                      </Button>
+                    </div>
+                  }
+                >
+                  <Page 
+                    pageNumber={pageNumber} 
+                    scale={scale}
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                  />
+                </Document>
               </div>
-            </object>
+            </div>
           ) : isImage ? (
             <div className="flex items-center justify-center">
               <img
