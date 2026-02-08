@@ -477,7 +477,7 @@ export function ModuleRecipientsSelector({
               Příjemci připomínek podle modulu
             </CardTitle>
             <CardDescription>
-              Nastavte příjemce souhrnných emailů zvlášť pro Školení a Technické lhůty
+              Nastavte příjemce souhrnných emailů zvlášť pro Školení, Technické lhůty a PLP
             </CardDescription>
           </div>
           <Button onClick={handleSave} disabled={saving}>
@@ -487,8 +487,8 @@ export function ModuleRecipientsSelector({
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeModule} onValueChange={(v) => setActiveModule(v as "training" | "deadlines")}>
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={activeModule} onValueChange={(v) => setActiveModule(v as "training" | "deadlines" | "medical")}>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="training" className="flex items-center gap-2">
               <GraduationCap className="w-4 h-4" />
               Školení
@@ -507,6 +507,15 @@ export function ModuleRecipientsSelector({
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="medical" className="flex items-center gap-2">
+              <Stethoscope className="w-4 h-4" />
+              PLP
+              {getMedicalRecipientsCount() > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {getMedicalRecipientsCount()}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="training" className="mt-4">
@@ -515,6 +524,10 @@ export function ModuleRecipientsSelector({
 
           <TabsContent value="deadlines" className="mt-4">
             {renderRecipientsList("deadlines")}
+          </TabsContent>
+
+          <TabsContent value="medical" className="mt-4">
+            {renderRecipientsList("medical")}
           </TabsContent>
         </Tabs>
       </CardContent>
