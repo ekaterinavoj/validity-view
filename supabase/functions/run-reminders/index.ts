@@ -151,18 +151,57 @@ function formatDaysLabel(days: number): string {
 }
 
 // Replace template variables for summary email
+// Supports multiple formats: {variable}, {{variable}}, and older single-variable names
 function replaceVariables(
   template: string, 
   totalCount: number, 
   expiringCount: number, 
-  expiredCount: number
+  expiredCount: number,
+  trainings?: TrainingItem[]
 ): string {
   const today = new Date();
-  return template
-    .replace(/{totalCount}/g, String(totalCount))
-    .replace(/{expiringCount}/g, String(expiringCount))
-    .replace(/{expiredCount}/g, String(expiredCount))
-    .replace(/{reportDate}/g, formatDate(today.toISOString()));
+  let result = template
+    // Summary variables (new format)
+    .replace(/\{+totalCount\}+/g, String(totalCount))
+    .replace(/\{+expiringCount\}+/g, String(expiringCount))
+    .replace(/\{+expiredCount\}+/g, String(expiredCount))
+    .replace(/\{+reportDate\}+/g, formatDate(today.toISOString()))
+    // Legacy variables for backwards compatibility
+    .replace(/\{+total_count\}+/g, String(totalCount))
+    .replace(/\{+expiring_count\}+/g, String(expiringCount))
+    .replace(/\{+expired_count\}+/g, String(expiredCount))
+    .replace(/\{+report_date\}+/g, formatDate(today.toISOString()));
+  
+  // If we have trainings data, also replace individual training variables
+  // with sample/first training data for preview purposes
+  if (trainings && trainings.length > 0) {
+    const sample = trainings[0];
+    const sampleFullName = `${sample.employee_first_name} ${sample.employee_last_name}`;
+    
+    result = result
+      // Modern format {{variable}}
+      .replace(/\{\{employee_name\}\}/g, sampleFullName)
+      .replace(/\{\{training_name\}\}/g, sample.training_type_name)
+      .replace(/\{\{training_type\}\}/g, sample.training_type_name)
+      .replace(/\{\{days_remaining\}\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
+      .replace(/\{\{days_left\}\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
+      .replace(/\{\{expiry_date\}\}/g, formatDate(sample.next_training_date))
+      .replace(/\{\{expires_on\}\}/g, formatDate(sample.next_training_date))
+      .replace(/\{\{employee_email\}\}/g, sample.employee_email)
+      // Legacy format {variable}
+      .replace(/\{firstName\}/g, sample.employee_first_name)
+      .replace(/\{lastName\}/g, sample.employee_last_name)
+      .replace(/\{employeeName\}/g, sampleFullName)
+      .replace(/\{trainingName\}/g, sample.training_type_name)
+      .replace(/\{trainingType\}/g, sample.training_type_name)
+      .replace(/\{daysLeft\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
+      .replace(/\{daysRemaining\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
+      .replace(/\{expiresOn\}/g, formatDate(sample.next_training_date))
+      .replace(/\{expiryDate\}/g, formatDate(sample.next_training_date))
+      .replace(/\{employeeEmail\}/g, sample.employee_email);
+  }
+  
+  return result;
 }
 
 // Build HTML table for trainings list
@@ -980,9 +1019,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Build email content - add TEST: prefix for test mode
     const deliveryMode = reminderRecipients.delivery_mode || "bcc";
-    const baseSubject = replaceVariables(emailTemplate.subject, totalCount, expiringCount, expiredCount);
+    const baseSubject = replaceVariables(emailTemplate.subject, totalCount, expiringCount, expiredCount, allTrainings);
     const subject = testMode ? `[TEST] ${baseSubject}` : baseSubject;
-    const bodyText = replaceVariables(emailTemplate.body, totalCount, expiringCount, expiredCount);
+    const bodyText = replaceVariables(emailTemplate.body, totalCount, expiringCount, expiredCount, allTrainings);
     const trainingsTable = buildTrainingsTable(allTrainings);
     const testNotice = testMode 
       ? `<div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 10px; margin-bottom: 20px; border-radius: 4px;"><strong>⚠️ TESTOVACÍ EMAIL</strong> - Tento email byl odeslán v testovacím režimu.</div>`
