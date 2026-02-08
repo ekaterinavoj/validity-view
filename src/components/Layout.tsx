@@ -3,10 +3,12 @@ import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog } from "lucide-react";
+import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "./NotificationBell";
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -66,7 +68,7 @@ export const Layout = ({
   const isTrainingOstatniActive = ["/employees", "/training-types", "/departments", "/inactive"].some(path => location.pathname === path);
 
   // Deadline mode "Ostatní" dropdown active state (facilities removed - now global)
-  const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types"].some(path => location.pathname === path);
+  const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types", "/deadlines/groups"].some(path => location.pathname === path);
 
   // System/Data dropdown active state (includes facilities)
   const isSystemDataActive = location.pathname === "/facilities";
@@ -104,7 +106,8 @@ export const Layout = ({
               </Tabs>
             </div>
             
-            {profile && <div className="flex items-center gap-4">
+            {profile && <div className="flex items-center gap-2">
+                <NotificationBell />
                 <Link to="/profile" className="hidden sm:flex items-center gap-3 text-sm hover:bg-accent rounded-lg px-3 py-2 transition-colors">
                   <User className="w-4 h-4 text-muted-foreground" />
                   <div className="flex flex-col items-end">
@@ -216,7 +219,7 @@ export const Layout = ({
                         <ChevronDown className="w-4 h-4" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-48 bg-popover z-50">
+                    <DropdownMenuContent align="start" className="w-56 bg-popover z-50">
                       <DropdownMenuItem asChild>
                         <Link to="/deadlines/equipment" className="flex items-center gap-2 cursor-pointer">
                           <Cog className="w-4 h-4" />
@@ -227,6 +230,12 @@ export const Layout = ({
                         <Link to="/deadlines/types" className="flex items-center gap-2 cursor-pointer">
                           <Clock className="w-4 h-4" />
                           Typy událostí
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/deadlines/groups" className="flex items-center gap-2 cursor-pointer">
+                          <UsersRound className="w-4 h-4" />
+                          Skupiny odpovědných osob
                         </Link>
                       </DropdownMenuItem>
                     </DropdownMenuContent>

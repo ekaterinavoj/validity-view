@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FileText, File, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -132,11 +132,7 @@ export function DeadlineProtocolCell({ deadlineId }: DeadlineProtocolCellProps) 
             className="h-8 w-8"
             onClick={handleDownload}
           >
-            {latestDocument.file_type.includes("pdf") ? (
-              <FileText className="w-4 h-4 text-primary" />
-            ) : (
-              <File className="w-4 h-4 text-primary" />
-            )}
+            <FileText className="w-4 h-4 text-primary" />
           </Button>
         </TooltipTrigger>
         <TooltipContent>
