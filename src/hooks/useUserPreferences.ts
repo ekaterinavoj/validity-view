@@ -9,6 +9,9 @@ export interface UserPreferences {
   showExpiredFirst: boolean;
   animationsEnabled: boolean;
   
+  // PDF Preview
+  pdfViewMode: "single" | "scroll";
+  
   // Notifications
   soundEnabled: boolean;
   desktopNotifications: boolean;
@@ -28,6 +31,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   itemsPerPage: 25,
   showExpiredFirst: true,
   animationsEnabled: true,
+  pdfViewMode: "scroll",
   soundEnabled: false,
   desktopNotifications: false,
   showStatusBadges: true,
