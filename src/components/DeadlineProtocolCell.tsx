@@ -13,6 +13,7 @@ import {
   getDeadlineDocuments,
   getDeadlineDocumentDownloadUrl,
 } from "@/lib/deadlineDocuments";
+import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 
 interface DeadlineProtocolCellProps {
   deadlineId: string;
@@ -22,6 +23,7 @@ export function DeadlineProtocolCell({ deadlineId }: DeadlineProtocolCellProps) 
   const { toast } = useToast();
   const [latestDocument, setLatestDocument] = useState<DeadlineDocument | null>(null);
   const [loading, setLoading] = useState(true);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string; fileType: string } | null>(null);
 
   useEffect(() => {
     const loadDocuments = async () => {
@@ -55,13 +57,13 @@ export function DeadlineProtocolCell({ deadlineId }: DeadlineProtocolCellProps) 
     loadDocuments();
   }, [deadlineId]);
 
-  const handleDownload = async () => {
+  const handlePreview = async () => {
     if (!latestDocument) return;
     
     const { url, error } = await getDeadlineDocumentDownloadUrl(latestDocument.file_path);
     if (error) {
       toast({
-        title: "Chyba při stahování",
+        title: "Chyba při načítání dokumentu",
         description: error.message,
         variant: "destructive",
       });
@@ -69,42 +71,11 @@ export function DeadlineProtocolCell({ deadlineId }: DeadlineProtocolCellProps) 
     }
 
     if (url) {
-      // Try to open in a new tab first
-      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
-      
-      // If popup was blocked or failed, try fallback download via fetch → blob
-      if (!newWindow || newWindow.closed || typeof newWindow.closed === "undefined") {
-        try {
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error("Failed to fetch file");
-          }
-          
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          
-          const link = document.createElement("a");
-          link.href = blobUrl;
-          link.download = latestDocument.file_name;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // Cleanup blob URL after download
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-          
-          toast({
-            title: "Soubor stažen",
-            description: `Protokol "${latestDocument.file_name}" byl stažen.`,
-          });
-        } catch (fetchError) {
-          toast({
-            title: "Chyba při stahování",
-            description: "Nelze stáhnout soubor. Zkuste to prosím znovu.",
-            variant: "destructive",
-          });
-        }
-      }
+      setPreviewDoc({
+        url,
+        fileName: latestDocument.file_name,
+        fileType: latestDocument.file_type,
+      });
     }
   };
 
@@ -123,22 +94,30 @@ export function DeadlineProtocolCell({ deadlineId }: DeadlineProtocolCellProps) 
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={handleDownload}
-          >
-            <FileText className="w-4 h-4 text-primary" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p className="text-xs">{latestDocument.file_name}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handlePreview}
+            >
+              <FileText className="w-4 h-4 text-primary" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-xs">{latestDocument.file_name}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <FilePreviewDialog
+        open={!!previewDoc}
+        onOpenChange={(open) => !open && setPreviewDoc(null)}
+        file={previewDoc ? { name: previewDoc.fileName, url: previewDoc.url, type: previewDoc.fileType } : null}
+      />
+    </>
   );
 }
