@@ -374,11 +374,20 @@ export default function Equipment() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Odpovědná osoba</Label>
-              <Input
-                value={formData.responsible_person}
-                onChange={e => setFormData(prev => ({ ...prev, responsible_person: e.target.value }))}
-              />
+              <Label>Oddělení</Label>
+              <Select
+                value={formData.department_id}
+                onValueChange={val => setFormData(prev => ({ ...prev, department_id: val }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Vyberte oddělení" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Stav</Label>
