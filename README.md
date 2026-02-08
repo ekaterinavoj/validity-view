@@ -571,6 +571,308 @@ Dokumenty ze Storage se zálohují samostatně:
 
 ---
 
+## 🏥 Health Checks a Monitoring
+
+### Docker health check
+
+Docker-compose automaticky monitoruje zdraví kontejneru:
+
+```bash
+# Kontrola stavu
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+# Výstup:
+# NAMES              STATUS
+# training-frontend  Up 2 hours (healthy)
+```
+
+### Manuální health check
+
+```bash
+# HTTP status
+curl -i http://localhost:80/
+
+# Očekávaná odpověď: HTTP 200 OK
+
+# Ověření datové základny (přihlášení admin účtem)
+curl -X POST http://localhost:80/api/health
+```
+
+### Monitoring aplikace
+
+Doporučujeme nastavit monitoring:
+
+```bash
+# Kontrola logů v reálném čase
+docker-compose logs -f frontend
+
+# Kontrola konkrétní chyby
+docker-compose logs frontend | grep "ERROR"
+
+# Sledování výkonu
+docker stats training-frontend
+```
+
+---
+
+## 📊 Logování a Audit
+
+### Aplikační logy
+
+Všechny změny jsou zaznamenány v tabulce `audit_logs`:
+
+```sql
+-- Posledních 100 změn
+SELECT 
+  created_at, 
+  user_email, 
+  action, 
+  table_name, 
+  changed_fields 
+FROM audit_logs 
+ORDER BY created_at DESC 
+LIMIT 100;
+```
+
+### Docker logy
+
+```bash
+# Posledních 100 řádků
+docker-compose logs --tail=100 frontend
+
+# Sledování v reálném čase
+docker-compose logs -f frontend
+
+# Logy od určitého času
+docker-compose logs --since 1h frontend
+
+# Export logů do souboru
+docker-compose logs frontend > app_logs_$(date +%Y%m%d).txt
+```
+
+### CRON a připomínky logy
+
+```bash
+# Školení
+tail -f /var/log/training-reminders.log
+
+# Technické události
+tail -f /var/log/deadline-reminders.log
+
+# Lékařské prohlídky
+tail -f /var/log/medical-reminders.log
+
+# Databázové zálohy
+tail -f /var/log/db-backup.log
+```
+
+### Archivování logů
+
+```bash
+# Ročně archivujte staré logy
+find /var/log/reminders -name "*.log" -mtime +30 -exec gzip {} \;
+find /var/log/reminders -name "*.log.gz" -mtime +90 -delete
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Problém: Aplikace se nenačítá
+
+```bash
+# Kontrola běhu kontejneru
+docker ps | grep training-frontend
+
+# Pokud neběží, spusťte
+docker-compose up -d --build
+
+# Kontrola logů
+docker-compose logs frontend | tail -50
+
+# Ověření portu
+netstat -tlnp | grep :80
+```
+
+### Problém: Chyba připojení k databázi
+
+```bash
+# Ověření ENV proměnných
+grep VITE_SUPABASE .env
+
+# Kontrola síťového spojení
+curl -i https://xgtwutpbojltmktprdui.supabase.co
+
+# Zkontrolujte firewall
+sudo ufw status
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+```
+
+### Problém: CRON úlohy se nespouštějí
+
+```bash
+# Kontrola crontab
+crontab -l
+
+# Kontrola logů cron
+grep CRON /var/log/syslog | tail -20
+
+# Ověření CRON_SECRET
+# V docker-compose.yml nebo .env
+
+# Manuální test připomínky
+curl -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/send-training-reminders" \
+  -H "Content-Type: application/json" \
+  -H "x-cron-secret: YOUR_CRON_SECRET" \
+  -d '{"triggered_by":"test"}'
+```
+
+### Problém: Nedostatek místa na disku
+
+```bash
+# Kontrola místa
+df -h
+
+# Clearing Docker resources
+docker-compose down
+docker system prune -a --volumes
+
+# Kontrola logů
+du -sh /var/log/*
+```
+
+### Problém: Vysoké využití paměti
+
+```bash
+# Kontrola spotřeby
+docker stats training-frontend
+
+# Restart kontejneru
+docker-compose restart frontend
+
+# Zvýšení limitu v docker-compose.yml
+# services:
+#   frontend:
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 1G
+```
+
+---
+
+## 🔄 Aktualizace aplikace
+
+### Postup aktualizace
+
+```bash
+# 1. Zastavení a backup
+docker-compose down
+/opt/scripts/backup-db.sh
+
+# 2. Aktualizace kódu
+git fetch origin
+git checkout main  # nebo master
+git pull
+
+# 3. Rebuild a spuštění
+docker-compose up -d --build
+
+# 4. Kontrola logů
+docker-compose logs -f frontend
+
+# 5. Ověření funkce
+curl http://localhost:80/
+```
+
+### Zero-downtime update (volitelné)
+
+```bash
+# 1. Build nového image
+docker build -t training-frontend:new .
+
+# 2. Spustit nový kontejner na jiném portu
+docker run -d -p 8080:80 --name training-frontend-new training-frontend:new
+
+# 3. Test nové verze
+curl http://localhost:8080/
+
+# 4. Přepnutí v nginx (pokud používáte reverse proxy)
+# Aktualizujte nginx config a reload
+
+# 5. Zastavení starého kontejneru
+docker stop training-frontend
+docker rename training-frontend training-frontend-old
+
+# 6. Přejmenování nového
+docker rename training-frontend-new training-frontend
+
+# 7. Smazání starého
+docker rm training-frontend-old
+```
+
+### Rollback při chybě
+
+```bash
+# 1. Zastavení nové verze
+docker-compose down
+
+# 2. Checkout předchozí verze
+git checkout HEAD~1
+
+# 3. Spuštění staré verze
+docker-compose up -d --build
+
+# 4. Obnova databáze z poslední zálohy (pokud potřeba)
+PGPASSWORD="$DB_PASSWORD" psql -h db.xgtwutpbojltmktprdui.supabase.co \
+  -U postgres -d postgres < /var/backups/training-system/latest_backup.sql
+```
+
+---
+
+## 🛡️ Bezpečnostní tipy
+
+### Firewall konfigurace
+
+```bash
+# UFW (Ubuntu)
+sudo ufw enable
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 22/tcp    # SSH
+sudo ufw allow 80/tcp    # HTTP
+sudo ufw allow 443/tcp   # HTTPS
+```
+
+### SSH bezpečnost
+
+```bash
+# Deaktivujte root login
+sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+
+# Zmeňte default port (volitelné)
+sudo sed -i 's/#Port 22/Port 2222/' /etc/ssh/sshd_config
+
+# Restart SSH
+sudo systemctl restart sshd
+```
+
+### Tajné klíče (CRON_SECRET)
+
+```bash
+# NIKDY nesdílejte v Plain textu
+# Udržujte v .env souboru mimo git
+# Změňte během setup jednou za měsíc
+
+# Generování nového klíče
+NEW_SECRET=$(openssl rand -hex 32)
+echo "Nový CRON_SECRET: $NEW_SECRET"
+# Pak aktualizujte v .env a Lovable Cloud
+```
+
+---
+
 ## 📁 Struktura projektu
 
 ```
