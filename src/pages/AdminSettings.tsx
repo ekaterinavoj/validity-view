@@ -127,10 +127,12 @@ export default function AdminSettings() {
   });
   
   const [emailProvider, setEmailProvider] = useState({
-    provider: "resend",
+    provider: "smtp",
     smtp_host: "",
     smtp_port: 587,
     smtp_user: "",
+    smtp_password: "", // Will be stored encrypted in system_settings
+    smtp_auth_enabled: true,
     smtp_from_email: "",
     smtp_from_name: "Training System",
     smtp_secure: true,
@@ -715,212 +717,205 @@ export default function AdminSettings() {
         <TabsContent value="email" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Poskytovatel emailů</CardTitle>
+              <CardTitle>SMTP Server</CardTitle>
               <CardDescription>
-                Vyberte způsob odesílání emailů
+                Nastavení SMTP serveru pro odesílání emailových připomínek
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label>Poskytovatel</Label>
-                <Select
-                  value={emailProvider.provider}
-                  onValueChange={(value) => 
-                    setEmailProvider({ ...emailProvider, provider: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="resend">Resend API</SelectItem>
-                    <SelectItem value="smtp">SMTP Server</SelectItem>
-                    <SelectItem value="smtp_with_resend_fallback">SMTP s fallbackem na Resend</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {emailProvider.provider === "smtp_with_resend_fallback" && 
-                    "Použije SMTP jako primární, při selhání automaticky přepne na Resend"}
-                </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>SMTP Host *</Label>
+                  <Input
+                    value={emailProvider.smtp_host}
+                    onChange={(e) => 
+                      setEmailProvider({ ...emailProvider, smtp_host: e.target.value })
+                    }
+                    placeholder="smtp.example.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Adresa SMTP serveru (např. smtp.gmail.com, smtp.office365.com)
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>SMTP Port *</Label>
+                  <Input
+                    type="number"
+                    value={emailProvider.smtp_port}
+                    onChange={(e) => 
+                      setEmailProvider({ ...emailProvider, smtp_port: parseInt(e.target.value) || 587 })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Obvykle 587 (STARTTLS) nebo 465 (SMTPS) nebo 25 (bez šifrování)
+                  </p>
+                </div>
               </div>
 
-              {emailProvider.provider === "resend" && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-5 h-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Resend API</p>
-                      <p className="text-sm text-muted-foreground">
-                        Pro použití Resend API je nutné nastavit RESEND_API_KEY v proměnných prostředí serveru.
-                      </p>
-                    </div>
-                  </div>
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Autorizace</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Vyžaduje server přihlášení? Některé interní SMTP servery fungují bez autorizace.
+                  </p>
                 </div>
-              )}
+                <Switch
+                  checked={emailProvider.smtp_auth_enabled !== false}
+                  onCheckedChange={(checked) => 
+                    setEmailProvider({ ...emailProvider, smtp_auth_enabled: checked })
+                  }
+                />
+              </div>
 
-              {(emailProvider.provider === "smtp" || emailProvider.provider === "smtp_with_resend_fallback") && (
-                <div className="space-y-4">
-                  {emailProvider.provider === "smtp_with_resend_fallback" && (
-                    <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium">SMTP s fallbackem</p>
-                          <p className="text-sm text-muted-foreground">
-                            Při selhání SMTP se automaticky použije Resend. Vyžaduje nastavení RESEND_API_KEY.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>SMTP Host</Label>
-                      <Input
-                        value={emailProvider.smtp_host}
-                        onChange={(e) => 
-                          setEmailProvider({ ...emailProvider, smtp_host: e.target.value })
-                        }
-                        placeholder="smtp.example.com"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>SMTP Port</Label>
-                      <Input
-                        type="number"
-                        value={emailProvider.smtp_port}
-                        onChange={(e) => 
-                          setEmailProvider({ ...emailProvider, smtp_port: parseInt(e.target.value) || 587 })
-                        }
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Obvykle 587 (STARTTLS) nebo 465 (SMTPS)
-                      </p>
-                    </div>
+              {emailProvider.smtp_auth_enabled !== false && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Uživatelské jméno</Label>
+                    <Input
+                      value={emailProvider.smtp_user}
+                      onChange={(e) => 
+                        setEmailProvider({ ...emailProvider, smtp_user: e.target.value })
+                      }
+                      placeholder="user@example.com"
+                    />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Uživatelské jméno</Label>
+                  <div className="space-y-2">
+                    <Label>Heslo</Label>
+                    <div className="relative">
                       <Input
-                        value={emailProvider.smtp_user}
+                        type={showSmtpPassword ? "text" : "password"}
+                        value={emailProvider.smtp_password || ""}
                         onChange={(e) => 
-                          setEmailProvider({ ...emailProvider, smtp_user: e.target.value })
+                          setEmailProvider({ ...emailProvider, smtp_password: e.target.value })
                         }
+                        placeholder="••••••••"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Heslo</Label>
-                      <div className="relative">
-                        <Input
-                          type={showSmtpPassword ? "text" : "password"}
-                          placeholder="Nastaveno v ENV: SMTP_PASSWORD"
-                          disabled
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowSmtpPassword(!showSmtpPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        >
-                          {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Heslo je nastaveno v proměnné SMTP_PASSWORD
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Email odesílatele</Label>
-                      <Input
-                        type="email"
-                        value={emailProvider.smtp_from_email}
-                        onChange={(e) => 
-                          setEmailProvider({ ...emailProvider, smtp_from_email: e.target.value })
-                        }
-                        placeholder="noreply@example.com"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Jméno odesílatele</Label>
-                      <Input
-                        value={emailProvider.smtp_from_name}
-                        onChange={(e) => 
-                          setEmailProvider({ ...emailProvider, smtp_from_name: e.target.value })
-                        }
-                        placeholder="Training System"
-                      />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <p className="text-sm font-medium">Nastavení TLS</p>
-                    
-                    <div className="space-y-2">
-                      <Label>Režim TLS</Label>
-                      <Select
-                        value={emailProvider.smtp_tls_mode || "starttls"}
-                        onValueChange={(value) => 
-                          setEmailProvider({ 
-                            ...emailProvider, 
-                            smtp_tls_mode: value,
-                            smtp_port: value === "smtps" ? 465 : 587
-                          })
-                        }
+                      <button
+                        type="button"
+                        onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                       >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="starttls">STARTTLS (port 587)</SelectItem>
-                          <SelectItem value="smtps">SMTPS / Implicit TLS (port 465)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        STARTTLS upgraduje na TLS po připojení, SMTPS používá TLS od začátku
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Zabezpečené připojení (TLS)</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Použít šifrované připojení k SMTP serveru
-                        </p>
-                      </div>
-                      <Switch
-                        checked={emailProvider.smtp_secure}
-                        onCheckedChange={(checked) => 
-                          setEmailProvider({ ...emailProvider, smtp_secure: checked })
-                        }
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Ignorovat TLS chyby</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Povolit self-signed certifikáty (pouze pro testování)
-                        </p>
-                      </div>
-                      <Switch
-                        checked={emailProvider.smtp_ignore_tls || false}
-                        onCheckedChange={(checked) => 
-                          setEmailProvider({ ...emailProvider, smtp_ignore_tls: checked })
-                        }
-                      />
+                        {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
                 </div>
               )}
+
+              <Separator />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Email odesílatele (From) *</Label>
+                  <Input
+                    type="email"
+                    value={emailProvider.smtp_from_email}
+                    onChange={(e) => 
+                      setEmailProvider({ ...emailProvider, smtp_from_email: e.target.value })
+                    }
+                    placeholder="noreply@vase-firma.cz"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Adresa, ze které budou emaily odesílány
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Jméno odesílatele</Label>
+                  <Input
+                    value={emailProvider.smtp_from_name}
+                    onChange={(e) => 
+                      setEmailProvider({ ...emailProvider, smtp_from_name: e.target.value })
+                    }
+                    placeholder="Systém školení"
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <p className="text-sm font-medium">Zabezpečení připojení</p>
+                
+                <div className="space-y-2">
+                  <Label>Režim zabezpečení</Label>
+                  <Select
+                    value={emailProvider.smtp_tls_mode || "starttls"}
+                    onValueChange={(value) => {
+                      let port = emailProvider.smtp_port;
+                      if (value === "smtps") port = 465;
+                      else if (value === "starttls") port = 587;
+                      else if (value === "none") port = 25;
+                      
+                      setEmailProvider({ 
+                        ...emailProvider, 
+                        smtp_tls_mode: value,
+                        smtp_port: port,
+                        smtp_secure: value !== "none"
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="starttls">STARTTLS (port 587)</SelectItem>
+                      <SelectItem value="smtps">SMTPS / Implicit TLS (port 465)</SelectItem>
+                      <SelectItem value="none">Bez šifrování (port 25)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    STARTTLS upgraduje na TLS po připojení, SMTPS používá TLS od začátku, Bez šifrování pouze pro interní servery
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Ignorovat chyby TLS certifikátu</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Povolit pouze pro testování nebo interní servery s self-signed certifikáty
+                    </p>
+                  </div>
+                  <Switch
+                    checked={emailProvider.smtp_ignore_tls}
+                    onCheckedChange={(checked) => 
+                      setEmailProvider({ ...emailProvider, smtp_ignore_tls: checked })
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Status indicator */}
+              <div className="p-4 rounded-lg border">
+                <div className="flex items-start gap-3">
+                {emailProvider.smtp_host && emailProvider.smtp_from_email ? (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-primary mt-2" />
+                      <div>
+                        <p className="text-sm font-medium">SMTP nakonfigurováno</p>
+                        <p className="text-sm text-muted-foreground">
+                          Server: {emailProvider.smtp_host}:{emailProvider.smtp_port} | 
+                          Odesílatel: {emailProvider.smtp_from_email} | 
+                          {emailProvider.smtp_auth_enabled !== false ? " S autorizací" : " Bez autorizace"}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-5 h-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">SMTP není nakonfigurováno</p>
+                        <p className="text-sm text-muted-foreground">
+                          Pro odesílání emailů vyplňte SMTP host a email odesílatele
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
-
           {/* Email Templates with Tabs for both modules */}
           <Card>
             <CardHeader>
