@@ -20,7 +20,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadTrainingDocument } from "@/lib/trainingDocuments";
 import { TrainingDocumentsList } from "@/components/TrainingDocumentsList";
-import { Separator } from "@/components/ui/separator";
+
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -420,25 +420,25 @@ export default function EditTraining() {
               </div>
             </div>
 
-            {/* Stávající dokumenty */}
-            <div className="space-y-4">
-              <Separator />
+            {/* Existing Documents */}
+            <div className="space-y-3">
               <div>
-                <Label className="text-base font-semibold">Nahrané dokumenty</Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Dokumenty již nahrané ke školení. Můžete je stáhnout nebo smazat.
+                <Label className="text-sm font-medium">Nahrané dokumenty</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Dokumenty již nahrané k tomuto školení. Můžete je stáhnout, zobrazit nebo smazat.
                 </p>
               </div>
               <TrainingDocumentsList trainingId={id || ""} canDelete={true} />
             </div>
 
-            {/* Nahrávání nových dokumentů */}
-            <div className="space-y-2">
-              <Separator />
-              <Label>Přidat nové dokumenty</Label>
-              <p className="text-sm text-muted-foreground">
-                Nahrajte další certifikáty, prezenční listiny nebo jiné dokumenty
-              </p>
+            {/* New Document Upload */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-medium">Přidat nové dokumenty</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nahrajte protokoly, certifikáty nebo jiné dokumenty k tomuto školení
+                </p>
+              </div>
               <FileUploader
                 files={uploadedFiles}
                 onFilesChange={setUploadedFiles}

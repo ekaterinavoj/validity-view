@@ -366,9 +366,21 @@ export default function NewTraining() {
               <FormItem><FormLabel>Školící firma</FormLabel><FormControl><Input {...field} placeholder="Název firmy" /></FormControl><FormMessage /></FormItem>
             )} />
 
-            <div className="space-y-2">
-              <Label>Dokumenty ke školení</Label>
-              <FileUploader files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={10} maxSize={20} acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} />
+            {/* File Upload Section */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-medium">Dokumenty (protokol, certifikát)</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nahrajte protokoly, certifikáty nebo jiné dokumenty k tomuto školení
+                </p>
+              </div>
+              <FileUploader
+                files={uploadedFiles}
+                onFilesChange={setUploadedFiles}
+                maxFiles={10}
+                maxSize={20}
+                acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
+              />
             </div>
 
             <FormField control={form.control} name="reminderTemplateId" render={({ field }) => (
