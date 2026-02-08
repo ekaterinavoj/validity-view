@@ -16,7 +16,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
-import { uploadMedicalDocument, getMedicalDocuments, deleteMedicalDocument, getMedicalDocumentUrl } from "@/lib/medicalDocuments";
+import { uploadMedicalDocument } from "@/lib/medicalDocuments";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useParams } from "react-router-dom";
@@ -26,9 +26,7 @@ import { useFacilities } from "@/hooks/useFacilities";
 import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, calculateNextDate, periodicityToDays } from "@/components/PeriodicityInput";
-import { FilePreviewDialog } from "@/components/FilePreviewDialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Download, Trash2, FileText } from "lucide-react";
+import { MedicalDocumentsList } from "@/components/MedicalDocumentsList";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -48,29 +46,15 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface ExistingDocument {
-  id: string;
-  file_name: string;
-  file_path: string;
-  file_type: string;
-  file_size: number;
-  document_type: string;
-  uploaded_at: string;
-}
-
 export default function EditMedicalExamination() {
   const { id } = useParams();
   const { profile, user } = useAuth();
   const navigate = useNavigate();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [existingDocuments, setExistingDocuments] = useState<ExistingDocument[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
-  // Always add new files without replacing existing ones - no checkbox needed
-  const [previewFiles, setPreviewFiles] = useState<{ url: string; name: string; type: string }[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
@@ -140,11 +124,7 @@ export default function EditMedicalExamination() {
           setPeriodUnit(unit);
         }
 
-        // Load existing documents
-        const { data: docs } = await getMedicalDocuments(id);
-        if (docs) {
-          setExistingDocuments(docs);
-        }
+        // Documents are now loaded by MedicalDocumentsList component
       } catch (error: any) {
         toast({
           title: "Chyba při načítání",
@@ -178,40 +158,6 @@ export default function EditMedicalExamination() {
     if (periodValue <= 0) return null;
     return calculateNextDate(lastExaminationDate, periodValue, watchedPeriodUnit as PeriodicityUnit);
   }, [lastExaminationDate, periodValue, watchedPeriodUnit]);
-
-  const handlePreviewDocument = async (doc: ExistingDocument) => {
-    // Load all documents for preview
-    const files: { url: string; name: string; type: string }[] = [];
-    
-    for (const d of existingDocuments) {
-      const url = await getMedicalDocumentUrl(d.file_path);
-      if (url) {
-        files.push({ url, name: d.file_name, type: d.file_type });
-      }
-    }
-    
-    if (files.length > 0) {
-      setPreviewFiles(files);
-      setShowPreview(true);
-    }
-  };
-
-  const handleDownloadDocument = async (doc: ExistingDocument) => {
-    const url = await getMedicalDocumentUrl(doc.file_path);
-    if (url) {
-      window.open(url, "_blank");
-    }
-  };
-
-  const handleDeleteDocument = async (doc: ExistingDocument) => {
-    const { error } = await deleteMedicalDocument(doc.id, doc.file_path);
-    if (error) {
-      toast({ title: "Chyba", description: "Nepodařilo se smazat dokument.", variant: "destructive" });
-    } else {
-      setExistingDocuments(prev => prev.filter(d => d.id !== doc.id));
-      toast({ title: "Dokument smazán" });
-    }
-  };
 
   const onSubmit = async (data: FormValues) => {
     if (!user || !id) {
@@ -484,51 +430,15 @@ export default function EditMedicalExamination() {
             />
 
             {/* Existing Documents */}
-            {existingDocuments.length > 0 && (
+            {id && (
               <div className="space-y-3">
                 <div>
                   <Label className="text-sm font-medium">Nahrané dokumenty</Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Dokumenty již nahrané k této prohlídce
+                    Dokumenty již nahrané k této prohlídce. Můžete je stáhnout, zobrazit nebo smazat.
                   </p>
                 </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Název</TableHead>
-                      <TableHead>Typ</TableHead>
-                      <TableHead>Velikost</TableHead>
-                      <TableHead className="text-right">Akce</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {existingDocuments.map((doc) => (
-                      <TableRow key={doc.id}>
-                        <TableCell className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-muted-foreground" />
-                          {doc.file_name}
-                        </TableCell>
-                        <TableCell>{doc.document_type}</TableCell>
-                        <TableCell>{(doc.file_size / 1024).toFixed(1)} KB</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            {(doc.file_type.includes("pdf") || doc.file_type.includes("image")) && (
-                              <Button variant="ghost" size="icon" onClick={() => handlePreviewDocument(doc)}>
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="icon" onClick={() => handleDownloadDocument(doc)}>
-                              <Download className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteDocument(doc)}>
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <MedicalDocumentsList examinationId={id} canDelete={true} />
               </div>
             )}
 
@@ -628,12 +538,6 @@ export default function EditMedicalExamination() {
         </Form>
       </Card>
 
-      <FilePreviewDialog
-        open={showPreview}
-        onOpenChange={(open) => !open && setShowPreview(false)}
-        file={null}
-        files={previewFiles}
-      />
     </div>
   );
 }
