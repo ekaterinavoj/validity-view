@@ -153,7 +153,14 @@ export async function getDocumentDownloadUrl(
       return { url: null, error };
     }
 
-    return { url: data.signedUrl, error: null };
+    // Ensure we have full URL (in case SDK returns relative path)
+    let signedUrl = data.signedUrl;
+    if (signedUrl && !signedUrl.startsWith("http")) {
+      const supabaseUrl = (supabase as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+      signedUrl = `${supabaseUrl}${signedUrl.startsWith("/") ? "" : "/"}${signedUrl}`;
+    }
+
+    return { url: signedUrl, error: null };
   } catch (error) {
     return { url: null, error: error as Error };
   }
