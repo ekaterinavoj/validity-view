@@ -43,6 +43,7 @@ const formSchema = z.object({
   departmentId: z.string().min(1, "Vyberte středisko"),
   status: z.enum(["employed", "parental_leave", "sick_leave", "terminated"]),
   terminationDate: z.date().optional(),
+  statusStartDate: z.date().optional(),
   notes: z.string().optional(),
   // Manager fields for hierarchy
   managerFirstName: z.string().optional(),
@@ -188,6 +189,8 @@ export default function Employees() {
       position: employee.position,
       departmentId: employee.departmentId || "",
       status: employee.status,
+      terminationDate: employee.terminationDate ? new Date(employee.terminationDate) : undefined,
+      statusStartDate: employee.statusStartDate ? new Date(employee.statusStartDate) : undefined,
       notes: employee.notes || "",
       managerFirstName: employee.managerFirstName || "",
       managerLastName: employee.managerLastName || "",
@@ -257,6 +260,26 @@ export default function Employees() {
       if (data.status === "terminated" && data.terminationDate) {
         notes = `Ukončen ke dni ${format(data.terminationDate, "dd.MM.yyyy", { locale: cs })}`;
       }
+
+      // Determine status_start_date based on status change
+      let statusStartDate: string | null = null;
+      const isNonActiveStatus = ["parental_leave", "sick_leave", "terminated"].includes(data.status);
+      
+      if (isNonActiveStatus) {
+        // If status changed or it's a new employee, set date
+        const statusChanged = editingEmployee?.status !== data.status;
+        if (statusChanged || !editingEmployee) {
+          // Use provided date or current date
+          statusStartDate = data.statusStartDate 
+            ? format(data.statusStartDate, "yyyy-MM-dd")
+            : format(new Date(), "yyyy-MM-dd");
+        } else {
+          // Keep existing date
+          statusStartDate = data.statusStartDate 
+            ? format(data.statusStartDate, "yyyy-MM-dd")
+            : editingEmployee?.statusStartDate || null;
+        }
+      }
       
       const employeeData = {
         first_name: data.firstName,
@@ -267,6 +290,7 @@ export default function Employees() {
         department_id: data.departmentId,
         status: data.status,
         termination_date: data.terminationDate ? format(data.terminationDate, "yyyy-MM-dd") : null,
+        status_start_date: statusStartDate,
         notes: notes || null,
         // Manager hierarchy fields
         manager_first_name: data.managerFirstName || null,
@@ -532,6 +556,46 @@ export default function Employees() {
                   )}
                 />
 
+                {/* Date field for parental_leave and sick_leave */}
+                {(selectedStatus === "parental_leave" || selectedStatus === "sick_leave") && (
+                  <FormField
+                    control={form.control}
+                    name="statusStartDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>
+                          {selectedStatus === "parental_leave" ? "Datum od (mateřská/rodičovská)" : "Datum od (nemocenská)"}
+                        </FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal"
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <p className="text-xs text-muted-foreground">
+                          Pokud nevyplníte, bude automaticky nastaveno aktuální datum.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
                 {selectedStatus === "terminated" && (
                   <FormField
                     control={form.control}
@@ -685,7 +749,10 @@ export default function Employees() {
                   ) : '-'}
                 </TableCell>
                 <TableCell>
-                  <EmployeeStatusBadge status={employee.status as EmployeeStatus} />
+                  <EmployeeStatusBadge 
+                    status={employee.status as EmployeeStatus} 
+                    statusStartDate={employee.statusStartDate || employee.terminationDate}
+                  />
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">

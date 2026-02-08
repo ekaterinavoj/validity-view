@@ -12,6 +12,7 @@ export interface EmployeeWithDepartment {
   departmentId: string | null;
   status: "employed" | "parental_leave" | "sick_leave" | "terminated";
   terminationDate?: string;
+  statusStartDate?: string;
   notes?: string;
   // Manager hierarchy fields
   managerEmployeeId?: string | null;
@@ -41,6 +42,7 @@ export function useEmployees(statusFilter?: string) {
           position,
           status,
           termination_date,
+          status_start_date,
           notes,
           department_id,
           manager_employee_id,
@@ -75,6 +77,7 @@ export function useEmployees(statusFilter?: string) {
         departmentId: e.department_id,
         status: e.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
         terminationDate: e.termination_date,
+        statusStartDate: e.status_start_date,
         notes: e.notes,
         // Manager hierarchy fields
         managerEmployeeId: e.manager_employee_id,
@@ -120,6 +123,7 @@ export function useInactiveEmployees() {
           position,
           status,
           termination_date,
+          status_start_date,
           notes,
           department_id,
           manager_employee_id,
@@ -148,6 +152,7 @@ export function useInactiveEmployees() {
         departmentId: e.department_id,
         status: e.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
         terminationDate: e.termination_date,
+        statusStartDate: e.status_start_date,
         notes: e.notes,
         // Manager hierarchy fields
         managerEmployeeId: e.manager_employee_id,

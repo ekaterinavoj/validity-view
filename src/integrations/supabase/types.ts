@@ -421,6 +421,7 @@ export type Database = {
           notes: string | null
           position: string
           status: string
+          status_start_date: string | null
           termination_date: string | null
           updated_at: string
         }
@@ -439,6 +440,7 @@ export type Database = {
           notes?: string | null
           position: string
           status: string
+          status_start_date?: string | null
           termination_date?: string | null
           updated_at?: string
         }
@@ -457,6 +459,7 @@ export type Database = {
           notes?: string | null
           position?: string
           status?: string
+          status_start_date?: string | null
           termination_date?: string | null
           updated_at?: string
         }
