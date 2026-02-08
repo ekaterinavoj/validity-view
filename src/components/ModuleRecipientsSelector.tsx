@@ -430,30 +430,31 @@ export function ModuleRecipientsSelector({
           </div>
         )}
 
-  if (module === "deadlines" && ((deadlineRecipients.group_ids || []).length === 0 && recipients.user_ids.length === 0)) {
-          return (
-            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
-              <p className="text-sm text-destructive">
-                Připomínky pro tento modul nebudou odesílány, dokud nevyberete alespoň jednoho příjemce nebo skupinu.
-              </p>
-            </div>
-          );
-        }
-        
-        if (recipients.user_ids.length === 0 && module !== "deadlines") {
-          return (
-            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
-              <p className="text-sm text-destructive">
-                Připomínky pro tento modul nebudou odesílány, dokud nevyberete alespoň jednoho příjemce.
-              </p>
-            </div>
-          );
-        }
-        
-        return null;
-      })()}
+        {(() => {
+          if (module === "deadlines" && ((deadlineRecipients.group_ids || []).length === 0 && recipients.user_ids.length === 0)) {
+            return (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
+                <p className="text-sm text-destructive">
+                  Připomínky pro tento modul nebudou odesílány, dokud nevyberete alespoň jednoho příjemce nebo skupinu.
+                </p>
+              </div>
+            );
+          }
+          
+          if (recipients.user_ids.length === 0 && module !== "deadlines") {
+            return (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
+                <p className="text-sm text-destructive">
+                  Připomínky pro tento modul nebudou odesílány, dokud nevyberete alespoň jednoho příjemce.
+                </p>
+              </div>
+            );
+          }
+          
+          return null;
+        })()}
       </div>
     );
   };
