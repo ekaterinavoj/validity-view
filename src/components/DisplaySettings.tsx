@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Monitor, 
   Moon, 
@@ -19,10 +20,13 @@ import {
   AlertTriangle,
   BadgeCheck,
   FileText,
-  Layers
+  Layers,
+  Save,
+  CheckCircle2
 } from "lucide-react";
 import { useUserPreferences, UserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface SettingRowProps {
   icon: React.ReactNode;
@@ -47,15 +51,28 @@ function SettingRow({ icon, label, description, children }: SettingRowProps) {
 }
 
 export function DisplaySettings() {
-  const { preferences, updatePreference, resetPreferences } = useUserPreferences();
+  const { preferences, updatePreference, resetPreferences, isLoaded } = useUserPreferences();
   const { toast } = useToast();
+  const [saved, setSaved] = useState(false);
 
   const handleReset = () => {
     resetPreferences();
+    setSaved(false);
     toast({
       title: "Nastavení obnoveno",
       description: "Všechna nastavení byla vrácena na výchozí hodnoty.",
     });
+  };
+
+  const handleSave = () => {
+    // Settings are already saved automatically, this is just for user confirmation
+    setSaved(true);
+    toast({
+      title: "Nastavení uloženo",
+      description: "Vaše nastavení zobrazení bylo úspěšně uloženo.",
+    });
+    // Reset the saved indicator after 3 seconds
+    setTimeout(() => setSaved(false), 3000);
   };
 
   const themeOptions = [
@@ -366,11 +383,25 @@ export function DisplaySettings() {
         </CardContent>
       </Card>
 
-      {/* Reset Button */}
-      <div className="flex justify-end">
+      {/* Save confirmation */}
+      {saved && (
+        <Alert className="border-primary/50 bg-primary/10">
+          <CheckCircle2 className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-foreground">
+            Nastavení bylo úspěšně uloženo a bude aplikováno při dalším otevření aplikace.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex justify-between gap-4">
         <Button variant="outline" onClick={handleReset}>
           <RotateCcw className="w-4 h-4 mr-2" />
-          Obnovit výchozí nastavení
+          Obnovit výchozí
+        </Button>
+        <Button onClick={handleSave}>
+          <Save className="w-4 h-4 mr-2" />
+          Uložit nastavení
         </Button>
       </div>
     </div>
