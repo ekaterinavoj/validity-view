@@ -66,11 +66,19 @@ const getStatusLabel = (status: string): string => {
   return labels[status] || status;
 };
 
+interface EmployeeDependencies {
+  trainingsCount: number;
+  examinationsCount: number;
+}
+
 export default function Employees() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<EmployeeWithDepartment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeWithDepartment | null>(null);
+  const [deleteDependencies, setDeleteDependencies] = useState<EmployeeDependencies | null>(null);
+  const [checkingDeps, setCheckingDeps] = useState(false);
+  const [deleteMode, setDeleteMode] = useState<"deactivate" | "delete">("deactivate");
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -211,15 +219,38 @@ export default function Employees() {
     setDialogOpen(true);
   };
 
-  const openDeleteDialog = (employee: EmployeeWithDepartment) => {
-    setEmployeeToDelete(employee);
-    setDeleteDialogOpen(true);
+  const checkEmployeeDependencies = async (id: string): Promise<EmployeeDependencies> => {
+    const [trainingsResult, examsResult] = await Promise.all([
+      supabase.from("trainings").select("id", { count: "exact", head: true }).eq("employee_id", id),
+      supabase.from("medical_examinations").select("id", { count: "exact", head: true }).eq("employee_id", id),
+    ]);
+
+    return {
+      trainingsCount: trainingsResult.count || 0,
+      examinationsCount: examsResult.count || 0,
+    };
   };
 
-  const handleDelete = async () => {
+  const openDeleteDialog = async (employee: EmployeeWithDepartment) => {
+    setEmployeeToDelete(employee);
+    setDeleteMode("deactivate");
+    setCheckingDeps(true);
+    setDeleteDialogOpen(true);
+    
+    try {
+      const deps = await checkEmployeeDependencies(employee.id);
+      setDeleteDependencies(deps);
+    } catch (err) {
+      console.error("Error checking dependencies:", err);
+      setDeleteDependencies({ trainingsCount: 0, examinationsCount: 0 });
+    } finally {
+      setCheckingDeps(false);
+    }
+  };
+
+  const handleDeactivate = async () => {
     if (!employeeToDelete) return;
     
-    // Note: DELETE is forbidden by RLS policy, so we just update status to terminated
     try {
       const { error } = await supabase
         .from("employees")
@@ -248,6 +279,43 @@ export default function Employees() {
     
     setDeleteDialogOpen(false);
     setEmployeeToDelete(null);
+    setDeleteDependencies(null);
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!employeeToDelete) return;
+    
+    try {
+      // First delete related trainings
+      await supabase.from("trainings").delete().eq("employee_id", employeeToDelete.id);
+      // Delete related medical examinations
+      await supabase.from("medical_examinations").delete().eq("employee_id", employeeToDelete.id);
+      
+      // Now delete the employee
+      const { error } = await supabase
+        .from("employees")
+        .delete()
+        .eq("id", employeeToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Zaměstnanec smazán",
+        description: `${employeeToDelete.firstName} ${employeeToDelete.lastName} byl trvale odstraněn.`,
+      });
+      
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Chyba při mazání",
+        description: error.message || "Nepodařilo se smazat zaměstnance.",
+        variant: "destructive",
+      });
+    }
+    
+    setDeleteDialogOpen(false);
+    setEmployeeToDelete(null);
+    setDeleteDependencies(null);
   };
 
   const handleDialogClose = (open: boolean) => {
@@ -841,19 +909,99 @@ export default function Employees() {
       </Card>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Opravdu chcete deaktivovat zaměstnance?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Zaměstnanec "{employeeToDelete?.firstName} {employeeToDelete?.lastName}" bude označen jako ukončený.
-              Všechna jeho školení budou automaticky pozastavena.
+            <AlertDialogTitle>
+              {deleteMode === "delete" ? "Trvale smazat zaměstnance?" : "Jak chcete pokračovat?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                {checkingDeps ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Kontrola závislostí...
+                  </div>
+                ) : deleteMode === "delete" ? (
+                  <div className="space-y-2">
+                    <p className="text-destructive font-medium">
+                      Tato akce je nevratná!
+                    </p>
+                    <p>
+                      Zaměstnanec <strong>{employeeToDelete?.firstName} {employeeToDelete?.lastName}</strong> bude trvale smazán.
+                    </p>
+                    {deleteDependencies && (deleteDependencies.trainingsCount > 0 || deleteDependencies.examinationsCount > 0) && (
+                      <div className="bg-destructive/10 p-3 rounded-md text-sm">
+                        <p className="font-medium text-destructive">Budou také smazány:</p>
+                        <ul className="list-disc list-inside mt-1">
+                          {deleteDependencies.trainingsCount > 0 && (
+                            <li>{deleteDependencies.trainingsCount} školení</li>
+                          )}
+                          {deleteDependencies.examinationsCount > 0 && (
+                            <li>{deleteDependencies.examinationsCount} lékařských prohlídek</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p>
+                      Vyberte akci pro zaměstnance <strong>{employeeToDelete?.firstName} {employeeToDelete?.lastName}</strong>:
+                    </p>
+                    {deleteDependencies && (deleteDependencies.trainingsCount > 0 || deleteDependencies.examinationsCount > 0) && (
+                      <div className="bg-muted p-3 rounded-md text-sm">
+                        <p className="font-medium">Přiřazené záznamy:</p>
+                        <ul className="list-disc list-inside mt-1 text-muted-foreground">
+                          {deleteDependencies.trainingsCount > 0 && (
+                            <li>{deleteDependencies.trainingsCount} školení</li>
+                          )}
+                          {deleteDependencies.examinationsCount > 0 && (
+                            <li>{deleteDependencies.examinationsCount} lékařských prohlídek</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
             <AlertDialogCancel>Zrušit</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Deaktivovat
-            </AlertDialogAction>
+            {!checkingDeps && deleteMode === "deactivate" && (
+              <>
+                <Button 
+                  variant="outline"
+                  onClick={handleDeactivate}
+                >
+                  Deaktivovat (ukončit)
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={() => setDeleteMode("delete")}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Trvale smazat
+                </Button>
+              </>
+            )}
+            {!checkingDeps && deleteMode === "delete" && (
+              <>
+                <Button 
+                  variant="outline"
+                  onClick={() => setDeleteMode("deactivate")}
+                >
+                  Zpět
+                </Button>
+                <AlertDialogAction 
+                  onClick={handlePermanentDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Potvrdit smazání
+                </AlertDialogAction>
+              </>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

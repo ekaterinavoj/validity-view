@@ -8,6 +8,8 @@ import {
   Trash2,
   Search,
   Wrench,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +30,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -38,7 +50,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { useEquipment } from "@/hooks/useEquipment";
+import { useEquipment, EquipmentDependencies } from "@/hooks/useEquipment";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useDepartments } from "@/hooks/useDepartments";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
@@ -49,14 +61,20 @@ import { ResponsiblePersonsPicker } from "@/components/ResponsiblePersonsPicker"
 import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColors } from "@/types/equipment";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Equipment() {
-  const { equipment, isLoading, error, refetch, createEquipment, updateEquipment, deleteEquipment, isCreating, isUpdating } = useEquipment();
+  const { toast } = useToast();
+  const { equipment, isLoading, error, refetch, createEquipment, updateEquipment, deleteEquipment, checkDependencies, isCreating, isUpdating, isDeleting } = useEquipment();
   const { facilities } = useFacilities();
   const { departments } = useDepartments();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [equipmentToDelete, setEquipmentToDelete] = useState<EquipmentType | null>(null);
+  const [deleteDependencies, setDeleteDependencies] = useState<EquipmentDependencies | null>(null);
+  const [checkingDeps, setCheckingDeps] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentType | null>(null);
   const [selectedResponsibleIds, setSelectedResponsibleIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({
@@ -127,6 +145,30 @@ export default function Equipment() {
       notes: item.notes || "",
     });
     setDialogOpen(true);
+  };
+
+  const openDeleteDialog = async (item: EquipmentType) => {
+    setEquipmentToDelete(item);
+    setCheckingDeps(true);
+    setDeleteDialogOpen(true);
+    
+    try {
+      const deps = await checkDependencies(item.id);
+      setDeleteDependencies(deps);
+    } catch (err) {
+      console.error("Error checking dependencies:", err);
+      setDeleteDependencies({ deadlinesCount: 0 });
+    } finally {
+      setCheckingDeps(false);
+    }
+  };
+
+  const handleDelete = () => {
+    if (!equipmentToDelete) return;
+    deleteEquipment(equipmentToDelete.id);
+    setDeleteDialogOpen(false);
+    setEquipmentToDelete(null);
+    setDeleteDependencies(null);
   };
 
   const handleSubmit = () => {
@@ -288,7 +330,7 @@ export default function Equipment() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => deleteEquipment(eq.id)}
+                          onClick={() => openDeleteDialog(eq)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -442,6 +484,60 @@ export default function Equipment() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {deleteDependencies && deleteDependencies.deadlinesCount > 0 ? (
+                <>
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
+                  Nelze smazat zařízení
+                </>
+              ) : (
+                "Opravdu chcete smazat zařízení?"
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {checkingDeps ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Kontrola závislostí...
+                </div>
+              ) : deleteDependencies && deleteDependencies.deadlinesCount > 0 ? (
+                <div className="space-y-2">
+                  <p>
+                    Zařízení <strong>{equipmentToDelete?.name}</strong> nelze smazat, protože má přiřazené záznamy:
+                  </p>
+                  <ul className="list-disc list-inside text-sm">
+                    <li>{deleteDependencies.deadlinesCount} technických událostí</li>
+                  </ul>
+                  <p className="text-sm">
+                    Nejprve smažte nebo archivujte tyto události v modulu Technické události.
+                  </p>
+                </div>
+              ) : (
+                <p>
+                  Zařízení <strong>{equipmentToDelete?.name}</strong> ({equipmentToDelete?.inventory_number}) bude trvale odstraněno.
+                </p>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušit</AlertDialogCancel>
+            {(!deleteDependencies || deleteDependencies.deadlinesCount === 0) && !checkingDeps && (
+              <AlertDialogAction 
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Smazat
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -7,6 +7,11 @@ export interface Department {
   name: string;
 }
 
+export interface DepartmentDependencies {
+  employeesCount: number;
+  equipmentCount: number;
+}
+
 export function useDepartments() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +42,18 @@ export function useDepartments() {
     fetchDepartments();
   }, [fetchDepartments]);
 
+  const checkDependencies = async (id: string): Promise<DepartmentDependencies> => {
+    const [employeesResult, equipmentResult] = await Promise.all([
+      supabase.from("employees").select("id", { count: "exact", head: true }).eq("department_id", id),
+      supabase.from("equipment").select("id", { count: "exact", head: true }).eq("department_id", id),
+    ]);
+
+    return {
+      employeesCount: employeesResult.count || 0,
+      equipmentCount: equipmentResult.count || 0,
+    };
+  };
+
   const createDepartment = async (code: string, name: string) => {
     const { data, error } = await supabase
       .from("departments")
@@ -63,12 +80,32 @@ export function useDepartments() {
   };
 
   const deleteDepartment = async (id: string) => {
+    // First check for dependencies
+    const deps = await checkDependencies(id);
+    
+    if (deps.employeesCount > 0 || deps.equipmentCount > 0) {
+      const parts: string[] = [];
+      if (deps.employeesCount > 0) {
+        parts.push(`${deps.employeesCount} zaměstnanc${deps.employeesCount === 1 ? 'e' : 'ů'}`);
+      }
+      if (deps.equipmentCount > 0) {
+        parts.push(`${deps.equipmentCount} zařízení`);
+      }
+      throw new Error(`Středisko nelze smazat, protože je přiřazeno k: ${parts.join(' a ')}. Nejprve přesuňte nebo smažte tyto záznamy.`);
+    }
+
     const { error } = await supabase
       .from("departments")
       .delete()
       .eq("id", id);
 
-    if (error) throw error;
+    if (error) {
+      // Parse FK error for better message
+      if (error.message.includes("foreign key constraint")) {
+        throw new Error("Středisko nelze smazat, protože je přiřazeno k jiným záznamům. Nejprve přesuňte nebo smažte tyto záznamy.");
+      }
+      throw error;
+    }
     await fetchDepartments();
   };
 
@@ -80,5 +117,6 @@ export function useDepartments() {
     createDepartment,
     updateDepartment,
     deleteDepartment,
+    checkDependencies,
   };
 }
