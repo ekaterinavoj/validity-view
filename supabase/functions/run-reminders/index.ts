@@ -29,12 +29,17 @@ interface Recipient {
 }
 
 // Check if it's time to send based on frequency settings
-function isDueNow(frequency: any, schedule: any): { isDue: boolean; reason: string } {
+// Now supports dual mode with separate schedules for expired vs warning
+interface DueCheckResult {
+  isDue: boolean;
+  reason: string;
+  emailType?: "expired" | "warning" | "combined";
+}
+
+function isDueNow(frequency: any, schedule: any, emailType?: "expired" | "warning"): DueCheckResult {
   const timezone = frequency.timezone || "Europe/Prague";
-  const startTime = frequency.start_time || "08:00";
-  const frequencyType = frequency.type || "weekly";
-  const intervalDays = frequency.interval_days || 7;
-  const enabled = frequency.enabled !== false; // Default to true if not set
+  const enabled = frequency.enabled !== false;
+  const dualMode = frequency.dual_mode === true;
   
   // Check if enabled
   if (!enabled) {
@@ -59,19 +64,7 @@ function isDueNow(frequency: any, schedule: any): { isDue: boolean; reason: stri
   const currentHour = parseInt(parts.find(p => p.type === "hour")?.value || "0");
   const currentMinute = parseInt(parts.find(p => p.type === "minute")?.value || "0");
   const currentWeekday = parts.find(p => p.type === "weekday")?.value || "";
-  
-  // Parse start time
-  const [targetHour, targetMinute] = startTime.split(":").map(Number);
-  
-  // Check if within the send window (within 1 hour of start time)
   const currentMinutes = currentHour * 60 + currentMinute;
-  const targetMinutes = targetHour * 60 + targetMinute;
-  const minutesDiff = currentMinutes - targetMinutes;
-  
-  // Only send within 59 minutes after start time
-  if (minutesDiff < 0 || minutesDiff > 59) {
-    return { isDue: false, reason: `Not within send window (current: ${currentHour}:${currentMinute}, target: ${startTime})` };
-  }
   
   // Check skip_weekends
   if (schedule.skip_weekends) {
@@ -81,21 +74,67 @@ function isDueNow(frequency: any, schedule: any): { isDue: boolean; reason: stri
     }
   }
   
-  // For weekly frequency, check day of week
+  // If dual mode is enabled, check specific type
+  if (dualMode && emailType) {
+    if (emailType === "expired") {
+      const expFreq = frequency.expired_frequency || "daily";
+      const expStartTime = frequency.expired_start_time || "08:00";
+      return checkDueForType(expFreq, expStartTime, 1, currentMinutes, currentWeekday, emailType);
+    } else if (emailType === "warning") {
+      const warnFreq = frequency.warning_frequency || "weekly";
+      const warnStartTime = frequency.warning_start_time || "08:00";
+      const warnDayOfWeek = frequency.warning_day_of_week ?? 1;
+      return checkDueForType(warnFreq, warnStartTime, warnDayOfWeek, currentMinutes, currentWeekday, emailType);
+    }
+  }
+  
+  // Combined mode (legacy)
+  const startTime = frequency.start_time || "08:00";
+  const frequencyType = frequency.type || "weekly";
+  const dayOfWeek = schedule.day_of_week ?? 1;
+  
+  return checkDueForType(frequencyType, startTime, dayOfWeek, currentMinutes, currentWeekday, "combined");
+}
+
+function checkDueForType(
+  frequencyType: string, 
+  startTime: string, 
+  dayOfWeek: number,
+  currentMinutes: number, 
+  currentWeekday: string,
+  emailType: "expired" | "warning" | "combined"
+): DueCheckResult {
+  const [targetHour, targetMinute] = startTime.split(":").map(Number);
+  const targetMinutes = targetHour * 60 + targetMinute;
+  const minutesDiff = currentMinutes - targetMinutes;
+  
+  // Only send within 59 minutes after start time
+  if (minutesDiff < 0 || minutesDiff > 59) {
+    return { 
+      isDue: false, 
+      reason: `Not within send window for ${emailType} (target: ${startTime})`,
+      emailType 
+    };
+  }
+  
+  // For weekly/biweekly frequency, check day of week
   if (frequencyType === "weekly" || frequencyType === "biweekly") {
-    const dayOfWeek = schedule.day_of_week ?? 1; // Default Monday
     const weekdayMap: Record<number, string> = {
       0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
       4: "Thursday", 5: "Friday", 6: "Saturday"
     };
     const targetWeekday = weekdayMap[dayOfWeek];
     if (currentWeekday !== targetWeekday) {
-      return { isDue: false, reason: `Not the configured day (current: ${currentWeekday}, target: ${targetWeekday})` };
+      return { 
+        isDue: false, 
+        reason: `Not the configured day for ${emailType} (current: ${currentWeekday}, target: ${targetWeekday})`,
+        emailType 
+      };
     }
   }
   
-  // For daily, monthly, custom - just check time window (already checked above)
-  return { isDue: true, reason: "Due now" };
+  // For daily, twice_daily, monthly - just check time window (already checked above)
+  return { isDue: true, reason: `Due now for ${emailType}`, emailType };
 }
 
 // Get the run period key for idempotency
@@ -1012,68 +1051,139 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Calculate counts
-    const expiredCount = allTrainings.filter(t => t.days_until < 0).length;
-    const expiringCount = allTrainings.filter(t => t.days_until >= 0).length;
+    // Split trainings into expired and warning categories
+    const expiredTrainings = allTrainings.filter(t => t.days_until < 0);
+    const warningTrainings = allTrainings.filter(t => t.days_until >= 0);
+    const expiredCount = expiredTrainings.length;
+    const expiringCount = warningTrainings.length;
     const totalCount = allTrainings.length;
 
-    // Build email content - add TEST: prefix for test mode
+    // Check if dual mode is enabled
+    const dualMode = reminderFrequency.dual_mode === true;
     const deliveryMode = reminderRecipients.delivery_mode || "bcc";
-    const baseSubject = replaceVariables(emailTemplate.subject, totalCount, expiringCount, expiredCount, allTrainings);
-    const subject = testMode ? `[TEST] ${baseSubject}` : baseSubject;
-    const bodyText = replaceVariables(emailTemplate.body, totalCount, expiringCount, expiredCount, allTrainings);
-    const trainingsTable = buildTrainingsTable(allTrainings);
-    const testNotice = testMode 
-      ? `<div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 10px; margin-bottom: 20px; border-radius: 4px;"><strong>⚠️ TESTOVACÍ EMAIL</strong> - Tento email byl odeslán v testovacím režimu.</div>`
-      : "";
-    const fullBody = `${testNotice}${bodyText.replace(/\n/g, "<br>")}<br><br>${trainingsTable}`;
-
-    // Determine actual recipients - use single recipient if specified (for preview)
     const actualRecipients = singleRecipientEmail ? [singleRecipientEmail] : recipientEmails;
     const actualDeliveryMode = singleRecipientEmail ? "to" : deliveryMode;
-
-    // Send email - test mode now actually sends with TEST prefix (for verification)
-    // Simulation mode (dry run) is handled separately in UI
-    // Uses exponential backoff retry for transient errors
-    const result = await sendEmail(
-      actualRecipients,
-      subject,
-      fullBody,
-      actualDeliveryMode,
-      emailProvider,
-      3 // Max 3 retry attempts
-    );
-
-    // Log the reminder - one entry per send (not per recipient) for summary emails
-    // This is the idempotency record: week_start + is_test determines uniqueness
-    // Includes attempt history for debugging
-    await supabase.from("reminder_logs").insert({
-      training_id: null,
-      employee_id: null,
-      days_before: null,
-      week_start: runPeriodKey,
-      is_test: testMode,
-      provider_used: result.provider,
-      recipient_emails: actualRecipients,
-      email_subject: subject,
-      email_body: fullBody,
-      status: result.success ? "sent" : "failed",
-      error_message: result.success ? null : result.attemptErrors.join(" | "),
-      template_name: singleRecipientEmail ? `Single preview to ${singleRecipientEmail}` : `Summary${testMode ? " (test)" : ""}`,
-      delivery_mode: actualDeliveryMode,
-      attempt_number: result.attempts,
-      max_attempts: 3,
-      attempt_errors: result.attemptErrors.length > 0 ? result.attemptErrors : null,
-      final_status: result.success ? "sent" : "failed",
-    });
-
-    if (result.success) {
-      emailsSent = recipientEmails.length;
-      console.log(`Summary email sent to ${emailsSent} recipients after ${result.attempts} attempt(s)`);
+    
+    // Helper to send an email for a specific category
+    const sendCategoryEmail = async (
+      trainings: TrainingItem[], 
+      category: "expired" | "warning" | "combined",
+      categoryLabel: string
+    ): Promise<{ success: boolean; error?: string }> => {
+      if (trainings.length === 0) {
+        console.log(`No ${category} trainings to send`);
+        return { success: true };
+      }
+      
+      const catExpiredCount = trainings.filter(t => t.days_until < 0).length;
+      const catWarningCount = trainings.filter(t => t.days_until >= 0).length;
+      
+      // Build subject with category indicator
+      let subjectPrefix = "";
+      if (category === "expired") {
+        subjectPrefix = "⚠️ PROŠLÁ ŠKOLENÍ: ";
+      } else if (category === "warning") {
+        subjectPrefix = "📅 Blížící se expirace: ";
+      }
+      
+      const baseSubject = replaceVariables(emailTemplate.subject, trainings.length, catWarningCount, catExpiredCount, trainings);
+      const subject = testMode 
+        ? `[TEST] ${subjectPrefix}${baseSubject}` 
+        : `${subjectPrefix}${baseSubject}`;
+      
+      const bodyText = replaceVariables(emailTemplate.body, trainings.length, catWarningCount, catExpiredCount, trainings);
+      const trainingsTable = buildTrainingsTable(trainings);
+      
+      const testNotice = testMode 
+        ? `<div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 10px; margin-bottom: 20px; border-radius: 4px;"><strong>⚠️ TESTOVACÍ EMAIL</strong> - Tento email byl odeslán v testovacím režimu.</div>`
+        : "";
+      
+      const categoryNotice = category !== "combined" 
+        ? `<div style="background-color: ${category === "expired" ? "#fee2e2" : "#fef9c3"}; border: 1px solid ${category === "expired" ? "#ef4444" : "#eab308"}; padding: 10px; margin-bottom: 20px; border-radius: 4px;"><strong>${categoryLabel}</strong></div>`
+        : "";
+      
+      const fullBody = `${testNotice}${categoryNotice}${bodyText.replace(/\n/g, "<br>")}<br><br>${trainingsTable}`;
+      
+      const result = await sendEmail(
+        actualRecipients,
+        subject,
+        fullBody,
+        actualDeliveryMode,
+        emailProvider,
+        3
+      );
+      
+      // Log the reminder
+      await supabase.from("reminder_logs").insert({
+        training_id: null,
+        employee_id: null,
+        days_before: null,
+        week_start: runPeriodKey,
+        is_test: testMode,
+        provider_used: result.provider,
+        recipient_emails: actualRecipients,
+        email_subject: subject,
+        email_body: fullBody,
+        status: result.success ? "sent" : "failed",
+        error_message: result.success ? null : result.attemptErrors.join(" | "),
+        template_name: singleRecipientEmail 
+          ? `Single preview (${category}) to ${singleRecipientEmail}` 
+          : `${categoryLabel}${testMode ? " (test)" : ""}`,
+        delivery_mode: actualDeliveryMode,
+        attempt_number: result.attempts,
+        max_attempts: 3,
+        attempt_errors: result.attemptErrors.length > 0 ? result.attemptErrors : null,
+        final_status: result.success ? "sent" : "failed",
+      });
+      
+      return { success: result.success, error: result.error };
+    };
+    
+    // Send emails based on mode
+    if (dualMode && !singleRecipientEmail) {
+      // Dual mode: check each category independently for "due now"
+      console.log("Dual mode enabled - checking expired and warning schedules separately");
+      
+      const expiredDue = forceRun || isDueNow(reminderFrequency, reminderSchedule, "expired").isDue;
+      const warningDue = forceRun || isDueNow(reminderFrequency, reminderSchedule, "warning").isDue;
+      
+      console.log(`Expired due: ${expiredDue}, Warning due: ${warningDue}`);
+      
+      if (expiredDue && expiredTrainings.length > 0) {
+        const expResult = await sendCategoryEmail(expiredTrainings, "expired", "Prošlá školení");
+        if (expResult.success) {
+          emailsSent++;
+          console.log(`Expired trainings email sent (${expiredTrainings.length} items)`);
+        } else {
+          emailsFailed++;
+          errors.push(`Failed to send expired trainings: ${expResult.error}`);
+        }
+      }
+      
+      if (warningDue && warningTrainings.length > 0) {
+        const warnResult = await sendCategoryEmail(warningTrainings, "warning", "Blížící se expirace");
+        if (warnResult.success) {
+          emailsSent++;
+          console.log(`Warning trainings email sent (${warningTrainings.length} items)`);
+        } else {
+          emailsFailed++;
+          errors.push(`Failed to send warning trainings: ${warnResult.error}`);
+        }
+      }
+      
+      if (!expiredDue && !warningDue) {
+        console.log("Neither expired nor warning emails are due now");
+      }
     } else {
-      emailsFailed = recipientEmails.length;
-      errors.push(`Failed to send summary after ${result.attempts} attempts: ${result.error}`);
-      console.error(`Failed to send summary email after ${result.attempts} attempts: ${result.error}`);
+      // Combined mode (legacy) or single recipient preview
+      const combResult = await sendCategoryEmail(allTrainings, "combined", "Souhrn školení");
+      if (combResult.success) {
+        emailsSent = actualRecipients.length;
+        console.log(`Combined summary email sent to ${emailsSent} recipients`);
+      } else {
+        emailsFailed = actualRecipients.length;
+        errors.push(`Failed to send combined summary: ${combResult.error}`);
+      }
     }
 
     // Update run record
@@ -1085,7 +1195,9 @@ const handler = async (req: Request): Promise<Response> => {
         emails_sent: emailsSent,
         emails_failed: emailsFailed,
         error_message: errors.length > 0 ? errors[0] : null,
-        error_details: errors.length > 0 ? { errors, trainings_count: totalCount } : { trainings_count: totalCount },
+        error_details: errors.length > 0 
+          ? { errors, trainings_count: totalCount, expired_count: expiredCount, warning_count: expiringCount, dual_mode: dualMode } 
+          : { trainings_count: totalCount, expired_count: expiredCount, warning_count: expiringCount, dual_mode: dualMode },
       })
       .eq("id", runId);
 
@@ -1095,7 +1207,10 @@ const handler = async (req: Request): Promise<Response> => {
         emailsSent,
         emailsFailed,
         trainingsCount: totalCount,
-        recipients: recipientEmails,
+        expiredCount,
+        warningCount: expiringCount,
+        dualMode,
+        recipients: actualRecipients,
         errors: errors.length > 0 ? errors : undefined,
       }),
       { headers: { "Content-Type": "application/json", ...corsHeaders } }
