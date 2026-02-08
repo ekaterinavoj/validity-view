@@ -175,6 +175,20 @@ export default function EditTraining() {
 
   return (
     <div className="space-y-6">
+      {!canEdit && (
+        <div className="bg-muted/50 border border-border rounded-lg px-4 py-3 flex items-center gap-3">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">Režim pouze pro čtení</p>
+            <p className="text-xs text-muted-foreground">Můžete prohlížet dokumenty, ale nemáte oprávnění provádět změny.</p>
+          </div>
+        </div>
+      )}
+      
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
           <ArrowLeft className="w-5 h-5" />
