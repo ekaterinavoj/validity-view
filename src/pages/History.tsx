@@ -238,6 +238,19 @@ export default function History() {
   const handleBulkDelete = async () => {
     setBulkActionLoading(true);
     try {
+      // Delete related documents first
+      await supabase
+        .from("training_documents")
+        .delete()
+        .in("training_id", selectedIds);
+
+      // Delete related reminder logs
+      await supabase
+        .from("reminder_logs")
+        .delete()
+        .in("training_id", selectedIds);
+
+      // Now delete the trainings themselves
       const { error } = await supabase
         .from("trainings")
         .delete()

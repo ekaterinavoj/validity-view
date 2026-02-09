@@ -297,6 +297,14 @@ export const Layout = ({
                     Naplánované
                   </NavLink>
 
+                  {/* Historie prohlídek - jen admin a manažer */}
+                  {(isAdmin || isManager) && (
+                    <NavLink to="/plp/history" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
+                      <History className="w-4 h-4" />
+                      Historie
+                    </NavLink>
+                  )}
+
                   {/* Tlačítko pro vytvoření prohlídky - pouze admin */}
                   {isAdmin && (
                     <Link to="/plp/new">
@@ -309,18 +317,22 @@ export const Layout = ({
 
                   {/* Typy prohlídek - jen admin a manažer */}
                   {(isAdmin || isManager) && (
-                    <NavLink to="/plp/types" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1" activeClassName="text-foreground bg-card border-b-2 border-primary">
-                      <BookOpen className="w-4 h-4" />
-                      Typy prohlídek
-                    </NavLink>
-                  )}
-
-                  {/* Historie prohlídek - jen admin a manažer */}
-                  {(isAdmin || isManager) && (
-                    <NavLink to="/plp/history" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1" activeClassName="text-foreground bg-card border-b-2 border-primary">
-                      <Clock className="w-4 h-4" />
-                      Historie
-                    </NavLink>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1", location.pathname === "/plp/types" && "text-foreground bg-card border-b-2 border-primary")}>
+                          Ostatní
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-48 bg-popover z-50">
+                        <DropdownMenuItem asChild>
+                          <Link to="/plp/types" className="flex items-center gap-2 cursor-pointer">
+                            <BookOpen className="w-4 h-4" />
+                            Typy prohlídek
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </>}
             </div>
