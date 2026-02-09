@@ -286,17 +286,42 @@ export default function Employees() {
     if (!employeeToDelete) return;
     
     try {
-      // First delete related trainings
-      await supabase.from("trainings").delete().eq("employee_id", employeeToDelete.id);
-      // Delete related medical examinations
-      await supabase.from("medical_examinations").delete().eq("employee_id", employeeToDelete.id);
-      
-      // Now delete the employee
-      const { error } = await supabase
-        .from("employees")
-        .delete()
-        .eq("id", employeeToDelete.id);
+      const empId = employeeToDelete.id;
 
+      // 1. Get related training IDs
+      const { data: trainings } = await supabase.from("trainings").select("id").eq("employee_id", empId);
+      if (trainings && trainings.length > 0) {
+        const trainingIds = trainings.map(t => t.id);
+        // Delete training documents and reminder logs
+        await Promise.all([
+          supabase.from("training_documents").delete().in("training_id", trainingIds),
+          supabase.from("reminder_logs").delete().in("training_id", trainingIds),
+        ]);
+      }
+      // Delete trainings
+      await supabase.from("trainings").delete().eq("employee_id", empId);
+      
+      // 2. Get related examination IDs
+      const { data: examinations } = await supabase.from("medical_examinations").select("id").eq("employee_id", empId);
+      if (examinations && examinations.length > 0) {
+        const examIds = examinations.map(e => e.id);
+        // Delete examination documents and reminder logs
+        await Promise.all([
+          supabase.from("medical_examination_documents").delete().in("examination_id", examIds),
+          supabase.from("medical_reminder_logs").delete().in("examination_id", examIds),
+        ]);
+      }
+      // Delete medical examinations
+      await supabase.from("medical_examinations").delete().eq("employee_id", empId);
+      
+      // 3. Unlink profiles and subordinate employees referencing this employee
+      await Promise.all([
+        supabase.from("profiles").update({ employee_id: null }).eq("employee_id", empId),
+        supabase.from("employees").update({ manager_employee_id: null }).eq("manager_employee_id", empId),
+      ]);
+
+      // 4. Delete the employee
+      const { error } = await supabase.from("employees").delete().eq("id", empId);
       if (error) throw error;
 
       toast({
