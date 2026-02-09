@@ -145,6 +145,25 @@ export default function MedicalExaminationTypes() {
     if (!typeToDelete) return;
 
     try {
+      // Check for dependent medical examinations
+      const { count, error: countError } = await supabase
+        .from("medical_examinations")
+        .select("id", { count: "exact", head: true })
+        .eq("examination_type_id", typeToDelete.id);
+
+      if (countError) throw countError;
+
+      if (count && count > 0) {
+        toast({
+          title: "Nelze smazat",
+          description: `Typ prohlídky "${typeToDelete.name}" má přiřazených ${count} prohlídek. Nejprve je odstraňte.`,
+          variant: "destructive",
+        });
+        setDeleteDialogOpen(false);
+        setTypeToDelete(null);
+        return;
+      }
+
       const { error } = await supabase.from("medical_examination_types").delete().eq("id", typeToDelete.id);
       if (error) throw error;
       toast({ title: "Typ prohlídky smazán", description: "Typ prohlídky byl úspěšně odstraněn." });
