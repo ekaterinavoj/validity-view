@@ -409,7 +409,7 @@ export const ReminderTemplates = () => {
                 <li>Zobrazí výsledek - kolik emailů bylo odesláno</li>
               </ul>
               <p className="text-xs text-muted-foreground mt-3">
-                <strong>Poznámka:</strong> Pro odeslání emailů musí být nastaven RESEND_API_KEY.
+                <strong>Poznámka:</strong> Pro odeslání emailů musí být nakonfigurován SMTP server v Administraci.
               </p>
             </AlertDescription>
           </Alert>

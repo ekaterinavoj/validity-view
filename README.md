@@ -148,19 +148,41 @@ sudo certbot --nginx -d vasedomena.cz
 
 ### 8. První přihlášení
 
-1. Otevřete aplikaci v prohlížeči: `http://vasedomena.cz`
-2. Zaregistrujte se jako první uživatel (automaticky získá roli admin)
-3. V administraci nakonfigurujte SMTP pro odesílání emailů
-4. Nastavte CRON_SECRET v Lovable Cloud
+**Varianta A: Automatická inicializace (doporučeno)**
 
-### 9. Checklist po instalaci
+1. Otevřete aplikaci v prohlížeči: `http://vasedomena.cz`
+2. Zavolejte Edge funkci `seed-initial-admin` pro vytvoření prvního admin účtu:
+
+```bash
+curl -X POST "https://YOUR_SUPABASE_URL/functions/v1/seed-initial-admin" \
+  -H "Content-Type: application/json"
+```
+
+3. Přihlaste se s výchozími údaji:
+   - **Email**: `admin@system.local`
+   - **Heslo**: `admin123`
+4. **IHNED změňte heslo** v profilu uživatele!
+
+**Varianta B: Samoregistrace prvního uživatele**
+
+1. Otevřete aplikaci a zaregistrujte se jako první uživatel
+2. Databázový trigger automaticky přidělí roli `admin` a schválí profil
+
+### 9. Po přihlášení
+
+1. V administraci nakonfigurujte **SMTP server** pro odesílání emailů (Administrace → Nastavení → E-mail)
+2. Otestujte SMTP konfiguraci odesláním testovacího emailu
+3. Nastavte `X_CRON_SECRET` v Lovable Cloud (sekce Secrets)
+4. Ověřte funkci CRON úloh manuálním testem
+
+### 10. Checklist po instalaci
 
 - [ ] Docker kontejner běží (`docker ps`)
 - [ ] Aplikace je dostupná v prohlížeči
-- [ ] První admin uživatel vytvořen
-- [ ] SMTP nakonfigurován a otestován
-- [ ] CRON úlohy nastaveny
-- [ ] CRON_SECRET synchronizován s Lovable Cloud
+- [ ] První admin uživatel vytvořen (a heslo změněno!)
+- [ ] SMTP nakonfigurován a otestován (Administrace → Nastavení → E-mail)
+- [ ] CRON úlohy nastaveny (3 endpointy každou hodinu)
+- [ ] X_CRON_SECRET synchronizován s Lovable Cloud
 - [ ] SSL certifikát nainstalován (produkce)
 - [ ] Zálohovací strategie nastavena
 
@@ -885,17 +907,20 @@ echo "Nový CRON_SECRET: $NEW_SECRET"
 │   └── integrations/   # Supabase client a typy
 ├── supabase/
 │   ├── functions/      # Edge funkce
-│   │   ├── send-training-reminders/
-│   │   ├── run-deadline-reminders/
-│   │   ├── run-medical-reminders/
-│   │   ├── send-test-email/
-│   │   ├── admin-create-user/
-│   │   ├── admin-reset-password/
-│   │   ├── admin-change-email/
-│   │   ├── admin-deactivate-user/
-│   │   ├── admin-link-employee/
-│   │   └── list-users/
-│   └── migrations/     # DB migrace
+│   │   ├── send-training-reminders/  # Připomínky školení (SMTP)
+│   │   ├── run-reminders/            # Sumární připomínky školení (SMTP)
+│   │   ├── run-deadline-reminders/   # Připomínky technických událostí (SMTP)
+│   │   ├── run-medical-reminders/    # Připomínky lékařských prohlídek (SMTP)
+│   │   ├── send-test-email/          # Testovací SMTP email
+│   │   ├── seed-initial-admin/       # Inicializace prvního admina
+│   │   ├── admin-create-user/        # Vytvoření uživatele (admin)
+│   │   ├── admin-reset-password/     # Reset hesla (admin)
+│   │   ├── admin-change-email/       # Změna emailu (admin)
+│   │   ├── admin-deactivate-user/    # Deaktivace uživatele (admin)
+│   │   ├── admin-delete-user/        # Smazání uživatele (admin)
+│   │   ├── admin-link-employee/      # Propojení profilu se zaměstnancem
+│   │   └── list-users/               # Seznam uživatelů
+│   └── migrations/     # DB migrace (inkrementální aktualizace schématu)
 ├── docker/
 │   └── .env.example    # Příklad ENV proměnných
 ├── Dockerfile          # Frontend Docker image

@@ -14,7 +14,7 @@ services:
         - VITE_SUPABASE_PROJECT_ID=${VITE_SUPABASE_PROJECT_ID}
     container_name: training-frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     environment:
       - NODE_ENV=production
     restart: unless-stopped
@@ -30,36 +30,34 @@ services:
   # =============================================
   # Database - PostgreSQL (Self-hosted only)
   # =============================================
-  # Uncomment this section if you want to run your own PostgreSQL
-  # instead of using Supabase Cloud
-  #
-  # database:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.db
-  #   container_name: training-database
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     - POSTGRES_USER=${POSTGRES_USER:-postgres}
-  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-  #     - POSTGRES_DB=${POSTGRES_DB:-training_system}
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   restart: unless-stopped
-  #   networks:
-  #     - training-network
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U postgres -d training_system"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     start_period: 60s
-  #     retries: 5
+  # Pokud používáte Supabase Cloud / Lovable Cloud,
+  # tuto sekci zakomentujte.
+  database:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    container_name: training-database
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-training_system}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - training-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d training_system"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
 
 networks:
   training-network:
     driver: bridge
 
-# Uncomment if using self-hosted database
-# volumes:
-#   postgres_data:
+volumes:
+  postgres_data:

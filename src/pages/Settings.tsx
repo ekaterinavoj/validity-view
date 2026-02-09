@@ -76,11 +76,11 @@ const Settings = () => {
             <Separator />
 
             <div className="space-y-2">
-              <Label>Status RESEND API klíče</Label>
+              <Label>Status SMTP serveru</Label>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">
-                    Pro odesílání emailů je potřeba nastavit RESEND_API_KEY v tajných klíčích projektu.
+                    Pro odesílání emailů je potřeba nastavit SMTP server v Administraci → Nastavení → E-mail.
                   </p>
                 </div>
               </div>
@@ -173,9 +173,9 @@ const Settings = () => {
                 Pro aktivaci emailových notifikací je nutné:
               </p>
               <ul className="list-disc list-inside space-y-1 ml-2">
-                <li>Nastavit RESEND_API_KEY v tajných klíčích projektu</li>
+                <li>Nakonfigurovat SMTP server v Administraci (Nastavení → E-mail)</li>
                 <li>Povolit emailové notifikace výše</li>
-                <li>Ověřit doménu v Resend dashboard</li>
+                <li>Otestovat odesílání testovacím emailem</li>
               </ul>
             </div>
           </CardContent>
