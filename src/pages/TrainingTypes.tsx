@@ -186,6 +186,25 @@ export default function TrainingTypes() {
     if (!typeToDelete) return;
 
     try {
+      // Check for dependent trainings
+      const { count, error: countError } = await supabase
+        .from("trainings")
+        .select("id", { count: "exact", head: true })
+        .eq("training_type_id", typeToDelete.id);
+
+      if (countError) throw countError;
+
+      if (count && count > 0) {
+        toast({
+          title: "Nelze smazat",
+          description: `Typ školení "${typeToDelete.name}" má přiřazených ${count} školení. Nejprve odstraňte nebo přesuňte tato školení.`,
+          variant: "destructive",
+        });
+        setDeleteDialogOpen(false);
+        setTypeToDelete(null);
+        return;
+      }
+
       const { error } = await supabase
         .from("training_types")
         .delete()
