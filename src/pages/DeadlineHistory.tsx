@@ -129,7 +129,7 @@ export default function DeadlineHistory() {
     try {
       const { error } = await supabase
         .from("deadlines")
-        .update({ deleted_at: null })
+        .update({ deleted_at: null, is_active: true })
         .eq("id", id);
 
       if (error) throw error;
@@ -152,7 +152,7 @@ export default function DeadlineHistory() {
     try {
       const { error } = await supabase
         .from("deadlines")
-        .update({ deleted_at: null })
+        .update({ deleted_at: null, is_active: true })
         .in("id", selectedIds);
 
       if (error) throw error;

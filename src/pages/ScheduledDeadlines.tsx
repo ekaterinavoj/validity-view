@@ -139,7 +139,7 @@ export default function ScheduledDeadlines() {
     try {
       const { error } = await supabase
         .from("deadlines")
-        .update({ deleted_at: new Date().toISOString() })
+        .update({ deleted_at: new Date().toISOString(), is_active: false })
         .in("id", selectedIds);
 
       if (error) throw error;

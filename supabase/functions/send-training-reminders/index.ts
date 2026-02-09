@@ -295,6 +295,7 @@ const handler = async (req: Request): Promise<Response> => {
           employees (first_name, last_name, email)
         `)
         .eq("is_active", true)
+        .is("deleted_at", null)
         .lte("next_training_date", targetDateStr)
         .gte("next_training_date", new Date().toISOString().split("T")[0]);
 

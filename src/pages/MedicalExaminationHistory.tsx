@@ -105,7 +105,7 @@ export default function MedicalExaminationHistory() {
     try {
       const { error } = await supabase
         .from("medical_examinations")
-        .update({ deleted_at: null })
+        .update({ deleted_at: null, is_active: true })
         .eq("id", id);
       if (error) throw error;
       toast({ title: "Prohlídka obnovena", description: "Prohlídka byla úspěšně obnovena." });
@@ -122,7 +122,7 @@ export default function MedicalExaminationHistory() {
     try {
       const { error } = await supabase
         .from("medical_examinations")
-        .update({ deleted_at: null })
+        .update({ deleted_at: null, is_active: true })
         .in("id", selectedIds);
       if (error) throw error;
       toast({ title: "Prohlídky obnoveny", description: `Bylo obnoveno ${selectedIds.length} prohlídek.` });
