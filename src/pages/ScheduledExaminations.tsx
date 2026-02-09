@@ -128,7 +128,7 @@ export default function ScheduledExaminations() {
     setLoading(true);
     try {
       const selectedIds = Array.from(selectedExaminations);
-      const { error } = await supabase.from("medical_examinations").update({ deleted_at: new Date().toISOString() }).in("id", selectedIds);
+      const { error } = await supabase.from("medical_examinations").update({ deleted_at: new Date().toISOString(), is_active: false }).in("id", selectedIds);
       if (error) throw error;
 
       toast({ title: "Prohlídky archivovány", description: `Úspěšně archivováno ${selectedExaminations.size} prohlídek.` });

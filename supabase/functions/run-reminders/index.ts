@@ -976,6 +976,7 @@ const handler = async (req: Request): Promise<Response> => {
         training_type_id
       `)
       .eq("is_active", true)
+      .is("deleted_at", null)
       .lte("next_training_date", targetDateStr);
 
     if (trainingsError) {

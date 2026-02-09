@@ -197,7 +197,7 @@ export default function ScheduledTrainings() {
       // Soft-delete: set deleted_at timestamp instead of hard delete
       const { error } = await supabase
         .from("trainings")
-        .update({ deleted_at: new Date().toISOString() })
+        .update({ deleted_at: new Date().toISOString(), is_active: false })
         .in("id", selectedIds);
 
       if (error) throw error;
