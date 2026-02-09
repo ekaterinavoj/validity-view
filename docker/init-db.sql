@@ -1951,12 +1951,50 @@ CREATE POLICY "Admins and managers can manage group members" ON public.responsib
 -- STORAGE BUCKETS
 -- =============================================
 
--- Note: Storage buckets need to be created via Supabase dashboard or API
--- These are placeholder comments for documentation
+-- Create storage buckets for document uploads
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES 
+  ('training-documents', 'training-documents', false, 10485760, ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
+  ('deadline-documents', 'deadline-documents', false, 10485760, ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
+  ('medical-documents', 'medical-documents', false, 10485760, ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+ON CONFLICT (id) DO NOTHING;
 
--- Bucket: training-documents (private)
--- Bucket: deadline-documents (private)
--- Bucket: medical-documents (private)
+-- Storage RLS policies: Approved users can upload/view/delete their own files
+CREATE POLICY "Approved users can upload training documents"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'training-documents' AND auth.uid() IS NOT NULL);
+
+CREATE POLICY "Approved users can view training documents"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'training-documents' AND auth.uid() IS NOT NULL);
+
+CREATE POLICY "Approved users can delete own training documents"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'training-documents' AND auth.uid() IS NOT NULL);
+
+CREATE POLICY "Approved users can upload deadline documents"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'deadline-documents' AND auth.uid() IS NOT NULL);
+
+CREATE POLICY "Approved users can view deadline documents"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'deadline-documents' AND auth.uid() IS NOT NULL);
+
+CREATE POLICY "Approved users can delete own deadline documents"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'deadline-documents' AND auth.uid() IS NOT NULL);
+
+CREATE POLICY "Approved users can upload medical documents"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'medical-documents' AND auth.uid() IS NOT NULL);
+
+CREATE POLICY "Approved users can view medical documents"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'medical-documents' AND auth.uid() IS NOT NULL);
+
+CREATE POLICY "Approved users can delete own medical documents"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'medical-documents' AND auth.uid() IS NOT NULL);
 
 -- =============================================
 -- DEFAULT SYSTEM SETTINGS

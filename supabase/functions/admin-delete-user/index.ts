@@ -161,13 +161,82 @@ Deno.serve(async (req) => {
       .eq("uploaded_by", userId);
     if (medicalDocsError) console.error("Error clearing medical_examination_documents.uploaded_by:", medicalDocsError);
 
-    // 8. Nullify created_by in entity and template tables
-    for (const table of ["trainings", "deadlines", "medical_examinations", "reminder_templates", "deadline_reminder_templates", "medical_reminder_templates", "responsibility_groups"] as const) {
+    // 8. If user has linked employee, delete all associated records
+    if (targetProfile.employee_id) {
+      const empId = targetProfile.employee_id;
+      console.log(`Cleaning up employee ${empId} records...`);
+
+      // 8a. Get training IDs for this employee
+      const { data: empTrainings } = await supabaseAdmin
+        .from("trainings")
+        .select("id")
+        .eq("employee_id", empId);
+      const trainingIds = empTrainings?.map(t => t.id) || [];
+
+      if (trainingIds.length > 0) {
+        // Delete training documents from storage
+        const { data: tDocs } = await supabaseAdmin
+          .from("training_documents")
+          .select("file_path")
+          .in("training_id", trainingIds);
+        if (tDocs && tDocs.length > 0) {
+          await supabaseAdmin.storage.from("training-documents").remove(tDocs.map(d => d.file_path));
+          await supabaseAdmin.from("training_documents").delete().in("training_id", trainingIds);
+        }
+
+        // Delete reminder logs for these trainings
+        await supabaseAdmin.from("reminder_logs").delete().in("training_id", trainingIds);
+
+        // Delete the trainings themselves
+        const { error: trainingsErr } = await supabaseAdmin.from("trainings").delete().eq("employee_id", empId);
+        if (trainingsErr) console.error("Error deleting trainings:", trainingsErr);
+      }
+
+      // 8b. Delete medical examination documents + examinations
+      const { data: empExams } = await supabaseAdmin
+        .from("medical_examinations")
+        .select("id")
+        .eq("employee_id", empId);
+      const examIds = empExams?.map(e => e.id) || [];
+
+      if (examIds.length > 0) {
+        const { data: mDocs } = await supabaseAdmin
+          .from("medical_examination_documents")
+          .select("file_path")
+          .in("examination_id", examIds);
+        if (mDocs && mDocs.length > 0) {
+          await supabaseAdmin.storage.from("medical-documents").remove(mDocs.map(d => d.file_path));
+          await supabaseAdmin.from("medical_examination_documents").delete().in("examination_id", examIds);
+        }
+
+        // Delete medical reminder logs
+        await supabaseAdmin.from("medical_reminder_logs").delete().in("examination_id", examIds);
+
+        // Delete examinations
+        const { error: examsErr } = await supabaseAdmin.from("medical_examinations").delete().eq("employee_id", empId);
+        if (examsErr) console.error("Error deleting medical examinations:", examsErr);
+      }
+
+      // 8c. Delete reminder logs referencing this employee
+      await supabaseAdmin.from("reminder_logs").delete().eq("employee_id", empId);
+      await supabaseAdmin.from("medical_reminder_logs").delete().eq("employee_id", empId);
+
+      console.log(`Employee ${empId} records cleaned up.`);
+    }
+
+    // 9. Nullify created_by in template and group tables (not employee-linked)
+    for (const table of ["reminder_templates", "deadline_reminder_templates", "medical_reminder_templates", "responsibility_groups"] as const) {
       const { error } = await supabaseAdmin.from(table).update({ created_by: null }).eq("created_by", userId);
       if (error) console.error(`Error clearing ${table}.created_by:`, error);
     }
 
-    // 9. Delete profile (this must come before auth deletion)
+    // Also nullify created_by on records not tied to the employee (e.g. deadlines created by this user)
+    for (const table of ["trainings", "deadlines", "medical_examinations"] as const) {
+      const { error } = await supabaseAdmin.from(table).update({ created_by: null }).eq("created_by", userId);
+      if (error) console.error(`Error clearing ${table}.created_by:`, error);
+    }
+
+    // 10. Delete profile (this must come before auth deletion)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .delete()
@@ -180,7 +249,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 9. Delete auth user
+    // 11. Delete auth user
     const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (authDeleteError) {
       console.error("Error deleting auth user:", authDeleteError);
