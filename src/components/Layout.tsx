@@ -387,16 +387,31 @@ export const Layout = ({
         {mobileMenuOpen && <nav className="lg:hidden mb-6 border border-border rounded-lg bg-card p-4 space-y-2">
             {/* Mode Switcher for Mobile */}
             <div className="pb-4 border-b border-border">
-              <Tabs value={isDeadlineMode ? "deadlines" : "trainings"} onValueChange={handleModeSwitch} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="trainings" className="flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4" />
-                    Školení
-                  </TabsTrigger>
-                  <TabsTrigger value="deadlines" className="flex items-center gap-2">
-                    <Wrench className="w-4 h-4" />
-                    Tech. lhůty
-                  </TabsTrigger>
+              <Tabs value={isPlpMode ? "plp" : isDeadlineMode ? "deadlines" : "trainings"} onValueChange={handleModeSwitch} className="w-full">
+                <TabsList className={cn(
+                  "grid w-full",
+                  accessibleModulesCount === 1 && "grid-cols-1",
+                  accessibleModulesCount === 2 && "grid-cols-2",
+                  accessibleModulesCount === 3 && "grid-cols-3"
+                )}>
+                  {canAccessTrainings && (
+                    <TabsTrigger value="trainings" className="flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4" />
+                      Školení
+                    </TabsTrigger>
+                  )}
+                  {canAccessDeadlines && (
+                    <TabsTrigger value="deadlines" className="flex items-center gap-2">
+                      <Wrench className="w-4 h-4" />
+                      Události
+                    </TabsTrigger>
+                  )}
+                  {canAccessPlp && (
+                    <TabsTrigger value="plp" className="flex items-center gap-2">
+                      <Stethoscope className="w-4 h-4" />
+                      PLP
+                    </TabsTrigger>
+                  )}
                 </TabsList>
               </Tabs>
             </div>
@@ -414,25 +429,46 @@ export const Layout = ({
                       Historie školení
                     </Link>
                   )}
-                  <Link to="/trainings/new" onClick={closeMobileMenu} className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground">
-                    <PlusCircle className="w-4 h-4" />
-                    Nové školení
-                  </Link>
-                </> : <>
+                  {(isAdmin || isManager) && (
+                    <Link to="/trainings/new" onClick={closeMobileMenu} className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground">
+                      <PlusCircle className="w-4 h-4" />
+                      Nové školení
+                    </Link>
+                  )}
+                </> : isDeadlineMode ? <>
                   <Link to="/deadlines" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/deadlines" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <Calendar className="w-4 h-4" />
-                    Naplánované lhůty
+                    Naplánované události
                   </Link>
                   {(isAdmin || isManager) && (
                     <Link to="/deadlines/history" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/deadlines/history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                       <History className="w-4 h-4" />
-                      Historie lhůt
+                      Historie událostí
                     </Link>
                   )}
-                  <Link to="/deadlines/new" onClick={closeMobileMenu} className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground">
-                    <PlusCircle className="w-4 h-4" />
-                    Nová lhůta
+                  {(isAdmin || isManager) && (
+                    <Link to="/deadlines/new" onClick={closeMobileMenu} className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground">
+                      <PlusCircle className="w-4 h-4" />
+                      Nová událost
+                    </Link>
+                  )}
+                </> : <>
+                  <Link to="/plp" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/plp" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                    <Calendar className="w-4 h-4" />
+                    Naplánované prohlídky
                   </Link>
+                  {(isAdmin || isManager) && (
+                    <Link to="/plp/history" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/plp/history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                      <History className="w-4 h-4" />
+                      Historie prohlídek
+                    </Link>
+                  )}
+                  {isAdmin && (
+                    <Link to="/plp/new" onClick={closeMobileMenu} className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground">
+                      <PlusCircle className="w-4 h-4" />
+                      Nová prohlídka
+                    </Link>
+                  )}
                 </>}
             </div>
 
@@ -451,20 +487,33 @@ export const Layout = ({
                     <UserX className="w-4 h-4" />
                     Pozastavená
                   </Link>
-                </> : <>
+                </> : isDeadlineMode ? <>
                   <Link to="/deadlines/equipment" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/deadlines/equipment" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <Cog className="w-4 h-4" />
                     Zařízení
                   </Link>
                   <Link to="/deadlines/types" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/deadlines/types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <Clock className="w-4 h-4" />
-                    Typy lhůt
+                    Typy událostí
                   </Link>
+                  <Link to="/deadlines/groups" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/deadlines/groups" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                    <UsersRound className="w-4 h-4" />
+                    Skupiny odpovědných
+                  </Link>
+                </> : <>
+                  {(isAdmin || isManager) && (
+                    <Link to="/plp/types" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/plp/types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                      <BookOpen className="w-4 h-4" />
+                      Typy prohlídek
+                    </Link>
+                  )}
                 </>}
-              <Link to="/employees" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/employees" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                <Users className="w-4 h-4" />
-                Zaměstnanci
-              </Link>
+              {!isDeadlineMode && (
+                <Link to="/employees" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/employees" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Users className="w-4 h-4" />
+                  Zaměstnanci
+                </Link>
+              )}
               <Link to="/facilities" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/facilities" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                 <Building2 className="w-4 h-4" />
                 Provozovny
