@@ -142,10 +142,32 @@ Deno.serve(async (req) => {
       .eq("user_id", userId);
     if (notifError) console.error("Error deleting notifications:", notifError);
 
-    // 7. Unlink employee (set employee's profile link to null if needed)
-    // The profile has employee_id, but we don't need to touch the employee record itself
+    // 7. Nullify uploaded_by in document tables (FK to auth.users)
+    const { error: trainingDocsError } = await supabaseAdmin
+      .from("training_documents")
+      .update({ uploaded_by: null })
+      .eq("uploaded_by", userId);
+    if (trainingDocsError) console.error("Error clearing training_documents.uploaded_by:", trainingDocsError);
 
-    // 8. Delete profile (this must come before auth deletion)
+    const { error: deadlineDocsError } = await supabaseAdmin
+      .from("deadline_documents")
+      .update({ uploaded_by: null })
+      .eq("uploaded_by", userId);
+    if (deadlineDocsError) console.error("Error clearing deadline_documents.uploaded_by:", deadlineDocsError);
+
+    const { error: medicalDocsError } = await supabaseAdmin
+      .from("medical_examination_documents")
+      .update({ uploaded_by: null })
+      .eq("uploaded_by", userId);
+    if (medicalDocsError) console.error("Error clearing medical_examination_documents.uploaded_by:", medicalDocsError);
+
+    // 8. Nullify created_by in entity and template tables
+    for (const table of ["trainings", "deadlines", "medical_examinations", "reminder_templates", "deadline_reminder_templates", "medical_reminder_templates", "responsibility_groups"] as const) {
+      const { error } = await supabaseAdmin.from(table).update({ created_by: null }).eq("created_by", userId);
+      if (error) console.error(`Error clearing ${table}.created_by:`, error);
+    }
+
+    // 9. Delete profile (this must come before auth deletion)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .delete()
