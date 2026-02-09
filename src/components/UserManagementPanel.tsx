@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck, Settings2, Download } from "lucide-react";
+import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck, Settings2, Download, Trash2 } from "lucide-react";
 import { ProfileEmployeeLink } from "@/components/ProfileEmployeeLink";
 import { AddUserModal } from "@/components/AddUserModal";
 import { ResetPasswordModal } from "@/components/ResetPasswordModal";
@@ -112,6 +112,14 @@ export function UserManagementPanel() {
     action: "deactivate" | "reactivate";
   } | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
+
+  // Permanent deletion states
+  const [pendingDeletion, setPendingDeletion] = useState<{
+    userId: string;
+    userName: string;
+    userEmail: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -265,6 +273,36 @@ export function UserManagementPanel() {
     } finally {
       setIsDeactivating(false);
       setPendingDeactivation(null);
+    }
+  };
+
+  const handlePermanentDeletion = async () => {
+    if (!pendingDeletion) return;
+    
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { userId: pendingDeletion.userId },
+      });
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      toast({
+        title: "Uživatel smazán",
+        description: `Účet ${pendingDeletion.userEmail} byl trvale odstraněn včetně všech souvisejících dat.`,
+      });
+      
+      await loadUsers();
+    } catch (error: any) {
+      toast({
+        title: "Chyba",
+        description: error.message || "Nepodařilo se smazat uživatele.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setPendingDeletion(null);
     }
   };
 
@@ -604,6 +642,19 @@ export function UserManagementPanel() {
                                   )}
                                 </DropdownMenuItem>
                               )}
+                              {!isCurrentUser && isDeactivated && (
+                                <DropdownMenuItem
+                                  onClick={() => setPendingDeletion({
+                                    userId: user.id,
+                                    userName,
+                                    userEmail: user.email,
+                                  })}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Smazat účet
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -747,6 +798,50 @@ export function UserManagementPanel() {
                 "Deaktivovat"
               ) : (
                 "Reaktivovat"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Permanent Deletion Confirmation Dialog */}
+      <AlertDialog open={!!pendingDeletion} onOpenChange={() => setPendingDeletion(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Trvale smazat uživatele
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Opravdu chcete <strong>trvale smazat</strong> účet uživatele{" "}
+              <strong>{pendingDeletion?.userName}</strong> ({pendingDeletion?.userEmail})?
+              <br /><br />
+              <span className="font-medium text-destructive">
+                Tato akce je nevratná! Budou odstraněny:
+              </span>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                <li>Uživatelský účet a profil</li>
+                <li>Přiřazené role a moduly</li>
+                <li>Členství ve skupinách odpovědností</li>
+                <li>Přiřazení k technickým lhůtám a zařízením</li>
+                <li>Notifikace</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Zrušit</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handlePermanentDeletion}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Mazání...
+                </>
+              ) : (
+                "Trvale smazat"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

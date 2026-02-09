@@ -8,6 +8,7 @@ import {
   Clock,
 } from "lucide-react";
 import { formatDays } from "@/lib/czechGrammar";
+import { formatPeriodicity } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ import { useFacilities } from "@/hooks/useFacilities";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeadlineType } from "@/types/equipment";
+import { daysToPeriodicityUnit, periodicityToDays, type PeriodicityUnit } from "@/components/PeriodicityInput";
 
 export default function DeadlineTypes() {
   const { deadlineTypes, isLoading, error, refetch, createDeadlineType, updateDeadlineType, deleteDeadlineType, isCreating, isUpdating } = useDeadlineTypes();
@@ -50,7 +52,8 @@ export default function DeadlineTypes() {
   const [formData, setFormData] = useState({
     name: "",
     facility: "",
-    period_days: 365,
+    periodValue: 1,
+    periodUnit: "years" as PeriodicityUnit,
     description: "",
   });
 
@@ -68,7 +71,8 @@ export default function DeadlineTypes() {
     setFormData({
       name: "",
       facility: "",
-      period_days: 365,
+      periodValue: 1,
+      periodUnit: "years",
       description: "",
     });
     setDialogOpen(true);
@@ -76,18 +80,23 @@ export default function DeadlineTypes() {
 
   const openEditDialog = (item: DeadlineType) => {
     setEditingItem(item);
+    const { value, unit } = daysToPeriodicityUnit(item.period_days);
     setFormData({
       name: item.name,
       facility: item.facility,
-      period_days: item.period_days,
+      periodValue: value,
+      periodUnit: unit,
       description: item.description || "",
     });
     setDialogOpen(true);
   };
 
   const handleSubmit = () => {
+    const period_days = periodicityToDays(formData.periodValue, formData.periodUnit);
     const data = {
-      ...formData,
+      name: formData.name,
+      facility: formData.facility,
+      period_days,
       description: formData.description || null,
     };
 
@@ -163,7 +172,7 @@ export default function DeadlineTypes() {
                   <TableRow key={type.id}>
                     <TableCell className="font-medium">{type.name}</TableCell>
                     <TableCell>{type.facility}</TableCell>
-                    <TableCell>{formatDays(type.period_days)}</TableCell>
+                    <TableCell>{formatPeriodicity(type.period_days)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {type.description || "-"}
                     </TableCell>
@@ -223,12 +232,32 @@ export default function DeadlineTypes() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Perioda (dní) *</Label>
-              <Input
-                type="number"
-                value={formData.period_days}
-                onChange={e => setFormData(prev => ({ ...prev, period_days: parseInt(e.target.value) || 0 }))}
-              />
+              <Label>Periodicita *</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  value={formData.periodValue}
+                  onChange={e => setFormData(prev => ({ ...prev, periodValue: parseInt(e.target.value) || 1 }))}
+                  className="w-24"
+                />
+                <Select
+                  value={formData.periodUnit}
+                  onValueChange={(v) => setFormData(prev => ({ ...prev, periodUnit: v as PeriodicityUnit }))}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="days">Dní</SelectItem>
+                    <SelectItem value="months">Měsíců</SelectItem>
+                    <SelectItem value="years">Roků</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                = {periodicityToDays(formData.periodValue, formData.periodUnit)} dní celkem
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Popis</Label>
