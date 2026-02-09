@@ -179,6 +179,25 @@ export default function DeadlineHistory() {
   const handleBulkDelete = async () => {
     setBulkActionLoading(true);
     try {
+      // Delete related documents first
+      await supabase
+        .from("deadline_documents")
+        .delete()
+        .in("deadline_id", selectedIds);
+
+      // Delete related reminder logs
+      await supabase
+        .from("deadline_reminder_logs")
+        .delete()
+        .in("deadline_id", selectedIds);
+
+      // Delete related responsibles
+      await supabase
+        .from("deadline_responsibles")
+        .delete()
+        .in("deadline_id", selectedIds);
+
+      // Now delete the deadlines themselves
       const { error } = await supabase
         .from("deadlines")
         .delete()
