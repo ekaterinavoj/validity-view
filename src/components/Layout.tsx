@@ -314,6 +314,14 @@ export const Layout = ({
                       Typy prohlídek
                     </NavLink>
                   )}
+
+                  {/* Historie prohlídek - jen admin a manažer */}
+                  {(isAdmin || isManager) && (
+                    <NavLink to="/plp/history" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors ml-1" activeClassName="text-foreground bg-card border-b-2 border-primary">
+                      <Clock className="w-4 h-4" />
+                      Historie
+                    </NavLink>
+                  )}
                 </>}
             </div>
 

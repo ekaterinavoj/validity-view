@@ -40,6 +40,7 @@ import ScheduledExaminations from "./pages/ScheduledExaminations";
 import NewMedicalExamination from "./pages/NewMedicalExamination";
 import EditMedicalExamination from "./pages/EditMedicalExamination";
 import MedicalExaminationTypes from "./pages/MedicalExaminationTypes";
+import MedicalExaminationHistory from "./pages/MedicalExaminationHistory";
 
 const queryClient = new QueryClient();
 
@@ -98,6 +99,7 @@ const App = () => (
             <Route path="/plp/new" element={<ProtectedLayout requiredModule="plp"><NewMedicalExamination /></ProtectedLayout>} />
             <Route path="/plp/edit/:id" element={<ProtectedLayout requiredModule="plp"><EditMedicalExamination /></ProtectedLayout>} />
             <Route path="/plp/types" element={<ProtectedLayout requiredModule="plp"><MedicalExaminationTypes /></ProtectedLayout>} />
+            <Route path="/plp/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="plp"><MedicalExaminationHistory /></ProtectedLayout>} />
             
             {/* ============ SHARED / SETTINGS ============ */}
             <Route path="/statistics" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Statistics /></ProtectedLayout>} />

@@ -71,6 +71,18 @@ export function useDeadlineTypes() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Check for dependent deadlines
+      const { count, error: countError } = await supabase
+        .from("deadlines")
+        .select("id", { count: "exact", head: true })
+        .eq("deadline_type_id", id);
+
+      if (countError) throw countError;
+
+      if (count && count > 0) {
+        throw new Error(`Tento typ události má přiřazených ${count} technických lhůt. Nejprve odstraňte nebo přesuňte tyto lhůty.`);
+      }
+
       const { error } = await supabase.from("deadline_types").delete().eq("id", id);
       if (error) throw error;
     },
@@ -80,7 +92,7 @@ export function useDeadlineTypes() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Chyba při mazání typu lhůty",
+        title: "Nelze smazat typ události",
         description: error.message,
         variant: "destructive",
       });
