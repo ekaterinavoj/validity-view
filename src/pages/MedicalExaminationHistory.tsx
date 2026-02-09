@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Download, Loader2, RefreshCw, ArchiveRestore, Archive } from "lucide-react";
+import { Download, Loader2, RefreshCw, ArchiveRestore, Archive, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,10 @@ import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
@@ -43,6 +47,9 @@ export default function MedicalExaminationHistory() {
   const [archiveFilter, setArchiveFilter] = useState<string>("active");
   const [searchQuery, setSearchQuery] = useState("");
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkRestoreDialogOpen, setBulkRestoreDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
@@ -57,8 +64,6 @@ export default function MedicalExaminationHistory() {
     facilitiesData.forEach(f => { map[f.code] = f.name; });
     return map;
   }, [facilitiesData]);
-
-  const getFacilityName = (code: string) => facilityNameMap[code] || code;
 
   const filteredHistory = useMemo(() => {
     return examinations.filter((exam) => {
@@ -81,16 +86,16 @@ export default function MedicalExaminationHistory() {
     });
   }, [examinations, employeeStatusFilter, archiveFilter, searchQuery]);
 
-  const archivedItems = useMemo(() =>
+  const selectableItems = useMemo(() =>
     filteredHistory.filter(t => t.isArchived),
     [filteredHistory]
   );
 
   const handleSelectAll = () => {
-    if (selectedIds.length === archivedItems.length) {
+    if (selectedIds.length === selectableItems.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(archivedItems.map(t => t.id));
+      setSelectedIds(selectableItems.map(t => t.id));
     }
   };
 
@@ -117,6 +122,40 @@ export default function MedicalExaminationHistory() {
     }
   };
 
+  const handleArchive = async (id: string) => {
+    setArchivingId(id);
+    try {
+      const { error } = await supabase
+        .from("medical_examinations")
+        .update({ deleted_at: new Date().toISOString(), is_active: false })
+        .eq("id", id);
+      if (error) throw error;
+      toast({ title: "Prohlídka archivována", description: "Prohlídka byla přesunuta do archivu." });
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Chyba při archivaci", description: err.message, variant: "destructive" });
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await supabase.from("medical_examination_documents").delete().eq("examination_id", id);
+      await supabase.from("medical_reminder_logs").delete().eq("examination_id", id);
+      const { error } = await supabase.from("medical_examinations").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Prohlídka smazána", description: "Prohlídka byla trvale odstraněna." });
+      setDeleteConfirmId(null);
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Chyba při mazání", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleBulkRestore = async () => {
     setBulkActionLoading(true);
     try {
@@ -139,7 +178,6 @@ export default function MedicalExaminationHistory() {
   const handleBulkDelete = async () => {
     setBulkActionLoading(true);
     try {
-      // Delete related documents first
       const { data: examsData } = await supabase
         .from("medical_examination_documents")
         .select("id")
@@ -152,7 +190,6 @@ export default function MedicalExaminationHistory() {
           .in("examination_id", selectedIds);
       }
 
-      // Delete related reminder logs
       await supabase
         .from("medical_reminder_logs")
         .delete()
@@ -254,7 +291,7 @@ export default function MedicalExaminationHistory() {
       </Card>
 
       {/* Bulk Actions */}
-      {canBulkActions && archiveFilter !== "active" && archivedItems.length > 0 && (
+      {canBulkActions && archiveFilter !== "active" && selectableItems.length > 0 && (
         <BulkActionsBar
           selectedCount={selectedIds.length}
           onClearSelection={() => setSelectedIds([])}
@@ -272,7 +309,7 @@ export default function MedicalExaminationHistory() {
                 {canBulkActions && archiveFilter !== "active" && (
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={archivedItems.length > 0 && selectedIds.length === archivedItems.length}
+                      checked={selectableItems.length > 0 && selectedIds.length === selectableItems.length}
                       onCheckedChange={handleSelectAll}
                       aria-label="Vybrat vše"
                     />
@@ -291,9 +328,7 @@ export default function MedicalExaminationHistory() {
                 {(archiveFilter === "all" || archiveFilter === "archived") && (
                   <TableHead>Stav</TableHead>
                 )}
-                {canEdit && archiveFilter !== "active" && (
-                  <TableHead>Akce</TableHead>
-                )}
+                {canEdit && <TableHead>Akce</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -346,25 +381,58 @@ export default function MedicalExaminationHistory() {
                         )}
                       </TableCell>
                     )}
-                    {canEdit && archiveFilter !== "active" && (
+                    {canEdit && (
                       <TableCell>
-                        {exam.isArchived && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRestore(exam.id)}
-                            disabled={restoringId === exam.id}
-                          >
-                            {restoringId === exam.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <>
-                                <ArchiveRestore className="w-4 h-4 mr-1" />
-                                Obnovit
-                              </>
-                            )}
-                          </Button>
-                        )}
+                        <div className="flex gap-1">
+                          {exam.isArchived ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRestore(exam.id)}
+                              disabled={restoringId === exam.id}
+                            >
+                              {restoringId === exam.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <ArchiveRestore className="w-4 h-4 mr-1" />
+                                  Obnovit
+                                </>
+                              )}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleArchive(exam.id)}
+                              disabled={archivingId === exam.id}
+                            >
+                              {archivingId === exam.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Archive className="w-4 h-4 mr-1" />
+                                  Archivovat
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteConfirmId(exam.id)}
+                              disabled={deletingId === exam.id}
+                            >
+                              {deletingId === exam.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -405,6 +473,27 @@ export default function MedicalExaminationHistory() {
         mode="delete"
         entityName="prohlídek"
       />
+
+      {/* Single delete confirmation */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Trvale smazat prohlídku?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tato akce je nevratná. Prohlídka a všechny související dokumenty budou trvale odstraněny.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušit</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+            >
+              Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
