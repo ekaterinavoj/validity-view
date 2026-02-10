@@ -98,9 +98,9 @@ Upravte soubor `.env`:
 # ============================================
 # SUPABASE / LOVABLE CLOUD
 # ============================================
-VITE_SUPABASE_URL=https://xgtwutpbojltmktprdui.supabase.co
+VITE_SUPABASE_URL=https://YOUR_SUPABASE_URL
 VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key
-VITE_SUPABASE_PROJECT_ID=xgtwutpbojltmktprdui
+VITE_SUPABASE_PROJECT_ID=your-project-id
 
 # ============================================
 # CRON ZABEZPEČENÍ
@@ -131,11 +131,11 @@ Otevřete crontab: `crontab -e`
 
 ```bash
 # Připomínky - každou hodinu (4 edge funkce)
-0 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/send-training-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
-5 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-deadline-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
-10 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-medical-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
+0 * * * * curl -s -X POST "https://YOUR_SUPABASE_URL/functions/v1/send-training-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
+5 * * * * curl -s -X POST "https://YOUR_SUPABASE_URL/functions/v1/run-deadline-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
+10 * * * * curl -s -X POST "https://YOUR_SUPABASE_URL/functions/v1/run-medical-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
 # Sumární přehled (týdenní souhrn) - jednou týdně v pondělí v 7:00
-0 7 * * 1 curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
+0 7 * * 1 curl -s -X POST "https://YOUR_SUPABASE_URL/functions/v1/run-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
 ```
 
 ### 7. Nastavení HTTPS (volitelné)
