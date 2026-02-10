@@ -489,7 +489,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   const cronSecret = req.headers.get("x-cron-secret");
-  const envCronSecret = Deno.env.get("CRON_SECRET");
+  const envCronSecret = Deno.env.get("X_CRON_SECRET") || Deno.env.get("CRON_SECRET");
   const authHeader = req.headers.get("authorization");
   
   const isCronRequest = cronSecret && envCronSecret && cronSecret === envCronSecret;
