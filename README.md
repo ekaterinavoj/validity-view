@@ -1546,6 +1546,116 @@ cat backup_2025-01-15.sql | docker exec -i training-db psql -U supabase_admin -d
 docker cp supabase-storage:/var/lib/storage ./storage-backup-$(date +%F)
 ```
 
+### Upgrade na novou verzi
+
+**Q: Jak aktualizovat aplikaci na novou verzi?**
+
+Doporučený postup pro **zero-downtime update**:
+
+```bash
+# 1. Stáhněte novou verzi
+cd /opt/training-system
+git fetch origin
+git pull origin main
+
+# 2. Záloha databáze PŘED upgradem (povinné!)
+docker exec training-db pg_dump -U supabase_admin -d postgres > backup_pre_upgrade_$(date +%F_%H%M).sql
+
+# 3. Build nového frontend image (bez zastavení běžícího)
+docker compose build frontend --no-cache
+
+# 4. Rolling update frontendu (zero-downtime)
+docker compose up -d --no-deps frontend
+
+# 5. Ověření, že nová verze běží
+docker ps | grep frontend
+curl -s -o /dev/null -w "%{http_code}" http://localhost:80
+```
+
+**Q: Jak aplikovat migrace databázového schématu?**
+
+Migrace jsou uloženy v `supabase/migrations/` a aplikují se automaticky při použití Lovable Cloud. Pro self-hosted nasazení:
+
+```bash
+# 1. Záloha (vždy před migrací!)
+docker exec training-db pg_dump -U supabase_admin -d postgres > backup_pre_migration_$(date +%F).sql
+
+# 2. Aplikování nových migrací
+# Migrace se spouštějí ručně proti databázi:
+for f in supabase/migrations/*.sql; do
+  echo "Applying migration: $f"
+  docker exec -i training-db psql -U supabase_admin -d postgres < "$f"
+done
+
+# 3. Ověření schématu
+docker exec training-db psql -U supabase_admin -d postgres -c "\dt public.*"
+```
+
+> ⚠️ **Důležité**: Migrace jsou **inkrementální** — aplikujte pouze nové migrace od posledního upgradu. Sledujte soubory přidané mezi verzemi pomocí `git diff --name-only <stará-verze> <nová-verze> -- supabase/migrations/`.
+
+**Q: Co dělat, když migrace selže?**
+
+```bash
+# 1. Zkontrolujte chybu v logu
+docker exec training-db psql -U supabase_admin -d postgres < problematic_migration.sql 2>&1
+
+# 2. Pokud je potřeba rollback databáze
+cat backup_pre_migration_YYYY-MM-DD.sql | docker exec -i training-db psql -U supabase_admin -d postgres
+
+# 3. Po opravě migrace zkuste znovu
+docker exec -i training-db psql -U supabase_admin -d postgres < fixed_migration.sql
+```
+
+**Q: Jak provést upgrade self-hosted Supabase stacku?**
+
+```bash
+# 1. Záloha všeho
+docker exec training-db pg_dump -U supabase_admin -d postgres > full_backup_$(date +%F).sql
+docker cp supabase-storage:/var/lib/storage ./storage-backup-$(date +%F)
+
+# 2. Aktualizujte verze images v docker-compose.supabase.yml
+# Změňte verze služeb (gotrue, postgrest, realtime atd.) na nové
+
+# 3. Stáhněte nové images
+docker compose -f docker-compose.supabase.yml pull
+
+# 4. Rolling restart služeb (databáze zůstává běžet)
+docker compose -f docker-compose.supabase.yml up -d --no-deps auth rest realtime storage functions
+
+# 5. Ověření
+docker compose -f docker-compose.supabase.yml ps
+docker compose -f docker-compose.supabase.yml logs --tail=20 auth rest
+```
+
+**Q: Jak ověřit kompatibilitu Edge funkcí po upgradu?**
+
+```bash
+# Test všech klíčových endpointů
+endpoints=("send-training-reminders" "run-deadline-reminders" "run-medical-reminders" "list-users")
+for ep in "${endpoints[@]}"; do
+  status=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X POST "http://localhost:8000/functions/v1/$ep" \
+    -H "x-cron-secret: $X_CRON_SECRET")
+  echo "$ep: HTTP $status"
+done
+
+# Test seed funkce (bezpečné — obsahuje pojistku proti duplicitám)
+curl -s "http://localhost:8000/functions/v1/seed-initial-admin" | head -c 200
+```
+
+**Q: Jak naplánovat údržbové okno?**
+
+| Krok | Doba | Výpadek |
+|------|------|---------|
+| Záloha DB | 1–5 min | ❌ Ne |
+| Build nového image | 2–5 min | ❌ Ne |
+| Aplikace migrací | 1–2 min | ⚠️ Možný (dle typu migrace) |
+| Restart frontendu | 5–10 s | ⚠️ Krátký |
+| Restart backend služeb | 10–30 s | ⚠️ Krátký |
+| Ověření | 2–5 min | ❌ Ne |
+
+> 💡 **Tip**: Plánujte upgrady mimo pracovní dobu. Nedestruktivní migrace (přidání sloupce, indexu) lze aplikovat i za běhu bez výpadku.
+
 ---
 
 ## 📚 Další zdroje
