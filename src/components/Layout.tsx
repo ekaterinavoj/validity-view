@@ -112,10 +112,6 @@ export const Layout = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <img src={companyLogo} alt="Engel Gematex" className="h-8 w-auto" />
-              <div className="h-6 w-px bg-border" />
-              <h1 className="text-2xl font-bold text-foreground">
-                Lhůtník
-              </h1>
               
               {/* Mode Switcher Tabs - Only show accessible modules */}
               {accessibleModulesCount > 0 && (
