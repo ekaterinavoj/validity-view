@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import companyLogo from "@/assets/company-logo.jpg";
 import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
@@ -110,6 +111,8 @@ export const Layout = ({
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
+              <img src={companyLogo} alt="Engel Gematex" className="h-8 w-auto" />
+              <div className="h-6 w-px bg-border" />
               <h1 className="text-2xl font-bold text-foreground">
                 Lhůtník
               </h1>
