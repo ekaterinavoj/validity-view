@@ -589,6 +589,7 @@ services:
         echo "0 * * * * curl -s -X POST 'http://kong:8000/functions/v1/send-training-reminders' -H 'Content-Type: application/json' -H 'x-cron-secret: $${X_CRON_SECRET}' >> /var/log/reminders.log 2>&1" > /etc/crontabs/root
         echo "5 * * * * curl -s -X POST 'http://kong:8000/functions/v1/run-deadline-reminders' -H 'Content-Type: application/json' -H 'x-cron-secret: $${X_CRON_SECRET}' >> /var/log/reminders.log 2>&1" >> /etc/crontabs/root
         echo "10 * * * * curl -s -X POST 'http://kong:8000/functions/v1/run-medical-reminders' -H 'Content-Type: application/json' -H 'x-cron-secret: $${X_CRON_SECRET}' >> /var/log/reminders.log 2>&1" >> /etc/crontabs/root
+        echo "0 7 * * 1 curl -s -X POST 'http://kong:8000/functions/v1/run-reminders' -H 'Content-Type: application/json' -H 'x-cron-secret: $${X_CRON_SECRET}' >> /var/log/reminders.log 2>&1" >> /etc/crontabs/root
         echo "Cron jobs configured:"
         cat /etc/crontabs/root
         crond -f -l 2
