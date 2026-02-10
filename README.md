@@ -227,42 +227,210 @@ VITE_SUPABASE_PROJECT_ID=your-project-id
 
 ## 🐳 Docker nasazení
 
-### Rychlý start
+### Dva režimy nasazení
+
+| Režim | Docker Compose soubor | Popis |
+|-------|----------------------|-------|
+| **A) Jednoduchý** | `docker-compose.yml` | Frontend + standalone PostgreSQL (připojení k externímu Supabase/Lovable Cloud) |
+| **B) Self-hosted Supabase** | `docker-compose.supabase.yml` | Frontend + **kompletní Supabase stack** (vše na jednom serveru) |
+
+---
+
+### Režim A: Jednoduchý (Frontend + externí Supabase)
 
 ```bash
-# Build a spuštění
+cp docker/.env.example .env
+nano .env  # vyplňte VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY
+
 docker-compose up -d --build
-
-# Sledování logů
 docker-compose logs -f frontend
-
-# Zastavení
-docker-compose down
 ```
 
-### Konfigurace
+---
 
-1. **Vytvořte `.env` soubor** v kořenovém adresáři:
+### Režim B: Self-hosted Supabase (kompletní stack)
+
+Tento režim spustí **kompletní Supabase infrastrukturu** na vašem serveru:
+
+| Služba | Image | Port | Popis |
+|--------|-------|------|-------|
+| **Frontend** | Custom (Nginx) | 80 | React aplikace |
+| **Kong** | kong:2.8.1 | 8000 | API Gateway |
+| **GoTrue** | supabase/gotrue:v2.185.0 | - | Autentizace |
+| **PostgREST** | postgrest/postgrest:v14.3 | - | REST API |
+| **Realtime** | supabase/realtime:v2.72.0 | - | WebSocket subscriptions |
+| **Storage** | supabase/storage-api:v1.37.1 | - | Úložiště souborů |
+| **Edge Functions** | supabase/edge-runtime:v1.70.0 | - | Serverless funkce (Deno) |
+| **Studio** | supabase/studio | 8000 (via Kong) | Administrační dashboard |
+| **PostgreSQL** | supabase/postgres:15.8.1.085 | 5432 | Databáze |
+| **Analytics** | supabase/logflare:1.30.3 | 4000 | Logování |
+| **ImgProxy** | darthsim/imgproxy:v3.30.1 | - | Transformace obrázků |
+| **Meta** | supabase/postgres-meta:v0.95.2 | - | DB metadata API |
+| **Vector** | timberio/vector:0.28.1 | - | Log pipeline |
+| **Supavisor** | supabase/supavisor:2.7.4 | 6543 | Connection pooler |
+| **CRON** | alpine:3.19 | - | Automatické připomínky |
+
+#### Požadavky na server
+
+| Komponenta | Požadavek |
+|------------|-----------|
+| **RAM** | Min. **4 GB** (doporučeno 8 GB) |
+| **Disk** | Min. 20 GB |
+| **CPU** | Min. 2 jádra |
+| **Docker** | 24.0+ |
+| **Docker Compose** | 2.20+ |
+
+#### Krok 1: Příprava prostředí
+
+```bash
+# Klonování repozitáře
+git clone <YOUR_GIT_URL>
+cd <YOUR_PROJECT_NAME>
+
+# Vytvoření .env souboru
+cp docker/.env.example .env
+```
+
+#### Krok 2: Generování bezpečnostních klíčů
+
+```bash
+# JWT Secret (POVINNÉ - změňte!)
+echo "JWT_SECRET=$(openssl rand -base64 32)"
+
+# Heslo databáze
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+
+# Dashboard heslo
+echo "DASHBOARD_PASSWORD=$(openssl rand -hex 16)"
+
+# Šifrovací klíče
+echo "SECRET_KEY_BASE=$(openssl rand -base64 48)"
+echo "VAULT_ENC_KEY=$(openssl rand -hex 16)"
+echo "PG_META_CRYPTO_KEY=$(openssl rand -hex 16)"
+
+# Logflare tokeny
+echo "LOGFLARE_PUBLIC_ACCESS_TOKEN=$(openssl rand -hex 32)"
+echo "LOGFLARE_PRIVATE_ACCESS_TOKEN=$(openssl rand -hex 32)"
+
+# CRON secret
+echo "X_CRON_SECRET=$(openssl rand -hex 32)"
+```
+
+**DŮLEŽITÉ**: Po vygenerování zapište hodnoty do `.env` souboru!
+
+#### Krok 3: Generování JWT klíčů (ANON_KEY, SERVICE_ROLE_KEY)
+
+Pro produkční nasazení musíte vygenerovat vlastní JWT klíče s vaším `JWT_SECRET`.
+
+Použijte online nástroj: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
+
+Nebo vygenerujte pomocí Node.js:
+```bash
+# ANON_KEY
+node -e "
+const jwt = require('jsonwebtoken');
+const payload = { role: 'anon', iss: 'supabase', iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + (10*365*24*60*60) };
+console.log(jwt.sign(payload, process.env.JWT_SECRET));
+"
+
+# SERVICE_ROLE_KEY
+node -e "
+const jwt = require('jsonwebtoken');
+const payload = { role: 'service_role', iss: 'supabase', iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + (10*365*24*60*60) };
+console.log(jwt.sign(payload, process.env.JWT_SECRET));
+"
+```
+
+#### Krok 4: Konfigurace .env
+
+Upravte soubor `.env` a nastavte zejména:
 
 ```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key
-VITE_SUPABASE_PROJECT_ID=your-project-id
+# Bezpečnost (POVINNÉ)
+POSTGRES_PASSWORD=<vygenerované-heslo>
+JWT_SECRET=<vygenerovaný-jwt-secret>
+ANON_KEY=<vygenerovaný-anon-key>
+SERVICE_ROLE_KEY=<vygenerovaný-service-role-key>
+DASHBOARD_PASSWORD=<silné-heslo>
+
+# URL vaší aplikace
+SITE_URL=http://vasedomena.cz
+SITE_DOMAIN=vasedomena.cz
+API_EXTERNAL_URL=http://vasedomena.cz:8000
+SUPABASE_PUBLIC_URL=http://vasedomena.cz:8000
+
+# SMTP pro autentizační emaily (potvrzení, reset)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=vas@email.cz
+SMTP_PASS=app-password
+SMTP_SENDER_NAME=Training System
+
+# SMTP pro připomínky (edge funkce)
+SMTP_FROM=noreply@vasedomena.cz
 ```
 
-2. **Build a spuštění**:
+#### Krok 5: Spuštění
 
 ```bash
-docker build -t training-frontend \
-  --build-arg VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
-  --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY \
-  --build-arg VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID \
-  .
+# Build a spuštění všech služeb
+docker compose -f docker-compose.supabase.yml up -d --build
 
-docker run -d -p 80:80 --name training-frontend training-frontend
+# Sledování logů
+docker compose -f docker-compose.supabase.yml logs -f
+
+# Kontrola stavu
+docker compose -f docker-compose.supabase.yml ps
 ```
 
-### Docker příkazy
+#### Krok 6: První přihlášení
+
+1. Otevřete aplikaci: `http://vasedomena.cz`
+2. **Zaregistrujte se** jako první uživatel → automaticky dostanete roli **Admin**
+3. Nebo použijte `seed-initial-admin`:
+
+```bash
+curl -X POST "http://localhost:8000/functions/v1/seed-initial-admin" \
+  -H "Content-Type: application/json"
+# Přihlášení: admin@system.local / admin123
+```
+
+4. V Administraci → Nastavení → E-mail nakonfigurujte SMTP
+5. Otestujte odeslání testovacího emailu
+
+#### Supabase Studio Dashboard
+
+Studio je dostupné na: `http://vasedomena.cz:8000`
+
+Přihlašovací údaje: viz `DASHBOARD_USERNAME` a `DASHBOARD_PASSWORD` v `.env`
+
+#### CRON připomínky
+
+V režimu B je CRON kontejner **integrován přímo v Docker Compose**. Připomínky se spouštějí automaticky každou hodinu:
+
+| Čas | Modul | Edge funkce |
+|-----|-------|-------------|
+| :00 | Školení | `send-training-reminders` |
+| :05 | Technické události | `run-deadline-reminders` |
+| :10 | PLP prohlídky | `run-medical-reminders` |
+
+Není potřeba nastavovat externí crontab!
+
+#### Docker příkazy (Režim B)
+
+| Příkaz | Popis |
+|--------|-------|
+| `docker compose -f docker-compose.supabase.yml up -d` | Spustit na pozadí |
+| `docker compose -f docker-compose.supabase.yml down` | Zastavit |
+| `docker compose -f docker-compose.supabase.yml down -v` | Zastavit + smazat data |
+| `docker compose -f docker-compose.supabase.yml logs -f kong` | Logy Kong gateway |
+| `docker compose -f docker-compose.supabase.yml logs -f auth` | Logy autentizace |
+| `docker compose -f docker-compose.supabase.yml logs -f functions` | Logy edge funkcí |
+| `docker compose -f docker-compose.supabase.yml logs -f db` | Logy databáze |
+| `docker compose -f docker-compose.supabase.yml restart functions` | Restart edge funkcí |
+| `docker compose -f docker-compose.supabase.yml ps` | Stav všech služeb |
+
+### Docker příkazy (Režim A)
 
 | Příkaz | Popis |
 |--------|-------|
