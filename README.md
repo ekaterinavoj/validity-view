@@ -1449,6 +1449,105 @@ echo "Nový X_CRON_SECRET: $NEW_SECRET"
 └── nginx.conf          # Nginx konfigurace
 ```
 
+## ❓ FAQ — Nejčastější problémy po nasazení
+
+### Přihlášení a přístup
+
+**Q: Po spuštění `seed-initial-admin` se nemůžu přihlásit**
+- Ověřte, že Edge funkce vrátila úspěšnou odpověď (HTTP 200)
+- Zkontrolujte, zda GoTrue (Auth) služba běží: `docker compose -f docker-compose.supabase.yml logs auth`
+- Ujistěte se, že `SITE_URL` v `.env` odpovídá URL, na které přistupujete
+- Zkuste vyčistit cache prohlížeče a cookies
+
+**Q: Uživatel se přihlásí, ale vidí prázdnou stránku nebo "Nedostatečná oprávnění"**
+- Zkontrolujte, zda má uživatel přiřazenou **roli** (Systém → Správa uživatelů)
+- Ověřte, že profil má `approval_status = 'approved'`
+- Pro Manažery a Uživatele: profil **musí být propojen se zaměstnancem** (`profiles.employee_id`)
+- Zkontrolujte, zda má uživatel přiřazený **přístup k alespoň jednomu modulu** (trainings / deadlines / plp)
+
+**Q: Manažer nevidí žádná data**
+- Manažer vidí pouze záznamy zaměstnanců ve svém subtree (nadřízený → podřízení)
+- Ověřte, že propojený zaměstnanec má správně nastaveného `manager_employee_id` v hierarchii
+- Zkontrolujte RLS politiky v databázi
+
+### E-maily a připomínky
+
+**Q: Testovací email se neodešle**
+- Ověřte SMTP konfiguraci v Administraci → Nastavení → E-mail
+- Pro Gmail: použijte **App Password** (ne běžné heslo), povolte 2FA
+- Zkontrolujte port: `587` (STARTTLS) nebo `465` (SMTPS)
+- Podívejte se do logů Edge funkcí: `docker compose -f docker-compose.supabase.yml logs functions`
+
+**Q: CRON připomínky se neodesílají**
+- Ověřte, že `X_CRON_SECRET` je **shodný** v `.env`, crontabu a Lovable Cloud Secrets
+- Zkontrolujte logy CRON kontejneru: `docker compose -f docker-compose.supabase.yml logs cron`
+- Manuální test:
+  ```bash
+  curl -X POST "http://localhost:8000/functions/v1/send-training-reminders" \
+    -H "x-cron-secret: VAS_SECRET"
+  ```
+- Ověřte, že existují aktivní šablony připomínek s platnými příjemci
+
+**Q: Připomínky se odesílají, ale nikdo je nedostává**
+- Zkontrolujte, zda šablona má nastavené **příjemce** (`target_user_ids`)
+- Ověřte, že příjemci mají platnou e-mailovou adresu
+- Podívejte se do logů odesílání: Stav systému → Historie odesílání
+- Zkontrolujte spam/junk složku příjemce
+
+### Import dat
+
+**Q: Hromadný import zaměstnanců selže**
+- CSV musí být v kódování **UTF-8** (pozor na Excel, který často ukládá v CP-1250)
+- Povinné sloupce: `employee_number`, `first_name`, `last_name`, `email`, `position`, `status`
+- Osobní číslo (`employee_number`) musí být **unikátní**
+- E-mail musí být platný a unikátní
+
+**Q: Po importu školení/lhůt jsou špatné stavy (vše červené)**
+- Zkontrolujte formát dat: `YYYY-MM-DD` (ISO 8601)
+- Ověřte, že `next_training_date` / `next_check_date` je v budoucnosti pro platné záznamy
+- Stavy se počítají automaticky: platné (>30 dní), blíží se (≤30 dní), po termínu (v minulosti)
+
+### Docker a infrastruktura
+
+**Q: Kontejner se stále restartuje**
+- Zkontrolujte logy: `docker compose -f docker-compose.supabase.yml logs <služba>`
+- Časté příčiny: chybějící ENV proměnné, špatný `JWT_SECRET`, nedostupná databáze
+- Ověřte dostatek RAM: `free -h` (doporučeno min. 4 GB pro self-hosted Supabase)
+
+**Q: Edge funkce vrací 500 / "Internal Server Error"**
+- Zkontrolujte logy: `docker compose -f docker-compose.supabase.yml logs functions`
+- Ověřte, že `SERVICE_ROLE_KEY` je správně vygenerován z `JWT_SECRET`
+- Zkontrolujte, zda funkce mají přístup k ENV proměnným (SMTP konfigurace atd.)
+
+**Q: Databáze se neinicializuje správně**
+- Smažte volume a spusťte znovu: `docker compose -f docker-compose.supabase.yml down -v && docker compose -f docker-compose.supabase.yml up -d`
+- ⚠️ **Pozor**: `-v` smaže všechna data! Použijte pouze při čisté instalaci
+- Zkontrolujte logy DB: `docker compose -f docker-compose.supabase.yml logs db`
+
+**Q: Aplikace je pomalá / timeouty**
+- Zkontrolujte vytížení serveru: `htop` nebo `docker stats`
+- Ověřte connection pooler (Supavisor): `docker compose -f docker-compose.supabase.yml logs supavisor`
+- Zvažte navýšení RAM nebo přidání swap: `sudo fallocate -l 2G /swapfile`
+
+### Zálohy
+
+**Q: Jak zálohovat databázi?**
+```bash
+# Záloha (self-hosted)
+docker exec training-db pg_dump -U supabase_admin -d postgres > backup_$(date +%F).sql
+
+# Obnova
+cat backup_2025-01-15.sql | docker exec -i training-db psql -U supabase_admin -d postgres
+```
+
+**Q: Jak zálohovat úložiště souborů (Storage)?**
+```bash
+# Záloha storage volume
+docker cp supabase-storage:/var/lib/storage ./storage-backup-$(date +%F)
+```
+
+---
+
 ## 📚 Další zdroje
 
 - [Lovable Docs](https://docs.lovable.dev)
