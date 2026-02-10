@@ -1067,6 +1067,175 @@ docker-compose restart frontend
 
 ---
 
+## 🔀 Migrace dat mezi Lovable Cloud a Self-hosted
+
+### Přehled scénářů
+
+| Směr | Popis | Typický důvod |
+|------|-------|---------------|
+| **Cloud → Self-hosted** | Export z Lovable Cloud, import do vlastního serveru | Přechod na vlastní infrastrukturu |
+| **Self-hosted → Cloud** | Export z vlastního serveru, import do Lovable Cloud | Přechod na spravovanou službu |
+| **Self-hosted → Self-hosted** | Migrace mezi dvěma servery | Stěhování serveru |
+
+### A) Export dat z Lovable Cloud
+
+#### 1. Export databáze
+
+V Lovable Cloud UI (Cloud View → Run SQL) spusťte pro ověření:
+
+```sql
+SELECT 
+  (SELECT COUNT(*) FROM employees) as employees,
+  (SELECT COUNT(*) FROM trainings) as trainings,
+  (SELECT COUNT(*) FROM deadlines) as deadlines,
+  (SELECT COUNT(*) FROM medical_examinations) as medical_exams,
+  (SELECT COUNT(*) FROM equipment) as equipment,
+  (SELECT COUNT(*) FROM departments) as departments;
+```
+
+Pro export použijte Supabase CLI nebo `pg_dump`:
+
+```bash
+# Supabase CLI
+supabase db dump --project-ref YOUR_PROJECT_REF > cloud_backup.sql
+
+# Pouze data (bez schématu)
+supabase db dump --project-ref YOUR_PROJECT_REF --data-only > cloud_data.sql
+
+# Alternativa: pg_dump s connection stringem z Cloud View → Database Settings
+pg_dump "postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres" \
+  --schema=public --no-owner --no-privileges > cloud_backup.sql
+```
+
+#### 2. Export storage (dokumenty)
+
+```bash
+#!/bin/bash
+SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co"
+SERVICE_ROLE_KEY="your-service-role-key"
+EXPORT_DIR="./storage-export"
+
+for BUCKET in training-documents deadline-documents medical-documents; do
+  mkdir -p "$EXPORT_DIR/$BUCKET"
+  FILES=$(curl -s "$SUPABASE_URL/storage/v1/object/list/$BUCKET" \
+    -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"prefix":"","limit":10000}')
+  echo "$FILES" | jq -r '.[].name // empty' | while read -r FILE; do
+    curl -s "$SUPABASE_URL/storage/v1/object/$BUCKET/$FILE" \
+      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+      -o "$EXPORT_DIR/$BUCKET/$FILE"
+  done
+  echo "Bucket $BUCKET: hotovo"
+done
+```
+
+#### 3. Export uživatelů
+
+```bash
+supabase auth list-users --project-ref YOUR_PROJECT_REF > users_export.json
+```
+
+> ⚠️ **Hesla nelze exportovat** — uživatelé si musí po migraci nastavit nová hesla.
+
+---
+
+### B) Import dat do Self-hosted
+
+#### 1. Příprava cílového serveru
+
+```bash
+docker compose -f docker-compose.supabase.yml up -d --build
+sleep 30
+docker compose -f docker-compose.supabase.yml ps
+```
+
+#### 2. Import databáze
+
+```bash
+# Kompletní import (schéma + data)
+docker exec -i supabase-db psql -U postgres -d postgres < cloud_backup.sql
+
+# Pouze data (pokud init-db.sql již vytvořil strukturu)
+docker exec -i supabase-db psql -U postgres -d postgres \
+  -c "TRUNCATE employees, trainings, deadlines, medical_examinations, equipment, departments CASCADE;"
+docker exec -i supabase-db psql -U postgres -d postgres < cloud_data.sql
+```
+
+#### 3. Import storage
+
+```bash
+SUPABASE_URL="http://localhost:8000"
+SERVICE_ROLE_KEY="your-local-service-role-key"
+
+for BUCKET in training-documents deadline-documents medical-documents; do
+  find ./storage-export/$BUCKET -type f | while read -r FILE; do
+    FILENAME=$(basename "$FILE")
+    curl -s -X POST "$SUPABASE_URL/storage/v1/object/$BUCKET/$FILENAME" \
+      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+      -H "Content-Type: application/octet-stream" \
+      --data-binary @"$FILE"
+  done
+done
+```
+
+#### 4. Vytvoření uživatelů
+
+```bash
+# První admin
+curl -X POST "http://localhost:8000/functions/v1/seed-initial-admin" \
+  -H "Content-Type: application/json"
+# Přihlášení: admin@system.local / admin123 → ihned změňte heslo!
+
+# Ostatní uživatele vytvořte v Administrace → Správa uživatelů
+```
+
+#### 5. Ověření
+
+```bash
+docker exec -t supabase-db psql -U postgres -d postgres -c "
+  SELECT 
+    (SELECT COUNT(*) FROM employees) as employees,
+    (SELECT COUNT(*) FROM trainings) as trainings,
+    (SELECT COUNT(*) FROM deadlines) as deadlines,
+    (SELECT COUNT(*) FROM medical_examinations) as medical_exams,
+    (SELECT COUNT(*) FROM equipment) as equipment;
+"
+```
+
+---
+
+### C) Migrace Self-hosted → Cloud
+
+```bash
+# 1. Export z self-hosted
+docker exec -t supabase-db pg_dump -U postgres -d postgres \
+  --schema=public --data-only --no-owner > selfhosted_data.sql
+
+# 2. Import do Cloud
+psql "postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres" \
+  < selfhosted_data.sql
+```
+
+---
+
+### D) Checklist migrace
+
+- [ ] Záloha zdrojové i cílové databáze
+- [ ] Export databáze (schéma + data)
+- [ ] Export storage (3 buckety dokumentů)
+- [ ] Export seznamu uživatelů
+- [ ] Import databáze do cíle
+- [ ] Import storage do cíle
+- [ ] Vytvoření admin účtu + ostatních uživatelů
+- [ ] Konfigurace SMTP na cíli
+- [ ] Nastavení X_CRON_SECRET a CRON úloh
+- [ ] Ověření počtu záznamů (shoda zdroj ↔ cíl)
+- [ ] Test přihlášení a funkčnosti
+- [ ] Přesměrování DNS / deaktivace starého prostředí
+
+---
+
 ## 🔄 Aktualizace aplikace
 
 ### Postup aktualizace
