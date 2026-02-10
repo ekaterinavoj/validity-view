@@ -620,144 +620,249 @@ Parametry na každém záznamu:
 
 ---
 
-## 💾 Zálohování databáze
+## 💾 Zálohování databáze a Storage
 
-### Automatické zálohy (Lovable Cloud)
+### Přehled
 
-Lovable Cloud automaticky provádí denní zálohy databáze s retencí 7 dní. Pro přístup k zálohám kontaktujte podporu Lovable.
+| Co zálohovat | Obsah | Nástroj |
+|--------------|-------|---------|
+| **Databáze** | Tabulky, RLS, funkce, triggery | `pg_dump` |
+| **Storage** | Dokumenty školení, lhůt, prohlídek | `docker cp` / rsync |
+| **Konfigurace** | `.env`, `docker-compose.yml` | Ruční kopie / git |
 
-### Manuální export dat
+---
 
-#### Export přes SQL (doporučeno)
+### A) Záloha databáze (Self-hosted Supabase)
 
-V Lovable Cloud → Run SQL můžete exportovat data do CSV:
-
-```sql
--- Export školení
-COPY (SELECT * FROM trainings WHERE deleted_at IS NULL) TO STDOUT WITH CSV HEADER;
-
--- Export zaměstnanců
-COPY (SELECT * FROM employees) TO STDOUT WITH CSV HEADER;
-
--- Export technických událostí
-COPY (SELECT * FROM deadlines WHERE deleted_at IS NULL) TO STDOUT WITH CSV HEADER;
-
--- Export lékařských prohlídek
-COPY (SELECT * FROM medical_examinations WHERE deleted_at IS NULL) TO STDOUT WITH CSV HEADER;
-```
-
-#### Export přes pg_dump (pro administrátory)
-
-Pokud máte přímý přístup k databázi:
+#### Jednorázová záloha
 
 ```bash
-# Kompletní záloha
-pg_dump -h db.xgtwutpbojltmktprdui.supabase.co -U postgres -d postgres \
+# Kompletní záloha (schéma + data)
+docker exec -t supabase-db pg_dump -U postgres -d postgres \
   --no-owner --no-privileges \
-  -f backup_$(date +%Y%m%d_%H%M%S).sql
+  | gzip > backup_db_$(date +%Y%m%d_%H%M%S).sql.gz
 
-# Pouze data (bez struktury)
-pg_dump -h db.xgtwutpbojltmktprdui.supabase.co -U postgres -d postgres \
+# Pouze data (bez struktury - pro migraci)
+docker exec -t supabase-db pg_dump -U postgres -d postgres \
   --data-only --no-owner \
-  -f data_backup_$(date +%Y%m%d_%H%M%S).sql
+  | gzip > backup_data_$(date +%Y%m%d_%H%M%S).sql.gz
 
-# Komprimovaná záloha
-pg_dump -h db.xgtwutpbojltmktprdui.supabase.co -U postgres -d postgres \
-  --no-owner --no-privileges \
-  | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+# Pouze public schéma (bez auth/storage interních)
+docker exec -t supabase-db pg_dump -U postgres -d postgres \
+  --schema=public --no-owner --no-privileges \
+  | gzip > backup_public_$(date +%Y%m%d_%H%M%S).sql.gz
 ```
 
-### Zálohovací skript
+#### Obnova databáze ze zálohy
 
-Vytvořte `/opt/scripts/backup-db.sh`:
+```bash
+# Rozbalení
+gunzip backup_db_20250210_030000.sql.gz
+
+# Obnova do běžící databáze
+docker exec -i supabase-db psql -U postgres -d postgres \
+  < backup_db_20250210_030000.sql
+
+# Obnova s vyčištěním (POZOR: smaže aktuální data!)
+docker exec -i supabase-db psql -U postgres -d postgres \
+  -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+docker exec -i supabase-db psql -U postgres -d postgres \
+  < backup_db_20250210_030000.sql
+```
+
+---
+
+### B) Záloha Storage (dokumenty)
+
+Aplikace používá 3 storage buckety:
+
+| Bucket | Obsah |
+|--------|-------|
+| `training-documents` | Dokumenty ke školením |
+| `deadline-documents` | Dokumenty k technickým lhůtám |
+| `medical-documents` | Dokumenty k lékařským prohlídkám |
+
+#### Záloha pomocí Docker volume
+
+```bash
+# Zjistěte název storage volume
+docker volume ls | grep storage
+
+# Záloha celého storage volume
+docker run --rm \
+  -v supabase_storage-data:/data \
+  -v $(pwd)/backups:/backup \
+  alpine tar czf /backup/storage_$(date +%Y%m%d_%H%M%S).tar.gz -C /data .
+```
+
+#### Záloha přes Supabase Storage API
+
+```bash
+#!/bin/bash
+# backup-storage.sh - Záloha souborů přes REST API
+
+SUPABASE_URL="http://localhost:8000"
+SERVICE_ROLE_KEY="your-service-role-key"
+BACKUP_DIR="/var/backups/training-system/storage"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+mkdir -p "$BACKUP_DIR/$TIMESTAMP"
+
+for BUCKET in training-documents deadline-documents medical-documents; do
+  echo "[$(date)] Zálohuji bucket: $BUCKET"
+  mkdir -p "$BACKUP_DIR/$TIMESTAMP/$BUCKET"
+
+  # Získání seznamu souborů
+  FILES=$(curl -s "$SUPABASE_URL/storage/v1/object/list/$BUCKET" \
+    -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"prefix":"","limit":10000}')
+
+  # Stažení každého souboru
+  echo "$FILES" | jq -r '.[].name // empty' | while read -r FILE; do
+    curl -s "$SUPABASE_URL/storage/v1/object/$BUCKET/$FILE" \
+      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+      -o "$BACKUP_DIR/$TIMESTAMP/$BUCKET/$FILE"
+  done
+
+  echo "[$(date)] Bucket $BUCKET: hotovo"
+done
+
+# Komprese
+tar czf "$BACKUP_DIR/storage_$TIMESTAMP.tar.gz" -C "$BACKUP_DIR/$TIMESTAMP" .
+rm -rf "$BACKUP_DIR/$TIMESTAMP"
+
+echo "[$(date)] Záloha storage dokončena: storage_$TIMESTAMP.tar.gz"
+```
+
+#### Obnova storage ze zálohy
+
+```bash
+# Rozbalení
+mkdir -p /tmp/storage-restore
+tar xzf storage_20250210_030000.tar.gz -C /tmp/storage-restore
+
+# Upload souborů zpět přes API
+for BUCKET in training-documents deadline-documents medical-documents; do
+  find /tmp/storage-restore/$BUCKET -type f | while read -r FILE; do
+    FILENAME=$(basename "$FILE")
+    curl -s -X POST "$SUPABASE_URL/storage/v1/object/$BUCKET/$FILENAME" \
+      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+      -H "Content-Type: application/octet-stream" \
+      --data-binary @"$FILE"
+  done
+done
+```
+
+---
+
+### C) Kompletní zálohovací skript (DB + Storage)
+
+Vytvořte `/opt/scripts/backup-all.sh`:
 
 ```bash
 #!/bin/bash
 # ============================================
-# Automatické zálohování databáze
+# Kompletní záloha: Databáze + Storage
 # ============================================
 
-# Konfigurace
-DB_HOST="db.xgtwutpbojltmktprdui.supabase.co"
-DB_USER="postgres"
-DB_NAME="postgres"
 BACKUP_DIR="/var/backups/training-system"
 RETENTION_DAYS=30
-
-# Vytvoření adresáře
-mkdir -p $BACKUP_DIR
-
-# Název souboru
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/backup_$TIMESTAMP.sql.gz"
+LOG_FILE="/var/log/backup-training.log"
 
-# Záloha
-echo "[$(date)] Spouštím zálohu..."
-PGPASSWORD="$DB_PASSWORD" pg_dump -h $DB_HOST -U $DB_USER -d $DB_NAME \
-  --no-owner --no-privileges \
-  | gzip > $BACKUP_FILE
+mkdir -p "$BACKUP_DIR"
 
-# Kontrola úspěchu
-if [ $? -eq 0 ]; then
-  echo "[$(date)] Záloha úspěšně vytvořena: $BACKUP_FILE"
-  echo "[$(date)] Velikost: $(du -h $BACKUP_FILE | cut -f1)"
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"; }
+
+# --- 1. Záloha databáze ---
+log "=== Záloha databáze ==="
+DB_FILE="$BACKUP_DIR/db_$TIMESTAMP.sql.gz"
+docker exec -t supabase-db pg_dump -U postgres -d postgres \
+  --no-owner --no-privileges 2>>"$LOG_FILE" \
+  | gzip > "$DB_FILE"
+
+if [ $? -eq 0 ] && [ -s "$DB_FILE" ]; then
+  log "DB záloha OK: $DB_FILE ($(du -h "$DB_FILE" | cut -f1))"
 else
-  echo "[$(date)] CHYBA: Záloha selhala!"
-  exit 1
+  log "CHYBA: DB záloha selhala!"
 fi
 
-# Mazání starých záloh
-echo "[$(date)] Mažu zálohy starší než $RETENTION_DAYS dní..."
-find $BACKUP_DIR -name "backup_*.sql.gz" -mtime +$RETENTION_DAYS -delete
+# --- 2. Záloha storage volume ---
+log "=== Záloha storage ==="
+STORAGE_FILE="$BACKUP_DIR/storage_$TIMESTAMP.tar.gz"
+docker run --rm \
+  -v supabase_storage-data:/data:ro \
+  -v "$BACKUP_DIR":/backup \
+  alpine tar czf "/backup/storage_$TIMESTAMP.tar.gz" -C /data . 2>>"$LOG_FILE"
 
-echo "[$(date)] Hotovo"
+if [ $? -eq 0 ] && [ -s "$STORAGE_FILE" ]; then
+  log "Storage záloha OK: $STORAGE_FILE ($(du -h "$STORAGE_FILE" | cut -f1))"
+else
+  log "VAROVÁNÍ: Storage záloha selhala (volume neexistuje?)"
+fi
+
+# --- 3. Záloha konfigurace ---
+log "=== Záloha konfigurace ==="
+CONFIG_FILE="$BACKUP_DIR/config_$TIMESTAMP.tar.gz"
+tar czf "$CONFIG_FILE" \
+  .env docker-compose.supabase.yml docker-compose.yml \
+  nginx.conf docker/.env.example 2>>"$LOG_FILE"
+
+if [ $? -eq 0 ]; then
+  log "Config záloha OK: $CONFIG_FILE"
+fi
+
+# --- 4. Mazání starých záloh ---
+log "=== Čištění starých záloh (retence: ${RETENTION_DAYS} dní) ==="
+DELETED=$(find "$BACKUP_DIR" -name "*.gz" -mtime +$RETENTION_DAYS -delete -print | wc -l)
+log "Smazáno $DELETED starých záloh"
+
+# --- 5. Souhrn ---
+log "=== Souhrn ==="
+log "Celková velikost záloh: $(du -sh "$BACKUP_DIR" | cut -f1)"
+log "Počet záloh: $(ls "$BACKUP_DIR"/*.gz 2>/dev/null | wc -l)"
+log "=== Hotovo ==="
 ```
 
-### Nastavení automatického zálohování
+### D) Automatické zálohování (CRON)
 
 ```bash
 # Oprávnění
-chmod +x /opt/scripts/backup-db.sh
+chmod +x /opt/scripts/backup-all.sh
 
-# Crontab - záloha každý den ve 3:00
-echo "0 3 * * * DB_PASSWORD='your-db-password' /opt/scripts/backup-db.sh >> /var/log/db-backup.log 2>&1" | crontab -
+# Denní záloha ve 3:00
+(crontab -l 2>/dev/null; echo "0 3 * * * /opt/scripts/backup-all.sh") | crontab -
 
-# Nebo pro týdenní zálohy (neděle 3:00)
-echo "0 3 * * 0 DB_PASSWORD='your-db-password' /opt/scripts/backup-db.sh >> /var/log/db-backup.log 2>&1" | crontab -
+# Týdenní záloha na vzdálené úložiště (neděle 4:00)
+(crontab -l 2>/dev/null; echo "0 4 * * 0 rsync -az /var/backups/training-system/ user@backup-server:/backups/training/") | crontab -
 ```
 
-### Obnova ze zálohy
+### E) Doporučená strategie zálohování
+
+| Typ zálohy | Frekvence | Retence | Úložiště | Obsah |
+|------------|-----------|---------|----------|-------|
+| **Denní** | Každý den 3:00 | 7 dní | Lokální server | DB + Storage |
+| **Týdenní** | Neděle 4:00 | 4 týdny | Vzdálený server (rsync/S3) | DB + Storage + Config |
+| **Měsíční** | 1. den měsíce | 12 měsíců | Offline archiv | Kompletní |
+
+### F) Ověření záloh
 
 ```bash
-# Rozbalení
-gunzip backup_20250208_030000.sql.gz
+# Test integrity DB zálohy
+gunzip -t backup_db_20250210_030000.sql.gz && echo "OK" || echo "POŠKOZENO"
 
-# Obnova
-PGPASSWORD="your-password" psql -h db.xgtwutpbojltmktprdui.supabase.co \
-  -U postgres -d postgres < backup_20250208_030000.sql
+# Test obnovy do dočasného kontejneru
+docker run --rm -d --name test-restore \
+  -e POSTGRES_PASSWORD=test \
+  postgres:15
+sleep 5
+gunzip -c backup_db_20250210_030000.sql.gz | \
+  docker exec -i test-restore psql -U postgres -d postgres
+docker stop test-restore
 ```
 
-### Záloha souborů (Storage)
-
-Dokumenty ze Storage se zálohují samostatně:
-
-```bash
-# Seznam bucketů
-# - training-documents
-# - deadline-documents  
-# - medical-documents
-
-# Pro zálohu Storage kontaktujte podporu Lovable
-# nebo použijte Supabase CLI (pokud je dostupné)
-```
-
-### Doporučená strategie zálohování
-
-| Typ zálohy | Frekvence | Retence | Úložiště |
-|------------|-----------|---------|----------|
-| **Denní** | Každý den 3:00 | 7 dní | Lokální server |
-| **Týdenní** | Neděle 3:00 | 4 týdny | Vzdálené úložiště (S3, GCS) |
-| **Měsíční** | 1. den měsíce | 12 měsíců | Archiv (offline) |
+> ⚠️ **Důležité**: Pravidelně testujte obnovu ze zálohy! Záloha, kterou nelze obnovit, je bezcenná.
 
 ---
 
