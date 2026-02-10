@@ -739,7 +739,7 @@ const handler = async (req: Request): Promise<Response> => {
   const reminderDays = settingsMap.reminder_days || { days_before: [30, 14, 7] };
   const reminderFrequency = settingsMap.reminder_frequency || { type: "weekly", interval_days: 7, enabled: true };
   const reminderRecipients = settingsMap.reminder_recipients || { user_ids: [], delivery_mode: "bcc" };
-  const emailProvider = settingsMap.email_provider || { provider: "resend" };
+  const emailProvider = settingsMap.email_provider || { provider: "smtp" };
   const emailTemplate = settingsMap.email_template || {
     subject: "Souhrn školení k obnovení - {reportDate}",
     body: "Dobrý den,\n\nzasíláme přehled školení vyžadujících pozornost.\n\nCelkem: {totalCount} školení\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}",
