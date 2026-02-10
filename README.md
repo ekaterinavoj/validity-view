@@ -106,7 +106,9 @@ VITE_SUPABASE_PROJECT_ID=xgtwutpbojltmktprdui
 # CRON ZABEZPEČENÍ
 # ============================================
 # Vygenerujte: openssl rand -hex 32
-CRON_SECRET=your-generated-secret-key
+# Edge funkce akceptují hlavičku x-cron-secret
+# a kontrolují proměnnou X_CRON_SECRET (i fallback CRON_SECRET)
+X_CRON_SECRET=your-generated-secret-key
 ```
 
 ### 5. Build a spuštění
@@ -128,10 +130,12 @@ curl http://localhost:80
 Otevřete crontab: `crontab -e`
 
 ```bash
-# Připomínky - každou hodinu
-0 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/send-training-reminders" -H "x-cron-secret: $CRON_SECRET" >> /var/log/reminders.log 2>&1
-5 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-deadline-reminders" -H "x-cron-secret: $CRON_SECRET" >> /var/log/reminders.log 2>&1
-10 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-medical-reminders" -H "x-cron-secret: $CRON_SECRET" >> /var/log/reminders.log 2>&1
+# Připomínky - každou hodinu (4 edge funkce)
+0 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/send-training-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
+5 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-deadline-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
+10 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-medical-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
+# Sumární přehled (týdenní souhrn) - jednou týdně v pondělí v 7:00
+0 7 * * 1 curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-reminders" -H "x-cron-secret: $X_CRON_SECRET" >> /var/log/reminders.log 2>&1
 ```
 
 ### 7. Nastavení HTTPS (volitelné)
@@ -172,8 +176,9 @@ curl -X POST "https://YOUR_SUPABASE_URL/functions/v1/seed-initial-admin" \
 
 1. V administraci nakonfigurujte **SMTP server** pro odesílání emailů (Administrace → Nastavení → E-mail)
 2. Otestujte SMTP konfiguraci odesláním testovacího emailu
-3. Nastavte `X_CRON_SECRET` v Lovable Cloud (sekce Secrets)
+3. Nastavte `X_CRON_SECRET` v Lovable Cloud (sekce Secrets) — musí se shodovat s hodnotou v `.env` / crontabu
 4. Ověřte funkci CRON úloh manuálním testem
+5. Nastavte **modulový přístup** uživatelům (Administrace → Správa uživatelů) — moduly: `trainings`, `deadlines`, `plp`
 
 ### 10. Checklist po instalaci
 
@@ -181,8 +186,9 @@ curl -X POST "https://YOUR_SUPABASE_URL/functions/v1/seed-initial-admin" \
 - [ ] Aplikace je dostupná v prohlížeči
 - [ ] První admin uživatel vytvořen (a heslo změněno!)
 - [ ] SMTP nakonfigurován a otestován (Administrace → Nastavení → E-mail)
-- [ ] CRON úlohy nastaveny (3 endpointy každou hodinu)
-- [ ] X_CRON_SECRET synchronizován s Lovable Cloud
+- [ ] CRON úlohy nastaveny (4 endpointy — 3× hodinově + 1× týdenně)
+- [ ] X_CRON_SECRET synchronizován mezi `.env`/crontab a Lovable Cloud
+- [ ] Modulový přístup nakonfigurován (trainings, deadlines, plp)
 - [ ] SSL certifikát nainstalován (produkce)
 - [ ] Zálohovací strategie nastavena
 
@@ -413,6 +419,7 @@ V režimu B je CRON kontejner **integrován přímo v Docker Compose**. Připom�
 | :00 | Školení | `send-training-reminders` |
 | :05 | Technické události | `run-deadline-reminders` |
 | :10 | PLP prohlídky | `run-medical-reminders` |
+| Pondělí 7:00 | Sumární přehled | `run-reminders` |
 
 Není potřeba nastavovat externí crontab!
 
@@ -444,11 +451,12 @@ Není potřeba nastavovat externí crontab!
 
 ### Edge funkce
 
-| Funkce | Modul | Endpoint |
-|--------|-------|----------|
-| `send-training-reminders` | Školení | `/functions/v1/send-training-reminders` |
-| `run-deadline-reminders` | Technické události | `/functions/v1/run-deadline-reminders` |
-| `run-medical-reminders` | PLP Prohlídky | `/functions/v1/run-medical-reminders` |
+| Funkce | Modul | Endpoint | Frekvence |
+|--------|-------|----------|-----------|
+| `send-training-reminders` | Školení | `/functions/v1/send-training-reminders` | Hodinově |
+| `run-deadline-reminders` | Technické události | `/functions/v1/run-deadline-reminders` | Hodinově |
+| `run-medical-reminders` | PLP Prohlídky | `/functions/v1/run-medical-reminders` | Hodinově |
+| `run-reminders` | Sumární přehled (školení) | `/functions/v1/run-reminders` | Týdně (po 7:00) |
 
 ### Linux Crontab (každou hodinu)
 
@@ -539,7 +547,7 @@ openssl rand -hex 32
 # Výstup např.: a1b2c3d4e5f6...
 ```
 
-Tento klíč nastavte jako CRON_SECRET v Lovable Cloud.
+Tento klíč nastavte jako `X_CRON_SECRET` v Lovable Cloud (sekce Secrets) a současně do `.env` / crontabu.
 
 ### Testování
 
@@ -616,7 +624,8 @@ Parametry na každém záznamu:
 - **Role**: admin, manager, user, viewer
 - **Moduly**: trainings, deadlines, plp
 - **JWT verifikace** v Edge funkcích
-- **x-cron-secret** pro automatizaci
+- **x-cron-secret** hlavička pro CRON automatizaci (env: `X_CRON_SECRET`)
+- **Modulový přístup**: trainings, deadlines, plp — admin má přístup ke všem, ostatní dle nastavení
 
 ---
 
@@ -884,13 +893,14 @@ docker ps --format "table {{.Names}}\t{{.Status}}"
 ### Manuální health check
 
 ```bash
-# HTTP status
+# HTTP status (frontend)
 curl -i http://localhost:80/
-
 # Očekávaná odpověď: HTTP 200 OK
 
-# Ověření datové základny (přihlášení admin účtem)
-curl -X POST http://localhost:80/api/health
+# Ověření edge funkcí (Supabase / Self-hosted)
+curl -s "https://YOUR_SUPABASE_URL/functions/v1/send-training-reminders" \
+  -H "x-cron-secret: YOUR_CRON_SECRET" \
+  -d '{"test_mode": true}'
 ```
 
 ### Monitoring aplikace
