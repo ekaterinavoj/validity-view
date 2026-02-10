@@ -458,23 +458,26 @@ Není potřeba nastavovat externí crontab!
 | `run-medical-reminders` | PLP Prohlídky | `/functions/v1/run-medical-reminders` | Hodinově |
 | `run-reminders` | Sumární přehled (školení) | `/functions/v1/run-reminders` | Týdně (po 7:00) |
 
-### Linux Crontab (každou hodinu)
+### Linux Crontab (Režim A — externí Supabase/Cloud)
 
 Otevřete crontab: `crontab -e` a přidejte:
 
 ```bash
 # ============================================
-# PŘIPOMÍNKY - KAŽDOU HODINU
+# PŘIPOMÍNKY - KAŽDOU HODINU + TÝDENNÍ SOUHRN
 # ============================================
 
 # Školení - každou hodinu v :00
-0 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/send-training-reminders" -H "Content-Type: application/json" -H "x-cron-secret: VAS_TAJNY_KLIC" >> /var/log/training-reminders.log 2>&1
+0 * * * * curl -s -X POST "https://YOUR_SUPABASE_URL/functions/v1/send-training-reminders" -H "Content-Type: application/json" -H "x-cron-secret: YOUR_X_CRON_SECRET" >> /var/log/training-reminders.log 2>&1
 
 # Technické události - každou hodinu v :05
-5 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-deadline-reminders" -H "Content-Type: application/json" -H "x-cron-secret: VAS_TAJNY_KLIC" >> /var/log/deadline-reminders.log 2>&1
+5 * * * * curl -s -X POST "https://YOUR_SUPABASE_URL/functions/v1/run-deadline-reminders" -H "Content-Type: application/json" -H "x-cron-secret: YOUR_X_CRON_SECRET" >> /var/log/deadline-reminders.log 2>&1
 
 # PLP prohlídky - každou hodinu v :10
-10 * * * * curl -s -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/run-medical-reminders" -H "Content-Type: application/json" -H "x-cron-secret: VAS_TAJNY_KLIC" >> /var/log/medical-reminders.log 2>&1
+10 * * * * curl -s -X POST "https://YOUR_SUPABASE_URL/functions/v1/run-medical-reminders" -H "Content-Type: application/json" -H "x-cron-secret: YOUR_X_CRON_SECRET" >> /var/log/medical-reminders.log 2>&1
+
+# Sumární přehled školení - jednou týdně v pondělí v 7:00
+0 7 * * 1 curl -s -X POST "https://YOUR_SUPABASE_URL/functions/v1/run-reminders" -H "Content-Type: application/json" -H "x-cron-secret: YOUR_X_CRON_SECRET" >> /var/log/summary-reminders.log 2>&1
 ```
 
 ### Bash skript (alternativa)
@@ -487,8 +490,8 @@ Vytvořte `/opt/scripts/run-reminders.sh`:
 # Skript pro spouštění připomínek
 # ============================================
 
-CRON_SECRET="VAS_TAJNY_KLIC"
-BASE_URL="https://xgtwutpbojltmktprdui.supabase.co/functions/v1"
+X_CRON_SECRET="YOUR_X_CRON_SECRET"
+BASE_URL="https://YOUR_SUPABASE_URL/functions/v1"
 LOG_DIR="/var/log/reminders"
 
 mkdir -p $LOG_DIR
@@ -499,22 +502,29 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Spouštím připomínky..." >> $LOG_DIR/cro
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] -> Školení" >> $LOG_DIR/cron.log
 curl -s -X POST "$BASE_URL/send-training-reminders" \
   -H "Content-Type: application/json" \
-  -H "x-cron-secret: $CRON_SECRET" \
+  -H "x-cron-secret: $X_CRON_SECRET" \
   >> $LOG_DIR/training.log 2>&1
 
 # Technické události
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] -> Technické události" >> $LOG_DIR/cron.log
 curl -s -X POST "$BASE_URL/run-deadline-reminders" \
   -H "Content-Type: application/json" \
-  -H "x-cron-secret: $CRON_SECRET" \
+  -H "x-cron-secret: $X_CRON_SECRET" \
   >> $LOG_DIR/deadline.log 2>&1
 
 # PLP prohlídky
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] -> PLP prohlídky" >> $LOG_DIR/cron.log
 curl -s -X POST "$BASE_URL/run-medical-reminders" \
   -H "Content-Type: application/json" \
-  -H "x-cron-secret: $CRON_SECRET" \
+  -H "x-cron-secret: $X_CRON_SECRET" \
   >> $LOG_DIR/medical.log 2>&1
+
+# Sumární přehled
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] -> Sumární přehled" >> $LOG_DIR/cron.log
+curl -s -X POST "$BASE_URL/run-reminders" \
+  -H "Content-Type: application/json" \
+  -H "x-cron-secret: $X_CRON_SECRET" \
+  >> $LOG_DIR/summary.log 2>&1
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Hotovo" >> $LOG_DIR/cron.log
 ```
@@ -553,9 +563,9 @@ Tento klíč nastavte jako `X_CRON_SECRET` v Lovable Cloud (sekce Secrets) a sou
 
 ```bash
 # Manuální test
-curl -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/send-training-reminders" \
+curl -X POST "https://YOUR_SUPABASE_URL/functions/v1/send-training-reminders" \
   -H "Content-Type: application/json" \
-  -H "x-cron-secret: VAS_TAJNY_KLIC"
+  -H "x-cron-secret: YOUR_X_CRON_SECRET"
 ```
 
 ### Parametry edge funkcí
@@ -1006,7 +1016,7 @@ netstat -tlnp | grep :80
 grep VITE_SUPABASE .env
 
 # Kontrola síťového spojení
-curl -i https://xgtwutpbojltmktprdui.supabase.co
+curl -i https://YOUR_SUPABASE_URL
 
 # Zkontrolujte firewall
 sudo ufw status
@@ -1023,13 +1033,13 @@ crontab -l
 # Kontrola logů cron
 grep CRON /var/log/syslog | tail -20
 
-# Ověření CRON_SECRET
-# V docker-compose.yml nebo .env
+# Ověření X_CRON_SECRET
+# Zkontrolujte shodu mezi .env a Lovable Cloud
 
 # Manuální test připomínky
-curl -X POST "https://xgtwutpbojltmktprdui.supabase.co/functions/v1/send-training-reminders" \
+curl -X POST "https://YOUR_SUPABASE_URL/functions/v1/send-training-reminders" \
   -H "Content-Type: application/json" \
-  -H "x-cron-secret: YOUR_CRON_SECRET" \
+  -H "x-cron-secret: YOUR_X_CRON_SECRET" \
   -d '{"triggered_by":"test"}'
 ```
 
@@ -1243,7 +1253,7 @@ psql "postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgre
 ```bash
 # 1. Zastavení a backup
 docker-compose down
-/opt/scripts/backup-db.sh
+/opt/scripts/backup-all.sh
 
 # 2. Aktualizace kódu
 git fetch origin
@@ -1299,7 +1309,7 @@ git checkout HEAD~1
 docker-compose up -d --build
 
 # 4. Obnova databáze z poslední zálohy (pokud potřeba)
-PGPASSWORD="$DB_PASSWORD" psql -h db.xgtwutpbojltmktprdui.supabase.co \
+PGPASSWORD="$DB_PASSWORD" psql -h db.YOUR_PROJECT_REF.supabase.co \
   -U postgres -d postgres < /var/backups/training-system/latest_backup.sql
 ```
 
@@ -1332,17 +1342,17 @@ sudo sed -i 's/#Port 22/Port 2222/' /etc/ssh/sshd_config
 sudo systemctl restart sshd
 ```
 
-### Tajné klíče (CRON_SECRET)
+### Tajné klíče (X_CRON_SECRET)
 
 ```bash
 # NIKDY nesdílejte v Plain textu
 # Udržujte v .env souboru mimo git
-# Změňte během setup jednou za měsíc
+# Změňte periodicky (doporučeno jednou za měsíc)
 
 # Generování nového klíče
 NEW_SECRET=$(openssl rand -hex 32)
-echo "Nový CRON_SECRET: $NEW_SECRET"
-# Pak aktualizujte v .env a Lovable Cloud
+echo "Nový X_CRON_SECRET: $NEW_SECRET"
+# Pak aktualizujte v .env, crontabu a Lovable Cloud
 ```
 
 ---
