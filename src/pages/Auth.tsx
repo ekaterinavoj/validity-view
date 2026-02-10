@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogIn, Lock } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { z } from "zod";
+import companyLogo from "@/assets/company-logo.jpg";
 
 const loginSchema = z.object({
   email: z.string().email("Neplatný email"),
@@ -84,8 +85,7 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <Card className="w-full max-w-md p-8 shadow-lg">
         <div className="flex items-center justify-center mb-6">
-          <LogIn className="w-10 h-10 text-primary mr-3" />
-          <h1 className="text-3xl font-bold text-foreground">Lhůtník</h1>
+          <img src={companyLogo} alt="Engel Gematex" className="h-14 w-auto" />
         </div>
 
         {/* Info about admin-only mode */}
