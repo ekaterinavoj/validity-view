@@ -180,7 +180,7 @@ curl -X POST "https://YOUR_SUPABASE_URL/functions/v1/seed-initial-admin" \
 4. Ověřte funkci CRON úloh manuálním testem
 5. Nastavte **modulový přístup** uživatelům (Administrace → Správa uživatelů) — moduly: `trainings`, `deadlines`, `plp`
 
-### 10. Checklist po instalaci
+### 10. Checklist po instalaci (infrastruktura)
 
 - [ ] Docker kontejner běží (`docker ps`)
 - [ ] Aplikace je dostupná v prohlížeči
@@ -191,6 +191,64 @@ curl -X POST "https://YOUR_SUPABASE_URL/functions/v1/seed-initial-admin" \
 - [ ] Modulový přístup nakonfigurován (trainings, deadlines, plp)
 - [ ] SSL certifikát nainstalován (produkce)
 - [ ] Zálohovací strategie nastavena
+
+### 11. Checklist prvního administrátora (konfigurace aplikace)
+
+Po dokončení technické instalace projděte tyto kroky pro plnou konfiguraci systému **Lhůtník**:
+
+#### 🔐 Fáze 1: Zabezpečení účtu
+- [ ] Přihlásit se výchozími údaji (`admin@system.local` / `admin123`)
+- [ ] **Ihned změnit heslo** v profilu uživatele
+- [ ] Po vytvoření reálného admin účtu deaktivovat nebo smazat `admin@system.local`
+- [ ] Ověřit, že `X_CRON_SECRET` je silný a unikátní
+
+#### 🏢 Fáze 2: Organizační struktura
+- [ ] **Provozovny**: Systém → Provozovny → Přidat všechny provozovny (kód + název), ověřit že jsou aktivní
+- [ ] **Oddělení**: Systém → Oddělení → Přidat všechna oddělení (kód + název)
+
+#### 📋 Fáze 3: Číselníky typů
+- [ ] **Typy školení**: Přidat názvy, periodicitu (dny) a provozovnu
+- [ ] **Typy technických událostí**: Přidat názvy, periodicitu a provozovnu
+- [ ] **Typy lékařských prohlídek**: Přidat názvy, periodicitu a provozovnu
+
+#### 👥 Fáze 4: Zaměstnanci
+- [ ] Připravit CSV/XLSX (os. číslo, jméno, příjmení, email, pozice, oddělení)
+- [ ] Provést hromadný import nebo přidat ručně
+- [ ] Ověřit správnost nadřízených (manager vazby)
+- [ ] Zkontrolovat přiřazení do oddělení
+
+#### 🔑 Fáze 5: Uživatelské účty
+- [ ] Systém → Správa uživatelů → Přidat uživatele pro každého, kdo potřebuje přístup
+- [ ] Nastavit role: **Admin** (plný přístup) / **Manažer** (editace svého subtree) / **Uživatel** (náhled) / **Prohlížeč** (pouze čtení)
+- [ ] **Propojit profily s kartami zaměstnanců** (povinné pro Manažery a Uživatele — nutné pro RLS!)
+- [ ] Nastavit přístup k modulům: Školení (`trainings`), Technické události (`deadlines`), PLP (`plp`)
+
+#### 👨‍👩‍👧‍👦 Fáze 6: Skupiny odpovědných osob
+- [ ] Systém → Skupiny odpovědných → Vytvořit skupiny (např. "BOZP tým", "Technici")
+- [ ] Přiřadit členy do skupin
+
+#### 📧 Fáze 7: E-maily a připomínky
+- [ ] Administrace → Nastavení → E-mail → Nakonfigurovat SMTP server
+- [ ] Odeslat **testovací e-mail** a ověřit doručení
+- [ ] Nastavit e-mailové šablony pro **školení**
+- [ ] Nastavit e-mailové šablony pro **technické události**
+- [ ] Nastavit e-mailové šablony pro **lékařské prohlídky**
+- [ ] Nakonfigurovat příjemce souhrnných e-mailů (per modul)
+
+#### 📥 Fáze 8: Import dat
+- [ ] Importovat existující záznamy **školení** (hromadný import)
+- [ ] Importovat **technické události / lhůty**
+- [ ] Importovat **lékařské prohlídky**
+- [ ] Zkontrolovat vypočtené stavy (✅ platné / ⚠️ blíží se / ❌ po termínu)
+
+#### ✅ Fáze 9: Ověření funkčnosti
+- [ ] Zkontrolovat **Stav systému** — poslední běh připomínek
+- [ ] Spustit manuální běh připomínek a ověřit logy
+- [ ] Ověřit statistiky na dashboardu
+- [ ] Otestovat přihlášení jiným uživatelem (manažer / uživatel)
+- [ ] Ověřit, že modulový přístup funguje správně (viditelnost menu)
+
+> 💡 **Tip:** Po dokončení všech kroků doporučujeme vytvořit zálohu databáze jako výchozí referenční bod.
 
 ---
 
