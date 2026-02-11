@@ -35,8 +35,16 @@ export function ChangeEmailModal({
   const [loading, setLoading] = useState(false);
   const [newEmail, setNewEmail] = useState("");
 
+  // Reset při otevření/zavření
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) setNewEmail("");
+    onOpenChange(isOpen);
+  };
+
   const handleChange = async () => {
-    if (!newEmail) {
+    const trimmedEmail = newEmail.trim().toLowerCase();
+
+    if (!trimmedEmail) {
       toast({
         title: "Vyplňte email",
         description: "Zadejte novou emailovou adresu.",
@@ -46,10 +54,19 @@ export function ChangeEmailModal({
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newEmail)) {
+    if (!emailRegex.test(trimmedEmail)) {
       toast({
         title: "Neplatný email",
         description: "Zadejte platnou emailovou adresu.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (trimmedEmail === currentEmail.trim().toLowerCase()) {
+      toast({
+        title: "Stejný email",
+        description: "Nový email je stejný jako aktuální.",
         variant: "destructive",
       });
       return;
@@ -60,7 +77,7 @@ export function ChangeEmailModal({
       const { data, error } = await supabase.functions.invoke("admin-change-email", {
         body: {
           userId,
-          newEmail,
+          newEmail: trimmedEmail,
         },
       });
 
@@ -86,7 +103,7 @@ export function ChangeEmailModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Změnit email</DialogTitle>
@@ -111,7 +128,7 @@ export function ChangeEmailModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             Zrušit
           </Button>
           <Button onClick={handleChange} disabled={loading}>
