@@ -617,22 +617,24 @@ export const BulkDeadlineImport = () => {
           continue;
         }
 
-        // Validate date format
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(dateStr)) {
+        // Validate and normalize date - support YYYY-MM-DD and DD.MM.YYYY
+        const normalizedDateVal = normalizeDate(dateStr);
+        const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!isoDateRegex.test(normalizedDateVal)) {
           parsedRow.status = 'error';
-          parsedRow.error = `Datum "${dateStr}" musí být ve formátu YYYY-MM-DD`;
+          parsedRow.error = `Datum "${dateStr}" není platné (použijte YYYY-MM-DD nebo DD.MM.YYYY)`;
           errorRows.push(parsedRow);
           continue;
         }
-
-        const parsedDate = new Date(dateStr + 'T00:00:00');
-        if (isNaN(parsedDate.getTime()) || parsedDate.toISOString().split('T')[0] !== dateStr) {
+        const [y, m, d] = normalizedDateVal.split('-').map(Number);
+        const testDate = new Date(y, m - 1, d);
+        if (testDate.getFullYear() !== y || testDate.getMonth() !== m - 1 || testDate.getDate() !== d) {
           parsedRow.status = 'error';
-          parsedRow.error = `Datum "${dateStr}" není platné`;
+          parsedRow.error = `Datum "${dateStr}" není platné (použijte YYYY-MM-DD nebo DD.MM.YYYY)`;
           errorRows.push(parsedRow);
           continue;
         }
+        row.last_check_date = normalizedDateVal;
 
         // Find equipment by inventory_number
         const eq = equipment?.find(e => e.inventory_number === row.inventory_number.trim());
