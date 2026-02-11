@@ -310,10 +310,20 @@ export const BulkTrainingImport = () => {
       });
     } else if (fileExtension === "xlsx" || fileExtension === "xls") {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const workbook = XLSX.read(data, { cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as ImportRow[];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as ImportRow[];
+      // Normalize date fields that may come as Date objects from Excel
+      for (const row of jsonData) {
+        const dateVal = row.last_training_date as any;
+        if (dateVal instanceof Date) {
+          row.last_training_date = dateVal.toISOString().split('T')[0];
+        } else if (typeof dateVal === 'number') {
+          const date = new Date((dateVal - 25569) * 86400 * 1000);
+          row.last_training_date = date.toISOString().split('T')[0];
+        }
+      }
       return jsonData;
     } else {
       throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
@@ -330,15 +340,17 @@ export const BulkTrainingImport = () => {
       const autoMatchedRows: ParsedRow[] = [];
       const suggestionRows: ParsedRow[] = [];
 
-      // Fetch all employees for matching
+      // Fetch all employees for matching (override default 1000 row limit)
       const { data: employees } = await supabase
         .from("employees")
-        .select("id, employee_number, email, first_name, last_name");
+        .select("id, employee_number, email, first_name, last_name")
+        .limit(10000);
 
       // Fetch all training types
       const { data: types } = await supabase
         .from("training_types")
-        .select("id, name, facility, period_days");
+        .select("id, name, facility, period_days")
+        .limit(10000);
 
       setTrainingTypes(types || []);
 
@@ -346,7 +358,8 @@ export const BulkTrainingImport = () => {
       const { data: existingTrainings } = await supabase
         .from("trainings")
         .select("id, employee_id, training_type_id, last_training_date")
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .limit(50000);
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
