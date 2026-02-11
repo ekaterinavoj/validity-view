@@ -110,13 +110,32 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
     }
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) resetForm();
+    onOpenChange(isOpen);
+  };
+
   const handleSubmit = async () => {
     const isAdminRole = role === "admin";
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    const trimmedPassword = password.trim();
 
-    if (!email || !password) {
+    if (!trimmedEmail || !trimmedPassword) {
       toast({
         title: "Vyplňte povinná pole",
         description: "Email a heslo jsou povinné.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      toast({
+        title: "Neplatný email",
+        description: "Zadejte platnou emailovou adresu.",
         variant: "destructive",
       });
       return;
@@ -150,10 +169,10 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
 
       // NEW: build payload without employeeId for admin
       const payload: any = {
-        email,
-        password,
-        firstName,
-        lastName,
+        email: trimmedEmail,
+        password: trimmedPassword,
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
         role,
         modules: role === "admin" ? ["trainings", "deadlines", "plp"] : modules,
       };
@@ -167,15 +186,22 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
       });
 
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) {
+        // User-friendly message for duplicate email
+        const errMsg: string = data.error;
+        if (errMsg.toLowerCase().includes("already") || errMsg.toLowerCase().includes("exists") || errMsg.toLowerCase().includes("duplicate") || errMsg.toLowerCase().includes("již existuje")) {
+          throw new Error(`Uživatel s emailem ${trimmedEmail} již v systému existuje.`);
+        }
+        throw new Error(errMsg);
+      }
 
       toast({
         title: "Uživatel vytvořen",
-        description: `Účet pro ${email} byl úspěšně vytvořen.`,
+        description: `Účet pro ${trimmedEmail} byl úspěšně vytvořen.`,
       });
 
       onUserCreated();
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (error: any) {
       toast({
         title: "Chyba při vytváření uživatele",
@@ -190,7 +216,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
   const isAdmin = role === "admin";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Přidat nového uživatele</DialogTitle>
@@ -360,7 +386,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             Zrušit
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
