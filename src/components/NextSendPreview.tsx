@@ -6,7 +6,6 @@ import { format, addDays, setHours, setMinutes, isWeekend } from "date-fns";
 import { cs } from "date-fns/locale";
 
 interface ReminderSchedule {
-  enabled: boolean;
   day_of_week: number;
   skip_weekends: boolean;
 }
@@ -297,12 +296,12 @@ export function NextSendPreview({ schedule, frequency, hasRecipients }: NextSend
                     )}
                   </div>
 
-                  {/* Warning emails section */}
-                  <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle className="w-4 h-4 text-warning" />
-                      <span className="font-medium text-warning">Blížící se expirace</span>
-                    </div>
+                   {/* Warning emails section */}
+                   <div className="p-3 rounded-lg bg-status-warning/10 border border-status-warning/20">
+                     <div className="flex items-center gap-2 mb-2">
+                       <AlertTriangle className="w-4 h-4 text-status-warning" />
+                       <span className="font-medium text-status-warning">Blížící se expirace</span>
+                     </div>
                     {nextSendInfo.warningDate && (
                       <>
                         <p className="text-lg font-bold">
