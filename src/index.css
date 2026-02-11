@@ -43,6 +43,16 @@ All colors MUST be HSL.
     --engel-gray: 180 1% 57%;
     --engel-black: 80 10% 4%;
 
+    /* Role badge colors */
+    --role-admin: 4 80% 55%;
+    --role-admin-foreground: 4 80% 25%;
+    --role-manager: 202 100% 45%;
+    --role-manager-foreground: 202 100% 20%;
+    --role-user: 142 70% 45%;
+    --role-user-foreground: 142 70% 18%;
+    --role-viewer: 210 10% 55%;
+    --role-viewer-foreground: 210 10% 25%;
+
     /* Status colors for training validity */
     --status-valid: 78 78% 55%;
     --status-warning: 48 100% 50%;
@@ -111,6 +121,16 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 0 0% 90%;
     --sidebar-border: 210 15% 18%;
     --sidebar-ring: 202 80% 45%;
+
+    /* Role badge colors dark mode */
+    --role-admin: 4 80% 60%;
+    --role-admin-foreground: 4 80% 85%;
+    --role-manager: 202 80% 60%;
+    --role-manager-foreground: 202 80% 90%;
+    --role-user: 142 60% 55%;
+    --role-user-foreground: 142 60% 85%;
+    --role-viewer: 210 10% 60%;
+    --role-viewer-foreground: 210 10% 85%;
 
     /* Status colors remain the same in dark mode */
     --status-valid: 78 78% 55%;

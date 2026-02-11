@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, AlertCircle, CheckCircle, X, FileDown, RefreshCw } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import { Upload, AlertCircle, CheckCircle, CheckCircle2, X, FileDown, RefreshCw, AlertTriangle, StopCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
@@ -44,6 +46,8 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
   const [isImporting, setIsImporting] = useState(false);
   const [duplicateStrategy, setDuplicateStrategy] = useState<DuplicateStrategy>('overwrite');
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
+  const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const abortRef = useRef(false);
   const { toast } = useToast();
 
   const parseFile = (file: File): Promise<any[]> => {
@@ -211,6 +215,8 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
 
     setIsImporting(true);
     setImportProgress({ current: 0, total: totalOps });
+    setImportResult(null);
+    abortRef.current = false;
 
     let successCount = 0;
     let errorCount = 0;
@@ -229,6 +235,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     // Batch INSERT new employees (batches of 50)
     const BATCH_SIZE = 50;
     for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      if (abortRef.current) break;
       const batch = toInsert.slice(i, i + BATCH_SIZE);
       const insertRows = batch.map(item => ({
         first_name: item.data.firstName,
@@ -256,6 +263,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
 
     // UPDATE duplicates one by one (need individual IDs)
     for (let i = 0; i < toUpdate.length; i++) {
+      if (abortRef.current) break;
       const item = toUpdate[i];
       const existingId = existingByNumber.get(item.data.employeeNumber.toLowerCase());
       if (!existingId) {
@@ -295,10 +303,13 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
 
     setIsImporting(false);
 
+    const skippedCount = duplicateStrategy === 'skip' ? validData.filter(d => d.isDuplicate).length : 0;
+    setImportResult({ inserted: successCount, updated: toUpdate.length > 0 ? successCount - (toInsert.length - errorCount) : 0, skipped: skippedCount, failed: errorCount });
+
     if (errorCount > 0) {
       toast({
         title: "Import dokončen s chybami",
-        description: `Úspěšně: ${successCount}, chyby: ${errorCount}. ${importErrors[0]}`,
+        description: `Úspěšně: ${successCount}, chyby: ${errorCount}`,
         variant: "destructive",
       });
     } else {
@@ -308,8 +319,6 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       });
     }
 
-    setDialogOpen(false);
-    setImportedData([]);
     onImportComplete?.();
   };
 
@@ -398,6 +407,16 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Large dataset warning */}
+            {importedData.length >= 1000 && (
+              <Alert className="border-amber-500/50 bg-amber-500/10">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-700 dark:text-amber-300">
+                  Velký dataset ({importedData.length} řádků). Import může trvat delší dobu. Můžete jej kdykoli zastavit.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="flex flex-wrap items-center gap-4 p-4 bg-muted rounded-lg">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
@@ -463,18 +482,35 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
             )}
 
             {isImporting && (
-              <div className="p-3 border rounded-lg">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Importuji...</span>
-                  <span>{importProgress.current} / {importProgress.total}</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-primary rounded-full h-2 transition-all"
-                    style={{ width: `${importProgress.total > 0 ? (importProgress.current / importProgress.total) * 100 : 0}%` }}
-                  />
+              <div className="space-y-2">
+                <Progress value={importProgress.total > 0 ? (importProgress.current / importProgress.total) * 100 : 0} />
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Importuji... {importProgress.current} / {importProgress.total}
+                  </p>
+                  <Button variant="destructive" size="sm" onClick={() => { abortRef.current = true; }}>
+                    <StopCircle className="w-4 h-4 mr-1" />
+                    Zastavit
+                  </Button>
                 </div>
               </div>
+            )}
+
+            {/* Import result */}
+            {importResult && (
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="flex flex-wrap gap-4">
+                    <Badge variant="default">Vloženo: {importResult.inserted}</Badge>
+                    <Badge variant="outline">Aktualizováno: {importResult.updated}</Badge>
+                    <Badge variant="secondary">Přeskočeno: {importResult.skipped}</Badge>
+                    {importResult.failed > 0 && (
+                      <Badge variant="destructive">Selhalo: {importResult.failed}</Badge>
+                    )}
+                  </div>
+                </AlertDescription>
+              </Alert>
             )}
 
             <div className="border rounded-lg overflow-hidden">

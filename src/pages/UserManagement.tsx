@@ -39,9 +39,9 @@ const roleLabels = {
 };
 
 const roleColors = {
-  admin: "bg-red-500/20 text-red-700 dark:text-red-300",
-  manager: "bg-blue-500/20 text-blue-700 dark:text-blue-300",
-  user: "bg-green-500/20 text-green-700 dark:text-green-300",
+  admin: "bg-role-admin/20 text-role-admin-foreground dark:text-role-admin",
+  manager: "bg-role-manager/20 text-role-manager-foreground dark:text-role-manager",
+  user: "bg-role-user/20 text-role-user-foreground dark:text-role-user",
 };
 
 export default function UserManagement() {
