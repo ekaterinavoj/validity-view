@@ -350,7 +350,8 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        const userIds = userRoles?.map(r => r.user_id) || [];
+        // Deduplicate user IDs (user can have both admin and manager roles)
+        const userIds = [...new Set(userRoles?.map(r => r.user_id) || [])];
         
         if (userIds.length > 0) {
           const { data: users, error: usersError } = await supabase
@@ -366,6 +367,9 @@ const handler = async (req: Request): Promise<Response> => {
           recipients = users?.map(u => u.email).filter(Boolean) || [];
         }
       }
+      
+      // Deduplicate recipient emails (case-insensitive)
+      recipients = [...new Set(recipients.map(e => e.toLowerCase()))];
 
       if (recipients.length === 0) {
         console.log(`No recipients found for template ${template.name}`);

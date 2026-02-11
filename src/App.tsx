@@ -23,6 +23,7 @@ import AdminSettings from "./pages/AdminSettings";
 import SystemStatus from "./pages/SystemStatus";
 import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
+import NoAccess from "./pages/NoAccess";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ModuleRedirect } from "./components/ModuleRedirect";
 
@@ -117,6 +118,7 @@ const App = () => (
             <Route path="/admin/settings" element={<ProtectedLayout requiredRoles={["admin"]}><AdminSettings /></ProtectedLayout>} />
             <Route path="/admin/status" element={<ProtectedLayout requiredRoles={["admin"]}><SystemStatus /></ProtectedLayout>} />
             <Route path="/user-management" element={<ProtectedLayout requiredRoles={["admin"]}><UserManagement /></ProtectedLayout>} />
+            <Route path="/no-access" element={<ProtectedRoute><NoAccess /></ProtectedRoute>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
