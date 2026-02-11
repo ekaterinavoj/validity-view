@@ -98,11 +98,15 @@ export function ModuleAccessManager({
       if (deleteError) throw deleteError;
 
       // Insert new module access
+      // Get current user id for created_by audit trail
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
       const modulesToInsert = Object.entries(moduleAccess)
         .filter(([_, hasAccess]) => hasAccess)
         .map(([module]) => ({
           user_id: userId,
           module,
+          created_by: currentUser?.id || null,
         }));
 
       if (modulesToInsert.length > 0) {

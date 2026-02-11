@@ -382,7 +382,8 @@ serve(async (req) => {
       .select("id, email, first_name, last_name")
       .in("id", recipients.user_ids);
 
-    const recipientEmails = recipientProfiles?.map(p => p.email).filter(Boolean) || [];
+    // Deduplicate emails (case-insensitive)
+    const recipientEmails = [...new Set((recipientProfiles?.map(p => p.email.toLowerCase()).filter(Boolean)) || [])];
 
     if (recipientEmails.length === 0) {
       return new Response(JSON.stringify({ 

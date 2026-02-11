@@ -34,6 +34,6 @@ export const ModuleRedirect = () => {
     return <Navigate to="/plp" replace />;
   }
 
-  // Fallback if no module access (shouldn't happen)
-  return <Navigate to="/trainings" replace />;
+  // No module access — show no-access page
+  return <Navigate to="/no-access" replace />;
 };

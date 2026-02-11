@@ -693,7 +693,8 @@ const handler = async (req: Request): Promise<Response> => {
       .in("id", moduleRecipients.user_ids);
     
     if (moduleProfiles) {
-      finalRecipientEmails = moduleProfiles.map(p => p.email);
+      // Deduplicate emails (case-insensitive)
+      finalRecipientEmails = [...new Set(moduleProfiles.map(p => p.email.toLowerCase()))];
     }
   }
   
