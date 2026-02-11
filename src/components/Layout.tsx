@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./NotificationBell";
+import { getModuleFromPath } from "@/lib/routeModuleMap";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -33,13 +34,12 @@ export const Layout = ({
   const canAccessDeadlines = hasModuleAccess("deadlines");
   const canAccessPlp = hasModuleAccess("plp");
 
-  // Determine if current route is a module-specific route
-  const isDeadlineRoute = location.pathname.startsWith("/deadlines");
-  const isPlpRoute = location.pathname.startsWith("/plp");
-  const isTrainingRoute = location.pathname.startsWith("/trainings") || location.pathname === "/" || location.pathname === "/scheduled-trainings" || location.pathname === "/history" || location.pathname === "/new-training" || location.pathname.startsWith("/edit-training") || location.pathname === "/employees" || location.pathname === "/training-types" || location.pathname === "/departments" || location.pathname === "/inactive" || location.pathname === "/facilities" || location.pathname === "/statistics";
-
-  // Global pages don't belong to any module
-  const isGlobalPage = !isDeadlineRoute && !isTrainingRoute && !isPlpRoute;
+  // Determine current module from URL (null = global page)
+  const currentModule = getModuleFromPath(location.pathname);
+  const isDeadlineRoute = currentModule === "deadlines";
+  const isPlpRoute = currentModule === "plp";
+  const isTrainingRoute = currentModule === "trainings";
+  const isGlobalPage = currentModule === null;
 
   // Get last selected module from localStorage, default to first accessible module
   const [lastSelectedModule, setLastSelectedModule] = useState<"trainings" | "deadlines" | "plp">(() => {
