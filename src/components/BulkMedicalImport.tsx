@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, FileDown, Loader2, Check, X } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, FileDown, Loader2, Check, X, AlertTriangle, StopCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -66,6 +66,7 @@ export const BulkMedicalImport = () => {
   const { toast } = useToast();
   const { isAdmin, isManager, user } = useAuth();
   const [importing, setImporting] = useState(false);
+  const abortRef = useRef(false);
   const [parsing, setParsing] = useState(false);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
@@ -374,6 +375,7 @@ export const BulkMedicalImport = () => {
 
     setImporting(true);
     setImportProgress(0);
+    abortRef.current = false;
 
     let inserted = 0;
     let updated = 0;
@@ -394,6 +396,7 @@ export const BulkMedicalImport = () => {
     // Batch INSERT (50 at a time)
     const BATCH_SIZE = 50;
     for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      if (abortRef.current) break;
       const batch = toInsert.slice(i, i + BATCH_SIZE);
       const insertRows = batch.map(row => {
         const nextDate = new Date(row.data.last_examination_date);
@@ -433,6 +436,7 @@ export const BulkMedicalImport = () => {
 
     // Row-by-row UPDATE
     for (let i = 0; i < toUpdate.length; i++) {
+      if (abortRef.current) break;
       const row = toUpdate[i];
       try {
         const nextDate = new Date(row.data.last_examination_date);
@@ -555,8 +559,17 @@ export const BulkMedicalImport = () => {
               </DialogDescription>
             </DialogHeader>
 
-            {preview && (
+          {preview && (
               <div className="space-y-4">
+                {/* Large dataset warning */}
+                {preview.totalRows >= 1000 && (
+                  <Alert className="border-amber-500/50 bg-amber-500/10">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-700 dark:text-amber-300">
+                      Velký dataset ({preview.totalRows} řádků). Import může trvat delší dobu.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="flex gap-4">
                   <Badge variant="secondary">Celkem: {preview.totalRows}</Badge>
                   <Badge variant="default" className="bg-green-500">Validní: {preview.validRows.length}</Badge>
@@ -592,7 +605,13 @@ export const BulkMedicalImport = () => {
                 {importing && (
                   <div className="space-y-2">
                     <Progress value={importProgress} />
-                    <p className="text-sm text-center text-muted-foreground">{importProgress}%</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">{importProgress}%</p>
+                      <Button variant="destructive" size="sm" onClick={() => { abortRef.current = true; }}>
+                        <StopCircle className="w-4 h-4 mr-1" />
+                        Zastavit
+                      </Button>
+                    </div>
                   </div>
                 )}
 

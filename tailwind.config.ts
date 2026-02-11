@@ -74,6 +74,16 @@ export default {
           gray: "hsl(var(--engel-gray))",
           black: "hsl(var(--engel-black))",
         },
+        role: {
+          admin: "hsl(var(--role-admin))",
+          "admin-foreground": "hsl(var(--role-admin-foreground))",
+          manager: "hsl(var(--role-manager))",
+          "manager-foreground": "hsl(var(--role-manager-foreground))",
+          user: "hsl(var(--role-user))",
+          "user-foreground": "hsl(var(--role-user-foreground))",
+          viewer: "hsl(var(--role-viewer))",
+          "viewer-foreground": "hsl(var(--role-viewer-foreground))",
+        },
         chart: {
           "1": "hsl(var(--chart-1))",
           "2": "hsl(var(--chart-2))",

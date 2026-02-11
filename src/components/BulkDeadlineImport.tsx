@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, Loader2, Settings2, Wrench } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, Loader2, Settings2, Wrench, AlertTriangle, StopCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -151,7 +151,8 @@ export const BulkDeadlineImport = () => {
   const [showSettings, setShowSettings] = useState(false);
 
   const canImport = isAdmin || isManager;
-
+  const abortEquipmentRef = useRef(false);
+  const abortDeadlineRef = useRef(false);
   // ============ EQUIPMENT IMPORT FUNCTIONS ============
   const downloadEquipmentTemplateXLSX = () => {
     const template = [
@@ -374,6 +375,7 @@ export const BulkDeadlineImport = () => {
 
     setImportingEquipment(true);
     setEquipmentProgress(0);
+    abortEquipmentRef.current = false;
 
     const rowsToProcess = [
       ...equipmentPreview.validRows,
@@ -393,6 +395,7 @@ export const BulkDeadlineImport = () => {
     // Batch INSERT (50 at a time)
     const BATCH_SIZE = 50;
     for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      if (abortEquipmentRef.current) break;
       const batch = toInsert.slice(i, i + BATCH_SIZE);
       const insertRows = batch.map(row => ({
         inventory_number: row.data.inventory_number.trim(),
@@ -421,6 +424,7 @@ export const BulkDeadlineImport = () => {
 
     // Row-by-row UPDATE
     for (let i = 0; i < toUpdate.length; i++) {
+      if (abortEquipmentRef.current) break;
       const row = toUpdate[i];
       try {
         const { error } = await supabase
@@ -725,6 +729,7 @@ export const BulkDeadlineImport = () => {
 
     setImportingDeadline(true);
     setDeadlineProgress(0);
+    abortDeadlineRef.current = false;
 
     const rowsToProcess = [
       ...deadlinePreview.validRows,
@@ -744,6 +749,7 @@ export const BulkDeadlineImport = () => {
     // Batch INSERT (50 at a time)
     const BATCH_SIZE = 50;
     for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      if (abortDeadlineRef.current) break;
       const batch = toInsert.slice(i, i + BATCH_SIZE);
       const insertRows = batch.map(row => {
         const lastCheckDate = new Date(row.data.last_check_date);
@@ -777,6 +783,7 @@ export const BulkDeadlineImport = () => {
 
     // Row-by-row UPDATE
     for (let i = 0; i < toUpdate.length; i++) {
+      if (abortDeadlineRef.current) break;
       const row = toUpdate[i];
       try {
         const lastCheckDate = new Date(row.data.last_check_date);
@@ -1002,6 +1009,14 @@ export const BulkDeadlineImport = () => {
 
             {equipmentPreview && (
               <div className="space-y-4">
+                {equipmentPreview.totalRows >= 1000 && (
+                  <Alert className="border-amber-500/50 bg-amber-500/10">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-700 dark:text-amber-300">
+                      Velký dataset ({equipmentPreview.totalRows} řádků). Import může trvat delší dobu.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="grid grid-cols-4 gap-4">
                   <div className="bg-muted rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold">{equipmentPreview.totalRows}</p>
@@ -1077,9 +1092,12 @@ export const BulkDeadlineImport = () => {
                 {importingEquipment && (
                   <div className="space-y-2">
                     <Progress value={equipmentProgress} />
-                    <p className="text-sm text-center text-muted-foreground">
-                      Importuji... {equipmentProgress}%
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">Importuji... {equipmentProgress}%</p>
+                      <Button variant="destructive" size="sm" onClick={() => { abortEquipmentRef.current = true; }}>
+                        <StopCircle className="w-4 h-4 mr-1" />Zastavit
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -1136,6 +1154,14 @@ export const BulkDeadlineImport = () => {
 
             {deadlinePreview && (
               <div className="space-y-4">
+                {deadlinePreview.totalRows >= 1000 && (
+                  <Alert className="border-amber-500/50 bg-amber-500/10">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-700 dark:text-amber-300">
+                      Velký dataset ({deadlinePreview.totalRows} řádků). Import může trvat delší dobu.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="grid grid-cols-4 gap-4">
                   <div className="bg-muted rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold">{deadlinePreview.totalRows}</p>
@@ -1213,9 +1239,12 @@ export const BulkDeadlineImport = () => {
                 {importingDeadline && (
                   <div className="space-y-2">
                     <Progress value={deadlineProgress} />
-                    <p className="text-sm text-center text-muted-foreground">
-                      Importuji... {deadlineProgress}%
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">Importuji... {deadlineProgress}%</p>
+                      <Button variant="destructive" size="sm" onClick={() => { abortDeadlineRef.current = true; }}>
+                        <StopCircle className="w-4 h-4 mr-1" />Zastavit
+                      </Button>
+                    </div>
                   </div>
                 )}
 

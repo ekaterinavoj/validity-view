@@ -75,12 +75,12 @@ export const Layout = ({
   const isTrainingMode = !isDeadlineMode && !isPlpMode;
   const getRoleBadge = () => {
     if (roles.includes("admin")) {
-      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-500/20 text-red-700 dark:text-red-300">Admin</span>;
+      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-role-admin/20 text-role-admin-foreground dark:text-role-admin">Admin</span>;
     }
     if (roles.includes("manager")) {
-      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300">Manažer</span>;
+      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-role-manager/20 text-role-manager-foreground dark:text-role-manager">Manažer</span>;
     }
-    return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-500/20 text-green-700 dark:text-green-300">Uživatel</span>;
+    return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-role-user/20 text-role-user-foreground dark:text-role-user">Uživatel</span>;
   };
 
   // Training mode "Ostatní" dropdown active state (employees moved to global)

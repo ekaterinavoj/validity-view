@@ -57,9 +57,9 @@ export function RolePermissionsInfo() {
         <div className="space-y-4">
           {/* Role descriptions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-3 rounded-lg border bg-green-500/5 border-green-500/20">
+            <div className="p-3 rounded-lg border bg-role-user/5 border-role-user/20">
               <div className="flex items-center gap-2 mb-2">
-                <User className="w-4 h-4 text-green-600" />
+                <User className="w-4 h-4 text-role-user" />
                 <span className="font-medium">Uživatel</span>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -67,9 +67,9 @@ export function RolePermissionsInfo() {
                 Nemá přístup k nastavení systému, logům ani exportům.
               </p>
             </div>
-            <div className="p-3 rounded-lg border bg-blue-500/5 border-blue-500/20">
+            <div className="p-3 rounded-lg border bg-role-manager/5 border-role-manager/20">
               <div className="flex items-center gap-2 mb-2">
-                <Users className="w-4 h-4 text-blue-600" />
+                <Users className="w-4 h-4 text-role-manager" />
                 <span className="font-medium">Manažer</span>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -77,9 +77,9 @@ export function RolePermissionsInfo() {
                 Nemá přístup k administraci, logům připomínek ani nastavení emailů.
               </p>
             </div>
-            <div className="p-3 rounded-lg border bg-red-500/5 border-red-500/20">
+            <div className="p-3 rounded-lg border bg-role-admin/5 border-role-admin/20">
               <div className="flex items-center gap-2 mb-2">
-                <Shield className="w-4 h-4 text-red-600" />
+                <Shield className="w-4 h-4 text-role-admin" />
                 <span className="font-medium">Admin</span>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -98,17 +98,17 @@ export function RolePermissionsInfo() {
                 <tr className="border-b">
                   <th className="text-left py-2 pr-4 font-medium">Oprávnění</th>
                   <th className="text-center px-4 py-2">
-                    <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/30">
+                    <Badge variant="outline" className="bg-role-user/10 text-role-user border-role-user/30">
                       Uživatel
                     </Badge>
                   </th>
                   <th className="text-center px-4 py-2">
-                    <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/30">
+                    <Badge variant="outline" className="bg-role-manager/10 text-role-manager border-role-manager/30">
                       Manažer
                     </Badge>
                   </th>
                   <th className="text-center px-4 py-2">
-                    <Badge variant="outline" className="bg-red-500/10 text-red-700 border-red-500/30">
+                    <Badge variant="outline" className="bg-role-admin/10 text-role-admin border-role-admin/30">
                       Admin
                     </Badge>
                   </th>

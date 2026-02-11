@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, FileDown, Shield, Eye, Loader2, Settings2, Check, X } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, FileDown, Shield, Eye, Loader2, Settings2, Check, X, AlertTriangle, StopCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -214,6 +214,7 @@ export const BulkTrainingImport = () => {
   const [settings, setSettings] = useState<ImportSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
+  const abortRef = useRef(false);
 
   // Only admin and manager can import
   const canImport = isAdmin || isManager;
@@ -670,6 +671,7 @@ export const BulkTrainingImport = () => {
     setImporting(true);
     setImportProgress(0);
     setImportResult(null);
+    abortRef.current = false;
 
     let inserted = 0;
     let updated = 0;
@@ -703,6 +705,7 @@ export const BulkTrainingImport = () => {
       // Batch INSERT (50 at a time)
       const BATCH_SIZE = 50;
       for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+        if (abortRef.current) break;
         const batch = toInsert.slice(i, i + BATCH_SIZE);
         const insertRows = batch.map(row => {
           const lastDate = new Date(row.data.last_training_date);
@@ -737,6 +740,7 @@ export const BulkTrainingImport = () => {
 
       // Row-by-row UPDATE (need individual IDs)
       for (let i = 0; i < toUpdate.length; i++) {
+        if (abortRef.current) break;
         const row = toUpdate[i];
         try {
           const lastDate = new Date(row.data.last_training_date);
@@ -1052,6 +1056,15 @@ export const BulkTrainingImport = () => {
 
           {preview && (
             <div className="space-y-4">
+              {/* Large dataset warning */}
+              {preview.totalRows >= 1000 && (
+                <Alert className="border-amber-500/50 bg-amber-500/10">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-700 dark:text-amber-300">
+                    Velký dataset ({preview.totalRows} řádků). Import může trvat delší dobu. Můžete jej kdykoli zastavit tlačítkem „Zastavit".
+                  </AlertDescription>
+                </Alert>
+              )}
               {/* Summary */}
               <div className="grid grid-cols-6 gap-2">
                 <Card className="p-3">
@@ -1282,9 +1295,15 @@ export const BulkTrainingImport = () => {
               {importing && (
                 <div className="space-y-2">
                   <Progress value={importProgress} />
-                  <p className="text-sm text-center text-muted-foreground">
-                    Importuji... {importProgress}%
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Importuji... {importProgress}%
+                    </p>
+                    <Button variant="destructive" size="sm" onClick={() => { abortRef.current = true; }}>
+                      <StopCircle className="w-4 h-4 mr-1" />
+                      Zastavit
+                    </Button>
+                  </div>
                 </div>
               )}
 
