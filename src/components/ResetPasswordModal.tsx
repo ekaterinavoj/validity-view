@@ -45,8 +45,19 @@ export function ResetPasswordModal({
   const [newPassword, setNewPassword] = useState(generatePassword());
   const [showPassword, setShowPassword] = useState(true);
 
+  // Reset form on open/close
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      setNewPassword(generatePassword());
+      setShowPassword(true);
+    }
+    onOpenChange(isOpen);
+  };
+
   const handleReset = async () => {
-    if (!newPassword || newPassword.length < 6) {
+    const trimmedPassword = newPassword.trim();
+
+    if (!trimmedPassword || trimmedPassword.length < 6) {
       toast({
         title: "Neplatné heslo",
         description: "Heslo musí mít alespoň 6 znaků.",
@@ -60,7 +71,7 @@ export function ResetPasswordModal({
       const { data, error } = await supabase.functions.invoke("admin-reset-password", {
         body: {
           userId,
-          newPassword,
+          newPassword: trimmedPassword,
         },
       });
 
@@ -73,7 +84,7 @@ export function ResetPasswordModal({
       });
 
       onSuccess();
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (error: any) {
       toast({
         title: "Chyba při resetování hesla",
@@ -86,7 +97,7 @@ export function ResetPasswordModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Resetovat heslo</DialogTitle>
@@ -133,7 +144,7 @@ export function ResetPasswordModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
             Zrušit
           </Button>
           <Button onClick={handleReset} disabled={loading}>
