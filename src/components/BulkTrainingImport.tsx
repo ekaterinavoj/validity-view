@@ -411,23 +411,26 @@ export const BulkTrainingImport = () => {
           continue;
         }
 
-        // Validate date format
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(dateStr)) {
+        // Validate and normalize date - support YYYY-MM-DD and DD.MM.YYYY
+        const normalizedDateVal = normalizeDate(dateStr);
+        const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!isoDateRegex.test(normalizedDateVal)) {
           parsedRow.status = 'error';
-          parsedRow.error = `Datum "${dateStr}" musí být ve formátu YYYY-MM-DD`;
+          parsedRow.error = `Datum "${dateStr}" není platné (použijte YYYY-MM-DD nebo DD.MM.YYYY)`;
           errorRows.push(parsedRow);
           continue;
         }
-
-        // Validate it's a real date
-        const parsedDate = new Date(dateStr + 'T00:00:00');
-        if (isNaN(parsedDate.getTime()) || parsedDate.toISOString().split('T')[0] !== dateStr) {
+        // Verify it's a real calendar date
+        const [y, m, d] = normalizedDateVal.split('-').map(Number);
+        const testDate = new Date(y, m - 1, d);
+        if (testDate.getFullYear() !== y || testDate.getMonth() !== m - 1 || testDate.getDate() !== d) {
           parsedRow.status = 'error';
-          parsedRow.error = `Datum "${dateStr}" není platné`;
+          parsedRow.error = `Datum "${dateStr}" není platné (použijte YYYY-MM-DD nebo DD.MM.YYYY)`;
           errorRows.push(parsedRow);
           continue;
         }
+        // Store normalized date back
+        row.last_training_date = normalizedDateVal;
 
         // Validate employee - primary by employee_number, fallback by email
         if (!row.employee_number?.trim() && !row.email?.trim()) {
