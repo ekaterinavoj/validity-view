@@ -69,13 +69,10 @@ export default {
           terminated: "hsl(var(--status-terminated))",
           "terminated-foreground": "hsl(var(--status-terminated-foreground))",
         },
-        qlar: {
-          dark: "hsl(var(--qlar-dark))",
-          brand: "hsl(var(--qlar-brand))",
-          pool: "hsl(var(--qlar-pool))",
-          apple: "hsl(var(--qlar-apple))",
-          lavender: "hsl(var(--qlar-lavender))",
-          tech: "hsl(var(--qlar-tech))",
+        engel: {
+          blue: "hsl(var(--engel-blue))",
+          gray: "hsl(var(--engel-gray))",
+          black: "hsl(var(--engel-black))",
         },
         chart: {
           "1": "hsl(var(--chart-1))",
