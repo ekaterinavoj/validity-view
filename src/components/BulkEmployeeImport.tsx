@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
 import { z } from 'zod';
+import { downloadCSVTemplate } from "@/lib/csvExport";
 
 const employeeSchema = z.object({
   firstName: z.string().min(1, "Jméno je povinné").max(100),
@@ -382,6 +383,53 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
   const duplicateCount = importedData.filter(d => d.isDuplicate && d.isValid).length;
   const newCount = importedData.filter(d => !d.isDuplicate && d.isValid).length;
 
+  const handleDownloadTemplate = () => {
+    downloadCSVTemplate("sablona_import_zamestnancu.csv", [
+      {
+        "Jméno": "Jan",
+        "Příjmení": "Novák",
+        "Email": "jan.novak@firma.cz",
+        "Osobní číslo": "E001",
+        "Pozice": "Technik",
+        "Středisko": "IT",
+        "Stav": "aktivní",
+        "Kategorie práce": 2,
+        "Email nadřízeného": "karel.dvorak@firma.cz",
+        "Jméno nadřízeného": "Karel",
+        "Příjmení nadřízeného": "Dvořák",
+        "Poznámka": ""
+      },
+      {
+        "Jméno": "Marie",
+        "Příjmení": "Svobodová",
+        "Email": "marie.svobodova@firma.cz",
+        "Osobní číslo": "E002",
+        "Pozice": "Účetní",
+        "Středisko": "FIN",
+        "Stav": "aktivní",
+        "Kategorie práce": 1,
+        "Email nadřízeného": "",
+        "Jméno nadřízeného": "",
+        "Příjmení nadřízeného": "",
+        "Poznámka": "Nová zaměstnankyně"
+      },
+      {
+        "Jméno": "Petr",
+        "Příjmení": "Černý",
+        "Email": "petr.cerny@firma.cz",
+        "Osobní číslo": "E003",
+        "Pozice": "Skladník",
+        "Středisko": "SKLAD",
+        "Stav": "aktivní",
+        "Kategorie práce": 3,
+        "Email nadřízeného": "jan.novak@firma.cz",
+        "Jméno nadřízeného": "Jan",
+        "Příjmení nadřízeného": "Novák",
+        "Poznámka": ""
+      }
+    ]);
+  };
+
   return (
     <>
       <input
@@ -391,14 +439,24 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         onChange={handleFileUpload}
         className="hidden"
       />
-      <Button
-        variant="outline"
-        onClick={() => document.getElementById('employee-import')?.click()}
-        disabled={isProcessing}
-      >
-        <Upload className="w-4 h-4 mr-2" />
-        {isProcessing ? "Zpracovávám..." : "Import z Excel/CSV"}
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDownloadTemplate}
+        >
+          <FileDown className="w-4 h-4 mr-2" />
+          Šablona CSV
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => document.getElementById('employee-import')?.click()}
+          disabled={isProcessing}
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          {isProcessing ? "Zpracovávám..." : "Import z Excel/CSV"}
+        </Button>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!isImporting) setDialogOpen(open); }}>
         <DialogContent className="max-w-6xl max-h-[90vh]">
