@@ -219,7 +219,7 @@ export const BulkDeadlineImport = () => {
       });
     } else if (fileExtension === "xlsx" || fileExtension === "xls") {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const workbook = XLSX.read(data, { cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       return XLSX.utils.sheet_to_json(worksheet) as EquipmentImportRow[];
@@ -236,15 +236,17 @@ export const BulkDeadlineImport = () => {
       const errorRows: ParsedEquipmentRow[] = [];
       const duplicateRows: ParsedEquipmentRow[] = [];
 
-      // Fetch existing equipment for duplicate detection
+      // Fetch existing equipment for duplicate detection (override default 1000 row limit)
       const { data: existingEquipment } = await supabase
         .from("equipment")
-        .select("id, inventory_number, facility");
+        .select("id, inventory_number, facility")
+        .limit(10000);
 
       // Fetch facilities for validation
       const { data: facilities } = await supabase
         .from("facilities")
-        .select("code, name");
+        .select("code, name")
+        .limit(10000);
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
@@ -489,10 +491,21 @@ export const BulkDeadlineImport = () => {
       });
     } else if (fileExtension === "xlsx" || fileExtension === "xls") {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const workbook = XLSX.read(data, { cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      return XLSX.utils.sheet_to_json(worksheet) as DeadlineImportRow[];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as DeadlineImportRow[];
+      // Normalize date fields from Excel
+      for (const row of jsonData) {
+        const dateVal = row.last_check_date as any;
+        if (dateVal instanceof Date) {
+          row.last_check_date = dateVal.toISOString().split('T')[0];
+        } else if (typeof dateVal === 'number') {
+          const date = new Date((dateVal - 25569) * 86400 * 1000);
+          row.last_check_date = date.toISOString().split('T')[0];
+        }
+      }
+      return jsonData;
     } else {
       throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
     }
@@ -506,21 +519,24 @@ export const BulkDeadlineImport = () => {
       const errorRows: ParsedDeadlineRow[] = [];
       const duplicateRows: ParsedDeadlineRow[] = [];
 
-      // Fetch equipment for matching
+      // Fetch equipment for matching (override default 1000 row limit)
       const { data: equipment } = await supabase
         .from("equipment")
-        .select("id, inventory_number, name, facility");
+        .select("id, inventory_number, name, facility")
+        .limit(10000);
 
       // Fetch deadline types
       const { data: deadlineTypes } = await supabase
         .from("deadline_types")
-        .select("id, name, facility, period_days");
+        .select("id, name, facility, period_days")
+        .limit(10000);
 
       // Fetch existing deadlines for duplicate detection
       const { data: existingDeadlines } = await supabase
         .from("deadlines")
         .select("id, equipment_id, deadline_type_id, last_check_date")
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .limit(50000);
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
