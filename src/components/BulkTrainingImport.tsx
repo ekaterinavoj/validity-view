@@ -295,6 +295,28 @@ export const BulkTrainingImport = () => {
     });
   };
 
+  // Normalize any date value (Date object, Excel serial, DD.MM.YYYY, string) to YYYY-MM-DD
+  const normalizeDate = (val: any): string => {
+    if (val == null) return '';
+    if (val instanceof Date) {
+      if (isNaN(val.getTime())) return String(val);
+      return val.toISOString().split('T')[0];
+    }
+    if (typeof val === 'number') {
+      const date = new Date((val - 25569) * 86400 * 1000);
+      if (isNaN(date.getTime())) return String(val);
+      return date.toISOString().split('T')[0];
+    }
+    const s = String(val).trim();
+    // Handle DD.MM.YYYY or D.M.YYYY Czech format
+    const czMatch = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (czMatch) {
+      const [, d, m, y] = czMatch;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return s;
+  };
+
   const parseFile = async (file: File): Promise<ImportRow[]> => {
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
 
@@ -316,13 +338,7 @@ export const BulkTrainingImport = () => {
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as ImportRow[];
       // Normalize date fields that may come as Date objects from Excel
       for (const row of jsonData) {
-        const dateVal = row.last_training_date as any;
-        if (dateVal instanceof Date) {
-          row.last_training_date = dateVal.toISOString().split('T')[0];
-        } else if (typeof dateVal === 'number') {
-          const date = new Date((dateVal - 25569) * 86400 * 1000);
-          row.last_training_date = date.toISOString().split('T')[0];
-        }
+        row.last_training_date = normalizeDate(row.last_training_date);
       }
       return jsonData;
     } else {
@@ -386,7 +402,8 @@ export const BulkTrainingImport = () => {
           continue;
         }
 
-        if (!row.last_training_date?.trim()) {
+        const dateStr = String(row.last_training_date || '').trim();
+        if (!dateStr) {
           parsedRow.status = 'error';
           parsedRow.error = "Chybí datum posledního školení";
           errorRows.push(parsedRow);
@@ -395,9 +412,18 @@ export const BulkTrainingImport = () => {
 
         // Validate date format
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(row.last_training_date)) {
+        if (!dateRegex.test(dateStr)) {
           parsedRow.status = 'error';
-          parsedRow.error = "Datum musí být ve formátu YYYY-MM-DD";
+          parsedRow.error = `Datum "${dateStr}" musí být ve formátu YYYY-MM-DD`;
+          errorRows.push(parsedRow);
+          continue;
+        }
+
+        // Validate it's a real date
+        const parsedDate = new Date(dateStr + 'T00:00:00');
+        if (isNaN(parsedDate.getTime()) || parsedDate.toISOString().split('T')[0] !== dateStr) {
+          parsedRow.status = 'error';
+          parsedRow.error = `Datum "${dateStr}" není platné`;
           errorRows.push(parsedRow);
           continue;
         }
@@ -670,59 +696,74 @@ export const BulkTrainingImport = () => {
     const totalRows = rowsToProcess.length;
 
     try {
-      for (let i = 0; i < rowsToProcess.length; i++) {
-        const row = rowsToProcess[i];
-        
+      // Separate inserts from updates
+      const toInsert = rowsToProcess.filter(r => !(r.status === 'duplicate' && r.existingTrainingId));
+      const toUpdate = rowsToProcess.filter(r => r.status === 'duplicate' && r.existingTrainingId);
+
+      // Batch INSERT (50 at a time)
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+        const batch = toInsert.slice(i, i + BATCH_SIZE);
+        const insertRows = batch.map(row => {
+          const lastDate = new Date(row.data.last_training_date);
+          const nextDate = new Date(lastDate);
+          nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
+          return {
+            employee_id: row.employeeId!,
+            training_type_id: row.trainingTypeId!,
+            facility: row.data.facility_code,
+            last_training_date: row.data.last_training_date,
+            next_training_date: nextDate.toISOString().split('T')[0],
+            trainer: row.data.trainer || null,
+            company: row.data.company || null,
+            note: row.data.note || null,
+            created_by: user.id,
+            status: 'valid',
+            is_active: true,
+          };
+        });
+
         try {
-          // Calculate next training date
+          const { error } = await supabase.from("trainings").insert(insertRows);
+          if (error) throw error;
+          inserted += batch.length;
+        } catch (error: any) {
+          console.error(`Batch insert error:`, error);
+          failed += batch.length;
+        }
+
+        setImportProgress(Math.round(((Math.min(i + BATCH_SIZE, toInsert.length) + toUpdate.length * 0) / totalRows) * 100));
+      }
+
+      // Row-by-row UPDATE (need individual IDs)
+      for (let i = 0; i < toUpdate.length; i++) {
+        const row = toUpdate[i];
+        try {
           const lastDate = new Date(row.data.last_training_date);
           const nextDate = new Date(lastDate);
           nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
 
-          if (row.status === 'duplicate' && row.existingTrainingId) {
-            // Update existing training (overwrite)
-            const { error } = await supabase
-              .from("trainings")
-              .update({
-                facility: row.data.facility_code,
-                last_training_date: row.data.last_training_date,
-                next_training_date: nextDate.toISOString().split('T')[0],
-                trainer: row.data.trainer || null,
-                company: row.data.company || null,
-                note: row.data.note || null,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", row.existingTrainingId);
+          const { error } = await supabase
+            .from("trainings")
+            .update({
+              facility: row.data.facility_code,
+              last_training_date: row.data.last_training_date,
+              next_training_date: nextDate.toISOString().split('T')[0],
+              trainer: row.data.trainer || null,
+              company: row.data.company || null,
+              note: row.data.note || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", row.existingTrainingId!);
 
-            if (error) throw error;
-            updated++;
-          } else {
-            // Insert new training
-            const { error } = await supabase
-              .from("trainings")
-              .insert({
-                employee_id: row.employeeId!,
-                training_type_id: row.trainingTypeId!,
-                facility: row.data.facility_code,
-                last_training_date: row.data.last_training_date,
-                next_training_date: nextDate.toISOString().split('T')[0],
-                trainer: row.data.trainer || null,
-                company: row.data.company || null,
-                note: row.data.note || null,
-                created_by: user.id,
-                status: 'valid',
-                is_active: true,
-              });
-
-            if (error) throw error;
-            inserted++;
-          }
+          if (error) throw error;
+          updated++;
         } catch (error: any) {
-          console.error(`Error processing row ${row.rowNumber}:`, error);
+          console.error(`Error updating row ${row.rowNumber}:`, error);
           failed++;
         }
 
-        setImportProgress(Math.round(((i + 1) / totalRows) * 100));
+        setImportProgress(Math.round(((toInsert.length + i + 1) / totalRows) * 100));
       }
 
       // Log to audit log

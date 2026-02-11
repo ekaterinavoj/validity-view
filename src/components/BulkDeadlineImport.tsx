@@ -93,6 +93,27 @@ const normalizeName = (name: string): string => {
   return normalized;
 };
 
+// Normalize any date value to YYYY-MM-DD
+const normalizeDate = (val: any): string => {
+  if (val == null) return '';
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return String(val);
+    return val.toISOString().split('T')[0];
+  }
+  if (typeof val === 'number') {
+    const date = new Date((val - 25569) * 86400 * 1000);
+    if (isNaN(date.getTime())) return String(val);
+    return date.toISOString().split('T')[0];
+  }
+  const s = String(val).trim();
+  const czMatch = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (czMatch) {
+    const [, d, m, y] = czMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return s;
+};
+
 export const BulkDeadlineImport = () => {
   const { toast } = useToast();
   const { isAdmin, isManager, user, profile } = useAuth();
@@ -364,46 +385,67 @@ export const BulkDeadlineImport = () => {
     let skipped = equipmentDuplicateAction === 'skip' ? equipmentPreview.duplicateRows.length : 0;
     let failed = 0;
 
-    for (let i = 0; i < rowsToProcess.length; i++) {
-      const row = rowsToProcess[i];
-      
-      try {
-        const equipmentData = {
-          inventory_number: row.data.inventory_number.trim(),
-          name: row.data.name.trim(),
-          equipment_type: row.data.equipment_type.trim(),
-          facility: row.data.facility_code.trim(),
-          manufacturer: row.data.manufacturer?.trim() || null,
-          model: row.data.model?.trim() || null,
-          serial_number: row.data.serial_number?.trim() || null,
-          location: row.data.location?.trim() || null,
-          responsible_person: row.data.responsible_person?.trim() || null,
-          status: row.data.status?.trim() || 'active',
-          notes: row.data.notes?.trim() || null,
-        };
+    // Separate inserts from updates
+    const toInsert = rowsToProcess.filter(r => !(r.status === 'duplicate' && r.existingId));
+    const toUpdate = rowsToProcess.filter(r => r.status === 'duplicate' && r.existingId);
+    const total = rowsToProcess.length;
 
-        if (row.status === 'duplicate' && row.existingId) {
-          const { error } = await supabase
-            .from("equipment")
-            .update(equipmentData)
-            .eq("id", row.existingId);
-          
-          if (error) throw error;
-          updated++;
-        } else {
-          const { error } = await supabase
-            .from("equipment")
-            .insert(equipmentData);
-          
-          if (error) throw error;
-          inserted++;
-        }
+    // Batch INSERT (50 at a time)
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      const batch = toInsert.slice(i, i + BATCH_SIZE);
+      const insertRows = batch.map(row => ({
+        inventory_number: row.data.inventory_number.trim(),
+        name: row.data.name.trim(),
+        equipment_type: row.data.equipment_type.trim(),
+        facility: row.data.facility_code.trim(),
+        manufacturer: row.data.manufacturer?.trim() || null,
+        model: row.data.model?.trim() || null,
+        serial_number: row.data.serial_number?.trim() || null,
+        location: row.data.location?.trim() || null,
+        responsible_person: row.data.responsible_person?.trim() || null,
+        status: row.data.status?.trim() || 'active',
+        notes: row.data.notes?.trim() || null,
+      }));
+
+      try {
+        const { error } = await supabase.from("equipment").insert(insertRows);
+        if (error) throw error;
+        inserted += batch.length;
       } catch (err) {
-        console.error("Error importing equipment:", err);
+        console.error("Batch equipment insert error:", err);
+        failed += batch.length;
+      }
+      setEquipmentProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
+    }
+
+    // Row-by-row UPDATE
+    for (let i = 0; i < toUpdate.length; i++) {
+      const row = toUpdate[i];
+      try {
+        const { error } = await supabase
+          .from("equipment")
+          .update({
+            inventory_number: row.data.inventory_number.trim(),
+            name: row.data.name.trim(),
+            equipment_type: row.data.equipment_type.trim(),
+            facility: row.data.facility_code.trim(),
+            manufacturer: row.data.manufacturer?.trim() || null,
+            model: row.data.model?.trim() || null,
+            serial_number: row.data.serial_number?.trim() || null,
+            location: row.data.location?.trim() || null,
+            responsible_person: row.data.responsible_person?.trim() || null,
+            status: row.data.status?.trim() || 'active',
+            notes: row.data.notes?.trim() || null,
+          })
+          .eq("id", row.existingId!);
+        if (error) throw error;
+        updated++;
+      } catch (err) {
+        console.error("Error updating equipment:", err);
         failed++;
       }
-
-      setEquipmentProgress(Math.round(((i + 1) / rowsToProcess.length) * 100));
+      setEquipmentProgress(Math.round(((toInsert.length + i + 1) / total) * 100));
     }
 
     setEquipmentResult({ inserted, updated, skipped, failed });
@@ -495,15 +537,8 @@ export const BulkDeadlineImport = () => {
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as DeadlineImportRow[];
-      // Normalize date fields from Excel
       for (const row of jsonData) {
-        const dateVal = row.last_check_date as any;
-        if (dateVal instanceof Date) {
-          row.last_check_date = dateVal.toISOString().split('T')[0];
-        } else if (typeof dateVal === 'number') {
-          const date = new Date((dateVal - 25569) * 86400 * 1000);
-          row.last_check_date = date.toISOString().split('T')[0];
-        }
+        row.last_check_date = normalizeDate(row.last_check_date);
       }
       return jsonData;
     } else {
@@ -570,7 +605,8 @@ export const BulkDeadlineImport = () => {
           continue;
         }
 
-        if (!row.last_check_date?.trim()) {
+        const dateStr = String(row.last_check_date || '').trim();
+        if (!dateStr) {
           parsedRow.status = 'error';
           parsedRow.error = "Chybí datum poslední kontroly";
           errorRows.push(parsedRow);
@@ -579,9 +615,17 @@ export const BulkDeadlineImport = () => {
 
         // Validate date format
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(row.last_check_date)) {
+        if (!dateRegex.test(dateStr)) {
           parsedRow.status = 'error';
-          parsedRow.error = "Datum musí být ve formátu YYYY-MM-DD";
+          parsedRow.error = `Datum "${dateStr}" musí být ve formátu YYYY-MM-DD`;
+          errorRows.push(parsedRow);
+          continue;
+        }
+
+        const parsedDate = new Date(dateStr + 'T00:00:00');
+        if (isNaN(parsedDate.getTime()) || parsedDate.toISOString().split('T')[0] !== dateStr) {
+          parsedRow.status = 'error';
+          parsedRow.error = `Datum "${dateStr}" není platné`;
           errorRows.push(parsedRow);
           continue;
         }
@@ -692,16 +736,20 @@ export const BulkDeadlineImport = () => {
     let skipped = deadlineDuplicateAction === 'skip' ? deadlinePreview.duplicateRows.length : 0;
     let failed = 0;
 
-    for (let i = 0; i < rowsToProcess.length; i++) {
-      const row = rowsToProcess[i];
-      
-      try {
-        const lastCheckDate = new Date(row.data.last_check_date);
-        const periodDays = row.periodDays || 365;
-        const nextCheckDate = new Date(lastCheckDate);
-        nextCheckDate.setDate(nextCheckDate.getDate() + periodDays);
+    // Separate inserts from updates
+    const toInsert = rowsToProcess.filter(r => !(r.status === 'duplicate' && r.existingDeadlineId));
+    const toUpdate = rowsToProcess.filter(r => r.status === 'duplicate' && r.existingDeadlineId);
+    const total = rowsToProcess.length;
 
-        const deadlineData = {
+    // Batch INSERT (50 at a time)
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      const batch = toInsert.slice(i, i + BATCH_SIZE);
+      const insertRows = batch.map(row => {
+        const lastCheckDate = new Date(row.data.last_check_date);
+        const nextCheckDate = new Date(lastCheckDate);
+        nextCheckDate.setDate(nextCheckDate.getDate() + (row.periodDays || 365));
+        return {
           equipment_id: row.equipmentId!,
           deadline_type_id: row.deadlineTypeId!,
           facility: row.data.facility_code.trim(),
@@ -714,32 +762,46 @@ export const BulkDeadlineImport = () => {
           is_active: true,
           created_by: user.id,
         };
+      });
 
-        if (row.status === 'duplicate' && row.existingDeadlineId) {
-          const { error } = await supabase
-            .from("deadlines")
-            .update({
-              ...deadlineData,
-              created_by: undefined, // Don't update created_by
-            })
-            .eq("id", row.existingDeadlineId);
-          
-          if (error) throw error;
-          updated++;
-        } else {
-          const { error } = await supabase
-            .from("deadlines")
-            .insert(deadlineData);
-          
-          if (error) throw error;
-          inserted++;
-        }
+      try {
+        const { error } = await supabase.from("deadlines").insert(insertRows);
+        if (error) throw error;
+        inserted += batch.length;
       } catch (err) {
-        console.error("Error importing deadline:", err);
+        console.error("Batch deadline insert error:", err);
+        failed += batch.length;
+      }
+      setDeadlineProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
+    }
+
+    // Row-by-row UPDATE
+    for (let i = 0; i < toUpdate.length; i++) {
+      const row = toUpdate[i];
+      try {
+        const lastCheckDate = new Date(row.data.last_check_date);
+        const nextCheckDate = new Date(lastCheckDate);
+        nextCheckDate.setDate(nextCheckDate.getDate() + (row.periodDays || 365));
+
+        const { error } = await supabase
+          .from("deadlines")
+          .update({
+            facility: row.data.facility_code.trim(),
+            last_check_date: row.data.last_check_date,
+            next_check_date: nextCheckDate.toISOString().split("T")[0],
+            performer: row.data.performer?.trim() || null,
+            company: row.data.company?.trim() || null,
+            note: row.data.note?.trim() || null,
+            status: 'valid',
+          })
+          .eq("id", row.existingDeadlineId!);
+        if (error) throw error;
+        updated++;
+      } catch (err) {
+        console.error("Error updating deadline:", err);
         failed++;
       }
-
-      setDeadlineProgress(Math.round(((i + 1) / rowsToProcess.length) * 100));
+      setDeadlineProgress(Math.round(((toInsert.length + i + 1) / total) * 100));
     }
 
     setDeadlineResult({ inserted, updated, skipped, failed });

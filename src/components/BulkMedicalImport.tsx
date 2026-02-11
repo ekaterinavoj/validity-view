@@ -156,6 +156,27 @@ export const BulkMedicalImport = () => {
     });
   };
 
+  // Normalize any date value to YYYY-MM-DD
+  const normalizeDate = (val: any): string => {
+    if (val == null) return '';
+    if (val instanceof Date) {
+      if (isNaN(val.getTime())) return String(val);
+      return val.toISOString().split('T')[0];
+    }
+    if (typeof val === 'number') {
+      const date = new Date((val - 25569) * 86400 * 1000);
+      if (isNaN(date.getTime())) return String(val);
+      return date.toISOString().split('T')[0];
+    }
+    const s = String(val).trim();
+    const czMatch = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (czMatch) {
+      const [, d, m, y] = czMatch;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return s;
+  };
+
   const parseFile = async (file: File): Promise<ImportRow[]> => {
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
 
@@ -175,15 +196,8 @@ export const BulkMedicalImport = () => {
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as ImportRow[];
-      // Normalize date fields from Excel
       for (const row of jsonData) {
-        const dateVal = row.last_examination_date as any;
-        if (dateVal instanceof Date) {
-          row.last_examination_date = dateVal.toISOString().split('T')[0];
-        } else if (typeof dateVal === 'number') {
-          const date = new Date((dateVal - 25569) * 86400 * 1000);
-          row.last_examination_date = date.toISOString().split('T')[0];
-        }
+        row.last_examination_date = normalizeDate(row.last_examination_date);
       }
       return jsonData;
     } else {
@@ -239,7 +253,8 @@ export const BulkMedicalImport = () => {
           continue;
         }
 
-        if (!row.last_examination_date?.trim()) {
+        const dateStr = String(row.last_examination_date || '').trim();
+        if (!dateStr) {
           parsedRow.status = 'error';
           parsedRow.error = "Chybí datum prohlídky";
           errorRows.push(parsedRow);
@@ -247,9 +262,17 @@ export const BulkMedicalImport = () => {
         }
 
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(row.last_examination_date)) {
+        if (!dateRegex.test(dateStr)) {
           parsedRow.status = 'error';
-          parsedRow.error = "Datum musí být ve formátu YYYY-MM-DD";
+          parsedRow.error = `Datum "${dateStr}" musí být ve formátu YYYY-MM-DD`;
+          errorRows.push(parsedRow);
+          continue;
+        }
+
+        const parsedDate = new Date(dateStr + 'T00:00:00');
+        if (isNaN(parsedDate.getTime()) || parsedDate.toISOString().split('T')[0] !== dateStr) {
+          parsedRow.status = 'error';
+          parsedRow.error = `Datum "${dateStr}" není platné`;
           errorRows.push(parsedRow);
           continue;
         }
@@ -364,63 +387,83 @@ export const BulkMedicalImport = () => {
 
     const total = rowsToProcess.length;
 
-    for (let i = 0; i < rowsToProcess.length; i++) {
-      const row = rowsToProcess[i];
-      
-      try {
+    // Separate inserts from updates
+    const toInsert = rowsToProcess.filter(r => !r.existingExaminationId);
+    const toUpdate = rowsToProcess.filter(r => !!r.existingExaminationId);
+
+    // Batch INSERT (50 at a time)
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      const batch = toInsert.slice(i, i + BATCH_SIZE);
+      const insertRows = batch.map(row => {
         const nextDate = new Date(row.data.last_examination_date);
         nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
-        
         const today = new Date();
         const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         let status = "valid";
         if (daysUntil < 0) status = "expired";
         else if (daysUntil <= 30) status = "warning";
 
-        if (row.existingExaminationId) {
-          const { error } = await supabase
-            .from("medical_examinations")
-            .update({
-              last_examination_date: row.data.last_examination_date,
-              next_examination_date: nextDate.toISOString().split("T")[0],
-              doctor: row.data.doctor || null,
-              medical_facility: row.data.medical_facility || null,
-              result: row.data.result || null,
-              note: row.data.note || null,
-              status,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", row.existingExaminationId);
+        return {
+          facility: row.data.facility_code,
+          employee_id: row.employeeId,
+          examination_type_id: row.examinationTypeId,
+          last_examination_date: row.data.last_examination_date,
+          next_examination_date: nextDate.toISOString().split("T")[0],
+          doctor: row.data.doctor || null,
+          medical_facility: row.data.medical_facility || null,
+          result: row.data.result || null,
+          note: row.data.note || null,
+          status,
+          is_active: true,
+          created_by: user.id,
+        };
+      });
 
-          if (error) throw error;
-          updated++;
-        } else {
-          const { error } = await supabase
-            .from("medical_examinations")
-            .insert({
-              facility: row.data.facility_code,
-              employee_id: row.employeeId,
-              examination_type_id: row.examinationTypeId,
-              last_examination_date: row.data.last_examination_date,
-              next_examination_date: nextDate.toISOString().split("T")[0],
-              doctor: row.data.doctor || null,
-              medical_facility: row.data.medical_facility || null,
-              result: row.data.result || null,
-              note: row.data.note || null,
-              status,
-              is_active: true,
-              created_by: user.id,
-            });
+      try {
+        const { error } = await supabase.from("medical_examinations").insert(insertRows);
+        if (error) throw error;
+        inserted += batch.length;
+      } catch (error) {
+        console.error("Batch insert error:", error);
+        failed += batch.length;
+      }
+      setImportProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
+    }
 
-          if (error) throw error;
-          inserted++;
-        }
+    // Row-by-row UPDATE
+    for (let i = 0; i < toUpdate.length; i++) {
+      const row = toUpdate[i];
+      try {
+        const nextDate = new Date(row.data.last_examination_date);
+        nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
+        const today = new Date();
+        const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        let status = "valid";
+        if (daysUntil < 0) status = "expired";
+        else if (daysUntil <= 30) status = "warning";
+
+        const { error } = await supabase
+          .from("medical_examinations")
+          .update({
+            last_examination_date: row.data.last_examination_date,
+            next_examination_date: nextDate.toISOString().split("T")[0],
+            doctor: row.data.doctor || null,
+            medical_facility: row.data.medical_facility || null,
+            result: row.data.result || null,
+            note: row.data.note || null,
+            status,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.existingExaminationId!);
+
+        if (error) throw error;
+        updated++;
       } catch (error) {
         console.error("Import error:", error);
         failed++;
       }
-
-      setImportProgress(Math.round(((i + 1) / total) * 100));
+      setImportProgress(Math.round(((toInsert.length + i + 1) / total) * 100));
     }
 
     if (duplicateAction === 'skip') {
