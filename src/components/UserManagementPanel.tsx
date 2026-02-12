@@ -58,14 +58,12 @@ const roleLabels: Record<string, string> = {
   admin: "Administrátor",
   manager: "Manažer",
   user: "Uživatel",
-  viewer: "Prohlížeč",
 };
 
 const roleColors: Record<string, string> = {
   admin: "bg-role-admin/20 text-role-admin-foreground dark:text-role-admin",
   manager: "bg-role-manager/20 text-role-manager-foreground dark:text-role-manager",
   user: "bg-role-user/20 text-role-user-foreground dark:text-role-user",
-  viewer: "bg-role-viewer/20 text-role-viewer-foreground dark:text-role-viewer",
 };
 
 export function UserManagementPanel() {
@@ -227,7 +225,7 @@ export function UserManagementPanel() {
 
       const { error } = await supabase.from("user_roles").insert([{
         user_id: userId,
-        role: newRole as "admin" | "manager" | "user" | "viewer",
+        role: newRole as "admin" | "manager" | "user",
         created_by: profile?.id,
       }]);
 
@@ -480,7 +478,6 @@ export function UserManagementPanel() {
                 <SelectItem value="admin">Administrátor</SelectItem>
                 <SelectItem value="manager">Manažer</SelectItem>
                 <SelectItem value="user">Uživatel</SelectItem>
-                <SelectItem value="viewer">Prohlížeč</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={loadUsers}>
@@ -589,7 +586,6 @@ export function UserManagementPanel() {
                               <SelectItem value="admin">Administrátor</SelectItem>
                               <SelectItem value="manager">Manažer</SelectItem>
                               <SelectItem value="user">Uživatel</SelectItem>
-                              <SelectItem value="viewer">Prohlížeč</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>

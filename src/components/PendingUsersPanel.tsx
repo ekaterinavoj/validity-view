@@ -127,7 +127,7 @@ export function PendingUsersPanel() {
         .from('user_roles')
         .insert({
           user_id: pendingUser.id,
-          role: roleToAssign as "admin" | "manager" | "user" | "viewer",
+          role: roleToAssign as "admin" | "manager" | "user",
           created_by: user?.id,
         });
 
@@ -197,7 +197,6 @@ export function PendingUsersPanel() {
     admin: 'Administrátor',
     manager: 'Manažer',
     user: 'Uživatel',
-    viewer: 'Prohlížeč',
   };
 
   if (loading) {
@@ -270,7 +269,6 @@ export function PendingUsersPanel() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="viewer">Prohlížeč</SelectItem>
                         <SelectItem value="user">Uživatel</SelectItem>
                         <SelectItem value="manager">Manažer</SelectItem>
                         <SelectItem value="admin">Administrátor</SelectItem>

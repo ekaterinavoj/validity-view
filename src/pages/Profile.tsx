@@ -409,9 +409,8 @@ const Profile = () => {
       admin: "bg-role-admin/20 text-role-admin-foreground dark:text-role-admin",
       manager: "bg-role-manager/20 text-role-manager-foreground dark:text-role-manager",
       user: "bg-role-user/20 text-role-user-foreground dark:text-role-user",
-      viewer: "bg-role-viewer/20 text-role-viewer-foreground dark:text-role-viewer",
     };
-    const roleLabels: Record<string, string> = { admin: "Admin", manager: "Manager", user: "Uživatel", viewer: "Čtenář" };
+    const roleLabels: Record<string, string> = { admin: "Admin", manager: "Manažer", user: "Uživatel" };
     const primary = roles.includes("admin") ? "admin" : roles.includes("manager") ? "manager" : "user";
     return <Badge className={roleColors[primary]}>{roleLabels[primary]}</Badge>;
   };
