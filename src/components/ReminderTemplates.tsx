@@ -333,8 +333,15 @@ export const ReminderTemplates = () => {
     setCheckResult(null);
     
     try {
-      const { data, error } = await supabase.functions.invoke('send-training-reminders', {
-        body: { manual_trigger: true }
+      // Call the correct edge function based on module
+      const functionName = activeModule === "trainings" 
+        ? "run-reminders" 
+        : activeModule === "deadlines" 
+          ? "run-deadline-reminders" 
+          : "run-medical-reminders";
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: { triggered_by: "manual" }
       });
 
       if (error) throw error;
@@ -391,7 +398,7 @@ export const ReminderTemplates = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Play className="w-5 h-5" />
-            Manuální kontrola připomínek {activeModule === "trainings" ? "školení" : "technických událostí"}
+            Manuální kontrola připomínek {getModuleLabel()}
           </CardTitle>
           <CardDescription>
             Spusťte okamžitou kontrolu {getModuleLabel()} a odešlete připomínky bez čekání na automatickou kontrolu
@@ -474,10 +481,10 @@ export const ReminderTemplates = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="w-5 h-5" />
-                Šablony připomínek {activeModule === "trainings" ? "školení" : "technických událostí"}
-              </CardTitle>
+               <CardTitle className="flex items-center gap-2">
+                 <Bell className="w-5 h-5" />
+                 Šablony připomínek {getModuleLabel()}
+               </CardTitle>
               <CardDescription>
                 Vytvořte a spravujte šablony pro automatické připomínky {getModuleLabel()}
               </CardDescription>
@@ -568,7 +575,7 @@ export const ReminderTemplates = () => {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingTemplate ? "Upravit šablonu" : `Nová šablona připomínky ${activeModule === "trainings" ? "školení" : "technických událostí"}`}
+            {editingTemplate ? "Upravit šablonu" : `Nová šablona připomínky ${getModuleLabel()}`}
             </DialogTitle>
             <DialogDescription>
               {activeModule === "trainings" ? (
@@ -577,11 +584,18 @@ export const ReminderTemplates = () => {
                   <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{training_name}}'}</code>,
                   <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{days_remaining}}'}</code>
                 </>
-              ) : (
+              ) : activeModule === "deadlines" ? (
                 <>
                   Vytvořte šablonu pro automatické připomínky technických událostí. Můžete použít proměnné: 
                   <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{equipmentName}}'}</code>,
                   <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{deadlineType}}'}</code>,
+                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{daysLeft}}'}</code>
+                </>
+              ) : (
+                <>
+                  Vytvořte šablonu pro automatické připomínky lékařských prohlídek. Můžete použít proměnné: 
+                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{employeeName}}'}</code>,
+                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{examinationType}}'}</code>,
                   <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{daysLeft}}'}</code>
                 </>
               )}
@@ -652,13 +666,15 @@ export const ReminderTemplates = () => {
                 rows={10}
                 placeholder="Text připomínky..."
               />
-              <p className="text-xs text-muted-foreground">
-                {activeModule === "trainings" ? (
-                  <>Použijte <code>{'{{training_name}}'}</code> pro název školení a <code>{'{{days_remaining}}'}</code> pro zbývající dny</>
-                ) : (
-                  <>Použijte <code>{'{{equipmentName}}'}</code>, <code>{'{{deadlineType}}'}</code> a <code>{'{{daysLeft}}'}</code></>
-                )}
-              </p>
+               <p className="text-xs text-muted-foreground">
+                 {activeModule === "trainings" ? (
+                   <>Použijte <code>{'{{training_name}}'}</code> pro název školení a <code>{'{{days_remaining}}'}</code> pro zbývající dny</>
+                 ) : activeModule === "deadlines" ? (
+                   <>Použijte <code>{'{{equipmentName}}'}</code>, <code>{'{{deadlineType}}'}</code> a <code>{'{{daysLeft}}'}</code></>
+                 ) : (
+                   <>Použijte <code>{'{{employeeName}}'}</code>, <code>{'{{examinationType}}'}</code> a <code>{'{{daysLeft}}'}</code></>
+                 )}
+               </p>
             </div>
 
             <div className="space-y-2">
@@ -771,7 +787,9 @@ export const ReminderTemplates = () => {
             <DialogDescription>
               {activeModule === "trainings" 
                 ? 'Ukázka emailu s nahrazenými proměnnými (příklad: školení "Bezpečnost práce", 15 dní do vypršení)'
-                : 'Ukázka emailu s nahrazenými proměnnými (příklad: zařízení "Hasící přístroj A1", revize, 15 dní)'
+                : activeModule === "deadlines"
+                  ? 'Ukázka emailu s nahrazenými proměnnými (příklad: zařízení "Hasící přístroj A1", revize, 15 dní)'
+                  : 'Ukázka emailu s nahrazenými proměnnými (příklad: zaměstnanec "Jan Novák", vstupní prohlídka, 15 dní)'
               }
             </DialogDescription>
           </DialogHeader>
@@ -795,13 +813,19 @@ export const ReminderTemplates = () => {
                   <li><code>{'{{training_name}}'}</code> - název školení</li>
                   <li><code>{'{{days_remaining}}'}</code> - počet dní do vypršení</li>
                 </ul>
-              ) : (
+              ) : activeModule === "deadlines" ? (
                 <ul className="list-disc list-inside space-y-1">
                   <li><code>{'{{equipmentName}}'}</code> - název zařízení</li>
                   <li><code>{'{{deadlineType}}'}</code> - typ lhůty (revize, kalibrace...)</li>
                   <li><code>{'{{daysLeft}}'}</code> - počet dní do vypršení</li>
                   <li><code>{'{{inventoryNumber}}'}</code> - inventární číslo</li>
                   <li><code>{'{{nextDue}}'}</code> - datum další kontroly</li>
+                </ul>
+              ) : (
+                <ul className="list-disc list-inside space-y-1">
+                  <li><code>{'{{employeeName}}'}</code> - jméno zaměstnance</li>
+                  <li><code>{'{{examinationType}}'}</code> - typ prohlídky</li>
+                  <li><code>{'{{daysLeft}}'}</code> - počet dní do vypršení</li>
                 </ul>
               )}
             </div>
