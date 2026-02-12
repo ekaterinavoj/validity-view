@@ -166,9 +166,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let mounted = true;
+    // Counter to deduplicate concurrent handleSession calls (race between onAuthStateChange + getSession)
+    let sessionSeq = 0;
 
     const handleSession = async (newSession: Session | null) => {
       if (!mounted) return;
+
+      const mySeq = ++sessionSeq;
 
       setSession(newSession);
       setUser(newSession?.user ?? null);
@@ -187,8 +191,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await loadUserData(newSession.user.id);
         } catch (error) {
           console.error("Error loading user data:", error);
-          setProfileLoaded(true);
-          setRolesLoaded(true);
+          if (mounted && mySeq === sessionSeq) {
+            setProfileLoaded(true);
+            setRolesLoaded(true);
+          }
         }
       } else {
         setProfile(null);
@@ -199,7 +205,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setRolesLoaded(true);
       }
 
-      if (mounted) {
+      // Only the latest handleSession call should set loading=false
+      if (mounted && mySeq === sessionSeq) {
         setLoading(false);
       }
     };
