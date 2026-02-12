@@ -368,12 +368,12 @@ export const Layout = ({
                         Provozovny
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
+                    {isAdmin && <DropdownMenuItem asChild>
                       <Link to="/audit-log" className="flex items-center gap-2 cursor-pointer">
                         <FileText className="w-4 h-4" />
                         Audit log
                       </Link>
-                    </DropdownMenuItem>
+                    </DropdownMenuItem>}
                     {isAdmin && <>
                         <DropdownMenuItem asChild>
                           <Link to="/admin/status" className="flex items-center gap-2 cursor-pointer">
@@ -538,10 +538,10 @@ export const Layout = ({
                     <BarChart3 className="w-4 h-4" />
                     Statistika
                   </Link>}
-                <Link to="/audit-log" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/audit-log" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                {isAdmin && <Link to="/audit-log" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/audit-log" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                   <FileText className="w-4 h-4" />
                   Audit log
-                </Link>
+                </Link>}
                 {isAdmin && <>
                     <Link to="/admin/status" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/status" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                       <Activity className="w-4 h-4" />

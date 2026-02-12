@@ -110,8 +110,8 @@ const App = () => (
             <Route path="/facilities" element={<ProtectedLayout><Facilities /></ProtectedLayout>} />
             <Route path="/inactive" element={<ProtectedLayout><InactiveEmployeesReport /></ProtectedLayout>} />
             
-            {/* Audit log - admin and manager only */}
-            <Route path="/audit-log" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><AuditLog /></ProtectedLayout>} />
+            {/* Audit log - admin only */}
+            <Route path="/audit-log" element={<ProtectedLayout requiredRoles={["admin"]}><AuditLog /></ProtectedLayout>} />
             {/* Profile - all approved users */}
             <Route path="/profile" element={<ProtectedLayout><Profile /></ProtectedLayout>} />
             {/* Admin-only routes */}
