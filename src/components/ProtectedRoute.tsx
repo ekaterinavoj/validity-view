@@ -24,6 +24,7 @@ export const ProtectedRoute = ({ children, requiredRoles, requiredModule }: Prot
     isPending,
     roles,
     rolesLoaded,
+    moduleAccessLoaded,
     hasModuleAccess,
     signOut,
     refreshProfile,
@@ -82,6 +83,15 @@ export const ProtectedRoute = ({ children, requiredRoles, requiredModule }: Prot
 
   // If we have requiredRoles but roles haven't loaded yet, show loader
   if (requiredRoles && requiredRoles.length > 0 && !rolesLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If we have requiredModule but module access hasn't loaded yet, show loader
+  if (requiredModule && !moduleAccessLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -211,7 +221,7 @@ export const ProtectedRoute = ({ children, requiredRoles, requiredModule }: Prot
     const moduleLabels: Record<RequiredModule, string> = {
       trainings: "Školení",
       deadlines: "Technické události",
-      plp: "Lékařské prohlídky",
+      plp: "PLP",
     };
 
     return (
