@@ -58,6 +58,7 @@ const roleLabels: Record<string, string> = {
   admin: "Administrátor",
   manager: "Manažer",
   user: "Uživatel",
+  viewer: "Prohlížeč",
 };
 
 const roleColors: Record<string, string> = {
@@ -157,9 +158,20 @@ export function UserManagementPanel() {
         console.warn("Could not load auth user data:", e);
       }
 
+      // Build role lookup map for O(n) join
+      const rolesMap = new Map<string, string[]>();
+      for (const r of rolesData || []) {
+        const existing = rolesMap.get(r.user_id);
+        if (existing) {
+          existing.push(r.role);
+        } else {
+          rolesMap.set(r.user_id, [r.role]);
+        }
+      }
+
       const usersWithRoles: UserProfile[] = (profilesData || []).map((p) => ({
         ...p,
-        roles: rolesData?.filter((r) => r.user_id === p.id).map((r) => r.role) || [],
+        roles: rolesMap.get(p.id) || [],
         approval_status: p.approval_status,
         updated_at: authUsersMap[p.id]?.updated_at,
         created_at: authUsersMap[p.id]?.created_at,
@@ -215,7 +227,7 @@ export function UserManagementPanel() {
 
       const { error } = await supabase.from("user_roles").insert([{
         user_id: userId,
-        role: newRole as "admin" | "manager" | "user",
+        role: newRole as "admin" | "manager" | "user" | "viewer",
         created_by: profile?.id,
       }]);
 
@@ -468,6 +480,7 @@ export function UserManagementPanel() {
                 <SelectItem value="admin">Administrátor</SelectItem>
                 <SelectItem value="manager">Manažer</SelectItem>
                 <SelectItem value="user">Uživatel</SelectItem>
+                <SelectItem value="viewer">Prohlížeč</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={loadUsers}>
@@ -576,6 +589,7 @@ export function UserManagementPanel() {
                               <SelectItem value="admin">Administrátor</SelectItem>
                               <SelectItem value="manager">Manažer</SelectItem>
                               <SelectItem value="user">Uživatel</SelectItem>
+                              <SelectItem value="viewer">Prohlížeč</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
