@@ -11,6 +11,7 @@ interface Profile {
   position?: string;
   department_id?: string;
   approval_status?: string;
+  must_change_password?: boolean;
 }
 
 type UserRole = "admin" | "manager" | "user";

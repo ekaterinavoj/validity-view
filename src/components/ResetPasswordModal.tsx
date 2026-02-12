@@ -25,9 +25,11 @@ interface ResetPasswordModalProps {
 
 function generatePassword(length = 12): string {
   const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
+  const array = new Uint32Array(length);
+  crypto.getRandomValues(array);
   let password = "";
   for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+    password += chars.charAt(array[i] % chars.length);
   }
   return password;
 }
@@ -43,13 +45,13 @@ export function ResetPasswordModal({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [newPassword, setNewPassword] = useState(generatePassword());
-  const [showPassword, setShowPassword] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Reset form on open/close
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
       setNewPassword(generatePassword());
-      setShowPassword(true);
+      setShowPassword(false);
     }
     onOpenChange(isOpen);
   };
@@ -80,7 +82,7 @@ export function ResetPasswordModal({
 
       toast({
         title: "Heslo resetováno",
-        description: `Nové heslo bylo nastaveno pro ${userEmail}.`,
+        description: `Nové heslo bylo nastaveno pro ${userEmail}. Uživatel bude vyzván ke změně hesla při příštím přihlášení.`,
       });
 
       onSuccess();
@@ -103,6 +105,7 @@ export function ResetPasswordModal({
           <DialogTitle>Resetovat heslo</DialogTitle>
           <DialogDescription>
             Nastavte nové heslo pro uživatele <strong>{userName}</strong> ({userEmail}).
+            Uživatel bude po přihlášení vyzván ke změně hesla.
           </DialogDescription>
         </DialogHeader>
 

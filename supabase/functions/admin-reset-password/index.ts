@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if caller is admin
+    // Check if caller is STRICTLY admin (not manager, not user)
     const { data: callerRoles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (typeof newPassword !== "string" || newPassword.trim().length < 6) {
       return new Response(JSON.stringify({ error: "Password must be at least 6 characters" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
 
     // Reset password using admin API
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      password: newPassword,
+      password: newPassword.trim(),
     });
 
     if (updateError) {
@@ -92,7 +92,13 @@ Deno.serve(async (req) => {
       .eq("id", userId)
       .single();
 
-    // Log to audit
+    // Set must_change_password flag
+    await supabaseAdmin
+      .from("profiles")
+      .update({ must_change_password: true })
+      .eq("id", userId);
+
+    // Log to audit (NEVER store the password)
     await supabaseAdmin
       .from("audit_logs")
       .insert({
@@ -102,6 +108,7 @@ Deno.serve(async (req) => {
         new_data: {
           target_email: profile?.email,
           target_name: `${profile?.first_name} ${profile?.last_name}`,
+          must_change_password: true,
         },
         user_id: caller.id,
         user_email: caller.email,
