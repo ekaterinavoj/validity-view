@@ -217,8 +217,12 @@ export default function MedicalExaminationTypes() {
                         </FormControl>
                         <SelectContent>
                           {facilitiesLoading ? (
-                            <SelectItem value="" disabled>
+                            <SelectItem value="__loading" disabled>
                               Načítání...
+                            </SelectItem>
+                          ) : facilities.length === 0 ? (
+                            <SelectItem value="__empty" disabled>
+                              Žádné provozovny
                             </SelectItem>
                           ) : (
                             facilities.map((facility) => (
