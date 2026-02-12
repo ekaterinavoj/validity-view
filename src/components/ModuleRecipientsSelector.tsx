@@ -139,19 +139,27 @@ export function ModuleRecipientsSelector({
         .select("*")
         .in("key", ["reminder_recipients", "deadline_reminder_recipients", "medical_reminder_recipients"]);
       
+      // Build a set of valid profile IDs for filtering stale references
+      const validProfileIds = new Set((profiles || []).map(p => p.id));
+
+      const filterValidIds = (ids: unknown): string[] => {
+        if (!Array.isArray(ids)) return [];
+        return (ids as string[]).filter(id => validProfileIds.has(id));
+      };
+
       settings?.forEach((setting) => {
         if (setting.key === "reminder_recipients" && setting.value && typeof setting.value === 'object' && !Array.isArray(setting.value)) {
           const val = setting.value as Record<string, unknown>;
           setTrainingRecipients(prev => ({ 
             ...prev, 
-            user_ids: Array.isArray(val.user_ids) ? val.user_ids as string[] : prev.user_ids,
+            user_ids: filterValidIds(val.user_ids),
             delivery_mode: typeof val.delivery_mode === 'string' ? val.delivery_mode : prev.delivery_mode,
           }));
         } else if (setting.key === "deadline_reminder_recipients" && setting.value && typeof setting.value === 'object' && !Array.isArray(setting.value)) {
           const val = setting.value as Record<string, unknown>;
           setDeadlineRecipients(prev => ({ 
             ...prev, 
-            user_ids: Array.isArray(val.user_ids) ? val.user_ids as string[] : prev.user_ids,
+            user_ids: filterValidIds(val.user_ids),
             group_ids: Array.isArray(val.group_ids) ? val.group_ids as string[] : [],
             delivery_mode: typeof val.delivery_mode === 'string' ? val.delivery_mode : prev.delivery_mode,
           }));
@@ -159,7 +167,7 @@ export function ModuleRecipientsSelector({
           const val = setting.value as Record<string, unknown>;
           setMedicalRecipients(prev => ({ 
             ...prev, 
-            user_ids: Array.isArray(val.user_ids) ? val.user_ids as string[] : prev.user_ids,
+            user_ids: filterValidIds(val.user_ids),
             delivery_mode: typeof val.delivery_mode === 'string' ? val.delivery_mode : prev.delivery_mode,
           }));
         }
