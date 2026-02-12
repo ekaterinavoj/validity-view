@@ -47,11 +47,9 @@ export const ReminderTemplates = () => {
     email_subject: "",
     email_body: "",
     is_active: true,
-    target_user_ids: [] as string[],
   });
 
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
-  const [users, setUsers] = useState<Array<{ id: string; email: string; full_name: string }>>([]);
   const [runningCheck, setRunningCheck] = useState(false);
   const [checkResult, setCheckResult] = useState<{ total_emails_sent: number; results: any[]; info?: string; message?: string } | null>(null);
 
@@ -69,29 +67,7 @@ export const ReminderTemplates = () => {
 
   useEffect(() => {
     loadTemplates();
-    loadUsers();
   }, []);
-
-  const loadUsers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, email, first_name, last_name")
-        .order("email");
-
-      if (error) throw error;
-      
-      const formattedUsers = (data || []).map(user => ({
-        id: user.id,
-        email: user.email,
-        full_name: `${user.first_name} ${user.last_name}`.trim() || user.email
-      }));
-      
-      setUsers(formattedUsers);
-    } catch (error: any) {
-      console.error("Error loading users:", error);
-    }
-  };
 
   const loadTemplates = async () => {
     try {
@@ -139,7 +115,6 @@ export const ReminderTemplates = () => {
       email_subject: "",
       email_body: "",
       is_active: true,
-      target_user_ids: [],
     });
     setCreateDialogOpen(true);
   };
@@ -153,7 +128,6 @@ export const ReminderTemplates = () => {
       email_subject: template.email_subject,
       email_body: template.email_body,
       is_active: template.is_active,
-      target_user_ids: (template as any).target_user_ids || [],
     });
     setEditingTemplate(template);
     setCreateDialogOpen(true);
@@ -179,7 +153,6 @@ export const ReminderTemplates = () => {
         email_subject: formData.email_subject,
         email_body: formData.email_body,
         is_active: formData.is_active,
-        target_user_ids: formData.target_user_ids,
       };
 
       if (editingTemplate) {
@@ -677,42 +650,6 @@ export const ReminderTemplates = () => {
                </p>
             </div>
 
-            <div className="space-y-2">
-              <Label>Příjemci připomínek</Label>
-              <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
-                {users.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Načítání uživatelů...</p>
-                ) : (
-                  users.map((user) => (
-                    <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded">
-                      <input
-                        type="checkbox"
-                        checked={formData.target_user_ids.includes(user.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData({
-                              ...formData,
-                              target_user_ids: [...formData.target_user_ids, user.id]
-                            });
-                          } else {
-                            setFormData({
-                              ...formData,
-                              target_user_ids: formData.target_user_ids.filter(id => id !== user.id)
-                            });
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{user.full_name} ({user.email})</span>
-                    </label>
-                  ))
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Pokud nevyberete žádného uživatele, připomínky se odešlou všem oprávněným uživatelům
-              </p>
-            </div>
-
             <div className="flex items-center gap-2">
               <Switch
                 id="is_active"
@@ -723,6 +660,17 @@ export const ReminderTemplates = () => {
                 Aktivní šablona
               </Label>
             </div>
+
+            <Alert className="bg-accent/50 border-primary/30">
+              <Bell className="h-4 w-4 text-primary" />
+              <AlertDescription>
+                <p className="font-semibold mb-2">Příjemci připomínek:</p>
+                <p className="text-sm">
+                  Příjemci pro odesílání těchto připomínek se nastavují v <strong>Administraci → Příjemci</strong> pro každý modul zvlášť. 
+                  Tato šablona bude odeslána všem nakonfigurovaným příjemcům pro {getModuleLabel()}.
+                </p>
+              </AlertDescription>
+            </Alert>
           </div>
           <DialogFooter>
             <Button 
