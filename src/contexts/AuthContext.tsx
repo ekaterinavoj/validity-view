@@ -24,6 +24,7 @@ interface AuthContextType {
   moduleAccess: ModuleAccess[];
   loading: boolean;
   rolesLoaded: boolean;
+  moduleAccessLoaded: boolean;
   profileLoaded: boolean;
   profileError: string | null;
   isPending: boolean;
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   // Start with true so we don't show spinner on initial load before we know if there's a user
   const [rolesLoaded, setRolesLoaded] = useState(true);
+  const [moduleAccessLoaded, setModuleAccessLoaded] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -108,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const loadModuleAccess = async (userId: string, userRoles: UserRole[]): Promise<ModuleAccess[]> => {
+    setModuleAccessLoaded(false);
     try {
       // Admins have access to all modules - no need to query DB
       if (userRoles.includes("admin")) {
@@ -134,6 +137,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error loading module access:", error);
       return [];
+    } finally {
+      setModuleAccessLoaded(true);
     }
   };
 
@@ -174,6 +179,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const mySeq = ++sessionSeq;
 
+      // CRITICAL: Set loading=true to prevent ModuleRedirect from acting on stale data
+      setLoading(true);
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
@@ -184,6 +191,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setModuleAccess([]);
         setProfileLoaded(false);
         setRolesLoaded(false);
+        setModuleAccessLoaded(false);
         setProfileError(null);
 
         // Load user data and WAIT for it before setting loading=false
@@ -194,6 +202,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (mounted && mySeq === sessionSeq) {
             setProfileLoaded(true);
             setRolesLoaded(true);
+            setModuleAccessLoaded(true);
           }
         }
       } else {
@@ -203,6 +212,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setProfileError(null);
         setProfileLoaded(true);
         setRolesLoaded(true);
+        setModuleAccessLoaded(true);
       }
 
       // Only the latest handleSession call should set loading=false
@@ -350,6 +360,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         moduleAccess,
         loading,
         rolesLoaded,
+        moduleAccessLoaded,
         profileLoaded,
         profileError,
         isPending,
