@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,7 +17,8 @@ interface PeriodicityInputProps {
 }
 
 /**
- * Converts value+unit to total days for storage in database
+ * Converts value+unit to total days for storage in database.
+ * Note: For months (×30) and years (×365) this is an approximation.
  */
 export function periodicityToDays(value: number, unit: PeriodicityUnit): number {
   switch (unit) {
@@ -34,15 +36,12 @@ export function periodicityToDays(value: number, unit: PeriodicityUnit): number 
  * Converts total days to value+unit for display
  */
 export function daysToPeriodicityUnit(totalDays: number): { value: number; unit: PeriodicityUnit } {
-  // Check if it's a clean year value (divisible by 365)
   if (totalDays >= 365 && totalDays % 365 === 0) {
     return { value: totalDays / 365, unit: "years" };
   }
-  // Check if it's a clean month value (divisible by 30)
   if (totalDays >= 30 && totalDays % 30 === 0) {
     return { value: totalDays / 30, unit: "months" };
   }
-  // Default to days
   return { value: totalDays, unit: "days" };
 }
 
@@ -75,7 +74,6 @@ export function formatPeriodicityDisplay(value: number, unit: PeriodicityUnit): 
     if (value >= 2 && value <= 4) return `každé ${value} měsíce`;
     return `každých ${value} měsíců`;
   }
-  // days
   if (value === 1) return "každý 1 den";
   if (value >= 2 && value <= 4) return `každé ${value} dny`;
   return `každých ${value} dnů`;
@@ -106,6 +104,25 @@ export function PeriodicityInput({
   required = false,
   disabled = false,
 }: PeriodicityInputProps) {
+  const [localValue, setLocalValue] = useState<string>(String(value));
+
+  // Sync local value when parent value changes (e.g. unit switch recalculates)
+  const handleBlur = () => {
+    const parsed = parseInt(localValue);
+    if (!parsed || parsed < 1) {
+      setLocalValue("1");
+      onValueChange(1);
+    } else {
+      onValueChange(parsed);
+    }
+  };
+
+  // Keep local state in sync if parent resets value
+  const displayValue = localValue;
+
+  const totalDays = periodicityToDays(value, unit);
+  const isApproximate = unit !== "days";
+
   return (
     <div className="space-y-2">
       <Label>
@@ -115,12 +132,32 @@ export function PeriodicityInput({
         <Input
           type="number"
           min="1"
-          value={value}
-          onChange={(e) => onValueChange(parseInt(e.target.value) || 1)}
+          value={displayValue}
+          onChange={(e) => {
+            setLocalValue(e.target.value);
+            // Update parent only if valid, but don't force "1"
+            const parsed = parseInt(e.target.value);
+            if (parsed && parsed >= 1) {
+              onValueChange(parsed);
+            }
+          }}
+          onBlur={handleBlur}
           className="w-24"
           disabled={disabled}
         />
-        <Select value={unit} onValueChange={(v) => onUnitChange(v as PeriodicityUnit)} disabled={disabled}>
+        <Select
+          value={unit}
+          onValueChange={(v) => {
+            // When unit changes, ensure localValue stays in sync
+            const parsed = parseInt(localValue);
+            if (!parsed || parsed < 1) {
+              setLocalValue("1");
+              onValueChange(1);
+            }
+            onUnitChange(v as PeriodicityUnit);
+          }}
+          disabled={disabled}
+        >
           <SelectTrigger className="w-32">
             <SelectValue />
           </SelectTrigger>
@@ -132,7 +169,8 @@ export function PeriodicityInput({
         </Select>
       </div>
       <p className="text-xs text-muted-foreground">
-        = {periodicityToDays(value, unit)} dní celkem
+        {isApproximate ? "≈ " : "= "}{totalDays} dní celkem
+        {isApproximate && " (orientační)"}
       </p>
     </div>
   );
