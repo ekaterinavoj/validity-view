@@ -61,9 +61,10 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleColors: Record<string, string> = {
-  admin: "bg-destructive",
-  manager: "bg-primary",
-  user: "bg-secondary text-secondary-foreground",
+  admin: "bg-role-admin/20 text-role-admin-foreground dark:text-role-admin",
+  manager: "bg-role-manager/20 text-role-manager-foreground dark:text-role-manager",
+  user: "bg-role-user/20 text-role-user-foreground dark:text-role-user",
+  viewer: "bg-role-viewer/20 text-role-viewer-foreground dark:text-role-viewer",
 };
 
 export function UserManagementPanel() {
