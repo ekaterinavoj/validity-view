@@ -953,6 +953,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          must_change_password: boolean
           position: string | null
           updated_at: string
         }
@@ -967,6 +968,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          must_change_password?: boolean
           position?: string | null
           updated_at?: string
         }
@@ -981,6 +983,7 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          must_change_password?: boolean
           position?: string | null
           updated_at?: string
         }

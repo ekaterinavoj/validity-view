@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Clock, AlertTriangle, LogOut, ShieldX } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children, requiredRoles, requiredModule }: ProtectedRouteProps) => {
+  const location = useLocation();
   const {
     user,
     loading,
@@ -79,6 +80,11 @@ export const ProtectedRoute = ({ children, requiredRoles, requiredModule }: Prot
         </Card>
       </div>
     );
+  }
+
+  // Force password change if flagged by admin
+  if (profile?.must_change_password && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" replace />;
   }
 
   // If we have requiredRoles but roles haven't loaded yet, show loader
