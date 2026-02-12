@@ -4,13 +4,13 @@ import { Loader2 } from "lucide-react";
 
 /**
  * Redirects to the first accessible module for the current user.
- * Falls back to /trainings if user is admin or has no module access configured.
+ * Falls back to /no-access only if user truly has zero module access.
  */
 export const ModuleRedirect = () => {
-  const { loading, rolesLoaded, hasModuleAccess, isAdmin } = useAuth();
+  const { loading, rolesLoaded, moduleAccessLoaded, hasModuleAccess, isAdmin } = useAuth();
 
-  // Wait for auth and roles to load
-  if (loading || !rolesLoaded) {
+  // Wait for auth, roles AND module access to fully load
+  if (loading || !rolesLoaded || !moduleAccessLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
