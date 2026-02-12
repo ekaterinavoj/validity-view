@@ -57,7 +57,7 @@ interface Recipient {
 }
 
 interface ReminderSchedule {
-  enabled: boolean;
+  day_of_week: number;
   skip_weekends: boolean;
 }
 
@@ -96,7 +96,7 @@ export function ReminderDryRunPreview() {
   const [trainings, setTrainings] = useState<TrainingItem[]>([]);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [reminderSchedule, setReminderSchedule] = useState<ReminderSchedule>({ enabled: true, skip_weekends: true });
+  const [reminderSchedule, setReminderSchedule] = useState<ReminderSchedule>({ day_of_week: 1, skip_weekends: true });
   const [reminderFrequency, setReminderFrequency] = useState<ReminderFrequency>({ type: "weekly", interval_days: 7, start_time: "08:00", timezone: "Europe/Prague", enabled: true });
   const [reminderRecipients, setReminderRecipients] = useState<ReminderRecipients>({ user_ids: [], delivery_mode: "bcc" });
   const [emailTemplate, setEmailTemplate] = useState({ subject: "", body: "" });
@@ -117,7 +117,7 @@ export function ReminderDryRunPreview() {
         settingsMap[s.key] = s.value;
       });
 
-      const schedule: ReminderSchedule = settingsMap.reminder_schedule || { enabled: true, skip_weekends: true };
+      const schedule: ReminderSchedule = settingsMap.reminder_schedule || { day_of_week: 1, skip_weekends: true };
       const frequency: ReminderFrequency = settingsMap.reminder_frequency || { type: "weekly", interval_days: 7, start_time: "08:00", timezone: "Europe/Prague", enabled: true };
       const recipientSettings: ReminderRecipients = settingsMap.reminder_recipients || { user_ids: [], delivery_mode: "bcc" };
       const template = settingsMap.email_template || { subject: "Souhrn školení k obnovení - {reportDate}", body: "" };
