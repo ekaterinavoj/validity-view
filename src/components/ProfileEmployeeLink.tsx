@@ -46,6 +46,11 @@ export function ProfileEmployeeLink({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Sync selectedEmployeeId when currentEmployeeId prop changes
+  useEffect(() => {
+    setSelectedEmployeeId(currentEmployeeId || "");
+  }, [currentEmployeeId]);
+
   useEffect(() => {
     loadEmployeesAndLinks();
   }, []);
@@ -99,13 +104,27 @@ export function ProfileEmployeeLink({
         .update({ employee_id: selectedEmployeeId })
         .eq("id", profileId);
 
-      if (error) throw error;
+      if (error) {
+        // Detect unique constraint violation
+        if (error.code === "23505" || error.message?.includes("profiles_employee_id_unique")) {
+          toast({
+            title: "Zaměstnanec již přiřazen",
+            description: "Tento zaměstnanec je již přiřazen jinému uživatelskému účtu.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       toast({
         title: "Propojení uloženo",
         description: "Uživatel byl propojen se zaměstnancem.",
       });
 
+      // Refresh linked list to reflect changes
+      await loadEmployeesAndLinks();
       onLinkChanged?.();
     } catch (error: any) {
       toast({
@@ -135,6 +154,8 @@ export function ProfileEmployeeLink({
         description: "Uživatel již není propojen se zaměstnancem.",
       });
 
+      // Refresh linked list to reflect changes
+      await loadEmployeesAndLinks();
       onLinkChanged?.();
     } catch (error: any) {
       toast({
@@ -168,7 +189,7 @@ export function ProfileEmployeeLink({
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Tento uživatel vidí pouze své záznamy</p>
+                <p>Manažer/uživatel vidí pouze záznamy svého podstromu zaměstnanců</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -197,7 +218,7 @@ export function ProfileEmployeeLink({
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Bez propojení uživatel nevidí žádné záznamy (kromě admina)</p>
+                <p>Bez propojení manažer/uživatel nevidí žádné záznamy. Admin vidí vše i bez propojení.</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
