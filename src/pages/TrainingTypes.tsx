@@ -276,9 +276,9 @@ export default function TrainingTypes() {
                         </FormControl>
                         <SelectContent>
                           {facilitiesLoading ? (
-                            <SelectItem value="" disabled>Načítání...</SelectItem>
+                            <SelectItem value="__loading" disabled>Načítání...</SelectItem>
                           ) : facilities.length === 0 ? (
-                            <SelectItem value="" disabled>Žádné provozovny</SelectItem>
+                            <SelectItem value="__empty" disabled>Žádné provozovny</SelectItem>
                           ) : (
                             facilities.map((facility) => (
                               <SelectItem key={facility.id} value={facility.code}>
