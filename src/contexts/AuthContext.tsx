@@ -331,21 +331,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
+    } catch (error: any) {
+      // Session may already be expired on server (403) — that's fine, clear local state anyway
+      console.warn("Sign out error (ignored):", error.message);
+    } finally {
+      // ALWAYS clear local state, even if server-side logout failed
+      setUser(null);
+      setSession(null);
       setProfile(null);
       setRoles([]);
       setModuleAccess([]);
       setProfileError(null);
       setProfileLoaded(true);
       setRolesLoaded(true);
+      setModuleAccessLoaded(true);
       toast({
         title: "Odhlášení úspěšné",
         description: "Byli jste úspěšně odhlášeni.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Chyba při odhlášení",
-        description: error.message,
-        variant: "destructive",
       });
     }
   };
