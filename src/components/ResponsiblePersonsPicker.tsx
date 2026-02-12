@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Plus, User, Users } from "lucide-react";
+import { X, Plus, User, Users, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -43,7 +43,7 @@ export function ResponsiblePersonsPicker({
   // Fetch profiles based on role:
   // - Admins see all approved profiles
   // - Managers see only themselves and their subordinates
-  const { data: availableProfiles = [] } = useQuery({
+  const { data: availableProfiles = [], isLoading: isLoadingProfiles } = useQuery({
     queryKey: ["available-profiles-for-picker", user?.id, isAdmin, isManager],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -62,7 +62,6 @@ export function ResponsiblePersonsPicker({
 
       // Managers see only themselves + their subordinates
       if (isManager) {
-        // First, get the manager's employee_id from their profile
         const { data: managerProfile, error: profileError } = await supabase
           .from("profiles")
           .select("employee_id")
@@ -71,7 +70,6 @@ export function ResponsiblePersonsPicker({
 
         if (profileError) throw profileError;
 
-        // Get manager's own profile first
         const { data: ownProfile, error: ownError } = await supabase
           .from("profiles")
           .select("id, first_name, last_name, email")
@@ -83,9 +81,7 @@ export function ResponsiblePersonsPicker({
 
         const profiles: ProfileOption[] = ownProfile ? [ownProfile] : [];
 
-        // If manager has an employee_id, fetch subordinates
         if (managerProfile?.employee_id) {
-          // Get subordinate employee IDs using the database function
           const { data: subordinateIds, error: subError } = await supabase
             .rpc("get_subordinate_employee_ids", { 
               root_employee_id: managerProfile.employee_id 
@@ -94,13 +90,11 @@ export function ResponsiblePersonsPicker({
           if (subError) throw subError;
 
           if (subordinateIds && subordinateIds.length > 0) {
-            // Get employee IDs (excluding the manager themselves)
             const employeeIds = subordinateIds
               .map((s: { employee_id: string }) => s.employee_id)
               .filter((id: string) => id !== managerProfile.employee_id);
 
             if (employeeIds.length > 0) {
-              // Get profiles linked to these employees
               const { data: subordinateProfiles, error: subProfileError } = await supabase
                 .from("profiles")
                 .select("id, first_name, last_name, email")
@@ -131,7 +125,27 @@ export function ResponsiblePersonsPicker({
       return data as ProfileOption[];
     },
     enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 min – hierarchy changes are infrequent
+    refetchOnWindowFocus: true, // refresh when user returns to the tab
   });
+
+  // Check if manager is missing employee_id link
+  const { data: managerEmployeeId } = useQuery({
+    queryKey: ["manager-employee-link", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from("profiles")
+        .select("employee_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      return data?.employee_id ?? null;
+    },
+    enabled: !!user?.id && isManager && !isAdmin,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const showManagerHint = isManager && !isAdmin && managerEmployeeId === null && !isLoadingProfiles;
 
   // Get selected profiles with full data
   const selectedProfiles = availableProfiles.filter((p) =>
@@ -144,7 +158,9 @@ export function ResponsiblePersonsPicker({
   );
 
   const handleAddPerson = (profile: ProfileOption) => {
-    onSelectionChange([...selectedIds, profile.id]);
+    // Deduplicate using Set
+    const uniqueIds = [...new Set([...selectedIds, profile.id])];
+    onSelectionChange(uniqueIds);
     setOpen(false);
   };
 
@@ -154,6 +170,15 @@ export function ResponsiblePersonsPicker({
 
   return (
     <div className="space-y-4">
+      {showManagerHint && (
+        <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-200">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>
+            Váš profil není propojen se záznamem zaměstnance. Podřízené osoby nelze načíst.
+            Požádejte administrátora o propojení vašeho účtu.
+          </span>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-muted-foreground" />
