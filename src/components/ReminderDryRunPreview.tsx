@@ -184,6 +184,7 @@ export function ReminderDryRunPreview() {
           training_types (name)
         `)
         .eq("is_active", true)
+        .is("deleted_at", null)
         .lte("next_training_date", targetDateStr);
 
       if (error) {
