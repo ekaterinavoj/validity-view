@@ -405,13 +405,15 @@ const Profile = () => {
     }
   };
   const getRoleBadge = (roles: string[]) => {
-    if (roles.includes("admin")) {
-      return <Badge variant="destructive">Admin</Badge>;
-    }
-    if (roles.includes("manager")) {
-      return <Badge variant="default">Manager</Badge>;
-    }
-    return <Badge variant="secondary">Uživatel</Badge>;
+    const roleColors: Record<string, string> = {
+      admin: "bg-role-admin/20 text-role-admin-foreground dark:text-role-admin",
+      manager: "bg-role-manager/20 text-role-manager-foreground dark:text-role-manager",
+      user: "bg-role-user/20 text-role-user-foreground dark:text-role-user",
+      viewer: "bg-role-viewer/20 text-role-viewer-foreground dark:text-role-viewer",
+    };
+    const roleLabels: Record<string, string> = { admin: "Admin", manager: "Manager", user: "Uživatel", viewer: "Čtenář" };
+    const primary = roles.includes("admin") ? "admin" : roles.includes("manager") ? "manager" : "user";
+    return <Badge className={roleColors[primary]}>{roleLabels[primary]}</Badge>;
   };
   const getRoleValue = (roles: string[]) => {
     if (roles.includes("admin")) return "admin";

@@ -3,18 +3,41 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shield, UserPlus, Lock, CheckCircle, Users, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-interface UserWithRole {
+const roleColors: Record<string, string> = {
+  admin: "bg-role-admin/20 text-role-admin-foreground dark:text-role-admin",
+  manager: "bg-role-manager/20 text-role-manager-foreground dark:text-role-manager",
+  user: "bg-role-user/20 text-role-user-foreground dark:text-role-user",
+  viewer: "bg-role-viewer/20 text-role-viewer-foreground dark:text-role-viewer",
+};
+
+const roleLabels: Record<string, string> = {
+  admin: "Administrátor",
+  manager: "Manažer",
+  user: "Uživatel",
+  viewer: "Čtenář",
+};
+
+const rolePriority: Record<string, number> = {
+  admin: 0,
+  manager: 1,
+  user: 2,
+  viewer: 3,
+};
+
+interface UserWithRoles {
   id: string;
   email: string;
   first_name: string;
   last_name: string;
-  role: string;
+  roles: string[];
 }
 
 export function OnboardingSettings() {
-  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadUsers();
@@ -23,28 +46,47 @@ export function OnboardingSettings() {
   const loadUsers = async () => {
     setUsersLoading(true);
     try {
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, email, first_name, last_name");
-      
-      const { data: roles } = await supabase
+
+      if (profilesError) throw profilesError;
+
+      const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
-      
-      const usersWithRoles = profiles?.map(profile => {
-        const userRole = roles?.find(r => r.user_id === profile.id);
-        return {
-          id: profile.id,
-          email: profile.email,
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          role: userRole?.role || "user",
-        };
-      }) || [];
-      
+
+      if (rolesError) throw rolesError;
+
+      // O(n) join via Map
+      const rolesMap = new Map<string, string[]>();
+      for (const r of roles || []) {
+        const existing = rolesMap.get(r.user_id);
+        if (existing) {
+          existing.push(r.role);
+        } else {
+          rolesMap.set(r.user_id, [r.role]);
+        }
+      }
+
+      const usersWithRoles: UserWithRoles[] = (profiles || []).map(profile => ({
+        id: profile.id,
+        email: profile.email,
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        roles: (rolesMap.get(profile.id) || ["user"]).sort(
+          (a, b) => (rolePriority[a] ?? 99) - (rolePriority[b] ?? 99)
+        ),
+      }));
+
       setUsers(usersWithRoles);
     } catch (error) {
       console.error("Error loading users:", error);
+      toast({
+        title: "Chyba při načítání uživatelů",
+        description: "Nepodařilo se načíst seznam uživatelů. Zkuste obnovit stránku.",
+        variant: "destructive",
+      });
     } finally {
       setUsersLoading(false);
     }
@@ -133,9 +175,13 @@ export function OnboardingSettings() {
                     </p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                   </div>
-                  <Badge variant={user.role === "admin" ? "destructive" : user.role === "manager" ? "default" : "secondary"}>
-                    {user.role === "admin" ? "Administrátor" : user.role === "manager" ? "Manažer" : "Uživatel"}
-                  </Badge>
+                  <div className="flex gap-1.5">
+                    {user.roles.map((role) => (
+                      <Badge key={role} className={roleColors[role] || roleColors.user}>
+                        {roleLabels[role] || role}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               ))}
               
@@ -164,7 +210,7 @@ export function OnboardingSettings() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="p-4 border rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <Badge className="bg-destructive">Administrátor</Badge>
+                <Badge className={roleColors.admin}>Administrátor</Badge>
               </div>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Plný přístup ke všem datům</li>
@@ -177,7 +223,7 @@ export function OnboardingSettings() {
             
             <div className="p-4 border rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <Badge className="bg-primary">Manažer</Badge>
+                <Badge className={roleColors.manager}>Manažer</Badge>
               </div>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Vidí svá data a data podřízených</li>
@@ -190,7 +236,7 @@ export function OnboardingSettings() {
             
             <div className="p-4 border rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <Badge className="bg-secondary text-secondary-foreground">Uživatel</Badge>
+                <Badge className={roleColors.user}>Uživatel</Badge>
               </div>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Vidí pouze svá vlastní data</li>
