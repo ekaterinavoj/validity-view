@@ -52,12 +52,23 @@ export function PendingUsersPanel() {
 
       if (profilesError) throw profilesError;
 
-      // Get roles for these users
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
+      // Get roles only for pending users
+      const pendingIds = profiles?.map(p => p.id) || [];
+      const { data: roles, error: rolesError } = pendingIds.length > 0
+        ? await supabase
+            .from('user_roles')
+            .select('user_id, role')
+            .in('user_id', pendingIds)
+        : { data: [] as { user_id: string; role: string }[], error: null };
 
       if (rolesError) throw rolesError;
+
+      const rolesByUser = new Map<string, string[]>();
+      roles?.forEach(r => {
+        const existing = rolesByUser.get(r.user_id) || [];
+        existing.push(r.role);
+        rolesByUser.set(r.user_id, existing);
+      });
 
       const usersWithRoles = profiles?.map(profile => ({
         id: profile.id,
@@ -67,7 +78,7 @@ export function PendingUsersPanel() {
         position: profile.position,
         approval_status: profile.approval_status,
         created_at: profile.created_at,
-        has_role: roles?.some(r => r.user_id === profile.id) || false,
+        has_role: (rolesByUser.get(profile.id)?.length || 0) > 0,
       })) || [];
 
       setPendingUsers(usersWithRoles);
@@ -106,33 +117,21 @@ export function PendingUsersPanel() {
 
       if (updateError) throw updateError;
 
-      // Check if user already has a role
-      const { data: existingRole } = await supabase
+      // Remove any existing roles first, then insert the selected one
+      await supabase
         .from('user_roles')
-        .select('id')
-        .eq('user_id', pendingUser.id)
-        .maybeSingle();
+        .delete()
+        .eq('user_id', pendingUser.id);
 
-      if (existingRole) {
-        // Update existing role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .update({ role: roleToAssign as "admin" | "manager" | "user" })
-          .eq('user_id', pendingUser.id);
-        
-        if (roleError) throw roleError;
-      } else {
-        // Insert new role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: pendingUser.id,
-            role: roleToAssign as "admin" | "manager" | "user",
-            created_by: user?.id,
-          });
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: pendingUser.id,
+          role: roleToAssign as "admin" | "manager" | "user" | "viewer",
+          created_by: user?.id,
+        });
 
-        if (roleError) throw roleError;
-      }
+      if (roleError) throw roleError;
 
       toast({
         title: "Uživatel schválen",
@@ -198,6 +197,7 @@ export function PendingUsersPanel() {
     admin: 'Administrátor',
     manager: 'Manažer',
     user: 'Uživatel',
+    viewer: 'Prohlížeč',
   };
 
   if (loading) {
@@ -270,6 +270,7 @@ export function PendingUsersPanel() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="viewer">Prohlížeč</SelectItem>
                         <SelectItem value="user">Uživatel</SelectItem>
                         <SelectItem value="manager">Manažer</SelectItem>
                         <SelectItem value="admin">Administrátor</SelectItem>
