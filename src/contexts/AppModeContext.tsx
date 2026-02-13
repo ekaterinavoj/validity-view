@@ -14,7 +14,7 @@ const AppModeContext = createContext<AppModeContextType | undefined>(undefined);
 export function AppModeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<AppMode>(() => {
     const saved = localStorage.getItem("app-mode");
-    return (saved as AppMode) || "trainings";
+    return saved === "trainings" || saved === "deadlines" ? saved : "trainings";
   });
 
   const handleSetMode = (newMode: AppMode) => {

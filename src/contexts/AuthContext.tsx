@@ -250,6 +250,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setProfileError(error instanceof Error ? error.message : "Neznámá chyba");
           setProfileLoaded(true);
           setRolesLoaded(true);
+          setModuleAccessLoaded(true);
           setLoading(false);
         }
       });
