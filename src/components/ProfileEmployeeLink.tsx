@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ export function ProfileEmployeeLink({
   onLinkChanged,
 }: ProfileEmployeeLinkProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [linkedEmployees, setLinkedEmployees] = useState<Set<string>>(new Set());
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(
@@ -123,7 +125,13 @@ export function ProfileEmployeeLink({
         description: "Uživatel byl propojen se zaměstnancem.",
       });
 
-      // Refresh linked list to reflect changes
+      // Invalidate react-query cache and refresh linked list
+      await queryClient.invalidateQueries({
+        queryKey: ["available-profiles-for-picker"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["manager-employee-link"],
+      });
       await loadEmployeesAndLinks();
       onLinkChanged?.();
     } catch (error: any) {
@@ -154,7 +162,13 @@ export function ProfileEmployeeLink({
         description: "Uživatel již není propojen se zaměstnancem.",
       });
 
-      // Refresh linked list to reflect changes
+      // Invalidate react-query cache and refresh linked list
+      await queryClient.invalidateQueries({
+        queryKey: ["available-profiles-for-picker"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["manager-employee-link"],
+      });
       await loadEmployeesAndLinks();
       onLinkChanged?.();
     } catch (error: any) {
