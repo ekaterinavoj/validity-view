@@ -225,11 +225,36 @@ const handler = async (req: Request): Promise<Response> => {
   const authHeader = req.headers.get("authorization");
   
   const isCronRequest = cronSecret && envCronSecret && cronSecret === envCronSecret;
-  const isAuthenticatedRequest = authHeader?.startsWith("Bearer ");
+  let isAuthorizedAdmin = false;
+
+  if (!isCronRequest && authHeader?.startsWith("Bearer ")) {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData } = await userSupabase.auth.getUser(token);
+
+    if (userData?.user) {
+      const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: roles } = await serviceSupabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userData.user.id)
+        .eq("role", "admin")
+        .limit(1);
+
+      isAuthorizedAdmin = !!(roles && roles.length > 0);
+    }
+  }
   
-  if (!isCronRequest && !isAuthenticatedRequest) {
+  if (!isCronRequest && !isAuthorizedAdmin) {
     return new Response(
-      JSON.stringify({ error: "Unauthorized" }),
+      JSON.stringify({ error: "Unauthorized - Admin access or CRON secret required" }),
       { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
