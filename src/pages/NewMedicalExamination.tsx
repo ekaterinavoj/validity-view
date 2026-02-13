@@ -115,7 +115,7 @@ export default function NewMedicalExamination() {
     setIsSubmitting(true);
 
     try {
-      const nextExaminationDate = expirationDate ? format(expirationDate, "yyyy-MM-dd") : null;
+      const nextExaminationDate = expirationDate ? format(expirationDate, "yyyy-MM-dd") : format(data.lastExaminationDate, "yyyy-MM-dd");
 
       let status = "valid";
       if (nextExaminationDate) {
@@ -131,24 +131,24 @@ export default function NewMedicalExamination() {
 
       const { data: newExamination, error: insertError } = await supabase
         .from("medical_examinations")
-        .insert({
+        .insert([{
           facility: data.facility,
           employee_id: data.employeeId,
           examination_type_id: data.examinationTypeId,
           last_examination_date: format(data.lastExaminationDate, "yyyy-MM-dd"),
           next_examination_date: nextExaminationDate,
-          doctor: data.doctor || null,
-          medical_facility: data.medicalFacility || null,
-          result: data.result || null,
-          reminder_template_id: data.reminderTemplateId,
+          doctor: data.doctor || undefined,
+          medical_facility: data.medicalFacility || undefined,
+          result: data.result || undefined,
+          reminder_template_id: data.reminderTemplateId || undefined,
           remind_days_before: parseInt(data.remindDaysBefore) || 30,
           repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
-          note: data.note || null,
+          note: data.note || undefined,
           status,
           is_active: true,
           created_by: user.id,
-          requester: profile ? `${profile.first_name} ${profile.last_name}` : null,
-        })
+          requester: profile ? `${profile.first_name} ${profile.last_name}` : undefined,
+        }])
         .select()
         .single();
 

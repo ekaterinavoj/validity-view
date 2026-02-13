@@ -132,7 +132,7 @@ export default function NewTraining() {
     setIsSubmitting(true);
     
     try {
-      const nextTrainingDate = expirationDate ? format(expirationDate, "yyyy-MM-dd") : null;
+      const nextTrainingDate = expirationDate ? format(expirationDate, "yyyy-MM-dd") : format(data.lastTrainingDate, "yyyy-MM-dd");
       
       // Calculate status based on next_training_date
       let status = "valid";
@@ -150,23 +150,23 @@ export default function NewTraining() {
       // Insert training into database
       const { data: newTraining, error: insertError } = await supabase
         .from("trainings")
-        .insert({
+        .insert([{
           facility: data.facility,
           employee_id: data.employeeId,
           training_type_id: data.trainingTypeId,
           last_training_date: format(data.lastTrainingDate, "yyyy-MM-dd"),
           next_training_date: nextTrainingDate,
-          trainer: data.trainer || null,
-          company: data.company || null,
-          reminder_template_id: data.reminderTemplateId,
+          trainer: data.trainer || undefined,
+          company: data.company || undefined,
+          reminder_template_id: data.reminderTemplateId || undefined,
           remind_days_before: parseInt(data.remindDaysBefore) || 30,
           repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
-          note: data.note || null,
+          note: data.note || undefined,
           status,
           is_active: true,
           created_by: user.id,
-          requester: profile ? `${profile.first_name} ${profile.last_name}` : null,
-        })
+          requester: profile ? `${profile.first_name} ${profile.last_name}` : undefined,
+        }])
         .select()
         .single();
 
