@@ -247,37 +247,41 @@ export function FilePreviewDialog({
     const loadUrls = async () => {
       setLoading(true);
       setError(null);
-      const newUrls = new Map<string, string>();
 
-      for (const f of allFiles) {
-        const fileKey = f.name + (f.url || "");
-        
-        // Handle local File objects
-        if ((f as any).localFile) {
-          const url = URL.createObjectURL((f as any).localFile);
-          newUrls.set(fileKey, url);
-          continue;
-        }
+      // Load all URLs in parallel using Promise.all
+      const entries = await Promise.all(
+        allFiles.map(async (f): Promise<[string, string] | null> => {
+          const fileKey = f.name + (f.url || "");
 
-        const remoteUrl = f.url;
-        if (!remoteUrl) continue;
-
-        const isPDF = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
-
-        if (isPDF) {
-          try {
-            const res = await fetch(remoteUrl);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            newUrls.set(fileKey, blobUrl);
-          } catch (e) {
-            // Fallback to direct URL
-            newUrls.set(fileKey, remoteUrl);
+          // Handle local File objects
+          if ((f as any).localFile) {
+            return [fileKey, URL.createObjectURL((f as any).localFile)];
           }
-        } else {
-          newUrls.set(fileKey, remoteUrl);
-        }
+
+          const remoteUrl = f.url;
+          if (!remoteUrl) return null;
+
+          const isPDF = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+
+          if (isPDF) {
+            try {
+              const res = await fetch(remoteUrl);
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const blob = await res.blob();
+              return [fileKey, URL.createObjectURL(blob)];
+            } catch {
+              // Fallback to direct URL
+              return [fileKey, remoteUrl];
+            }
+          }
+
+          return [fileKey, remoteUrl];
+        })
+      );
+
+      const newUrls = new Map<string, string>();
+      for (const entry of entries) {
+        if (entry) newUrls.set(entry[0], entry[1]);
       }
 
       setLoadedUrls(newUrls);

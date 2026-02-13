@@ -23,10 +23,13 @@ export function WorkCategoryBadge({ category }: WorkCategoryBadgeProps) {
     return <span className="text-muted-foreground">-</span>;
   }
 
+  const colorClass = categoryColors[category] ?? "bg-muted text-muted-foreground border-border";
+  const label = categoryLabels[category] ?? `Kategorie ${category}`;
+
   return (
     <Badge 
-      className={categoryColors[category]} 
-      title={categoryLabels[category]}
+      className={colorClass} 
+      title={label}
     >
       {category}
     </Badge>
