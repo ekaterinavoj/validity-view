@@ -23,7 +23,10 @@ const statusConfig = {
 };
 
 export const StatusBadge = ({ status, className }: StatusBadgeProps) => {
-  const config = statusConfig[status];
+  const config = statusConfig[status] ?? {
+    label: status || "—",
+    className: "bg-muted text-muted-foreground",
+  };
   
   return (
     <div className={cn("inline-flex items-center gap-2", className)}>

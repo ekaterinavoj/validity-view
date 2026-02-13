@@ -30,7 +30,10 @@ const statusConfig: Record<EmployeeStatus, { label: string; className: string }>
 };
 
 export const EmployeeStatusBadge = ({ status, statusStartDate, className }: EmployeeStatusBadgeProps) => {
-  const config = statusConfig[status];
+  const config = statusConfig[status] ?? {
+    label: status || "—",
+    className: "bg-muted text-muted-foreground",
+  };
   
   // Format date if available and status is not "employed"
   const formattedDate = statusStartDate && status !== "employed"
