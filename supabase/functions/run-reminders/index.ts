@@ -1135,6 +1135,7 @@ const handler = async (req: Request): Promise<Response> => {
         max_attempts: 3,
         attempt_errors: result.attemptErrors.length > 0 ? result.attemptErrors : null,
         final_status: result.success ? "sent" : "failed",
+        run_id: runId,
       });
       
       return { success: result.success, error: result.error };

@@ -19,7 +19,6 @@ import {
   Mail,
   User,
   GraduationCap,
-  Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -28,14 +27,15 @@ interface ReminderLogDetail {
   id: string;
   training_id: string | null;
   template_name: string;
-  recipient_emails: string[];
+  recipient_emails: string[] | null;
   email_subject: string;
   email_body: string;
-  sent_at: string;
+  sent_at: string | null;
   status: string;
   error_message: string | null;
   is_test: boolean;
   provider_used: string | null;
+  run_id: string | null;
   trainings: {
     id: string;
     employees: {
@@ -67,8 +67,9 @@ export function RunDetailLogs({ runId, weekStart, isTest }: RunDetailLogsProps) 
     try {
       setLoading(true);
       
-      // Query logs for this run's week_start and is_test status
-      const { data, error } = await supabase
+      // Primary: filter by run_id for exact correlation
+      // Fallback: use week_start + is_test for legacy logs without run_id
+      let query = supabase
         .from("reminder_logs")
         .select(`
           id,
@@ -82,15 +83,30 @@ export function RunDetailLogs({ runId, weekStart, isTest }: RunDetailLogsProps) 
           error_message,
           is_test,
           provider_used,
+          run_id,
           trainings (
             id,
             employees (first_name, last_name),
             training_types (name)
           )
         `)
-        .eq("week_start", weekStart)
-        .eq("is_test", isTest)
-        .order("sent_at", { ascending: false });
+        .order("sent_at", { ascending: false })
+        .limit(500);
+
+      // Try run_id first, fallback to week_start+is_test for old data
+      const { data: runIdData } = await supabase
+        .from("reminder_logs")
+        .select("id")
+        .eq("run_id", runId)
+        .limit(1);
+
+      if (runIdData && runIdData.length > 0) {
+        query = query.eq("run_id", runId);
+      } else {
+        query = query.eq("week_start", weekStart).eq("is_test", isTest);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setLogs(data || []);
@@ -139,73 +155,78 @@ export function RunDetailLogs({ runId, weekStart, isTest }: RunDetailLogsProps) 
           </TableRow>
         </TableHeader>
         <TableBody>
-          {logs.map((log) => (
-            <TableRow key={log.id}>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  {log.is_test && (
-                    <FlaskConical className="w-3 h-3 text-muted-foreground" />
-                  )}
-                  {log.status === "sent" || log.status === "simulated" ? (
-                    <CheckCircle2 className="w-4 h-4 text-primary" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-destructive" />
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <User className="w-3 h-3 text-muted-foreground" />
-                  {log.trainings?.employees ? (
-                    <span className="font-medium">
-                      {log.trainings.employees.first_name} {log.trainings.employees.last_name}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="w-3 h-3 text-muted-foreground" />
-                  {log.trainings?.training_types ? (
-                    <span>{log.trainings.training_types.name}</span>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1 max-w-[200px]">
-                  {log.recipient_emails.slice(0, 2).map((email, idx) => (
-                    <Badge key={idx} variant="secondary" className="text-xs truncate max-w-[150px]">
-                      {email}
-                    </Badge>
-                  ))}
-                  {log.recipient_emails.length > 2 && (
+          {logs.map((log) => {
+            const emails = log.recipient_emails ?? [];
+            return (
+              <TableRow key={log.id}>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    {log.is_test && (
+                      <FlaskConical className="w-3 h-3 text-muted-foreground" />
+                    )}
+                    {log.status === "sent" || log.status === "simulated" ? (
+                      <CheckCircle2 className="w-4 h-4 text-primary" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-destructive" />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <User className="w-3 h-3 text-muted-foreground" />
+                    {log.trainings?.employees ? (
+                      <span className="font-medium">
+                        {log.trainings.employees.first_name} {log.trainings.employees.last_name}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="w-3 h-3 text-muted-foreground" />
+                    {log.trainings?.training_types ? (
+                      <span>{log.trainings.training_types.name}</span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1 max-w-[200px]">
+                    {emails.slice(0, 2).map((email, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs truncate max-w-[150px]">
+                        {email}
+                      </Badge>
+                    ))}
+                    {emails.length > 2 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{emails.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {log.provider_used ? (
                     <Badge variant="outline" className="text-xs">
-                      +{log.recipient_emails.length - 2}
+                      {log.provider_used}
                     </Badge>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">—</span>
                   )}
-                </div>
-              </TableCell>
-              <TableCell>
-                {log.provider_used ? (
-                  <Badge variant="outline" className="text-xs">
-                    {log.provider_used}
-                  </Badge>
-                ) : (
-                  <span className="text-muted-foreground text-xs">—</span>
-                )}
-              </TableCell>
-              <TableCell className="text-right text-sm text-muted-foreground">
-                {format(new Date(log.sent_at), "HH:mm:ss", { locale: cs })}
-              </TableCell>
-              <TableCell>
-                <EmailPreviewDialog log={log} />
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell className="text-right text-sm text-muted-foreground">
+                  {log.sent_at
+                    ? format(new Date(log.sent_at), "HH:mm:ss", { locale: cs })
+                    : "—"}
+                </TableCell>
+                <TableCell>
+                  <EmailPreviewDialog log={{ ...log, recipient_emails: log.recipient_emails ?? [], sent_at: log.sent_at ?? "" }} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
       
@@ -214,16 +235,19 @@ export function RunDetailLogs({ runId, weekStart, isTest }: RunDetailLogsProps) 
         <div className="border-t p-4 bg-destructive/5">
           <p className="text-sm font-medium text-destructive mb-2">Chyby:</p>
           <div className="space-y-2">
-            {logs.filter(l => l.error_message).map(log => (
-              <div key={log.id} className="text-xs text-destructive">
-                <span className="font-medium">
-                  {log.trainings?.employees 
-                    ? `${log.trainings.employees.first_name} ${log.trainings.employees.last_name}` 
-                    : log.recipient_emails[0]}:
-                </span>{" "}
-                {log.error_message}
-              </div>
-            ))}
+            {logs.filter(l => l.error_message).map(log => {
+              const emails = log.recipient_emails ?? [];
+              return (
+                <div key={log.id} className="text-xs text-destructive">
+                  <span className="font-medium">
+                    {log.trainings?.employees 
+                      ? `${log.trainings.employees.first_name} ${log.trainings.employees.last_name}` 
+                      : emails[0] ?? "Neznámý příjemce"}:
+                  </span>{" "}
+                  {log.error_message}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

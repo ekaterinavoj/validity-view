@@ -1022,6 +1022,7 @@ export type Database = {
           provider_used: string | null
           recipient_emails: string[]
           resent_from_log_id: string | null
+          run_id: string | null
           sent_at: string
           status: string
           template_id: string | null
@@ -1046,6 +1047,7 @@ export type Database = {
           provider_used?: string | null
           recipient_emails: string[]
           resent_from_log_id?: string | null
+          run_id?: string | null
           sent_at?: string
           status?: string
           template_id?: string | null
@@ -1070,6 +1072,7 @@ export type Database = {
           provider_used?: string | null
           recipient_emails?: string[]
           resent_from_log_id?: string | null
+          run_id?: string | null
           sent_at?: string
           status?: string
           template_id?: string | null
@@ -1083,6 +1086,13 @@ export type Database = {
             columns: ["resent_from_log_id"]
             isOneToOne: false
             referencedRelation: "reminder_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_logs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "reminder_runs"
             referencedColumns: ["id"]
           },
           {
