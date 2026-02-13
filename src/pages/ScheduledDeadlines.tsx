@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useDeadlines } from "@/hooks/useDeadlines";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useAllEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
+import { useDeadlineResponsiblesBatch } from "@/hooks/useDeadlineResponsibles";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
@@ -50,6 +51,12 @@ export default function ScheduledDeadlines() {
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [archiveLoading, setArchiveLoading] = useState(false);
+
+  // Batch load all responsibles for visible deadlines
+  const filteredDeadlineIds = useMemo(() => {
+    return deadlines.filter(d => d.is_active).map(d => d.id);
+  }, [deadlines]);
+  const { data: responsiblesMap } = useDeadlineResponsiblesBatch(filteredDeadlineIds);
 
   // Create filter options
   const facilityList = useMemo(() => 
@@ -326,7 +333,10 @@ export default function ScheduledDeadlines() {
                     </TableCell>
                     <TableCell>{deadline.performer || "-"}</TableCell>
                     <TableCell>
-                      <DeadlineResponsiblesBadges deadlineId={deadline.id} />
+                      <DeadlineResponsiblesBadges 
+                        deadlineId={deadline.id} 
+                        responsibles={responsiblesMap?.get(deadline.id) ?? []}
+                      />
                     </TableCell>
                     <TableCell>
                       <DeadlineProtocolCell deadlineId={deadline.id} />

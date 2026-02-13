@@ -216,18 +216,11 @@ export function UserManagementPanel() {
     const isChangingOwnRole = userId === profile?.id;
 
     try {
-      const { error: deleteError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
-
-      if (deleteError) throw deleteError;
-
-      const { error } = await supabase.from("user_roles").insert([{
-        user_id: userId,
-        role: newRole as "admin" | "manager" | "user",
-        created_by: profile?.id,
-      }]);
+      // Atomic role change via RPC - delete+insert in single transaction
+      const { error } = await supabase.rpc("set_user_role", {
+        _target_user_id: userId,
+        _new_role: newRole as "admin" | "manager" | "user",
+      });
 
       if (error) throw error;
 
