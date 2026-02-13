@@ -1589,6 +1589,13 @@ export type Database = {
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
       resolve_manager_from_email: { Args: never; Returns: number }
+      set_user_role: {
+        Args: {
+          _new_role: Database["public"]["Enums"]["app_role"]
+          _target_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "manager" | "user" | "viewer"

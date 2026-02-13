@@ -244,6 +244,8 @@ export function FilePreviewDialog({
   useEffect(() => {
     if (!open || allFiles.length === 0) return;
 
+    let blobUrls: string[] = [];
+
     const loadUrls = async () => {
       setLoading(true);
       setError(null);
@@ -255,7 +257,9 @@ export function FilePreviewDialog({
 
           // Handle local File objects
           if ((f as any).localFile) {
-            return [fileKey, URL.createObjectURL((f as any).localFile)];
+            const objUrl = URL.createObjectURL((f as any).localFile);
+            blobUrls.push(objUrl);
+            return [fileKey, objUrl];
           }
 
           const remoteUrl = f.url;
@@ -268,7 +272,9 @@ export function FilePreviewDialog({
               const res = await fetch(remoteUrl);
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
               const blob = await res.blob();
-              return [fileKey, URL.createObjectURL(blob)];
+              const objUrl = URL.createObjectURL(blob);
+              blobUrls.push(objUrl);
+              return [fileKey, objUrl];
             } catch {
               // Fallback to direct URL
               return [fileKey, remoteUrl];
@@ -291,12 +297,8 @@ export function FilePreviewDialog({
     loadUrls();
 
     return () => {
-      // Cleanup blob URLs
-      loadedUrls.forEach((url) => {
-        if (url.startsWith("blob:")) {
-          URL.revokeObjectURL(url);
-        }
-      });
+      // Cleanup blob URLs using the closure reference (not stale state)
+      blobUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [open, allFiles]);
 

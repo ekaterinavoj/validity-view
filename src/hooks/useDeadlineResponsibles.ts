@@ -204,11 +204,76 @@ export function useDeadlineResponsibles(deadlineId?: string) {
   };
 }
 
+interface ResponsibleBadge {
+  type: "user" | "group";
+  id: string;
+  name: string;
+}
+
+/**
+ * Batch-loads all deadline_responsibles for the given deadline IDs
+ * in O(2) queries instead of O(2*N) per-row fetches.
+ */
+export function useDeadlineResponsiblesBatch(deadlineIds: string[]) {
+  return useQuery({
+    queryKey: ["deadline-responsibles-batch", deadlineIds],
+    queryFn: async () => {
+      if (deadlineIds.length === 0) return new Map<string, ResponsibleBadge[]>();
+
+      const [profileRes, groupRes] = await Promise.all([
+        supabase
+          .from("deadline_responsibles")
+          .select("deadline_id, profile_id, profile:profiles(id, first_name, last_name)")
+          .in("deadline_id", deadlineIds)
+          .not("profile_id", "is", null),
+        supabase
+          .from("deadline_responsibles")
+          .select("deadline_id, group_id, group:responsibility_groups(id, name)")
+          .in("deadline_id", deadlineIds)
+          .not("group_id", "is", null),
+      ]);
+
+      if (profileRes.error) throw profileRes.error;
+      if (groupRes.error) throw groupRes.error;
+
+      const map = new Map<string, ResponsibleBadge[]>();
+      for (const id of deadlineIds) {
+        map.set(id, []);
+      }
+
+      for (const r of profileRes.data || []) {
+        const profile = Array.isArray(r.profile) ? r.profile[0] : r.profile;
+        if (profile) {
+          map.get(r.deadline_id)?.push({
+            type: "user",
+            id: profile.id,
+            name: `${profile.first_name} ${profile.last_name}`.trim(),
+          });
+        }
+      }
+
+      for (const r of groupRes.data || []) {
+        const group = Array.isArray(r.group) ? r.group[0] : r.group;
+        if (group) {
+          map.get(r.deadline_id)?.push({
+            type: "group",
+            id: group.id,
+            name: group.name,
+          });
+        }
+      }
+
+      return map;
+    },
+    enabled: deadlineIds.length > 0,
+    staleTime: 30_000,
+  });
+}
+
 // Get all email addresses for notification recipients
 export async function getDeadlineNotificationRecipients(deadlineId: string): Promise<string[]> {
   const emails = new Set<string>();
 
-  // Fetch direct profile responsibles
   const { data: profileResponsibles } = await supabase
     .from("deadline_responsibles")
     .select("profile:profiles(email)")
@@ -223,7 +288,6 @@ export async function getDeadlineNotificationRecipients(deadlineId: string): Pro
     }
   }
 
-  // Fetch group responsibles and their members
   const { data: groupResponsibles } = await supabase
     .from("deadline_responsibles")
     .select(`
