@@ -37,12 +37,13 @@ interface ReminderRun {
   started_at: string;
   ended_at: string | null;
   status: string;
-  emails_sent: number;
-  emails_failed: number;
+  emails_sent: number | null;
+  emails_failed: number | null;
   error_message: string | null;
   error_details: any;
   week_start: string;
   triggered_by: string;
+  created_at: string;
 }
 
 export default function SystemStatus() {
@@ -280,7 +281,7 @@ export default function SystemStatus() {
             <p className="text-2xl font-bold">
               {runs
                 .filter(r => r.status === "success")
-                .reduce((sum, r) => sum + r.emails_sent, 0)}
+                .reduce((sum, r) => sum + (r.emails_sent || 0), 0)}
             </p>
           </CardContent>
         </Card>
@@ -452,15 +453,15 @@ export default function SystemStatus() {
                             </div>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground ml-6">
                               <span className="flex items-center gap-1">
-                                <Mail className="w-3 h-3" />
-                                {run.emails_sent} odesláno
-                              </span>
-                              {run.emails_failed > 0 && (
-                                <span className="flex items-center gap-1 text-destructive">
-                                  <AlertTriangle className="w-3 h-3" />
-                                  {run.emails_failed} selhalo
-                                </span>
-                              )}
+                                 <Mail className="w-3 h-3" />
+                                 {run.emails_sent || 0} odesláno
+                               </span>
+                               {(run.emails_failed || 0) > 0 && (
+                                 <span className="flex items-center gap-1 text-destructive">
+                                   <AlertTriangle className="w-3 h-3" />
+                                   {run.emails_failed} selhalo
+                                 </span>
+                               )}
                               <span>{triggerInfo.label}</span>
                             </div>
                             {run.error_message && (

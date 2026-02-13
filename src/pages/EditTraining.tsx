@@ -322,12 +322,16 @@ export default function EditTraining() {
                     <PeriodicityInput
                        value={periodicityValue}
                        unit={periodicityUnit}
-                       onValueChange={canEdit ? handlePeriodicityValueChange : undefined}
-                       onUnitChange={canEdit ? handlePeriodicityUnitChange : undefined}
+                       onValueChange={(val) => {
+                         if (canEdit) handlePeriodicityValueChange(val);
+                       }}
+                       onUnitChange={(u) => {
+                         if (canEdit) handlePeriodicityUnitChange(u);
+                       }}
                        label="Periodicita"
                        required
                        disabled={!canEdit}
-                     />
+                      />
                     <FormMessage />
                   </FormItem>
                 );

@@ -46,7 +46,7 @@ interface UserProfile {
   first_name: string;
   last_name: string;
   email: string;
-  position?: string;
+  position: string | null;
   roles: string[];
   employee_id?: string | null;
   approval_status?: string;

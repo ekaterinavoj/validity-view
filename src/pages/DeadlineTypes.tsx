@@ -41,7 +41,12 @@ import { useFacilities } from "@/hooks/useFacilities";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeadlineType } from "@/types/equipment";
-import { daysToPeriodicityUnit, periodicityToDays, type PeriodicityUnit } from "@/components/PeriodicityInput";
+import { 
+  daysToPeriodicityUnit, 
+  periodicityToDays, 
+  type PeriodicityUnit,
+  PeriodicityInput,
+} from "@/components/PeriodicityInput";
 
 export default function DeadlineTypes() {
   const { deadlineTypes, isLoading, error, refetch, createDeadlineType, updateDeadlineType, deleteDeadlineType, isCreating, isUpdating } = useDeadlineTypes();

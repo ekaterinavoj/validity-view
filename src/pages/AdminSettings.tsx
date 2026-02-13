@@ -40,7 +40,9 @@ interface SystemSetting {
   id: string;
   key: string;
   value: any;
-  description: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface UserWithRole {

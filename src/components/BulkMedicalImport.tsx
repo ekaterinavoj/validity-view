@@ -289,7 +289,7 @@ export const BulkMedicalImport = () => {
 
         let employee = null;
         if (row.employee_number?.trim()) {
-          employee = employees?.find(e => e.employee_number === row.employee_number.trim());
+          employee = employees?.find(e => e.employee_number === row.employee_number?.trim());
         }
         if (!employee && row.email?.trim()) {
           employee = employees?.find(e => e.email?.toLowerCase() === row.email?.toLowerCase().trim());

@@ -39,7 +39,7 @@ interface Facility {
   id: string;
   code: string;
   name: string;
-  description?: string;
+  description: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

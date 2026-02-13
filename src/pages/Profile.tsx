@@ -24,10 +24,10 @@ interface UserProfile {
   first_name: string;
   last_name: string;
   email: string;
-  position?: string;
+  position: string | null;
   roles: string[];
-  created_at?: string;
-  last_sign_in_at?: string;
+  created_at: string;
+  last_sign_in_at: string | undefined;
 }
 const Profile = () => {
   const {

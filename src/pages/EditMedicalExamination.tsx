@@ -382,17 +382,23 @@ export default function EditMedicalExamination() {
             />
 
              <PeriodicityInput
-               value={form.watch("periodValue")}
-               unit={form.watch("periodUnit") as PeriodicityUnit}
-               onValueChange={canEdit ? (val) => form.setValue("periodValue", val) : undefined}
-               onUnitChange={canEdit ? (unit) => {
-                 form.setValue("periodUnit", unit);
-                 setPeriodUnit(unit);
-               } : undefined}
-               label="Periodicita"
-               required
-               disabled={!canEdit}
-             />
+                value={form.watch("periodValue")}
+                unit={form.watch("periodUnit") as PeriodicityUnit}
+                onValueChange={(val) => {
+                  if (canEdit) {
+                    form.setValue("periodValue", val);
+                  }
+                }}
+                onUnitChange={(unit) => {
+                  if (canEdit) {
+                    form.setValue("periodUnit", unit);
+                    setPeriodUnit(unit);
+                  }
+                }}
+                label="Periodicita"
+                required
+                disabled={!canEdit}
+              />
 
             {expirationDate && (
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">

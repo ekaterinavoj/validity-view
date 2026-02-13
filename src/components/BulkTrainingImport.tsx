@@ -444,7 +444,7 @@ export const BulkTrainingImport = () => {
         
         // Try employee_number first
         if (row.employee_number?.trim()) {
-          employee = employees?.find(e => e.employee_number === row.employee_number.trim());
+          employee = employees?.find(e => e.employee_number === row.employee_number?.trim());
         }
         
         // Fallback to email if not found
