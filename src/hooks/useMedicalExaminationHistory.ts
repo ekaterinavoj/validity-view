@@ -75,8 +75,10 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
 
       if (fetchError) throw fetchError;
 
-      const computeStatus = (nextDate: string): "valid" | "warning" | "expired" => {
+      const computeStatus = (nextDate: string | null | undefined): "valid" | "warning" | "expired" => {
+        if (!nextDate) return "expired";
         const next = new Date(nextDate);
+        if (isNaN(next.getTime())) return "expired";
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         next.setHours(0, 0, 0, 0);
