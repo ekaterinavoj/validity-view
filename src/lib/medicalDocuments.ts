@@ -34,7 +34,11 @@ export async function uploadMedicalDocument(
       .select()
       .single();
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      // Cleanup uploaded file if metadata insert fails
+      await supabase.storage.from("medical-documents").remove([filePath]);
+      throw dbError;
+    }
 
     return { data, error: null };
   } catch (error) {
