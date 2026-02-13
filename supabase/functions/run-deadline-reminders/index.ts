@@ -553,6 +553,36 @@ const handler = async (req: Request): Promise<Response> => {
 
   console.log(`Starting deadline reminder run: triggered_by=${triggeredBy}, test_mode=${testMode}, forceCategory=${forceCategory}`);
 
+  // Idempotency check: prevent duplicate runs for same week_start + triggered_by
+  // Allow manual tests to run repeatedly (they have triggered_by = "manual_test")
+  const today = new Date().toISOString().split("T")[0];
+  const isManualTest = triggeredBy === "manual_test" || triggeredBy === "manual";
+  
+  if (!isManualTest && !testMode) {
+    // Only enforce idempotency for automatic/cron runs, not manual tests
+    const { data: existingRuns } = await supabase
+      .from("deadline_reminder_logs")
+      .select("id, week_start, is_test")
+      .eq("week_start", today)
+      .eq("is_test", false)
+      .limit(1);
+    
+    if (existingRuns && existingRuns.length > 0) {
+      console.log(`Idempotency check: Production run for ${today} already exists. Aborting to prevent duplicates.`);
+      return new Response(
+        JSON.stringify({
+          warning: `Běh pro ${today} již proběhl. Opakované odeslání bylo zabráněno.`,
+          message: "Deadline reminder run already executed for this date",
+          triggeredBy,
+          testMode,
+          emailsSent: 0,
+          alreadyRun: true,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+  }
+
   const { data: settings } = await supabase
     .from("system_settings")
     .select("key, value")
