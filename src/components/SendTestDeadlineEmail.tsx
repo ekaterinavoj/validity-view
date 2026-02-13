@@ -39,16 +39,15 @@ export function SendTestDeadlineEmail({ hasRecipients, isEnabled }: SendTestDead
         body: { 
           triggered_by: "manual_test",
           test_mode: true,
-          force: true,
         },
       });
 
       if (error) throw error;
 
-      if (data?.error) {
+      if (data?.error || data?.warning) {
         setResult({ 
           success: false, 
-          message: data.warning || data.error 
+          message: data.error || data.warning 
         });
       } else {
         setResult({ 

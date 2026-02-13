@@ -51,17 +51,16 @@ export function SendSingleTestEmail({ isEnabled }: SendSingleTestEmailProps) {
         body: { 
           triggered_by: "single_test",
           test_mode: true,
-          force: true,
           single_recipient_email: testEmail,
         },
       });
 
       if (error) throw error;
 
-      if (data?.error) {
+      if (data?.error || data?.warning) {
         setResult({ 
           success: false, 
-          message: data.warning || data.error 
+          message: data.error || data.warning 
         });
       } else {
         setResult({ 

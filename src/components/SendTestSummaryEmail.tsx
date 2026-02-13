@@ -38,17 +38,16 @@ export function SendTestSummaryEmail({ hasRecipients, isEnabled }: SendTestSumma
       const { data, error } = await supabase.functions.invoke("run-reminders", {
         body: { 
           triggered_by: "manual_test",
-          test_mode: true, // Mark as test - adds [TEST] prefix, separate idempotency
-          force: true, // Bypass due-now check for manual trigger
+          test_mode: true,
         },
       });
 
       if (error) throw error;
 
-      if (data?.error) {
+      if (data?.error || data?.warning) {
         setResult({ 
           success: false, 
-          message: data.warning || data.error 
+          message: data.error || data.warning 
         });
       } else {
         setResult({ 
