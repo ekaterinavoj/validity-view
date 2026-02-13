@@ -32,7 +32,7 @@ export function useTrainingTypes() {
         name: t.name,
         facility: t.facility,
         periodDays: t.period_days,
-        durationHours: t.duration_hours || 1,
+        durationHours: t.duration_hours ?? 1,
         description: t.description,
       }));
 

@@ -145,6 +145,7 @@ export function useDeadlineResponsibles(deadlineId?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deadline-responsibles"] });
+      queryClient.invalidateQueries({ queryKey: ["deadline-responsibles-batch"] });
     },
     onError: (error: Error) => {
       toast({

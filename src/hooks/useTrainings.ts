@@ -90,8 +90,10 @@ export function useTrainings(activeOnly: boolean = true) {
 
       // Transform and filter data based on activeOnly parameter
       // Compute status dynamically on read to avoid stale status
-      const computeStatus = (nextDate: string): "valid" | "warning" | "expired" => {
+      const computeStatus = (nextDate: string | null | undefined): "valid" | "warning" | "expired" => {
+        if (!nextDate) return "expired";
         const next = new Date(nextDate);
+        if (isNaN(next.getTime())) return "expired";
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         next.setHours(0, 0, 0, 0);
@@ -136,8 +138,8 @@ export function useTrainings(activeOnly: boolean = true) {
           calendar: "Ano",
           note: t.note || "",
           is_active: t.is_active,
-          remindDaysBefore: t.remind_days_before || 30,
-          repeatDaysAfter: t.repeat_days_after || 30,
+          remindDaysBefore: t.remind_days_before ?? 30,
+          repeatDaysAfter: t.repeat_days_after ?? 30,
           trainingTypeId: t.training_type_id,
           deletedAt: t.deleted_at,
         }));

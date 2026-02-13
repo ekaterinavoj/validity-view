@@ -89,8 +89,10 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
 
       if (fetchError) throw fetchError;
 
-      const computeStatus = (nextDate: string): "valid" | "warning" | "expired" => {
+      const computeStatus = (nextDate: string | null | undefined): "valid" | "warning" | "expired" => {
+        if (!nextDate) return "expired";
         const next = new Date(nextDate);
+        if (isNaN(next.getTime())) return "expired";
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         next.setHours(0, 0, 0, 0);
@@ -137,8 +139,8 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           reminderTemplate: e.medical_reminder_templates?.name || "",
           note: e.note || "",
           is_active: e.is_active,
-          remindDaysBefore: e.remind_days_before || 30,
-          repeatDaysAfter: e.repeat_days_after || 30,
+          remindDaysBefore: e.remind_days_before ?? 30,
+          repeatDaysAfter: e.repeat_days_after ?? 30,
           examinationTypeId: e.examination_type_id,
           deletedAt: e.deleted_at,
         }));
