@@ -17,7 +17,7 @@ interface PendingUser {
   email: string;
   first_name: string;
   last_name: string;
-  position?: string;
+  position: string | null;
   approval_status: string;
   created_at: string;
   has_role: boolean;

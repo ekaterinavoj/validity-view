@@ -20,10 +20,12 @@ interface Notification {
   title: string;
   message: string;
   type: string;
-  related_entity_type?: string;
-  related_entity_id?: string;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
   is_read: boolean;
   created_at: string;
+  read_at: string | null;
+  user_id: string;
 }
 
 export function NotificationBell() {

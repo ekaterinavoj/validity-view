@@ -33,8 +33,9 @@ interface TrainingType {
   facility: string;
   name: string;
   period_days: number;
-  duration_hours: number;
-  description?: string;
+  duration_hours: number | null;
+  description: string | null;
+  created_at: string;
 }
 
 export default function TrainingTypes() {
@@ -171,13 +172,13 @@ export default function TrainingTypes() {
     const periodValue = convertFromDays(type.period_days, periodUnit);
 
     form.reset({
-      facility: type.facility,
-      name: type.name,
-      periodValue: periodValue.toString(),
-      periodUnit: periodUnit,
-      durationHours: type.duration_hours.toString(),
-      description: type.description || "",
-    });
+       facility: type.facility,
+       name: type.name,
+       periodValue: periodValue.toString(),
+       periodUnit: periodUnit,
+       durationHours: (type.duration_hours || 0).toString(),
+       description: type.description || "",
+     });
 
     setDialogOpen(true);
   };

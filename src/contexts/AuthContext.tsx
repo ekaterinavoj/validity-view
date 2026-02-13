@@ -8,10 +8,15 @@ interface Profile {
   first_name: string;
   last_name: string;
   email: string;
-  position?: string;
-  department_id?: string;
-  approval_status?: string;
-  must_change_password?: boolean;
+  position: string | null;
+  department_id: string | null;
+  approval_status: string;
+  must_change_password: boolean;
+  employee_id: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 type UserRole = "admin" | "manager" | "user";

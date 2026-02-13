@@ -47,10 +47,10 @@ import { ResponsiblesPicker, ResponsiblesSelection } from "@/components/Responsi
 import { useDeadlineResponsibles } from "@/hooks/useDeadlineResponsibles";
 import { DeadlineDocumentsList } from "@/components/DeadlineDocumentsList";
 import { 
-  PeriodicityInput, 
-  PeriodicityUnit, 
-  daysToPeriodicityUnit, 
-  periodicityToDays, 
+  PeriodicityInput,
+  type PeriodicityUnit,
+  daysToPeriodicityUnit,
+  periodicityToDays,
   calculateNextDate 
 } from "@/components/PeriodicityInput";
 
@@ -429,21 +429,25 @@ export default function EditDeadline() {
 
               {/* Periodicity Input */}
               <div className="space-y-2">
-                 <PeriodicityInput
-                   value={periodValue}
-                   unit={periodUnit}
-                   onValueChange={canEdit ? (val) => {
-                     setPeriodValue(val);
-                     form.setValue("period_value", val);
-                   } : undefined}
-                   onUnitChange={canEdit ? (unit) => {
-                     setPeriodUnit(unit);
-                     form.setValue("period_unit", unit);
-                   } : undefined}
-                   label="Periodicita"
-                   required
-                   disabled={!canEdit}
-                 />
+                <PeriodicityInput
+                    value={periodValue}
+                    unit={periodUnit}
+                    onValueChange={(val) => {
+                      if (canEdit) {
+                        setPeriodValue(val);
+                        form.setValue("period_value", val);
+                      }
+                    }}
+                    onUnitChange={(unit) => {
+                      if (canEdit) {
+                        setPeriodUnit(unit);
+                        form.setValue("period_unit", unit);
+                      }
+                    }}
+                    label="Periodicita"
+                    required
+                    disabled={!canEdit}
+                  />
               </div>
 
               {nextCheckDate && (

@@ -32,7 +32,8 @@ interface ExaminationType {
   facility: string;
   name: string;
   period_days: number;
-  description?: string;
+  description: string | null;
+  created_at: string;
 }
 
 export default function MedicalExaminationTypes() {

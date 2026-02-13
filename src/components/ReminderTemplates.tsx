@@ -17,13 +17,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface ReminderTemplate {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   remind_days_before: number;
-  repeat_interval_days?: number;
+  repeat_interval_days: number | null;
   email_subject: string;
   email_body: string;
   is_active: boolean;
   created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  target_user_ids: string[] | null;
 }
 
 type ModuleType = "trainings" | "deadlines" | "medical";

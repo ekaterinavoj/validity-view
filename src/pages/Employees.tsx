@@ -110,7 +110,7 @@ export default function Employees() {
       const matchesStatus = statusFilter === "all" || employee.status === statusFilter;
       const matchesCategory = 
         categoryFilter === "all" || 
-        (employee.workCategory !== null && employee.workCategory.toString() === categoryFilter);
+        (employee.workCategory !== null && employee.workCategory?.toString() === categoryFilter);
 
       return matchesSearch && matchesDepartment && matchesStatus && matchesCategory;
     });

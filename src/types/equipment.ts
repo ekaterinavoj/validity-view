@@ -24,16 +24,16 @@ export interface Equipment {
   name: string;
   equipment_type: string;
   facility: string;
-  department_id?: string;
-  description?: string;
-  manufacturer?: string;
-  model?: string;
-  serial_number?: string;
-  purchase_date?: string;
-  location?: string;
-  responsible_person?: string;
+  department_id: string | null;
+  description: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  serial_number: string | null;
+  purchase_date: string | null;
+  location: string | null;
+  responsible_person: string | null;
   status: "active" | "inactive" | "decommissioned";
-  notes?: string;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,7 +43,7 @@ export interface DeadlineType {
   name: string;
   facility: string;
   period_days: number;
-  description?: string;
+  description: string | null;
   created_at: string;
 }
 
