@@ -175,6 +175,8 @@ export default function Equipment() {
     const equipmentData = {
       ...formData,
       department_id: formData.department_id || null,
+      description: null as string | null,
+      purchase_date: null as string | null,
     };
 
     if (editingItem) {

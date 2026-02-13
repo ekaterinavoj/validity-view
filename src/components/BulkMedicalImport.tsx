@@ -411,8 +411,8 @@ export const BulkMedicalImport = () => {
 
         return {
           facility: row.data.facility_code,
-          employee_id: row.employeeId,
-          examination_type_id: row.examinationTypeId,
+          employee_id: row.employeeId!,
+          examination_type_id: row.examinationTypeId!,
           last_examination_date: row.data.last_examination_date,
           next_examination_date: nextDate.toISOString().split("T")[0],
           doctor: row.data.doctor || null,
