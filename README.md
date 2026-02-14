@@ -219,7 +219,7 @@ Po dokončení technické instalace projděte tyto kroky pro plnou konfiguraci s
 
 #### 🔑 Fáze 5: Uživatelské účty
 - [ ] Systém → Správa uživatelů → Přidat uživatele pro každého, kdo potřebuje přístup
-- [ ] Nastavit role: **Admin** (plný přístup) / **Manažer** (editace svého subtree) / **Uživatel** (náhled) / **Prohlížeč** (pouze čtení)
+- [ ] Nastavit role: **Admin** (plný přístup) / **Manažer** (editace svého subtree) / **Uživatel** (náhled)
 - [ ] **Propojit profily s kartami zaměstnanců** (povinné pro Manažery a Uživatele — nutné pro RLS!)
 - [ ] Nastavit přístup k modulům: Školení (`trainings`), Technické události (`deadlines`), PLP (`plp`)
 
@@ -642,6 +642,13 @@ curl -X POST "https://YOUR_SUPABASE_URL/functions/v1/send-training-reminders" \
 | `test_mode` | Přidá [TEST] prefix k emailům |
 | `force` | Obejde časovou kontrolu |
 
+### Korelace logů (run_id)
+
+Každý běh připomínek (školení) vytváří záznam v tabulce `reminder_runs` s unikátním `run_id`. Všechny odeslané e-maily v rámci jednoho běhu sdílejí tento `run_id`, což umožňuje:
+- filtrovat logy podle konkrétního běhu
+- zobrazit detail běhu (počet odeslaných / chybových e-mailů)
+- diagnostikovat problémy v kontextu jednoho spuštění
+
 ## 📧 SMTP Konfigurace
 
 V administraci (Nastavení → E-mail) nastavte:
@@ -689,7 +696,7 @@ Parametry na každém záznamu:
 ## 🔒 Bezpečnost
 
 - **RLS politiky** na všech tabulkách
-- **Role**: admin, manager, user, viewer
+- **Role**: admin, manager, user
 - **Moduly**: trainings, deadlines, plp
 - **JWT verifikace** v Edge funkcích
 - **x-cron-secret** hlavička pro CRON automatizaci (env: `X_CRON_SECRET`)
@@ -1668,3 +1675,7 @@ curl -s "http://localhost:8000/functions/v1/seed-initial-admin" | head -c 200
 ## 📄 Licence
 
 Proprietární software - všechna práva vyhrazena.
+
+---
+
+> Vytvořeno s ❤️ pomocí [Lovable](https://lovable.dev) — aplikaci vyvinul **EV**.
