@@ -700,7 +700,9 @@ const handler = async (req: Request): Promise<Response> => {
     }
     if (body.test_mode === true) {
       testMode = true;
-      triggeredBy = triggeredBy === "cron" ? "test" : `${triggeredBy}_test`;
+      if (!triggeredBy.endsWith("_test") && triggeredBy !== "test") {
+        triggeredBy = triggeredBy === "cron" ? "test" : `${triggeredBy}_test`;
+      }
     }
     if (body.force === true) {
       forceRun = true;
