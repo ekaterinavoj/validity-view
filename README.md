@@ -447,17 +447,18 @@ docker compose -f docker-compose.supabase.yml logs -f
 docker compose -f docker-compose.supabase.yml ps
 ```
 
-#### Krok 6: První přihlášení
+#### Krok 6: Vytvoření prvního administrátora
 
-1. Otevřete aplikaci: `http://vasedomena.cz`
-2. **Zaregistrujte se** jako první uživatel → automaticky dostanete roli **Admin**
-3. Nebo použijte `seed-initial-admin`:
+1. Zavolejte Edge funkci `seed-initial-admin` pro vytvoření prvního admin účtu:
 
 ```bash
 curl -X POST "http://localhost:8000/functions/v1/seed-initial-admin" \
   -H "Content-Type: application/json"
-# Přihlášení: admin@system.local / admin123
 ```
+
+2. Otevřete aplikaci: `http://vasedomena.cz`
+3. **Přihlaste se** pomocí: `admin@system.local` / `admin123`
+4. **Ihned si změňte heslo** v Profilu
 
 4. V Administraci → Nastavení → E-mail nakonfigurujte SMTP
 5. Otestujte odeslání testovacího emailu
