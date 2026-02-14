@@ -167,10 +167,7 @@ curl -X POST "https://YOUR_SUPABASE_URL/functions/v1/seed-initial-admin" \
    - **Heslo**: `admin123`
 4. **IHNED změňte heslo** v profilu uživatele!
 
-**Varianta B: Samoregistrace prvního uživatele**
-
-1. Otevřete aplikaci a zaregistrujte se jako první uživatel
-2. Databázový trigger automaticky přidělí roli `admin` a schválí profil
+> **Poznámka:** Samoregistrace je zakázána. Všechny další uživatele vytváří administrátor přes UI (Administrace → Správa uživatelů → Přidat uživatele).
 
 ### 9. Po přihlášení
 
