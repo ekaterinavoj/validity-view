@@ -94,6 +94,7 @@ export function ReminderDryRunPreview() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [trainings, setTrainings] = useState<TrainingItem[]>([]);
+  const [isWeekendSkipped, setIsWeekendSkipped] = useState(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [reminderSchedule, setReminderSchedule] = useState<ReminderSchedule>({ day_of_week: 1, skip_weekends: true });
@@ -105,6 +106,7 @@ export function ReminderDryRunPreview() {
   const loadPreview = async () => {
     setLoading(true);
     setCurrentPage(1);
+    setIsWeekendSkipped(false);
     try {
       // Load all settings
       const { data: settingsData } = await supabase
@@ -145,14 +147,7 @@ export function ReminderDryRunPreview() {
       const isWeekend = today === 0 || today === 6;
 
       if (schedule.skip_weekends && isWeekend) {
-        setTrainings([]);
-        setRecipients([]);
-        toast({
-          title: "Víkend - odesílání přeskočeno",
-          description: "Nastavení 'Přeskočit víkendy' je aktivní.",
-        });
-        setLoading(false);
-        return;
+        setIsWeekendSkipped(true);
       }
 
       // Load recipients
@@ -371,6 +366,21 @@ export function ReminderDryRunPreview() {
                   Víkendy: {reminderSchedule.skip_weekends ? "přeskakovat" : "odesílat"}
                 </Badge>
               </div>
+
+              {/* Weekend warning */}
+              {isWeekendSkipped && (
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <CalendarOff className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-yellow-700 dark:text-yellow-300 text-sm">Dnes je víkend — odesílání by bylo přeskočeno</p>
+                      <p className="text-muted-foreground text-xs">
+                        Níže vidíte, co by se odeslalo v pracovní den. Nastavení „Přeskočit víkendy" je aktivní.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Summary Cards */}
               <div className="grid grid-cols-3 gap-4">
