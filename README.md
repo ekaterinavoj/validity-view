@@ -431,6 +431,28 @@ SMTP_SENDER_NAME=Training System
 SMTP_FROM=noreply@vasedomena.cz
 ```
 
+#### ⚠️ Důležité: API_EXTERNAL_URL
+
+Proměnná `API_EXTERNAL_URL` je **klíčová pro produkční nasazení**. Ovlivňuje:
+
+1. **Frontend** — `VITE_SUPABASE_URL` se při buildu nastaví na hodnotu `API_EXTERNAL_URL` (aplikace se na tuto adresu připojuje jako na backend)
+2. **GoTrue Auth** — callback URL, ověřovací odkazy v emailech (reset hesla, potvrzení registrace)
+
+**Pokud `API_EXTERNAL_URL` nenastavíte**, frontend se buildí s fallbackem `http://{SITE_DOMAIN}:{KONG_HTTP_PORT}` (výchozí `http://localhost:8000`), což v produkci nefunguje.
+
+```env
+# Příklady správného nastavení:
+API_EXTERNAL_URL=http://vasedomena.cz:8000        # HTTP bez reverse proxy
+API_EXTERNAL_URL=https://api.vasedomena.cz         # HTTPS s reverse proxy
+API_EXTERNAL_URL=http://192.168.1.100:8000         # LAN přístup přes IP
+```
+
+> **Po změně `API_EXTERNAL_URL` je nutné znovu buildnout frontend:**
+> ```bash
+> docker compose -f docker-compose.supabase.yml build frontend
+> docker compose -f docker-compose.supabase.yml up -d frontend
+> ```
+
 #### Krok 5: Spuštění
 
 ```bash
