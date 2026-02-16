@@ -1220,6 +1220,97 @@ BEGIN
 END;
 $$;
 
+-- Log module access changes
+CREATE OR REPLACE FUNCTION public.log_module_access_changes()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  user_profile RECORD;
+  target_user_profile RECORD;
+  old_json JSONB;
+  new_json JSONB;
+BEGIN
+  SELECT 
+    p.email,
+    p.first_name || ' ' || p.last_name as full_name
+  INTO user_profile
+  FROM public.profiles p
+  WHERE p.id = auth.uid();
+
+  SELECT 
+    p.email,
+    p.first_name || ' ' || p.last_name as full_name
+  INTO target_user_profile
+  FROM public.profiles p
+  WHERE p.id = COALESCE(NEW.user_id, OLD.user_id);
+
+  IF TG_OP = 'DELETE' THEN
+    old_json := jsonb_build_object(
+      'user_email', target_user_profile.email,
+      'user_name', target_user_profile.full_name,
+      'module', OLD.module
+    );
+    new_json := NULL;
+  ELSIF TG_OP = 'INSERT' THEN
+    old_json := NULL;
+    new_json := jsonb_build_object(
+      'user_email', target_user_profile.email,
+      'user_name', target_user_profile.full_name,
+      'module', NEW.module
+    );
+  ELSE
+    old_json := jsonb_build_object(
+      'user_email', target_user_profile.email,
+      'user_name', target_user_profile.full_name,
+      'module', OLD.module
+    );
+    new_json := jsonb_build_object(
+      'user_email', target_user_profile.email,
+      'user_name', target_user_profile.full_name,
+      'module', NEW.module
+    );
+  END IF;
+
+  INSERT INTO public.audit_logs (
+    table_name, record_id, action, old_data, new_data,
+    user_id, user_email, user_name, changed_fields
+  ) VALUES (
+    'user_module_access', COALESCE(NEW.id, OLD.id), TG_OP,
+    old_json, new_json,
+    auth.uid(), user_profile.email, user_profile.full_name,
+    ARRAY['module']
+  );
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  ELSE
+    RETURN NEW;
+  END IF;
+END;
+$$;
+
+-- Set user role (admin only)
+CREATE OR REPLACE FUNCTION public.set_user_role(_target_user_id UUID, _new_role app_role)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT has_role(auth.uid(), 'admin'::app_role) THEN
+    RAISE EXCEPTION 'Forbidden: Only admins can change user roles';
+  END IF;
+
+  DELETE FROM public.user_roles WHERE user_id = _target_user_id;
+  
+  INSERT INTO public.user_roles (user_id, role, created_by)
+  VALUES (_target_user_id, _new_role, auth.uid());
+END;
+$$;
+
 -- Log profile approval changes
 CREATE OR REPLACE FUNCTION public.log_profile_approval_changes()
 RETURNS TRIGGER
@@ -1398,6 +1489,12 @@ CREATE TRIGGER assign_default_role_trigger
 AFTER INSERT ON public.profiles
 FOR EACH ROW
 EXECUTE FUNCTION public.assign_default_role();
+
+-- Module access audit trigger
+CREATE TRIGGER log_module_access_changes_trigger
+AFTER INSERT OR UPDATE OR DELETE ON public.user_module_access
+FOR EACH ROW
+EXECUTE FUNCTION public.log_module_access_changes();
 
 -- =============================================
 -- ROW LEVEL SECURITY
