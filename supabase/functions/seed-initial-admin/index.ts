@@ -82,18 +82,23 @@ Deno.serve(async (req) => {
 
     console.log("Admin user created with ID:", userId);
 
-    // Aktualizovat profil (trigger handle_new_user již vytvořil základní profil)
-    console.log("Updating admin profile...");
+    // Wait briefly for the handle_new_user trigger to create the profile
+    console.log("Waiting for profile trigger...");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // Upsert profile - create if trigger didn't fire, update if it did
+    console.log("Upserting admin profile...");
     const { error: profileError } = await supabase
       .from("profiles")
-      .update({
+      .upsert({
+        id: userId,
         first_name: "System",
         last_name: "Administrator",
+        email: "admin@system.local",
         position: "Administrator",
         approval_status: "approved",
         approved_at: new Date().toISOString(),
-      })
-      .eq("id", userId);
+      }, { onConflict: "id" });
 
     if (profileError) {
       console.error("Error updating admin profile:", profileError);
