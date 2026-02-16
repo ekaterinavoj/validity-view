@@ -3,7 +3,7 @@
 # =============================================
 # Kompletní self-hosted stack pro Training System
 # Zahrnuje: PostgreSQL, GoTrue Auth, PostgREST,
-# Realtime, Storage, Edge Functions, Kong, Studio
+# Realtime, Storage, Edge Functions, Kong
 #
 # Spuštění:
 #   docker compose -f docker-compose.supabase.yml up -d
@@ -48,50 +48,6 @@ services:
       retries: 3
 
   # =============================================
-  # Supabase Studio - Dashboard
-  # =============================================
-  studio:
-    container_name: supabase-studio
-    image: supabase/studio:2026.01.27-sha-6aa59ff
-    restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})"
-        ]
-      timeout: 10s
-      interval: 5s
-      retries: 3
-    depends_on:
-      analytics:
-        condition: service_healthy
-    environment:
-      HOSTNAME: "::"
-      STUDIO_PG_META_URL: http://meta:8080
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_HOST: db
-      POSTGRES_DB: ${POSTGRES_DB:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      PG_META_CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
-      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION:-Training System}
-      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT:-Training Management}
-      SUPABASE_URL: http://kong:8000
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8000}
-      SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
-      AUTH_JWT_SECRET: ${JWT_SECRET}
-      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-      LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
-      LOGFLARE_URL: http://analytics:4000
-      NEXT_PUBLIC_ENABLE_LOGS: true
-      NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
-    networks:
-      - training-network
-
-  # =============================================
   # Kong - API Gateway
   # =============================================
   kong:
@@ -110,7 +66,9 @@ services:
       retries: 3
       start_period: 10s
     depends_on:
-      analytics:
+      auth:
+        condition: service_healthy
+      rest:
         condition: service_healthy
     environment:
       KONG_DATABASE: "off"
@@ -149,8 +107,6 @@ services:
       retries: 3
     depends_on:
       db:
-        condition: service_healthy
-      analytics:
         condition: service_healthy
     environment:
       GOTRUE_API_HOST: 0.0.0.0
@@ -207,8 +163,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      analytics:
-        condition: service_healthy
     environment:
       PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,storage,graphql_public}
@@ -230,8 +184,6 @@ services:
     restart: unless-stopped
     depends_on:
       db:
-        condition: service_healthy
-      analytics:
         condition: service_healthy
     healthcheck:
       test:
@@ -291,8 +243,6 @@ services:
         condition: service_healthy
       rest:
         condition: service_started
-      imgproxy:
-        condition: service_started
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_KEY: ${SERVICE_ROLE_KEY}
@@ -306,60 +256,7 @@ services:
       TENANT_ID: stub
       REGION: stub
       GLOBAL_S3_BUCKET: stub
-      ENABLE_IMAGE_TRANSFORMATION: "true"
-      IMGPROXY_URL: http://imgproxy:5001
-    networks:
-      - training-network
-
-  # =============================================
-  # ImgProxy - Image Transformation
-  # =============================================
-  imgproxy:
-    container_name: supabase-imgproxy
-    image: darthsim/imgproxy:v3.30.1
-    restart: unless-stopped
-    volumes:
-      - storage_data:/var/lib/storage
-    healthcheck:
-      test: ["CMD", "imgproxy", "health"]
-      timeout: 5s
-      interval: 5s
-      retries: 3
-    environment:
-      IMGPROXY_BIND: ":5001"
-      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
-      IMGPROXY_USE_ETAG: "true"
-      IMGPROXY_ENABLE_WEBP_DETECTION: ${IMGPROXY_ENABLE_WEBP_DETECTION:-true}
-      IMGPROXY_MAX_SRC_RESOLUTION: 16.8
-    networks:
-      - training-network
-
-  # =============================================
-  # Meta - Postgres Meta API
-  # =============================================
-  meta:
-    container_name: supabase-meta
-    image: supabase/postgres-meta:v0.95.2
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sSfL http://localhost:8080/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-    depends_on:
-      db:
-        condition: service_healthy
-      analytics:
-        condition: service_healthy
-    environment:
-      PG_META_PORT: 8080
-      PG_META_DB_HOST: db
-      PG_META_DB_PORT: ${POSTGRES_PORT:-5432}
-      PG_META_DB_NAME: ${POSTGRES_DB:-postgres}
-      PG_META_DB_USER: supabase_admin
-      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
-      CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
+      ENABLE_IMAGE_TRANSFORMATION: "false"
     networks:
       - training-network
 
@@ -394,7 +291,7 @@ services:
       retries: 3
       start_period: 15s
     depends_on:
-      analytics:
+      db:
         condition: service_healthy
     environment:
       JWT_SECRET: ${JWT_SECRET}
@@ -417,41 +314,6 @@ services:
         "--main-service",
         "/home/deno/functions/main"
       ]
-    networks:
-      - training-network
-
-  # =============================================
-  # Analytics - Logflare
-  # =============================================
-  analytics:
-    container_name: supabase-analytics
-    image: supabase/logflare:1.30.3
-    restart: unless-stopped
-    ports:
-      - 4000:4000
-    healthcheck:
-      test: ["CMD", "curl", "http://localhost:4000/health"]
-      timeout: 5s
-      interval: 5s
-      retries: 10
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      LOGFLARE_NODE_HOST: 127.0.0.1
-      DB_USERNAME: supabase_admin
-      DB_DATABASE: _supabase
-      DB_HOSTNAME: db
-      DB_PORT: ${POSTGRES_PORT:-5432}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_SCHEMA: _analytics
-      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-      LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
-      LOGFLARE_SINGLE_TENANT: true
-      LOGFLARE_SUPABASE_MODE: true
-      POSTGRES_BACKEND_URL: postgresql://supabase_admin:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT:-5432}/_supabase
-      POSTGRES_BACKEND_SCHEMA: _analytics
-      LOGFLARE_FEATURE_FLAG_OVERRIDE: multibackend=true
     networks:
       - training-network
 
@@ -480,9 +342,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    depends_on:
-      vector:
-        condition: service_healthy
     environment:
       POSTGRES_HOST: /var/run/postgresql
       PGPORT: ${POSTGRES_PORT:-5432}
@@ -500,94 +359,6 @@ services:
         "config_file=/etc/postgresql/postgresql.conf",
         "-c",
         "log_min_messages=fatal"
-      ]
-    networks:
-      - training-network
-
-  # =============================================
-  # Vector - Log Pipeline
-  # =============================================
-  vector:
-    container_name: supabase-vector
-    image: timberio/vector:0.28.1-alpine
-    restart: unless-stopped
-    volumes:
-      - ./docker/volumes/logs/vector.yml:/etc/vector/vector.yml:ro
-      - ${DOCKER_SOCKET_LOCATION:-/var/run/docker.sock}:/var/run/docker.sock:ro
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://vector:9001/health"
-        ]
-      timeout: 5s
-      interval: 5s
-      retries: 3
-    environment:
-      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-    command: ["--config", "/etc/vector/vector.yml"]
-    security_opt:
-      - "label=disable"
-    networks:
-      - training-network
-
-  # =============================================
-  # Supavisor - Connection Pooler
-  # =============================================
-  supavisor:
-    container_name: supabase-pooler
-    image: supabase/supavisor:2.7.4
-    restart: unless-stopped
-    ports:
-      - ${POOLER_PROXY_PORT_TRANSACTION:-6543}:6543
-    volumes:
-      - ./docker/volumes/pooler/pooler.exs:/etc/pooler/pooler.exs:ro
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "-sSfL",
-          "--head",
-          "-o",
-          "/dev/null",
-          "http://127.0.0.1:4000/api/health"
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    depends_on:
-      db:
-        condition: service_healthy
-      analytics:
-        condition: service_healthy
-    environment:
-      PORT: 4000
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_DB: ${POSTGRES_DB:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASE_URL: ecto://supabase_admin:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT:-5432}/_supabase
-      CLUSTER_POSTGRES: true
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-      VAULT_ENC_KEY: ${VAULT_ENC_KEY}
-      API_JWT_SECRET: ${JWT_SECRET}
-      METRICS_JWT_SECRET: ${JWT_SECRET}
-      REGION: local
-      ERL_AFLAGS: -proto_dist inet_tcp
-      POOLER_TENANT_ID: ${POOLER_TENANT_ID:-training-system}
-      POOLER_DEFAULT_POOL_SIZE: ${POOLER_DEFAULT_POOL_SIZE:-20}
-      POOLER_MAX_CLIENT_CONN: ${POOLER_MAX_CLIENT_CONN:-100}
-      POOLER_POOL_MODE: transaction
-      DB_POOL_SIZE: ${POOLER_DB_POOL_SIZE:-5}
-    command:
-      [
-        "/bin/sh",
-        "-c",
-        "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server"
       ]
     networks:
       - training-network
