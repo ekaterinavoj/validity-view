@@ -1496,12 +1496,6 @@ AFTER INSERT ON auth.users
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_new_user();
 
--- Admin protection trigger
-CREATE TRIGGER prevent_last_admin_removal_trigger
-BEFORE UPDATE OR DELETE ON public.user_roles
-FOR EACH ROW
-EXECUTE FUNCTION public.prevent_last_admin_removal();
-
 -- Module access audit trigger
 CREATE TRIGGER log_module_access_changes_trigger
 AFTER INSERT OR UPDATE OR DELETE ON public.user_module_access
