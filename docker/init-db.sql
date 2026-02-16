@@ -1952,11 +1952,12 @@ CREATE POLICY "Admins and managers can manage group members" ON public.responsib
 -- =============================================
 
 -- Create storage buckets for document uploads
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+-- Note: self-hosted Supabase storage schema may not have 'public' column
+INSERT INTO storage.buckets (id, name)
 VALUES 
-  ('training-documents', 'training-documents', false, 10485760, ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
-  ('deadline-documents', 'deadline-documents', false, 10485760, ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
-  ('medical-documents', 'medical-documents', false, 10485760, ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+  ('training-documents', 'training-documents'),
+  ('deadline-documents', 'deadline-documents'),
+  ('medical-documents', 'medical-documents')
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage RLS policies: Approved users can upload/view/delete their own files
