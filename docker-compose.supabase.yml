@@ -68,8 +68,6 @@ services:
     depends_on:
       auth:
         condition: service_healthy
-      rest:
-        condition: service_healthy
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
@@ -154,15 +152,6 @@ services:
     container_name: supabase-rest
     image: postgrest/postgrest:v14.3
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sSfL http://localhost:3000/ready"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,storage,graphql_public}
@@ -241,8 +230,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      rest:
-        condition: service_started
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_KEY: ${SERVICE_ROLE_KEY}
@@ -284,15 +271,6 @@ services:
       - ./supabase/functions/admin-delete-user:/home/deno/functions/admin-delete-user:Z
       - ./supabase/functions/admin-link-employee:/home/deno/functions/admin-link-employee:Z
       - ./supabase/functions/list-users:/home/deno/functions/list-users:Z
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sSfL http://localhost:8000/functions/v1/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
