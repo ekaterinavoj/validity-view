@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import companyLogo from "@/assets/company-logo.jpg";
+import companyLogo from "@/assets/company-logo.png";
 import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
