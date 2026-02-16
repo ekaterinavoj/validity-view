@@ -309,9 +309,9 @@ docker-compose logs -f frontend
 
 ---
 
-### Režim B: Self-hosted Supabase (kompletní stack)
+### Režim B: Self-hosted Supabase (optimalizovaný produkční stack)
 
-Tento režim spustí **kompletní Supabase infrastrukturu** na vašem serveru:
+Tento režim spustí **optimalizovaný Supabase stack** (9 komponent) na vašem serveru:
 
 | Služba | Image | Port | Popis |
 |--------|-------|------|-------|
@@ -322,21 +322,17 @@ Tento režim spustí **kompletní Supabase infrastrukturu** na vašem serveru:
 | **Realtime** | supabase/realtime:v2.72.0 | - | WebSocket subscriptions |
 | **Storage** | supabase/storage-api:v1.37.1 | - | Úložiště souborů |
 | **Edge Functions** | supabase/edge-runtime:v1.70.0 | - | Serverless funkce (Deno) |
-| **Studio** | supabase/studio | 8000 (via Kong) | Administrační dashboard |
 | **PostgreSQL** | supabase/postgres:15.8.1.085 | 5432 | Databáze |
-| **Analytics** | supabase/logflare:1.30.3 | 4000 | Logování |
-| **ImgProxy** | darthsim/imgproxy:v3.30.1 | - | Transformace obrázků |
-| **Meta** | supabase/postgres-meta:v0.95.2 | - | DB metadata API |
-| **Vector** | timberio/vector:0.28.1 | - | Log pipeline |
-| **Supavisor** | supabase/supavisor:2.7.4 | 6543 | Connection pooler |
 | **CRON** | alpine:3.19 | - | Automatické připomínky |
+
+> **Poznámka:** Doplňkové služby (Studio, Analytics, ImgProxy, Meta, Vector, Supavisor) byly odstraněny pro snížení nároků na zdroje. Pokud potřebujete Studio dashboard, přidejte jej zpět dle [oficiální dokumentace Supabase](https://supabase.com/docs/guides/self-hosting/docker).
 
 #### Požadavky na server
 
 | Komponenta | Požadavek |
 |------------|-----------|
-| **RAM** | Min. **4 GB** (doporučeno 8 GB) |
-| **Disk** | Min. 20 GB |
+| **RAM** | Min. **2 GB** (doporučeno 4 GB) |
+| **Disk** | Min. 10 GB |
 | **CPU** | Min. 2 jádra |
 | **Docker** | 24.0+ |
 | **Docker Compose** | 2.20+ |
