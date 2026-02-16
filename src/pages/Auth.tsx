@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Lock } from "lucide-react";
 import { z } from "zod";
-import companyLogo from "@/assets/company-logo.jpg";
+import companyLogo from "@/assets/company-logo.png";
 
 const loginSchema = z.object({
   email: z.string().email("Neplatný email"),
