@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useEmployees, EmployeeWithDepartment } from "@/hooks/useEmployees";
+import Papa from "papaparse";
 import { useDepartments } from "@/hooks/useDepartments";
 import { supabase } from "@/integrations/supabase/client";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
@@ -128,44 +129,22 @@ export default function Employees() {
 
   const exportToCSV = () => {
     try {
-      const headers = [
-        "Osobní číslo",
-        "Jméno",
-        "Příjmení",
-        "Email",
-        "Pozice",
-        "Středisko",
-        "Stav",
-        "Datum od",
-      ];
-
-      const rows = filteredEmployees.map((employee) => [
-        employee.employeeNumber,
-        employee.firstName,
-        employee.lastName,
-        employee.email,
-        employee.position,
-        employee.department,
-        getStatusLabel(employee.status),
-        employee.statusStartDate || employee.terminationDate 
+      const data = filteredEmployees.map((employee) => ({
+        "Osobní číslo": employee.employeeNumber || "",
+        "Jméno": employee.firstName || "",
+        "Příjmení": employee.lastName || "",
+        "Email": employee.email || "",
+        "Pozice": employee.position || "",
+        "Středisko": employee.department || "",
+        "Stav": getStatusLabel(employee.status) || "",
+        "Datum od": employee.statusStartDate || employee.terminationDate 
           ? format(parseISO(employee.statusStartDate || employee.terminationDate || ""), "dd.MM.yyyy", { locale: cs })
           : "",
-      ]);
+      }));
 
-      const escapeCSV = (value: string) => {
-        if (value.includes(";") || value.includes('"') || value.includes("\n")) {
-          return `"${value.replace(/"/g, '""')}"`;
-        }
-        return value;
-      };
-
-      const csvContent = [
-        headers.map(escapeCSV).join(";"),
-        ...rows.map((row) => row.map(escapeCSV).join(";")),
-      ].join("\n");
-
+      const csv = Papa.unparse(data, { delimiter: ";" });
       const BOM = "\uFEFF";
-      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       const timestamp = new Date().toISOString().split("T")[0];
