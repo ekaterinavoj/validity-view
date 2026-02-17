@@ -271,6 +271,7 @@ services:
       - ./supabase/functions/admin-delete-user:/home/deno/functions/admin-delete-user:Z
       - ./supabase/functions/admin-link-employee:/home/deno/functions/admin-link-employee:Z
       - ./supabase/functions/list-users:/home/deno/functions/list-users:Z
+      - ./supabase/functions/apply-migrations:/home/deno/functions/apply-migrations:Z
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000

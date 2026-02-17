@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import postgres from "https://deno.land/x/postgresjs@v3.4.5/mod.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -132,23 +133,6 @@ Deno.serve(async (req) => {
         }
 
         try {
-          // Execute migration SQL via pg connection
-          // We use supabase rpc with a helper function, or direct SQL
-          // Since we can't run raw SQL via supabase-js, we use the REST API
-          const pgResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${serviceRoleKey}`,
-              apikey: serviceRoleKey,
-              "Content-Type": "application/json",
-            },
-          });
-
-          // Alternative: use Deno postgres for direct SQL execution
-          const { default: postgres } = await import(
-            "https://deno.land/x/postgresjs@v3.4.5/mod.js"
-          );
-
           const sql = postgres(dbUrl, {
             max: 1,
             idle_timeout: 5,

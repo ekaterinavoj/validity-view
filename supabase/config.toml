@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.seed-initial-admin]
 verify_jwt = false
+
+[functions.apply-migrations]
+verify_jwt = false
