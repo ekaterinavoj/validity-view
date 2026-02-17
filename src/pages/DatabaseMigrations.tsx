@@ -91,7 +91,8 @@ export default function DatabaseMigrations() {
   // All registry entries with status
   const allMigrations = MIGRATION_REGISTRY.map((m) => ({
     ...m,
-    isApplied: appliedVersions.has(m.version),
+    // Base migrations (sql === null) are always considered applied
+    isApplied: m.sql === null || appliedVersions.has(m.version),
     appliedAt: appliedMigrations.find((a) => a.version === m.version)?.applied_at,
   }));
 
@@ -460,9 +461,9 @@ export default function DatabaseMigrations() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {m.sql === null && !m.isApplied && (
-                      <Badge variant="outline" className="text-xs">
-                        init-db.sql
+                    {m.sql === null && (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                        Bazální
                       </Badge>
                     )}
                     {m.isApplied && m.appliedAt && (
