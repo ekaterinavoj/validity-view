@@ -2216,5 +2216,93 @@ COMMENT ON TABLE public.audit_logs IS 'Audit trail for important changes';
 -- VALUES ('USER_UUID', 'admin');
 --
 -- =============================================
+-- SCHEMA MIGRATIONS TRACKING
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    checksum TEXT
+);
+
+ALTER TABLE public.schema_migrations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Only admins can view migrations"
+    ON public.schema_migrations FOR SELECT
+    USING (has_role(auth.uid(), 'admin'::app_role));
+
+-- Seed all base migration versions as already applied
+INSERT INTO public.schema_migrations (version, name) VALUES
+  ('20251111133942', 'initial_schema'),
+  ('20251111134841', 'training_types'),
+  ('20251111140105', 'trainings_table'),
+  ('20251111154720', 'employees_updates'),
+  ('20251111161816', 'departments'),
+  ('20251111163852', 'rls_policies'),
+  ('20251111165542', 'reminder_system'),
+  ('20251111170120', 'reminder_templates'),
+  ('20251111170638', 'email_settings'),
+  ('20251111170911', 'audit_logs'),
+  ('20251111171200', 'user_roles'),
+  ('20251111175341', 'system_settings'),
+  ('20251111175418', 'profile_updates'),
+  ('20251111175535', 'notifications'),
+  ('20251111181455', 'facilities'),
+  ('20260123083452', 'deadlines_module'),
+  ('20260123084505', 'deadline_types'),
+  ('20260123085605', 'equipment_table'),
+  ('20260123091947', 'deadline_reminders'),
+  ('20260123092622', 'deadline_templates'),
+  ('20260123093508', 'deadline_policies'),
+  ('20260123094231', 'deadline_documents'),
+  ('20260123094657', 'deadline_responsibles'),
+  ('20260123110519', 'module_access'),
+  ('20260123111351', 'responsibility_groups'),
+  ('20260123113132', 'equipment_responsibles'),
+  ('20260123114539', 'deadline_logs'),
+  ('20260123114820', 'deadline_status_functions'),
+  ('20260123130603', 'training_documents'),
+  ('20260123145758', 'medical_module'),
+  ('20260124131411', 'medical_types'),
+  ('20260124132521', 'medical_documents'),
+  ('20260128130854', 'medical_reminders'),
+  ('20260128132057', 'medical_policies'),
+  ('20260129080349', 'user_invites'),
+  ('20260202130142', 'employee_manager'),
+  ('20260202130538', 'manager_hierarchy'),
+  ('20260202132443', 'role_based_visibility'),
+  ('20260202133445', 'work_categories'),
+  ('20260202133819', 'employee_status_updates'),
+  ('20260202134150', 'medical_exam_triggers'),
+  ('20260202144831', 'approval_system'),
+  ('20260203100728', 'onboarding_settings'),
+  ('20260208111743', 'reminder_logs_update'),
+  ('20260208112105', 'reminder_runs'),
+  ('20260208112156', 'reminder_delivery_mode'),
+  ('20260208114435', 'reminder_hardening'),
+  ('20260208115715', 'deadline_responsibles_constraints'),
+  ('20260208123613', 'notification_indexes'),
+  ('20260208131607', 'must_change_password'),
+  ('20260208133830', 'subordinate_auth_check'),
+  ('20260208174914', 'profile_employee_unique'),
+  ('20260208182011', 'work_category_check'),
+  ('20260208201019', 'module_access_check'),
+  ('20260208203253', 'audit_admin_only'),
+  ('20260208204533', 'approved_profiles_view'),
+  ('20260209131703', 'reminder_run_id'),
+  ('20260209133919', 'reminder_runs_policies'),
+  ('20260211150346', 'registration_functions'),
+  ('20260212111843', 'admin_provisioning'),
+  ('20260212120227', 'admin_edge_functions'),
+  ('20260212135709', 'user_management_updates'),
+  ('20260212153318', 'equipment_department'),
+  ('20260213154948', 'reminder_run_correlation'),
+  ('20260213195037', 'set_user_role_function'),
+  ('20260216193430', 'trigger_recreation')
+ON CONFLICT (version) DO NOTHING;
+
+-- =============================================
 
 -- End of initialization script
