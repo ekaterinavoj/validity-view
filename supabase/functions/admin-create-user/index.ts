@@ -156,6 +156,7 @@ Deno.serve(async (req) => {
         approved_at: new Date().toISOString(),
         approved_by: caller.id,
         employee_id: employeeId || null,
+        must_change_password: true,
       });
 
       if (insertError) {
@@ -170,6 +171,7 @@ Deno.serve(async (req) => {
         approval_status: "approved",
         approved_at: new Date().toISOString(),
         approved_by: caller.id,
+        must_change_password: true,
       };
 
       // Only set employee_id if provided (admins don't need it)
