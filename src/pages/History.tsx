@@ -22,6 +22,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { supabase } from "@/integrations/supabase/client";
 import { useFacilities } from "@/hooks/useFacilities";
 import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from "@/contexts/AuthContext";
@@ -325,44 +326,21 @@ export default function History() {
 
   const exportToCSV = () => {
     try {
-      const headers = [
-        "Datum",
-        "Typ školení",
-        "Osobní číslo",
-        "Jméno",
-        "Stav zaměstnance",
-        "Středisko",
-        "Školitel",
-        "Firma",
-        "Poznámka",
-      ];
+      const data = filteredHistory.map((training) => ({
+        "Datum": new Date(training.date).toLocaleDateString("cs-CZ"),
+        "Typ školení": training.type || "",
+        "Osobní číslo": training.employeeNumber || "",
+        "Jméno": training.employeeName || "",
+        "Stav zaměstnance": employeeStatusLabels[training.employeeStatus] || training.employeeStatus || "",
+        "Středisko": training.department || "",
+        "Školitel": training.trainer || "",
+        "Firma": training.company || "",
+        "Poznámka": training.note || "",
+      }));
 
-      const rows = filteredHistory.map((training) => [
-        new Date(training.date).toLocaleDateString("cs-CZ"),
-        training.type,
-        training.employeeNumber,
-        training.employeeName,
-        employeeStatusLabels[training.employeeStatus] || training.employeeStatus,
-        training.department,
-        training.trainer,
-        training.company,
-        training.note,
-      ]);
-
-      const escapeCSV = (value: string) => {
-        if (value.includes(";") || value.includes('"') || value.includes("\n")) {
-          return `"${value.replace(/"/g, '""')}"`;
-        }
-        return value;
-      };
-
-      const csvContent = [
-        headers.map(escapeCSV).join(";"),
-        ...rows.map((row) => row.map(escapeCSV).join(";")),
-      ].join("\n");
-
+      const csv = Papa.unparse(data, { delimiter: ";" });
       const BOM = "\uFEFF";
-      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       const timestamp = new Date().toISOString().split("T")[0];

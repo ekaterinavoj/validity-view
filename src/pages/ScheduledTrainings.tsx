@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatPeriodicity } from "@/lib/utils";
@@ -265,58 +266,25 @@ export default function ScheduledTrainings() {
         return;
       }
 
-      const headers = [
-        "Stav",
-        "Školení platné do",
-        "Typ školení",
-        "Osobní číslo",
-        "Jméno",
-        "Provozovna",
-        "Středisko",
-        "Datum školení",
-        "Školitel",
-        "Firma",
-        "Zadavatel",
-        "Periodicita",
-        "Poznámka"
-      ];
+      const data = trainingsToExport.map(training => ({
+        "Stav": training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
+        "Školení platné do": new Date(training.date).toLocaleDateString("cs-CZ"),
+        "Typ školení": training.type || "",
+        "Osobní číslo": training.employeeNumber || "",
+        "Jméno": training.employeeName || "",
+        "Provozovna": getFacilityName(training.facility) || "",
+        "Středisko": training.department || "",
+        "Datum školení": new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
+        "Školitel": training.trainer || "",
+        "Firma": training.company || "",
+        "Zadavatel": training.requester || "",
+        "Periodicita": formatPeriodicity(training.period) || "",
+        "Poznámka": training.note || "",
+      }));
 
-      const statusMap = {
-        valid: "Platné",
-        warning: "Brzy vyprší",
-        expired: "Prošlé"
-      };
-
-      const rows = trainingsToExport.map(training => [
-        statusMap[training.status],
-        new Date(training.date).toLocaleDateString("cs-CZ"),
-        training.type,
-        training.employeeNumber,
-        training.employeeName,
-        getFacilityName(training.facility),
-        training.department,
-        new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
-        training.trainer,
-        training.company,
-        training.requester,
-        formatPeriodicity(training.period),
-        training.note
-      ]);
-
-      const escapeCSV = (value: string) => {
-        if (value.includes(';') || value.includes('"') || value.includes('\n')) {
-          return `"${value.replace(/"/g, '""')}"`;
-        }
-        return value;
-      };
-
-      const csvContent = [
-        headers.map(escapeCSV).join(';'),
-        ...rows.map(row => row.map(escapeCSV).join(';'))
-      ].join('\n');
-
+      const csv = Papa.unparse(data, { delimiter: ";" });
       const BOM = '\uFEFF';
-      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
       
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);

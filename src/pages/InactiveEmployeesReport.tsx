@@ -12,6 +12,7 @@ import {
 import { Download, UserX, Calendar, Loader2, RefreshCw, FileSpreadsheet, FileDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import Papa from "papaparse";
 import {
   Collapsible,
   CollapsibleContent,
@@ -137,71 +138,45 @@ export default function InactiveEmployeesReport() {
 
   const exportToCSV = () => {
     try {
-      const headers = [
-        "Osobní číslo",
-        "Jméno",
-        "Email",
-        "Pozice",
-        "Středisko",
-        "Stav zaměstnance",
-        "Typ školení",
-        "Školení platné do",
-        "Datum školení",
-        "Stav školení",
-        "Poznámka",
-      ];
-
-      const rows: string[][] = [];
+      const data: Record<string, string>[] = [];
       filteredEmployees.forEach((employee) => {
         const trainings = getTrainingsForEmployee(employee.id);
         if (trainings.length === 0) {
-          // Include employee even without trainings
-          rows.push([
-            employee.employeeNumber,
-            `${employee.firstName} ${employee.lastName}`,
-            employee.email,
-            employee.position,
-            employee.department,
-            statusLabels[employee.status],
-            "-",
-            "-",
-            "-",
-            "-",
-            "-",
-          ]);
+          data.push({
+            "Osobní číslo": employee.employeeNumber || "",
+            "Jméno": `${employee.firstName} ${employee.lastName}`,
+            "Email": employee.email || "",
+            "Pozice": employee.position || "",
+            "Středisko": employee.department || "",
+            "Stav zaměstnance": statusLabels[employee.status] || "",
+            "Typ školení": "-",
+            "Školení platné do": "-",
+            "Datum školení": "-",
+            "Stav školení": "-",
+            "Poznámka": "-",
+          });
         } else {
           trainings.forEach((training) => {
-            rows.push([
-              employee.employeeNumber,
-              `${employee.firstName} ${employee.lastName}`,
-              employee.email,
-              employee.position,
-              employee.department,
-              statusLabels[employee.status],
-              training.type,
-              new Date(training.date).toLocaleDateString("cs-CZ"),
-              new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
-              training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
-              training.note,
-            ]);
+            data.push({
+              "Osobní číslo": employee.employeeNumber || "",
+              "Jméno": `${employee.firstName} ${employee.lastName}`,
+              "Email": employee.email || "",
+              "Pozice": employee.position || "",
+              "Středisko": employee.department || "",
+              "Stav zaměstnance": statusLabels[employee.status] || "",
+              "Typ školení": training.type || "",
+              "Školení platné do": new Date(training.date).toLocaleDateString("cs-CZ"),
+              "Datum školení": new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
+              "Stav školení": training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
+              "Poznámka": training.note || "",
+            });
           });
         }
       });
 
-      const escapeCSV = (value: string) => {
-        if (value.includes(";") || value.includes('"') || value.includes("\n")) {
-          return `"${value.replace(/"/g, '""')}"`;
-        }
-        return value;
-      };
-
-      const csvContent = [
-        headers.map(escapeCSV).join(";"),
-        ...rows.map((row) => row.map(escapeCSV).join(";")),
-      ].join("\n");
-
+      const csv = Papa.unparse(data, { delimiter: ";" });
       const BOM = "\uFEFF";
-      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       const timestamp = new Date().toISOString().split("T")[0];
@@ -214,7 +189,7 @@ export default function InactiveEmployeesReport() {
 
       toast({
         title: "Export úspěšný",
-        description: `Exportováno ${rows.length} záznamů.`,
+        description: `Exportováno ${data.length} záznamů.`,
       });
     } catch (error) {
       toast({
