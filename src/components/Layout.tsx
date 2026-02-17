@@ -387,6 +387,12 @@ export const Layout = ({
                             Administrace
                           </Link>
                         </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/migrations" className="flex items-center gap-2 cursor-pointer">
+                            <Database className="w-4 h-4" />
+                            Migrace DB
+                          </Link>
+                        </DropdownMenuItem>
                       </>}
                   </DropdownMenuContent>
                 </DropdownMenu>}
@@ -550,6 +556,10 @@ export const Layout = ({
                     <Link to="/admin/settings" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                       <Settings className="w-4 h-4" />
                       Administrace
+                    </Link>
+                    <Link to="/admin/migrations" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/migrations" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                      <Database className="w-4 h-4" />
+                      Migrace DB
                     </Link>
                   </>}
               </div>}

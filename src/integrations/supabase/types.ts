@@ -1267,6 +1267,30 @@ export type Database = {
         }
         Relationships: []
       }
+      schema_migrations: {
+        Row: {
+          applied_at: string
+          checksum: string | null
+          id: string
+          name: string
+          version: string
+        }
+        Insert: {
+          applied_at?: string
+          checksum?: string | null
+          id?: string
+          name: string
+          version: string
+        }
+        Update: {
+          applied_at?: string
+          checksum?: string | null
+          id?: string
+          name?: string
+          version?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           created_at: string

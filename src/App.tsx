@@ -42,6 +42,7 @@ import NewMedicalExamination from "./pages/NewMedicalExamination";
 import EditMedicalExamination from "./pages/EditMedicalExamination";
 import MedicalExaminationTypes from "./pages/MedicalExaminationTypes";
 import MedicalExaminationHistory from "./pages/MedicalExaminationHistory";
+import DatabaseMigrations from "./pages/DatabaseMigrations";
 
 const queryClient = new QueryClient();
 
@@ -118,6 +119,7 @@ const App = () => (
             {/* Admin-only routes */}
             <Route path="/admin/settings" element={<ProtectedLayout requiredRoles={["admin"]}><AdminSettings /></ProtectedLayout>} />
             <Route path="/admin/status" element={<ProtectedLayout requiredRoles={["admin"]}><SystemStatus /></ProtectedLayout>} />
+            <Route path="/admin/migrations" element={<ProtectedLayout requiredRoles={["admin"]}><DatabaseMigrations /></ProtectedLayout>} />
             <Route path="/user-management" element={<ProtectedLayout requiredRoles={["admin"]}><UserManagement /></ProtectedLayout>} />
             <Route path="/no-access" element={<ProtectedRoute><NoAccess /></ProtectedRoute>} />
             
