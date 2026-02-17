@@ -98,6 +98,7 @@ Deno.serve(async (req) => {
         position: "Administrator",
         approval_status: "approved",
         approved_at: new Date().toISOString(),
+        must_change_password: true,
       }, { onConflict: "id" });
 
     if (profileError) {
