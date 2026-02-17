@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS public.employees (
     status TEXT NOT NULL DEFAULT 'employed',
     status_start_date DATE,
     termination_date DATE,
-    work_category INTEGER,
+    work_category INTEGER CHECK (work_category >= 1 AND work_category <= 4),
     notes TEXT,
     manager_email TEXT,
     manager_first_name TEXT,
@@ -75,9 +75,15 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     approval_status TEXT NOT NULL DEFAULT 'pending',
     approved_by UUID,
     approved_at TIMESTAMPTZ,
+    must_change_password BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Partial unique index: each employee can be linked to at most one profile
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_employee_id_unique
+ON public.profiles (employee_id)
+WHERE employee_id IS NOT NULL;
 
 -- User roles
 CREATE TABLE IF NOT EXISTS public.user_roles (
@@ -96,7 +102,8 @@ CREATE TABLE IF NOT EXISTS public.user_module_access (
     module TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by UUID,
-    UNIQUE (user_id, module)
+    UNIQUE (user_id, module),
+    CONSTRAINT user_module_access_module_check CHECK (module = ANY (ARRAY['trainings'::text, 'deadlines'::text, 'plp'::text]))
 );
 
 -- User invites
@@ -135,6 +142,11 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     read_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Notification indexes
+CREATE INDEX idx_notifications_user_id ON public.notifications(user_id);
+CREATE INDEX idx_notifications_is_read ON public.notifications(user_id, is_read);
+CREATE INDEX idx_notifications_created_at ON public.notifications(created_at DESC);
 
 -- Audit logs
 CREATE TABLE IF NOT EXISTS public.audit_logs (
@@ -293,6 +305,7 @@ CREATE TABLE IF NOT EXISTS public.reminder_logs (
     max_attempts INTEGER NOT NULL DEFAULT 1,
     attempt_errors JSONB,
     final_status TEXT,
+    run_id UUID,
     sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -308,8 +321,15 @@ CREATE TABLE IF NOT EXISTS public.reminder_runs (
     emails_failed INTEGER DEFAULT 0,
     error_message TEXT,
     error_details JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT reminder_runs_triggered_by_check CHECK (triggered_by = ANY (ARRAY['cron', 'manual', 'pg_cron', 'test', 'manual_test', 'resend', 'single_test']::text[]))
 );
+
+-- Add FK for reminder_logs.run_id after reminder_runs is created
+ALTER TABLE public.reminder_logs ADD CONSTRAINT reminder_logs_run_id_fkey
+    FOREIGN KEY (run_id) REFERENCES public.reminder_runs(id) ON DELETE SET NULL;
+
+CREATE INDEX idx_reminder_logs_run_id ON public.reminder_logs(run_id);
 
 -- =============================================
 -- DEADLINE MODULE
@@ -368,8 +388,20 @@ CREATE TABLE IF NOT EXISTS public.deadline_responsibles (
     group_id UUID REFERENCES public.responsibility_groups(id) ON DELETE CASCADE,
     created_by UUID,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CHECK (profile_id IS NOT NULL OR group_id IS NOT NULL)
+    CONSTRAINT check_single_responsible CHECK (
+        (profile_id IS NOT NULL AND group_id IS NULL) OR
+        (profile_id IS NULL AND group_id IS NOT NULL)
+    ),
+    CONSTRAINT unique_deadline_profile UNIQUE (deadline_id, profile_id),
+    CONSTRAINT unique_deadline_group UNIQUE (deadline_id, group_id)
 );
+
+-- Indexes for deadline_responsibles
+CREATE INDEX idx_deadline_responsibles_deadline ON public.deadline_responsibles(deadline_id);
+CREATE INDEX idx_deadline_responsibles_profile ON public.deadline_responsibles(profile_id);
+CREATE INDEX idx_deadline_responsibles_group ON public.deadline_responsibles(group_id);
+CREATE INDEX idx_group_members_group ON public.responsibility_group_members(group_id);
+CREATE INDEX idx_group_members_profile ON public.responsibility_group_members(profile_id);
 
 CREATE TABLE IF NOT EXISTS public.deadline_documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -560,14 +592,26 @@ AS $$
   SELECT employee_id FROM public.profiles WHERE id = _user_id
 $$;
 
--- Get subordinate employee IDs (recursive)
+-- Get subordinate employee IDs (recursive, with auth check)
 CREATE OR REPLACE FUNCTION public.get_subordinate_employee_ids(root_employee_id UUID)
 RETURNS TABLE(employee_id UUID)
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
+BEGIN
+  -- Authorization: admin can query any root; non-admin only their own employee_id
+  IF NOT has_role(auth.uid(), 'admin'::app_role) THEN
+    IF root_employee_id IS DISTINCT FROM (
+      SELECT p.employee_id FROM public.profiles p WHERE p.id = auth.uid()
+    ) THEN
+      -- Return empty result set for unauthorized calls
+      RETURN;
+    END IF;
+  END IF;
+
+  RETURN QUERY
   WITH RECURSIVE tree AS (
     SELECT e.id
     FROM public.employees e
@@ -577,7 +621,8 @@ AS $$
     FROM public.employees e2
     JOIN tree t ON e2.manager_employee_id = t.id
   )
-  SELECT id FROM tree;
+  SELECT tree.id FROM tree;
+END;
 $$;
 
 -- Check if user is manager of employee
@@ -1361,134 +1406,145 @@ END;
 $$;
 
 -- =============================================
--- TRIGGERS
+-- TRIGGERS (using DROP IF EXISTS + CREATE pattern)
 -- =============================================
 
--- Prevent last admin removal
-CREATE TRIGGER prevent_last_admin_removal_trigger
-BEFORE UPDATE OR DELETE ON public.user_roles
-FOR EACH ROW
-EXECUTE FUNCTION public.prevent_last_admin_removal();
+-- profiles triggers
+DROP TRIGGER IF EXISTS on_profile_created_assign_role ON public.profiles;
+CREATE TRIGGER on_profile_created_assign_role
+  AFTER INSERT ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.assign_default_role();
 
--- Updated_at triggers
-CREATE TRIGGER update_facilities_updated_at
-BEFORE UPDATE ON public.facilities
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+DROP TRIGGER IF EXISTS on_profile_created_grant_modules ON public.profiles;
+CREATE TRIGGER on_profile_created_grant_modules
+  AFTER INSERT ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.grant_default_modules();
 
-CREATE TRIGGER update_employees_updated_at
-BEFORE UPDATE ON public.employees
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+DROP TRIGGER IF EXISTS on_profile_approval_change ON public.profiles;
+CREATE TRIGGER on_profile_approval_change
+  AFTER UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.log_profile_approval_changes();
 
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
 CREATE TRIGGER update_profiles_updated_at
-BEFORE UPDATE ON public.profiles
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER update_equipment_updated_at
-BEFORE UPDATE ON public.equipment
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+-- user_roles triggers
+DROP TRIGGER IF EXISTS prevent_last_admin_removal ON public.user_roles;
+CREATE TRIGGER prevent_last_admin_removal
+  BEFORE DELETE OR UPDATE ON public.user_roles
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_last_admin_removal();
 
+DROP TRIGGER IF EXISTS on_role_change ON public.user_roles;
+CREATE TRIGGER on_role_change
+  AFTER INSERT OR UPDATE OR DELETE ON public.user_roles
+  FOR EACH ROW EXECUTE FUNCTION public.log_role_changes();
+
+-- user_module_access triggers
+DROP TRIGGER IF EXISTS on_module_access_change ON public.user_module_access;
+CREATE TRIGGER on_module_access_change
+  AFTER INSERT OR UPDATE OR DELETE ON public.user_module_access
+  FOR EACH ROW EXECUTE FUNCTION public.log_module_access_changes();
+
+-- trainings triggers
+DROP TRIGGER IF EXISTS on_training_change ON public.trainings;
+CREATE TRIGGER on_training_change
+  AFTER INSERT OR UPDATE OR DELETE ON public.trainings
+  FOR EACH ROW EXECUTE FUNCTION public.log_training_changes();
+
+DROP TRIGGER IF EXISTS update_trainings_updated_at ON public.trainings;
 CREATE TRIGGER update_trainings_updated_at
-BEFORE UPDATE ON public.trainings
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+  BEFORE UPDATE ON public.trainings
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+-- employees triggers
+DROP TRIGGER IF EXISTS on_employee_status_change_trainings ON public.employees;
+CREATE TRIGGER on_employee_status_change_trainings
+  AFTER UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.update_training_active_status();
+
+DROP TRIGGER IF EXISTS on_employee_activation_trainings ON public.employees;
+CREATE TRIGGER on_employee_activation_trainings
+  AFTER UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.recalculate_training_status_on_activation();
+
+DROP TRIGGER IF EXISTS on_employee_status_change_medical ON public.employees;
+CREATE TRIGGER on_employee_status_change_medical
+  AFTER UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.update_medical_examination_active_status();
+
+DROP TRIGGER IF EXISTS on_employee_activation_medical ON public.employees;
+CREATE TRIGGER on_employee_activation_medical
+  AFTER UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.recalculate_examination_status_on_activation();
+
+DROP TRIGGER IF EXISTS on_employee_termination ON public.employees;
+CREATE TRIGGER on_employee_termination
+  BEFORE UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.set_termination_note();
+
+DROP TRIGGER IF EXISTS update_employees_updated_at ON public.employees;
+CREATE TRIGGER update_employees_updated_at
+  BEFORE UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- equipment triggers
+DROP TRIGGER IF EXISTS on_equipment_status_change_deadlines ON public.equipment;
+CREATE TRIGGER on_equipment_status_change_deadlines
+  AFTER UPDATE ON public.equipment
+  FOR EACH ROW EXECUTE FUNCTION public.update_deadline_active_status();
+
+DROP TRIGGER IF EXISTS update_equipment_updated_at ON public.equipment;
+CREATE TRIGGER update_equipment_updated_at
+  BEFORE UPDATE ON public.equipment
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- deadlines triggers
+DROP TRIGGER IF EXISTS update_deadlines_updated_at ON public.deadlines;
 CREATE TRIGGER update_deadlines_updated_at
-BEFORE UPDATE ON public.deadlines
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+  BEFORE UPDATE ON public.deadlines
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+-- medical_examinations triggers
+DROP TRIGGER IF EXISTS update_medical_examinations_updated_at ON public.medical_examinations;
 CREATE TRIGGER update_medical_examinations_updated_at
-BEFORE UPDATE ON public.medical_examinations
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+  BEFORE UPDATE ON public.medical_examinations
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+-- system_settings triggers
+DROP TRIGGER IF EXISTS update_system_settings_updated_at ON public.system_settings;
 CREATE TRIGGER update_system_settings_updated_at
-BEFORE UPDATE ON public.system_settings
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+  BEFORE UPDATE ON public.system_settings
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+-- responsibility_groups triggers
+DROP TRIGGER IF EXISTS update_responsibility_groups_updated_at ON public.responsibility_groups;
 CREATE TRIGGER update_responsibility_groups_updated_at
-BEFORE UPDATE ON public.responsibility_groups
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+  BEFORE UPDATE ON public.responsibility_groups
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+-- facilities trigger
+DROP TRIGGER IF EXISTS update_facilities_updated_at ON public.facilities;
+CREATE TRIGGER update_facilities_updated_at
+  BEFORE UPDATE ON public.facilities
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- reminder_templates triggers
+DROP TRIGGER IF EXISTS update_reminder_templates_updated_at ON public.reminder_templates;
 CREATE TRIGGER update_reminder_templates_updated_at
-BEFORE UPDATE ON public.reminder_templates
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+  BEFORE UPDATE ON public.reminder_templates
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_deadline_reminder_templates_updated_at ON public.deadline_reminder_templates;
 CREATE TRIGGER update_deadline_reminder_templates_updated_at
-BEFORE UPDATE ON public.deadline_reminder_templates
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+  BEFORE UPDATE ON public.deadline_reminder_templates
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_medical_reminder_templates_updated_at ON public.medical_reminder_templates;
 CREATE TRIGGER update_medical_reminder_templates_updated_at
-BEFORE UPDATE ON public.medical_reminder_templates
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
-
--- Employee status triggers
-CREATE TRIGGER update_training_active_on_employee_status
-AFTER UPDATE ON public.employees
-FOR EACH ROW
-EXECUTE FUNCTION public.update_training_active_status();
-
-CREATE TRIGGER update_medical_active_on_employee_status
-AFTER UPDATE ON public.employees
-FOR EACH ROW
-EXECUTE FUNCTION public.update_medical_examination_active_status();
-
-CREATE TRIGGER recalculate_training_status_trigger
-AFTER UPDATE ON public.employees
-FOR EACH ROW
-EXECUTE FUNCTION public.recalculate_training_status_on_activation();
-
-CREATE TRIGGER recalculate_examination_status_trigger
-AFTER UPDATE ON public.employees
-FOR EACH ROW
-EXECUTE FUNCTION public.recalculate_examination_status_on_activation();
-
-CREATE TRIGGER set_termination_note_trigger
-BEFORE UPDATE ON public.employees
-FOR EACH ROW
-EXECUTE FUNCTION public.set_termination_note();
-
--- Equipment status trigger
-CREATE TRIGGER update_deadline_active_on_equipment_status
-AFTER UPDATE ON public.equipment
-FOR EACH ROW
-EXECUTE FUNCTION public.update_deadline_active_status();
-
--- Audit triggers
-CREATE TRIGGER log_training_changes_trigger
-AFTER INSERT OR UPDATE OR DELETE ON public.trainings
-FOR EACH ROW
-EXECUTE FUNCTION public.log_training_changes();
-
-CREATE TRIGGER log_role_changes_trigger
-AFTER INSERT OR UPDATE OR DELETE ON public.user_roles
-FOR EACH ROW
-EXECUTE FUNCTION public.log_role_changes();
-
-CREATE TRIGGER log_profile_approval_trigger
-AFTER UPDATE ON public.profiles
-FOR EACH ROW
-EXECUTE FUNCTION public.log_profile_approval_changes();
-
--- Profile triggers
-CREATE TRIGGER grant_default_modules_trigger
-AFTER INSERT ON public.profiles
-FOR EACH ROW
-EXECUTE FUNCTION public.grant_default_modules();
-
-CREATE TRIGGER assign_default_role_trigger
-AFTER INSERT ON public.profiles
-FOR EACH ROW
-EXECUTE FUNCTION public.assign_default_role();
+  BEFORE UPDATE ON public.medical_reminder_templates
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Auth trigger: automatically create profile when new user signs up
 CREATE OR REPLACE TRIGGER on_auth_user_created
@@ -1550,11 +1606,21 @@ CREATE POLICY "Users can view own profile" ON public.profiles
 CREATE POLICY "Admins can view all profiles" ON public.profiles
   FOR SELECT USING (has_role(auth.uid(), 'admin'));
 
+CREATE POLICY "Approved users can view approved profiles" ON public.profiles
+  FOR SELECT USING (
+    is_user_approved(auth.uid()) 
+    AND approval_status = 'approved'
+  );
+
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
 CREATE POLICY "Admins can update all profiles" ON public.profiles
   FOR UPDATE USING (has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Admins can update any profile" ON public.profiles
+  FOR UPDATE USING (has_role(auth.uid(), 'admin'))
+  WITH CHECK (has_role(auth.uid(), 'admin'));
 
 -- User roles
 CREATE POLICY "Users can view own roles" ON public.user_roles
@@ -1778,6 +1844,9 @@ CREATE POLICY "Admins can view reminder logs" ON public.reminder_logs
 CREATE POLICY "System can insert reminder logs" ON public.reminder_logs
   FOR INSERT WITH CHECK (true);
 
+CREATE POLICY "Admins can delete reminder logs" ON public.reminder_logs
+  FOR DELETE USING (has_role(auth.uid(), 'admin'));
+
 CREATE POLICY "Admins can view reminder runs" ON public.reminder_runs
   FOR SELECT USING (has_role(auth.uid(), 'admin'));
 
@@ -1892,6 +1961,9 @@ CREATE POLICY "Admins can view deadline reminder logs" ON public.deadline_remind
 CREATE POLICY "System can insert deadline reminder logs" ON public.deadline_reminder_logs
   FOR INSERT WITH CHECK (true);
 
+CREATE POLICY "Admins can delete deadline reminder logs" ON public.deadline_reminder_logs
+  FOR DELETE USING (has_role(auth.uid(), 'admin'));
+
 -- =============================================
 -- RLS POLICIES - MEDICAL EXAMINATIONS
 -- =============================================
@@ -1980,6 +2052,9 @@ CREATE POLICY "Admins can view medical reminder logs" ON public.medical_reminder
 CREATE POLICY "System can insert medical reminder logs" ON public.medical_reminder_logs
   FOR INSERT WITH CHECK (true);
 
+CREATE POLICY "Admins can delete medical reminder logs" ON public.medical_reminder_logs
+  FOR DELETE USING (has_role(auth.uid(), 'admin'));
+
 -- =============================================
 -- RLS POLICIES - SYSTEM & NOTIFICATIONS
 -- =============================================
@@ -2009,8 +2084,8 @@ CREATE POLICY "Users can delete own notifications" ON public.notifications
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Audit logs
-CREATE POLICY "Admins and managers can view audit logs" ON public.audit_logs
-  FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'manager'));
+CREATE POLICY "Only admins can view audit logs" ON public.audit_logs
+  FOR SELECT USING (has_role(auth.uid(), 'admin'));
 
 CREATE POLICY "No manual modifications to audit logs" ON public.audit_logs
   FOR ALL USING (false);
