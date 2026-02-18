@@ -44,7 +44,14 @@ import MedicalExaminationTypes from "./pages/MedicalExaminationTypes";
 import MedicalExaminationHistory from "./pages/MedicalExaminationHistory";
 import DatabaseMigrations from "./pages/DatabaseMigrations";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 const ProtectedLayout = ({ 
   children, 
