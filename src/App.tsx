@@ -43,7 +43,7 @@ import EditMedicalExamination from "./pages/EditMedicalExamination";
 import MedicalExaminationTypes from "./pages/MedicalExaminationTypes";
 import MedicalExaminationHistory from "./pages/MedicalExaminationHistory";
 import DatabaseMigrations from "./pages/DatabaseMigrations";
-
+import Documents from "./pages/Documents";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -128,6 +128,7 @@ const App = () => (
             <Route path="/admin/status" element={<ProtectedLayout requiredRoles={["admin"]}><SystemStatus /></ProtectedLayout>} />
             <Route path="/admin/migrations" element={<ProtectedLayout requiredRoles={["admin"]}><DatabaseMigrations /></ProtectedLayout>} />
             <Route path="/user-management" element={<ProtectedLayout requiredRoles={["admin"]}><UserManagement /></ProtectedLayout>} />
+            <Route path="/documents" element={<ProtectedLayout><Documents /></ProtectedLayout>} />
             <Route path="/no-access" element={<ProtectedRoute><NoAccess /></ProtectedRoute>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

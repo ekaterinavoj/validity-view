@@ -499,6 +499,20 @@ CREATE TABLE IF NOT EXISTS public.medical_examination_documents (
     uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- General Documents
+CREATE TABLE IF NOT EXISTS public.general_documents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    group_name TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_type TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    uploaded_by UUID,
+    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.medical_reminder_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     examination_id UUID REFERENCES public.medical_examinations(id) ON DELETE SET NULL,
@@ -1594,6 +1608,7 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.responsibility_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.responsibility_group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.general_documents ENABLE ROW LEVEL SECURITY;
 
 -- =============================================
 -- RLS POLICIES - USER MANAGEMENT
@@ -2028,6 +2043,22 @@ CREATE POLICY "Approved users can upload examination documents" ON public.medica
 CREATE POLICY "Users can delete their own examination documents" ON public.medical_examination_documents
   FOR DELETE USING (auth.uid() = uploaded_by AND is_user_approved(auth.uid()));
 
+-- General documents
+CREATE POLICY "Approved users can view general documents" ON public.general_documents
+  FOR SELECT USING (is_user_approved(auth.uid()));
+
+CREATE POLICY "Approved users can upload general documents" ON public.general_documents
+  FOR INSERT WITH CHECK (auth.uid() = uploaded_by AND is_user_approved(auth.uid()));
+
+CREATE POLICY "Admins and managers can delete general documents" ON public.general_documents
+  FOR DELETE USING (
+    is_user_approved(auth.uid()) AND (
+      has_role(auth.uid(), 'admin')
+      OR has_role(auth.uid(), 'manager')
+      OR auth.uid() = uploaded_by
+    )
+  );
+
 -- Medical reminder templates
 CREATE POLICY "Users can view medical reminder templates based on role" ON public.medical_reminder_templates
   FOR SELECT USING (
@@ -2135,7 +2166,8 @@ INSERT INTO storage.buckets (id, name)
 VALUES 
   ('training-documents', 'training-documents'),
   ('deadline-documents', 'deadline-documents'),
-  ('medical-documents', 'medical-documents')
+  ('medical-documents', 'medical-documents'),
+  ('general-documents', 'general-documents')
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage RLS policies: Approved users can upload/view/delete their own files
@@ -2174,6 +2206,19 @@ CREATE POLICY "Approved users can view medical documents"
 CREATE POLICY "Approved users can delete own medical documents"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'medical-documents' AND auth.uid() IS NOT NULL);
+
+-- General documents storage policies
+CREATE POLICY "Approved users can upload general docs"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'general-documents' AND auth.uid() IS NOT NULL);
+
+CREATE POLICY "Approved users can view general docs"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'general-documents' AND auth.uid() IS NOT NULL);
+
+CREATE POLICY "Admins can delete general docs"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'general-documents' AND auth.uid() IS NOT NULL);
 
 -- =============================================
 -- DEFAULT SYSTEM SETTINGS
@@ -2300,7 +2345,8 @@ INSERT INTO public.schema_migrations (version, name) VALUES
   ('20260212153318', 'equipment_department'),
   ('20260213154948', 'reminder_run_correlation'),
   ('20260213195037', 'set_user_role_function'),
-  ('20260216193430', 'trigger_recreation')
+  ('20260216193430', 'trigger_recreation'),
+  ('20260219100000', 'general_documents')
 ON CONFLICT (version) DO NOTHING;
 
 -- =============================================

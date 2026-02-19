@@ -620,6 +620,45 @@ export type Database = {
         }
         Relationships: []
       }
+      general_documents: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          group_name: string
+          id: string
+          name: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          group_name: string
+          id?: string
+          name: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          group_name?: string
+          id?: string
+          name?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       medical_examination_documents: {
         Row: {
           description: string | null
