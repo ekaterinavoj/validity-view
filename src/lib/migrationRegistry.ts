@@ -92,13 +92,69 @@ export const MIGRATION_REGISTRY: MigrationEntry[] = [
   { version: "20260213195037", name: "set_user_role_function", sql: null },
   { version: "20260216193430", name: "trigger_recreation", sql: null },
 
-  // ===== New migrations (add SQL here for incremental updates) =====
-  // Example:
-  // {
-  //   version: "20260301000000",
-  //   name: "add_new_column",
-  //   sql: "ALTER TABLE public.employees ADD COLUMN phone text;"
-  // },
+  {
+    version: "20260219100000",
+    name: "general_documents",
+    sql: `
+-- Create general_documents table for the Documentation module
+CREATE TABLE IF NOT EXISTS public.general_documents (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  group_name TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  file_type TEXT NOT NULL,
+  file_size INTEGER NOT NULL,
+  uploaded_by UUID NULL,
+  uploaded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.general_documents ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Approved users can view general documents"
+ON public.general_documents FOR SELECT
+USING (is_user_approved(auth.uid()));
+
+CREATE POLICY "Approved users can upload general documents"
+ON public.general_documents FOR INSERT
+WITH CHECK (auth.uid() = uploaded_by AND is_user_approved(auth.uid()));
+
+CREATE POLICY "Admins and managers can delete general documents"
+ON public.general_documents FOR DELETE
+USING (
+  is_user_approved(auth.uid()) AND (
+    has_role(auth.uid(), 'admin'::app_role)
+    OR has_role(auth.uid(), 'manager'::app_role)
+    OR auth.uid() = uploaded_by
+  )
+);
+
+-- Storage bucket
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('general-documents', 'general-documents', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage policies
+DO $$ BEGIN
+  CREATE POLICY "Approved users can upload general docs"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'general-documents' AND auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Approved users can view general docs"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'general-documents' AND auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Admins can delete general docs"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'general-documents' AND auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+`
+  },
 ];
 
 /**
