@@ -49,14 +49,21 @@ export function SendTestMedicalEmail({ hasRecipients, isEnabled }: SendTestMedic
           success: false, 
           message: data.error || data.warning 
         });
+      } else if (data?.info) {
+        // Edge function returned early (e.g. no examinations need attention)
+        setResult({
+          success: true,
+          message: data.info,
+        });
       } else {
+        const recipientCount = data?.recipientCount || data?.emailsSent || 0;
         setResult({ 
           success: true, 
-          message: `Testovací email byl úspěšně odeslán ${data?.emailsSent || 0} příjemcům.` 
+          message: `Testovací email byl úspěšně odeslán ${recipientCount} příjemcům.` 
         });
         toast({
           title: "Testovací email odeslán",
-          description: `Email byl odeslán ${data?.emailsSent || 0} příjemcům.`,
+          description: `Email byl odeslán ${recipientCount} příjemcům.`,
         });
       }
     } catch (error: any) {
