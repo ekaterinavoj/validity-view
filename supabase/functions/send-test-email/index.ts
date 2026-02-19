@@ -96,23 +96,58 @@ async function sendViaSMTP(
     if (tlsMode === "starttls" && !isTlsConnection) {
       resp = await sendCommand("STARTTLS");
       if (resp.code === 220) {
-        reader.releaseLock();
-        writer.releaseLock();
-        connection = await Deno.startTls(connection as Deno.TcpConn, { hostname: host });
-        isTlsConnection = true;
-        
-        // Continue with TLS connection
-        const tlsReader = connection.readable.getReader();
-        const tlsWriter = connection.writable.getWriter();
-        
-        await sendEmailContent(tlsWriter, tlsReader, host, authEnabled, username, password, 
-          fromEmail, fromName, to, subject, body);
-        
-        tlsReader.releaseLock();
-        tlsWriter.releaseLock();
-        connection.close();
-        console.log("Test email sent successfully via SMTP with STARTTLS");
-        return { success: true, diagnostics };
+        try {
+          reader.releaseLock();
+          writer.releaseLock();
+          connection = await Deno.startTls(connection as Deno.TcpConn, { hostname: host });
+          isTlsConnection = true;
+          
+          const tlsReader = connection.readable.getReader();
+          const tlsWriter = connection.writable.getWriter();
+          
+          await sendEmailContent(tlsWriter, tlsReader, host, authEnabled, username, password, 
+            fromEmail, fromName, to, subject, body);
+          
+          tlsReader.releaseLock();
+          tlsWriter.releaseLock();
+          connection.close();
+          console.log("Test email sent successfully via SMTP with STARTTLS");
+          return { success: true, diagnostics };
+        } catch (tlsError: any) {
+          console.warn(`STARTTLS upgrade failed (${tlsError.message}), reconnecting without TLS`);
+          if (connection) try { connection.close(); } catch {}
+          
+          connection = await Deno.connect({ hostname: host, port });
+          const plainReader = connection.readable.getReader();
+          const plainWriter = connection.writable.getWriter();
+          
+          const readPlain = async (): Promise<string> => {
+            const decoder = new TextDecoder();
+            let resp = "";
+            while (true) {
+              const { value, done } = await plainReader.read();
+              if (done) break;
+              resp += decoder.decode(value, { stream: true });
+              if (resp.includes("\r\n")) {
+                const lines = resp.split("\r\n");
+                const lastLine = lines[lines.length - 2] || lines[lines.length - 1];
+                if (lastLine.length >= 4 && lastLine[3] !== '-') break;
+              }
+            }
+            return resp;
+          };
+          
+          await readPlain(); // greeting
+          
+          await sendEmailContent(plainWriter, plainReader, host, authEnabled, username, password,
+            fromEmail, fromName, to, subject, body);
+          
+          plainReader.releaseLock();
+          plainWriter.releaseLock();
+          connection.close();
+          console.log("Test email sent via plain SMTP (STARTTLS fallback)");
+          return { success: true, diagnostics };
+        }
       }
     }
 

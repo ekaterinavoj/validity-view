@@ -204,61 +204,82 @@ async function sendViaSMTP(
     if (tlsMode === "starttls") {
       resp = await sendCommand("STARTTLS");
       if (resp.code === 220) {
-        reader.releaseLock();
-        writer.releaseLock();
-        connection = await Deno.startTls(connection as Deno.TcpConn, { hostname: host });
-        
-        const tlsReader = connection.readable.getReader();
-        const tlsWriter = connection.writable.getWriter();
-        
-        const sendTlsCommand = async (cmd: string): Promise<{ code: number; msg: string }> => {
-          const encoder = new TextEncoder();
-          await tlsWriter.write(encoder.encode(cmd + "\r\n"));
-          const decoder = new TextDecoder();
-          let response = "";
-          while (true) {
-            const { value, done } = await tlsReader.read();
-            if (done) break;
-            response += decoder.decode(value, { stream: true });
-            if (response.includes("\r\n")) break;
+        try {
+          reader.releaseLock();
+          writer.releaseLock();
+          connection = await Deno.startTls(connection as Deno.TcpConn, { hostname: host });
+          
+          const tlsReader = connection.readable.getReader();
+          const tlsWriter = connection.writable.getWriter();
+          
+          const sendTlsCommand = async (cmd: string): Promise<{ code: number; msg: string }> => {
+            const encoder = new TextEncoder();
+            await tlsWriter.write(encoder.encode(cmd + "\r\n"));
+            const decoder = new TextDecoder();
+            let response = "";
+            while (true) {
+              const { value, done } = await tlsReader.read();
+              if (done) break;
+              response += decoder.decode(value, { stream: true });
+              if (response.includes("\r\n")) break;
+            }
+            return { code: parseInt(response.substring(0, 3), 10), msg: response };
+          };
+
+          await sendTlsCommand(`EHLO ${host}`);
+          
+          if (authEnabled && username && password) {
+            await sendTlsCommand("AUTH LOGIN");
+            await sendTlsCommand(btoa(username));
+            await sendTlsCommand(btoa(password));
           }
-          return { code: parseInt(response.substring(0, 3), 10), msg: response };
-        };
 
-        await sendTlsCommand(`EHLO ${host}`);
-        
-        if (authEnabled && username && password) {
-          await sendTlsCommand("AUTH LOGIN");
-          await sendTlsCommand(btoa(username));
-          await sendTlsCommand(btoa(password));
-        }
+          await sendTlsCommand(`MAIL FROM:<${fromEmail}>`);
+          for (const rcpt of allRecipients) {
+            await sendTlsCommand(`RCPT TO:<${rcpt}>`);
+          }
+          await sendTlsCommand("DATA");
 
-        await sendTlsCommand(`MAIL FROM:<${fromEmail}>`);
-        for (const rcpt of allRecipients) {
-          await sendTlsCommand(`RCPT TO:<${rcpt}>`);
-        }
-        await sendTlsCommand("DATA");
+          const boundary = `----=_Part_${Date.now()}`;
+          const emailData = [
+            `From: "${fromName}" <${fromEmail}>`,
+            `To: ${toRecipients.join(", ")}`,
+            bccRecipients.length > 0 ? `Bcc: ${bccRecipients.join(", ")}` : "",
+            `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
+            "MIME-Version: 1.0",
+            `Content-Type: text/html; charset=UTF-8`,
+            "",
+            body,
+            ".",
+          ].filter(Boolean).join("\r\n");
 
-        const boundary = `----=_Part_${Date.now()}`;
-        const emailData = [
-          `From: "${fromName}" <${fromEmail}>`,
-          `To: ${toRecipients.join(", ")}`,
-          bccRecipients.length > 0 ? `Bcc: ${bccRecipients.join(", ")}` : "",
-          `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
-          "MIME-Version: 1.0",
-          `Content-Type: text/html; charset=UTF-8`,
-          "",
-          body,
-          ".",
-        ].filter(Boolean).join("\r\n");
-
-        await tlsWriter.write(new TextEncoder().encode(emailData + "\r\n"));
-        await sendTlsCommand("QUIT");
-        
-        tlsReader.releaseLock();
-        tlsWriter.releaseLock();
-        connection.close();
+          await tlsWriter.write(new TextEncoder().encode(emailData + "\r\n"));
+          await sendTlsCommand("QUIT");
+          
+          tlsReader.releaseLock();
+          tlsWriter.releaseLock();
+          connection.close();
         return { success: true, provider: "smtp" };
+        } catch (tlsError: any) {
+          console.warn(`STARTTLS upgrade failed (${tlsError.message}), reconnecting without TLS`);
+          if (connection) try { connection.close(); } catch {}
+          connection = await Deno.connect({ hostname: host, port });
+          const pr = connection.readable.getReader();
+          const pw = connection.writable.getWriter();
+          const readP = async (): Promise<string> => { const d = new TextDecoder(); let r = ""; while (true) { const { value, done } = await pr.read(); if (done) break; r += d.decode(value, { stream: true }); if (r.includes("\r\n")) { const l = r.split("\r\n"); const ll = l[l.length-2]||l[l.length-1]; if (ll.length>=4 && ll[3]!=='-') break; } } return r; };
+          const sendP = async (cmd: string) => { await pw.write(new TextEncoder().encode(cmd+"\r\n")); const r = await readP(); return { code: parseInt(r.substring(0,3),10), msg: r }; };
+          await readP(); // greeting
+          await sendP(`EHLO ${host}`);
+          if (authEnabled && username && password) { await sendP("AUTH LOGIN"); await sendP(btoa(username)); await sendP(btoa(password)); }
+          await sendP(`MAIL FROM:<${fromEmail}>`);
+          for (const rcpt of allRecipients) { await sendP(`RCPT TO:<${rcpt}>`); }
+          await sendP("DATA");
+          const emailData2 = [`From: "${fromName}" <${fromEmail}>`,`To: ${toRecipients.join(", ")}`,bccRecipients.length>0?`Bcc: ${bccRecipients.join(", ")}`:"",`Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,"MIME-Version: 1.0",`Content-Type: text/html; charset=UTF-8`,"",body,"."].filter(Boolean).join("\r\n");
+          await pw.write(new TextEncoder().encode(emailData2 + "\r\n"));
+          await sendP("QUIT");
+          pr.releaseLock(); pw.releaseLock(); connection.close();
+          return { success: true, provider: "smtp" };
+        }
       }
     }
 

@@ -449,10 +449,11 @@ async function sendViaSMTP(
     if (tlsMode === "starttls" && !isTlsConnection) {
       resp = await sendCommand("STARTTLS");
       if (resp.code === 220) {
-        reader.releaseLock();
-        writer.releaseLock();
-        connection = await Deno.startTls(connection as Deno.TcpConn, { hostname: host });
-        isTlsConnection = true;
+        try {
+          reader.releaseLock();
+          writer.releaseLock();
+          connection = await Deno.startTls(connection as Deno.TcpConn, { hostname: host });
+          isTlsConnection = true;
         
         // Get new reader/writer
         const tlsReader = connection.readable.getReader();
@@ -466,6 +467,49 @@ async function sendViaSMTP(
         tlsWriter.releaseLock();
         connection.close();
         return { success: true, provider: "smtp" };
+        } catch (tlsError: any) {
+          console.warn(`STARTTLS upgrade failed (${tlsError.message}), falling back to plain SMTP`);
+          // Connection is broken after failed STARTTLS, need to reconnect
+          if (connection) try { connection.close(); } catch {}
+          
+          // Reconnect without TLS
+          connection = await Deno.connect({ hostname: host, port });
+          const plainReader = connection.readable.getReader();
+          const plainWriter = connection.writable.getWriter();
+          
+          const readPlain = async (): Promise<string> => {
+            const decoder = new TextDecoder();
+            let response = "";
+            while (true) {
+              const { value, done } = await plainReader.read();
+              if (done) break;
+              response += decoder.decode(value, { stream: true });
+              if (response.includes("\r\n")) {
+                const lines = response.split("\r\n");
+                const lastLine = lines[lines.length - 2] || lines[lines.length - 1];
+                if (lastLine.length >= 4 && lastLine[3] !== '-') break;
+              }
+            }
+            return response;
+          };
+          
+          const sendPlain = async (cmd: string): Promise<{ code: number; msg: string }> => {
+            await plainWriter.write(new TextEncoder().encode(cmd + "\r\n"));
+            const resp = await readPlain();
+            return { code: parseInt(resp.substring(0, 3), 10), msg: resp };
+          };
+          
+          await readPlain(); // greeting
+          await sendPlain(`EHLO ${host}`);
+          
+          await sendEmailContent(plainWriter, plainReader, host, authEnabled, username, password,
+            fromEmail, fromName, toRecipients, ccRecipients, bccRecipients, allRecipients, subject, body);
+          
+          plainReader.releaseLock();
+          plainWriter.releaseLock();
+          connection.close();
+          return { success: true, provider: "smtp" };
+        }
       }
     }
 
