@@ -472,6 +472,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: result.success,
       emailsSent: result.success ? 1 : 0,
+      recipientCount: result.success ? recipientEmails.length : 0,
       examinationsCount: examinationItems.length,
       error: result.error,
     }), {
