@@ -15,8 +15,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Set up PDF.js worker - use unpkg CDN which has all versions including latest
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Set up PDF.js worker - use local worker bundled with the app (works offline/Docker without CDN)
+// The worker file is copied to public/pdf-worker/ during build via vite config
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url
+).toString();
 
 export interface PreviewFile {
   name: string;
