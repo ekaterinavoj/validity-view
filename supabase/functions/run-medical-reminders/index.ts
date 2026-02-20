@@ -466,14 +466,26 @@ serve(async (req) => {
       expiredItems.length
     );
 
-    body = body.replace(/\n/g, "<br>");
-    body += buildExaminationsTable(examinationItems);
+    const bodyText = body.replace(/\n/g, "<br>");
+    const tableHtml = buildExaminationsTable(examinationItems);
+    const fullBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; color: #333;">
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          ${bodyText}
+        </div>
+        ${tableHtml}
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+        <p style="color: #9ca3af; font-size: 12px;">
+          Tento email byl odeslán automaticky systémem evidence PLP.
+        </p>
+      </div>
+    `;
 
     // Send email
     const result = await sendViaSMTP(
       recipientEmails,
       subject,
-      body,
+      fullBody,
       recipients.delivery_mode || "bcc",
       emailProvider
     );
@@ -483,7 +495,7 @@ serve(async (req) => {
       template_name: "Medical Summary",
       recipient_emails: recipientEmails,
       email_subject: subject,
-      email_body: body,
+      email_body: fullBody,
       status: result.success ? "sent" : "failed",
       error_message: result.error || null,
       is_test: false,
