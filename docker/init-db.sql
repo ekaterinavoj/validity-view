@@ -624,13 +624,14 @@ BEGIN
 
   RETURN QUERY
   WITH RECURSIVE tree AS (
-    SELECT e.id
+    SELECT e.id, 0 AS depth
     FROM public.employees e
     WHERE e.id = root_employee_id
-    UNION ALL
-    SELECT e2.id
+    UNION
+    SELECT e2.id, t.depth + 1
     FROM public.employees e2
     JOIN tree t ON e2.manager_employee_id = t.id
+    WHERE t.depth < 20
   )
   SELECT tree.id FROM tree;
 END;
