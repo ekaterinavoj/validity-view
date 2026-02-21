@@ -23,8 +23,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useFacilities } from "@/hooks/useFacilities";
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
@@ -279,50 +277,6 @@ export default function History() {
   };
 
 
-  const exportToPDF = () => {
-    try {
-      const doc = new jsPDF({ orientation: 'landscape' });
-      
-      doc.setFontSize(16);
-      doc.text("Historie školení", 14, 15);
-      doc.setFontSize(10);
-      doc.text(`Vygenerováno: ${new Date().toLocaleDateString("cs-CZ")}`, 14, 22);
-
-      const tableData = filteredHistory.map((training) => [
-        new Date(training.date).toLocaleDateString("cs-CZ"),
-        training.type,
-        training.employeeNumber,
-        training.employeeName,
-        employeeStatusLabels[training.employeeStatus] || training.employeeStatus,
-        training.department,
-        training.trainer,
-        training.company,
-        training.note || "",
-      ]);
-
-      autoTable(doc, {
-        head: [["Datum", "Typ školení", "Os. číslo", "Jméno", "Stav", "Středisko", "Školitel", "Firma", "Poznámka"]],
-        body: tableData,
-        startY: 28,
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [59, 130, 246] },
-      });
-
-      const timestamp = new Date().toISOString().split("T")[0];
-      doc.save(`historie_skoleni_${timestamp}.pdf`);
-
-      toast({
-        title: "Export úspěšný",
-        description: `Exportováno ${filteredHistory.length} záznamů do PDF.`,
-      });
-    } catch (err) {
-      toast({
-        title: "Chyba při exportu",
-        description: "Nepodařilo se exportovat data.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const exportToCSV = () => {
     try {

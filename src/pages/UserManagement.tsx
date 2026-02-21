@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Shield, UserCog, Search, X, AlertTriangle, Download, FileDown } from "lucide-react";
+import { Loader2, Shield, UserCog, Search, X, AlertTriangle, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
@@ -20,8 +20,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface UserProfile {
   id: string;
@@ -272,45 +270,8 @@ export default function UserManagement() {
     }
   };
 
-  const exportToPDF = () => {
-    try {
-      const doc = new jsPDF();
-      
-      doc.setFontSize(16);
-      doc.text("Správa uživatelů", 14, 15);
-      doc.setFontSize(10);
-      doc.text(`Vygenerováno: ${new Date().toLocaleDateString("cs-CZ")}`, 14, 22);
 
-      const tableData = filteredUsers.map(user => [
-        `${user.first_name} ${user.last_name}`,
-        user.email,
-        user.position || "-",
-        roleLabels[user.roles[0] as keyof typeof roleLabels] || "Uživatel",
-      ]);
 
-      autoTable(doc, {
-        head: [["Jméno", "Email", "Pozice", "Role"]],
-        body: tableData,
-        startY: 28,
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [59, 130, 246] },
-      });
-
-      const timestamp = new Date().toISOString().split("T")[0];
-      doc.save(`uzivatele_${timestamp}.pdf`);
-
-      toast({
-        title: "Export úspěšný",
-        description: `Exportováno ${filteredUsers.length} uživatelů do PDF.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Chyba při exportu",
-        description: "Nepodařilo se exportovat data.",
-        variant: "destructive",
-      });
-    }
-  };
 
   if (!isAdmin) {
     return null;

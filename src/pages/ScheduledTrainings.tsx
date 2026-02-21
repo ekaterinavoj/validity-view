@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Plus, CalendarClock, FileDown, Eye, Download } from "lucide-react";
+import { Edit, Plus, CalendarClock, Eye, Download } from "lucide-react";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
@@ -24,8 +24,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { formatPeriodicity } from "@/lib/utils";
 import { useTrainings } from "@/hooks/useTrainings";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
@@ -309,87 +307,7 @@ export default function ScheduledTrainings() {
     }
   };
 
-  // exportToExcel replaced with exportToCSV above
-
-  const exportToPDF = () => {
-    try {
-      const trainingsToExport = selectedTrainings.size > 0
-        ? filteredTrainings.filter(t => selectedTrainings.has(t.id))
-        : filteredTrainings;
-
-      if (trainingsToExport.length === 0) {
-        toast({
-          title: "Žádná data k exportu",
-          description: "Nejsou k dispozici žádná školení pro export.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const pdf = new jsPDF('l', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      let yPosition = 20;
-
-      pdf.setFontSize(18);
-      pdf.text('Seznam skoleni', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 10;
-
-      pdf.setFontSize(10);
-      const date = new Date().toLocaleDateString('cs-CZ');
-      pdf.text(`Vygenerovano: ${date}`, pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 10;
-
-      const statusMap = {
-        valid: "Platne",
-        warning: "Brzy vyprsi",
-        expired: "Prosle"
-      };
-
-      autoTable(pdf, {
-        startY: yPosition,
-        head: [['Stav', 'Platne do', 'Typ', 'Jmeno', 'Provozovna', 'Stredisko', 'Datum skoleni', 'Skolitel', 'Firma', 'Zadavatel', 'Periodicita', 'Poznamka']],
-        body: trainingsToExport.map(t => [
-          statusMap[t.status],
-          new Date(t.date).toLocaleDateString("cs-CZ"),
-          t.type,
-          t.employeeName,
-          getFacilityName(t.facility),
-          t.department || '-',
-          new Date(t.lastTrainingDate).toLocaleDateString("cs-CZ"),
-          t.trainer || '-',
-          t.company || '-',
-          t.requester || '-',
-          formatPeriodicity(t.period) || '-',
-          t.note || '-'
-        ]),
-        theme: 'striped',
-        headStyles: { 
-          fillColor: [66, 66, 66],
-          fontSize: 8,
-          fontStyle: 'bold'
-        },
-        bodyStyles: {
-          fontSize: 7
-        },
-        margin: { left: 10, right: 10 },
-      });
-
-      const timestamp = new Date().toISOString().split('T')[0];
-      pdf.save(`skoleni_export_${timestamp}.pdf`);
-
-      toast({
-        title: "Export dokončen",
-        description: `Exportováno ${trainingsToExport.length} školení.`,
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Chyba při exportu",
-        description: "Nepodařilo se exportovat data do PDF.",
-        variant: "destructive",
-      });
-    }
-  };
+  // PDF export removed
 
   if (trainingsError) {
     return (
@@ -446,13 +364,6 @@ export default function ScheduledTrainings() {
               {selectedTrainings.size > 0 
                 ? `Export CSV (${selectedTrainings.size})`
                 : "Export CSV"
-              }
-            </Button>
-            <Button variant="outline" onClick={exportToPDF}>
-              <FileDown className="w-4 h-4 mr-2" />
-              {selectedTrainings.size > 0 
-                ? `Export PDF (${selectedTrainings.size})`
-                : "Export PDF"
               }
             </Button>
             {/* Tlačítko pro vytvoření školení - pouze admin a manažer */}

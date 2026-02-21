@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, UserX, Calendar, Loader2, RefreshCw, FileSpreadsheet, FileDown } from "lucide-react";
+import { Download, UserX, Calendar, Loader2, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
@@ -26,8 +26,6 @@ import { useTrainings } from "@/hooks/useTrainings";
 import { CardsSkeleton, TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 const statusLabels = {
   employed: "Zaměstnaný",
@@ -73,68 +71,7 @@ export default function InactiveEmployeesReport() {
   };
 
 
-  const exportToPDF = () => {
-    try {
-      const doc = new jsPDF({ orientation: 'landscape' });
-      
-      doc.setFontSize(16);
-      doc.text("Pozastavená školení", 14, 15);
-      doc.setFontSize(10);
-      doc.text(`Vygenerováno: ${new Date().toLocaleDateString("cs-CZ")}`, 14, 22);
 
-      const tableData: string[][] = [];
-      filteredEmployees.forEach((employee) => {
-        const trainings = getTrainingsForEmployee(employee.id);
-        if (trainings.length === 0) {
-          tableData.push([
-            employee.employeeNumber,
-            `${employee.firstName} ${employee.lastName}`,
-            employee.position,
-            employee.department,
-            statusLabels[employee.status],
-            "-",
-            "-",
-            "-",
-          ]);
-        } else {
-          trainings.forEach((training) => {
-            tableData.push([
-              employee.employeeNumber,
-              `${employee.firstName} ${employee.lastName}`,
-              employee.position,
-              employee.department,
-              statusLabels[employee.status],
-              training.type,
-              new Date(training.date).toLocaleDateString("cs-CZ"),
-              training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
-            ]);
-          });
-        }
-      });
-
-      autoTable(doc, {
-        head: [["Os. číslo", "Jméno", "Pozice", "Středisko", "Stav", "Typ školení", "Platné do", "Stav školení"]],
-        body: tableData,
-        startY: 28,
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [59, 130, 246] },
-      });
-
-      const timestamp = new Date().toISOString().split("T")[0];
-      doc.save(`neaktivni_zamestnanci_${timestamp}.pdf`);
-
-      toast({
-        title: "Export úspěšný",
-        description: `Exportováno ${tableData.length} záznamů do PDF.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Chyba při exportu",
-        description: "Nepodařilo se exportovat data.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const exportToCSV = () => {
     try {
