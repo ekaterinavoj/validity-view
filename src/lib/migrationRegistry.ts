@@ -164,6 +164,49 @@ ALTER TABLE public.employees ALTER COLUMN employee_number DROP NOT NULL;
 ALTER TABLE public.employees ALTER COLUMN employee_number SET DEFAULT '';
 `
   },
+  {
+    version: "20260221150000",
+    name: "recalculate_all_statuses",
+    sql: `
+-- Function to recalculate all statuses (trainings, deadlines, medical)
+CREATE OR REPLACE FUNCTION public.recalculate_all_statuses()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  t_updated integer := 0;
+  d_updated integer := 0;
+  m_updated integer := 0;
+BEGIN
+  UPDATE public.trainings
+  SET status = calculate_training_status(next_training_date)
+  WHERE is_active = true AND deleted_at IS NULL
+    AND status IS DISTINCT FROM calculate_training_status(next_training_date);
+  GET DIAGNOSTICS t_updated = ROW_COUNT;
+
+  UPDATE public.deadlines
+  SET status = calculate_deadline_status(next_check_date)
+  WHERE is_active = true AND deleted_at IS NULL
+    AND status IS DISTINCT FROM calculate_deadline_status(next_check_date);
+  GET DIAGNOSTICS d_updated = ROW_COUNT;
+
+  UPDATE public.medical_examinations
+  SET status = calculate_examination_status(next_examination_date)
+  WHERE is_active = true AND deleted_at IS NULL
+    AND status IS DISTINCT FROM calculate_examination_status(next_examination_date);
+  GET DIAGNOSTICS m_updated = ROW_COUNT;
+
+  RETURN jsonb_build_object(
+    'trainings_updated', t_updated,
+    'deadlines_updated', d_updated,
+    'medical_updated', m_updated
+  );
+END;
+$$;
+`
+  },
 ];
 
 /**
