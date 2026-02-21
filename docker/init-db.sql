@@ -1423,6 +1423,41 @@ BEGIN
 END;
 $$;
 
+-- Notify admins about extraordinary medical exam when employee returns from sick leave
+CREATE OR REPLACE FUNCTION public.notify_extraordinary_medical_exam()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  admin_record RECORD;
+  emp_name TEXT;
+BEGIN
+  IF TG_OP = 'UPDATE'
+     AND OLD.status = 'sick_leave'
+     AND NEW.status = 'employed'
+  THEN
+    emp_name := NEW.first_name || ' ' || NEW.last_name;
+    FOR admin_record IN
+      SELECT ur.user_id FROM public.user_roles ur WHERE ur.role = 'admin'
+    LOOP
+      INSERT INTO public.notifications (
+        user_id, title, message, type, related_entity_type, related_entity_id
+      ) VALUES (
+        admin_record.user_id,
+        'Mimořádná lékařská prohlídka',
+        'Zaměstnanec ' || emp_name || ' se vrátil z nemocenské. Doporučujeme naplánovat mimořádnou lékařskou prohlídku.',
+        'warning',
+        'employee',
+        NEW.id
+      );
+    END LOOP;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
 -- =============================================
 -- TRIGGERS (using DROP IF EXISTS + CREATE pattern)
 -- =============================================
@@ -1506,6 +1541,11 @@ DROP TRIGGER IF EXISTS update_employees_updated_at ON public.employees;
 CREATE TRIGGER update_employees_updated_at
   BEFORE UPDATE ON public.employees
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_notify_extraordinary_medical_exam ON public.employees;
+CREATE TRIGGER trg_notify_extraordinary_medical_exam
+  AFTER UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.notify_extraordinary_medical_exam();
 
 -- equipment triggers
 DROP TRIGGER IF EXISTS on_equipment_status_change_deadlines ON public.equipment;
@@ -2351,7 +2391,11 @@ INSERT INTO public.schema_migrations (version, name) VALUES
   ('20260213195037', 'set_user_role_function'),
   ('20260216193430', 'trigger_recreation'),
   ('20260219100000', 'general_documents'),
-  ('20260221150000', 'recalculate_all_statuses')
+  ('20260221000001', 'employee_number_optional'),
+  ('20260221150000', 'recalculate_all_statuses'),
+  ('20260221165235', 'notify_extraordinary_medical_exam'),
+  ('20260221174512', 'drop_training_supervisor'),
+  ('20260221175145', 'propagate_manager_details')
 ON CONFLICT (version) DO NOTHING;
 
 -- =============================================
