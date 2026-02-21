@@ -231,7 +231,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
-      void event;
+      // For token refresh, just update session/user without full reload
+      // This prevents unmounting the entire app (and losing form data)
+      if (event === "TOKEN_REFRESHED" && newSession?.user && user) {
+        setSession(newSession);
+        setUser(newSession.user);
+        return;
+      }
       // Don't await - the callback cannot be async, but handleSession manages loading state
       void handleSession(newSession);
     });
