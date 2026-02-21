@@ -20,6 +20,7 @@ import { uploadMedicalDocument } from "@/lib/medicalDocuments";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useMedicalExaminationTypes } from "@/hooks/useMedicalExaminationTypes";
 import { useFacilities } from "@/hooks/useFacilities";
@@ -56,6 +57,7 @@ export default function NewMedicalExamination() {
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
   const { examinationTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useMedicalExaminationTypes();
@@ -184,6 +186,7 @@ export default function NewMedicalExamination() {
           title: "Prohlídky vytvořeny",
           description: `Úspěšně vytvořeno ${created} prohlídek${failed > 0 ? `, ${failed} se nepodařilo` : ""}.`,
         });
+        await queryClient.invalidateQueries({ queryKey: ["medical-examinations"] });
         navigate("/plp");
       } else {
         toast({ title: "Chyba", description: "Nepodařilo se vytvořit žádnou prohlídku.", variant: "destructive" });

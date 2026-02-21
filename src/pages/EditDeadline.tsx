@@ -39,6 +39,7 @@ import { useFacilities } from "@/hooks/useFacilities";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { cn } from "@/lib/utils";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
@@ -75,6 +76,7 @@ export default function EditDeadline() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { profile, isAdmin, isManager } = useAuth();
   const canEdit = isAdmin || isManager;
   const { equipment } = useEquipment();
@@ -269,6 +271,7 @@ export default function EditDeadline() {
         }
       }
 
+      await queryClient.invalidateQueries({ queryKey: ["deadlines"] });
       toast({ title: "Technická událost byla aktualizována" });
       navigate("/deadlines");
     } catch (err) {

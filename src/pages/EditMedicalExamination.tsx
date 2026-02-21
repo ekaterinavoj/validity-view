@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadMedicalDocument } from "@/lib/medicalDocuments";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,6 +52,7 @@ export default function EditMedicalExamination() {
   const { profile, user, isAdmin, isManager } = useAuth();
   const canEdit = isAdmin || isManager;
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -220,6 +222,7 @@ export default function EditMedicalExamination() {
         description: "Změny byly úspěšně uloženy.",
       });
 
+      await queryClient.invalidateQueries({ queryKey: ["medical-examinations"] });
       navigate("/plp");
     } catch (error: any) {
       console.error("Chyba při aktualizaci prohlídky:", error);

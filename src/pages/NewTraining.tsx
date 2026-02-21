@@ -20,6 +20,7 @@ import { uploadTrainingDocument } from "@/lib/trainingDocuments";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { useFacilities } from "@/hooks/useFacilities";
@@ -61,6 +62,7 @@ export default function NewTraining() {
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
   const { trainingTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useTrainingTypes();
@@ -198,7 +200,8 @@ export default function NewTraining() {
           title: "Školení vytvořena",
           description: `Úspěšně vytvořeno ${created} školení${failed > 0 ? `, ${failed} se nepodařilo` : ""}.`,
         });
-        navigate("/");
+        await queryClient.invalidateQueries({ queryKey: ["trainings"] });
+        navigate("/trainings");
       } else {
         toast({ title: "Chyba", description: "Nepodařilo se vytvořit žádné školení.", variant: "destructive" });
       }
