@@ -15,12 +15,61 @@ export interface EmployeeWithDepartment {
   statusStartDate?: string;
   notes?: string;
   workCategory?: number | null;
-  // Manager hierarchy fields
+  // Manager hierarchy – resolved via JOIN
   managerEmployeeId?: string | null;
-  managerEmail?: string | null;
   managerFirstName?: string | null;
   managerLastName?: string | null;
+  managerEmail?: string | null;
 }
+
+function mapEmployee(e: any): EmployeeWithDepartment {
+  return {
+    id: e.id,
+    employeeNumber: e.employee_number,
+    firstName: e.first_name,
+    lastName: e.last_name,
+    email: e.email,
+    position: e.position,
+    department: e.departments?.code || "",
+    departmentId: e.department_id,
+    status: e.status as EmployeeWithDepartment["status"],
+    terminationDate: e.termination_date,
+    statusStartDate: e.status_start_date,
+    notes: e.notes,
+    workCategory: e.work_category,
+    // Manager via JOIN (self-referencing FK)
+    managerEmployeeId: e.manager_employee_id,
+    managerFirstName: e.manager?.first_name ?? null,
+    managerLastName: e.manager?.last_name ?? null,
+    managerEmail: e.manager?.email ?? null,
+  };
+}
+
+const EMPLOYEE_SELECT = `
+  id,
+  employee_number,
+  first_name,
+  last_name,
+  email,
+  position,
+  status,
+  termination_date,
+  status_start_date,
+  notes,
+  department_id,
+  work_category,
+  manager_employee_id,
+  departments (
+    id,
+    code,
+    name
+  ),
+  manager:employees!manager_employee_id (
+    first_name,
+    last_name,
+    email
+  )
+`;
 
 export function useEmployees(statusFilter?: string) {
   const [employees, setEmployees] = useState<EmployeeWithDepartment[]>([]);
@@ -34,62 +83,17 @@ export function useEmployees(statusFilter?: string) {
     try {
       let query = supabase
         .from("employees")
-        .select(`
-          id,
-          employee_number,
-          first_name,
-          last_name,
-          email,
-          position,
-          status,
-          termination_date,
-          status_start_date,
-          notes,
-          department_id,
-          work_category,
-          manager_employee_id,
-          manager_email,
-          manager_first_name,
-          manager_last_name,
-          departments (
-            id,
-            code,
-            name
-          )
-        `)
+        .select(EMPLOYEE_SELECT)
         .order("last_name", { ascending: true });
 
-      // Apply status filter if provided
       if (statusFilter && statusFilter !== "all") {
         query = query.eq("status", statusFilter);
       }
 
       const { data, error: fetchError } = await query;
-
       if (fetchError) throw fetchError;
 
-      const transformedData: EmployeeWithDepartment[] = (data || []).map((e: any) => ({
-        id: e.id,
-        employeeNumber: e.employee_number,
-        firstName: e.first_name,
-        lastName: e.last_name,
-        email: e.email,
-        position: e.position,
-        department: e.departments?.code || "",
-        departmentId: e.department_id,
-        status: e.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
-        terminationDate: e.termination_date,
-        statusStartDate: e.status_start_date,
-        notes: e.notes,
-        workCategory: e.work_category,
-        // Manager hierarchy fields
-        managerEmployeeId: e.manager_employee_id,
-        managerEmail: e.manager_email,
-        managerFirstName: e.manager_first_name,
-        managerLastName: e.manager_last_name,
-      }));
-
-      setEmployees(transformedData);
+      setEmployees((data || []).map(mapEmployee));
     } catch (err: any) {
       console.error("Error fetching employees:", err);
       setError("Nepodařilo se načíst zaměstnance. Zkuste to prosím znovu.");
@@ -117,56 +121,13 @@ export function useInactiveEmployees() {
     try {
       const { data, error: fetchError } = await supabase
         .from("employees")
-        .select(`
-          id,
-          employee_number,
-          first_name,
-          last_name,
-          email,
-          position,
-          status,
-          termination_date,
-          status_start_date,
-          notes,
-          department_id,
-          work_category,
-          manager_employee_id,
-          manager_email,
-          manager_first_name,
-          manager_last_name,
-          departments (
-            id,
-            code,
-            name
-          )
-        `)
+        .select(EMPLOYEE_SELECT)
         .in("status", ["parental_leave", "sick_leave", "terminated"])
         .order("last_name", { ascending: true });
 
       if (fetchError) throw fetchError;
 
-      const transformedData: EmployeeWithDepartment[] = (data || []).map((e: any) => ({
-        id: e.id,
-        employeeNumber: e.employee_number,
-        firstName: e.first_name,
-        lastName: e.last_name,
-        email: e.email,
-        position: e.position,
-        department: e.departments?.code || "",
-        departmentId: e.department_id,
-        status: e.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
-        terminationDate: e.termination_date,
-        statusStartDate: e.status_start_date,
-        notes: e.notes,
-        workCategory: e.work_category,
-        // Manager hierarchy fields
-        managerEmployeeId: e.manager_employee_id,
-        managerEmail: e.manager_email,
-        managerFirstName: e.manager_first_name,
-        managerLastName: e.manager_last_name,
-      }));
-
-      setEmployees(transformedData);
+      setEmployees((data || []).map(mapEmployee));
     } catch (err: any) {
       console.error("Error fetching inactive employees:", err);
       setError("Nepodařilo se načíst neaktivní zaměstnance. Zkuste to prosím znovu.");
