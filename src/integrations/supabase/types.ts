@@ -1445,7 +1445,6 @@ export type Database = {
           repeat_days_after: number | null
           requester: string | null
           status: string
-          supervisor: string | null
           trainer: string | null
           training_type_id: string
           updated_at: string
@@ -1468,7 +1467,6 @@ export type Database = {
           repeat_days_after?: number | null
           requester?: string | null
           status?: string
-          supervisor?: string | null
           trainer?: string | null
           training_type_id: string
           updated_at?: string
@@ -1491,7 +1489,6 @@ export type Database = {
           repeat_days_after?: number | null
           requester?: string | null
           status?: string
-          supervisor?: string | null
           trainer?: string | null
           training_type_id?: string
           updated_at?: string

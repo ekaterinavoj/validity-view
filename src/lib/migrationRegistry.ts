@@ -253,14 +253,6 @@ CREATE TRIGGER trg_notify_extraordinary_medical_exam
   EXECUTE FUNCTION public.notify_extraordinary_medical_exam();
 `
   },
-  {
-    version: "20260221173502",
-    name: "training_supervisor",
-    sql: `
--- Add supervisor column to trainings table
-ALTER TABLE public.trainings ADD COLUMN IF NOT EXISTS supervisor text;
-`
-  },
 ];
 
 /**
