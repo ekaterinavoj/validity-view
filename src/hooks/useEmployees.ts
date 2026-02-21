@@ -37,11 +37,11 @@ function mapEmployee(e: any): EmployeeWithDepartment {
     statusStartDate: e.status_start_date,
     notes: e.notes,
     workCategory: e.work_category,
-    // Manager via JOIN (self-referencing FK)
+    // Manager via JOIN (self-referencing FK) – PostgREST may return array or object
     managerEmployeeId: e.manager_employee_id,
-    managerFirstName: e.manager?.first_name ?? null,
-    managerLastName: e.manager?.last_name ?? null,
-    managerEmail: e.manager?.email ?? null,
+    managerFirstName: (Array.isArray(e.manager) ? e.manager[0]?.first_name : e.manager?.first_name) ?? null,
+    managerLastName: (Array.isArray(e.manager) ? e.manager[0]?.last_name : e.manager?.last_name) ?? null,
+    managerEmail: (Array.isArray(e.manager) ? e.manager[0]?.email : e.manager?.email) ?? null,
   };
 }
 
