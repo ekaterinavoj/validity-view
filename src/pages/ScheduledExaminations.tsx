@@ -146,17 +146,21 @@ export default function ScheduledExaminations() {
     const dataToExport = selectedExaminations.size > 0 ? filteredExaminations.filter((e) => selectedExaminations.has(e.id)) : filteredExaminations;
 
     const data = dataToExport.map((e) => ({
-      "Os. číslo": e.employeeNumber,
-      Jméno: e.employeeName,
-      Kategorie: e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
-      "Typ prohlídky": e.type,
-      "Datum prohlídky": format(new Date(e.lastExaminationDate), "dd.MM.yyyy"),
+      "Stav": e.status === "valid" ? "Platné" : e.status === "warning" ? "Blíží se" : "Expirované",
       "Platnost do": format(new Date(e.nextExaminationDate), "dd.MM.yyyy"),
-      Periodicita: formatPeriodicity(e.period),
-      Výsledek: e.result || "-",
-      Lékař: e.doctor,
-      "Zdravotnické zařízení": e.medicalFacility,
-      Stav: e.status === "valid" ? "Platné" : e.status === "warning" ? "Blíží se" : "Expirované",
+      "Typ prohlídky": e.type,
+      "Os. číslo": e.employeeNumber,
+      "Jméno": e.employeeName,
+      "Kategorie": e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
+      "Provozovna": getFacilityName(e.facility) || "",
+      "Středisko": e.department || "",
+      "Datum prohlídky": format(new Date(e.lastExaminationDate), "dd.MM.yyyy"),
+      "Periodicita": formatPeriodicity(e.period),
+      "Výsledek": e.result || "-",
+      "Lékař": e.doctor || "",
+      "Zdravotnické zařízení": e.medicalFacility || "",
+      "Zadavatel": e.requester || "",
+      "Poznámka": e.note || "",
     }));
 
     const csv = Papa.unparse(data, { delimiter: ";" });
