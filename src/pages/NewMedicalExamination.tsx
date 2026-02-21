@@ -163,7 +163,8 @@ export default function NewMedicalExamination() {
 
           if (insertError) throw insertError;
 
-          if (uploadedFiles.length > 0 && newExamination && created === 0) {
+          // Upload documents for every employee's examination record
+          if (uploadedFiles.length > 0 && newExamination) {
             const uploadPromises = uploadedFiles.map((uploadedFile) =>
               uploadMedicalDocument(newExamination.id, uploadedFile.file, uploadedFile.documentType, uploadedFile.description)
             );
