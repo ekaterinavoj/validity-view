@@ -627,9 +627,11 @@ export default function Employees() {
                         }
                       }}
                       placeholder="Vyberte nadřízeného (jméno, příjmení, email)"
+                      noneLabel="Žádný (vrchol hierarchie)"
+                      onNone={() => form.setValue("managerEmployeeId", "")}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Nadřízený musí existovat v systému. Jméno se vždy dotahuje automaticky.
+                      Vyberte nadřízeného ze seznamu, nebo zvolte „Žádný" pro zaměstnance na vrcholu hierarchie.
                     </p>
                   </div>
                 </div>
