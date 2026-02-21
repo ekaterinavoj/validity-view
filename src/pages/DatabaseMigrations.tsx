@@ -482,8 +482,7 @@ export default function DatabaseMigrations() {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <ScrollArea className="max-h-[400px]">
-                  <div className="space-y-1 mt-1">
+                <div className="space-y-1 mt-1">
                     {allMigrations
                       .filter((m) => m.isApplied)
                       .map((m) => (
@@ -543,8 +542,7 @@ export default function DatabaseMigrations() {
                         ))}
                       </>
                     )}
-                  </div>
-                </ScrollArea>
+                </div>
               </CollapsibleContent>
             </Collapsible>
           )}
