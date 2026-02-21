@@ -171,8 +171,8 @@ export default function NewTraining() {
 
           if (insertError) throw insertError;
 
-          // Upload documents for first employee only (shared docs)
-          if (uploadedFiles.length > 0 && newTraining && created === 0) {
+          // Upload documents for every employee's training record
+          if (uploadedFiles.length > 0 && newTraining) {
             const uploadPromises = uploadedFiles.map((uploadedFile) =>
               uploadTrainingDocument(newTraining.id, uploadedFile.file, uploadedFile.documentType, uploadedFile.description)
             );
