@@ -97,7 +97,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       .limit(50000);
 
     const existingByNumber = new Map(
-      (existingEmployees || []).map(e => [e.employee_number.toLowerCase(), e.id])
+      (existingEmployees || []).filter(e => e.employee_number).map(e => [(e.employee_number!).toLowerCase(), e.id])
     );
     const existingByEmail = new Map(
       (existingEmployees || []).map(e => [e.email.toLowerCase(), e.id])
@@ -230,7 +230,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       .limit(50000);
 
     const existingByNumber = new Map(
-      (existingEmployees || []).map(e => [e.employee_number.toLowerCase(), e.id])
+      (existingEmployees || []).filter(e => e.employee_number).map(e => [(e.employee_number!).toLowerCase(), e.id])
     );
 
     // Batch INSERT new employees (batches of 50)

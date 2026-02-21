@@ -155,6 +155,15 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 `
   },
+  {
+    version: "20260221000001",
+    name: "employee_number_optional",
+    sql: `
+-- Make employee_number nullable (optional field)
+ALTER TABLE public.employees ALTER COLUMN employee_number DROP NOT NULL;
+ALTER TABLE public.employees ALTER COLUMN employee_number SET DEFAULT '';
+`
+  },
 ];
 
 /**
