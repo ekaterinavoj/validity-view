@@ -27,6 +27,7 @@ import { useFacilities } from "@/hooks/useFacilities";
 import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeMultiSelect } from "@/components/EmployeeMultiSelect";
+import { EmployeeOrCustomInput } from "@/components/EmployeeOrCustomInput";
 import { Progress } from "@/components/ui/progress";
 import { 
   PeriodicityInput, 
@@ -360,7 +361,18 @@ export default function NewTraining() {
             )}
 
             <FormField control={form.control} name="trainer" render={({ field }) => (
-              <FormItem><FormLabel>Školitel</FormLabel><FormControl><Input {...field} placeholder="Jméno školitele" /></FormControl><FormMessage /></FormItem>
+              <FormItem>
+                <FormLabel>Školitel</FormLabel>
+                <FormControl>
+                  <EmployeeOrCustomInput
+                    employees={employees}
+                    value={field.value || ""}
+                    onChange={field.onChange}
+                    placeholder="Vyberte školitele nebo zadejte ručně"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             )} />
 
             <FormField control={form.control} name="company" render={({ field }) => (
