@@ -1,0 +1,1 @@
+ALTER TABLE public.trainings DROP COLUMN IF EXISTS supervisor;
