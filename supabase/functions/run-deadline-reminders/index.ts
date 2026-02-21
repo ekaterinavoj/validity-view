@@ -1056,6 +1056,81 @@ const handler = async (req: Request): Promise<Response> => {
     });
   }
 
+  // =====================================================================
+  // RESPONSIBLE PERSON NOTIFICATIONS - send individual filtered emails
+  // =====================================================================
+  if (responsibleNotificationsEnabled && allDeadlineItems.length > 0) {
+    console.log("Responsible person notifications enabled - building per-person emails");
+    
+    // Group deadlines by responsible email
+    const emailToDeadlines = new Map<string, DeadlineItem[]>();
+    
+    for (const item of allDeadlineItems) {
+      for (const email of item.responsible_emails) {
+        // Skip if this email is already in the main recipients (they get the full report)
+        if (finalRecipientEmails.includes(email)) continue;
+        
+        if (!emailToDeadlines.has(email)) {
+          emailToDeadlines.set(email, []);
+        }
+        emailToDeadlines.get(email)!.push(item);
+      }
+    }
+    
+    console.log(`Found ${emailToDeadlines.size} responsible persons to notify individually`);
+    
+    for (const [email, personDeadlines] of emailToDeadlines) {
+      const personExpired = personDeadlines.filter(d => d.status === 'expired');
+      const personWarning = personDeadlines.filter(d => d.status === 'warning');
+      
+      const personSubject = testMode
+        ? `[TEST] Vaše technické události vyžadují pozornost (${personDeadlines.length})`
+        : `Vaše technické události vyžadují pozornost (${personDeadlines.length})`;
+      
+      const personBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; color: #333;">
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <p>Dobrý den,</p>
+            <p>následující technické události, za které jste odpovědní, vyžadují vaši pozornost:</p>
+            <p>Celkem: <strong>${personDeadlines.length}</strong> (prošlé: ${personExpired.length}, blížící se: ${personWarning.length})</p>
+          </div>
+          ${personExpired.length > 0 ? buildDeadlinesTable(personExpired, 'expired') : ''}
+          ${personWarning.length > 0 ? buildDeadlinesTable(personWarning, 'warning') : ''}
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+          <p style="color: #9ca3af; font-size: 12px;">Tento email byl odeslán automaticky systémem evidence technických lhůt.</p>
+        </div>
+      `;
+      
+      const personResult = await sendViaSMTP([email], personSubject, personBody, "to", emailProviderSettings);
+      
+      await supabase.from("deadline_reminder_logs").insert({
+        template_id: defaultTemplate.id,
+        template_name: testMode ? "Odpovědná osoba (TEST)" : "Odpovědná osoba",
+        recipient_emails: [email],
+        email_subject: personSubject,
+        email_body: personBody,
+        status: personResult.success ? "sent" : "failed",
+        error_message: personResult.error || null,
+        is_test: testMode,
+        week_start: getRunPeriodKey('responsible'),
+        delivery_mode: "to",
+        deadline_id: personDeadlines[0]?.id || null,
+        equipment_id: personDeadlines[0]?.equipment_id || null,
+        days_before: personDeadlines[0]?.days_until || null,
+      });
+      
+      if (personResult.success) {
+        totalEmailsSent++;
+        console.log(`Sent responsible notification to ${email} with ${personDeadlines.length} deadlines`);
+      } else {
+        totalEmailsFailed++;
+        console.error(`Failed to send responsible notification to ${email}: ${personResult.error}`);
+      }
+      
+      results.push({ type: 'responsible', email, count: personDeadlines.length, success: personResult.success });
+    }
+  }
+
   console.log(`Deadline reminder run completed: ${totalEmailsSent} sent, ${totalEmailsFailed} failed`);
 
   return new Response(
@@ -1068,6 +1143,7 @@ const handler = async (req: Request): Promise<Response> => {
       totalDeadlines: allDeadlineItems.length,
       expiredCount: expiredItems.length,
       warningCount: warningItems.length,
+      responsibleNotifications: responsibleNotificationsEnabled,
       results,
     }),
     { headers: { "Content-Type": "application/json", ...corsHeaders } }

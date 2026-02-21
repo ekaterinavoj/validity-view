@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Loader2, UserCheck, AlertCircle, GraduationCap, Wrench, Save, Users } from "lucide-react";
 
 interface UserWithRole {
@@ -77,6 +78,11 @@ export function ModuleRecipientsSelector({
     delivery_mode: "bcc",
   });
 
+  // Feature toggles
+  const [deadlineResponsibleNotifications, setDeadlineResponsibleNotifications] = useState({ enabled: false });
+  const [trainingManagerNotifications, setTrainingManagerNotifications] = useState({ enabled: false });
+  const [medicalManagerNotifications, setMedicalManagerNotifications] = useState({ enabled: false });
+
   useEffect(() => {
     loadData();
   }, []);
@@ -137,7 +143,7 @@ export function ModuleRecipientsSelector({
       const { data: settings } = await supabase
         .from("system_settings")
         .select("*")
-        .in("key", ["reminder_recipients", "deadline_reminder_recipients", "medical_reminder_recipients"]);
+        .in("key", ["reminder_recipients", "deadline_reminder_recipients", "medical_reminder_recipients", "deadline_responsible_notifications", "training_manager_notifications", "medical_manager_notifications"]);
       
       // Build a set of valid profile IDs for filtering stale references
       const validProfileIds = new Set((profiles || []).map(p => p.id));
@@ -170,6 +176,12 @@ export function ModuleRecipientsSelector({
             user_ids: filterValidIds(val.user_ids),
             delivery_mode: typeof val.delivery_mode === 'string' ? val.delivery_mode : prev.delivery_mode,
           }));
+        } else if (setting.key === "deadline_responsible_notifications" && setting.value && typeof setting.value === 'object') {
+          setDeadlineResponsibleNotifications(setting.value as { enabled: boolean });
+        } else if (setting.key === "training_manager_notifications" && setting.value && typeof setting.value === 'object') {
+          setTrainingManagerNotifications(setting.value as { enabled: boolean });
+        } else if (setting.key === "medical_manager_notifications" && setting.value && typeof setting.value === 'object') {
+          setMedicalManagerNotifications(setting.value as { enabled: boolean });
         }
       });
     } catch (error: any) {
@@ -211,6 +223,9 @@ export function ModuleRecipientsSelector({
         saveSetting("reminder_recipients", trainingRecipients),
         saveSetting("deadline_reminder_recipients", deadlineRecipients),
         saveSetting("medical_reminder_recipients", medicalRecipients),
+        saveSetting("deadline_responsible_notifications", deadlineResponsibleNotifications),
+        saveSetting("training_manager_notifications", trainingManagerNotifications),
+        saveSetting("medical_manager_notifications", medicalManagerNotifications),
       ]);
       
       onTrainingRecipientsChange?.(trainingRecipients);
@@ -526,16 +541,55 @@ export function ModuleRecipientsSelector({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="training" className="mt-4">
+          <TabsContent value="training" className="mt-4 space-y-4">
             {renderRecipientsList("training")}
+            <Separator />
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+              <div>
+                <Label className="font-medium">Notifikace nadřízeným</Label>
+                <p className="text-sm text-muted-foreground">
+                  Volitelně odeslat email nadřízeným pouze se školení jejich podřízených (dle organizační hierarchie)
+                </p>
+              </div>
+              <Switch
+                checked={trainingManagerNotifications.enabled}
+                onCheckedChange={(checked) => setTrainingManagerNotifications({ enabled: checked })}
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="deadlines" className="mt-4">
+          <TabsContent value="deadlines" className="mt-4 space-y-4">
             {renderRecipientsList("deadlines")}
+            <Separator />
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+              <div>
+                <Label className="font-medium">Notifikace odpovědným osobám</Label>
+                <p className="text-sm text-muted-foreground">
+                  Odeslat individuální email každé odpovědné osobě s výpisem pouze jejích technických událostí
+                </p>
+              </div>
+              <Switch
+                checked={deadlineResponsibleNotifications.enabled}
+                onCheckedChange={(checked) => setDeadlineResponsibleNotifications({ enabled: checked })}
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="medical" className="mt-4">
+          <TabsContent value="medical" className="mt-4 space-y-4">
             {renderRecipientsList("medical")}
+            <Separator />
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+              <div>
+                <Label className="font-medium">Notifikace nadřízeným</Label>
+                <p className="text-sm text-muted-foreground">
+                  Volitelně odeslat email nadřízeným pouze s prohlídkami jejich podřízených (dle organizační hierarchie)
+                </p>
+              </div>
+              <Switch
+                checked={medicalManagerNotifications.enabled}
+                onCheckedChange={(checked) => setMedicalManagerNotifications({ enabled: checked })}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </CardContent>

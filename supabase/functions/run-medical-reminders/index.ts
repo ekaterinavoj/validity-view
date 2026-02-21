@@ -9,6 +9,7 @@ const corsHeaders = {
 interface ExaminationItem {
   id: string;
   next_examination_date: string;
+  employee_id: string;
   employee_first_name: string;
   employee_last_name: string;
   employee_email: string;
@@ -372,16 +373,17 @@ serve(async (req) => {
     );
 
     // Load settings
-    const { data: settings } = await supabase
+  const { data: settings } = await supabase
       .from("system_settings")
       .select("key, value")
-      .in("key", ["medical_reminder_recipients", "email_provider", "medical_email_template", "reminder_frequency"]);
+      .in("key", ["medical_reminder_recipients", "email_provider", "medical_email_template", "reminder_frequency", "medical_manager_notifications"]);
 
     const settingsMap: Record<string, any> = {};
     settings?.forEach(s => { settingsMap[s.key] = s.value; });
 
     const recipients = settingsMap["medical_reminder_recipients"] || { user_ids: [], delivery_mode: "bcc" };
     const emailProvider = settingsMap["email_provider"] || {};
+    const managerNotifications = settingsMap["medical_manager_notifications"] || { enabled: false };
     const emailTemplate = settingsMap["medical_email_template"] || {
       subject: "Souhrn lékařských prohlídek - {reportDate}",
       body: "Dobrý den,\n\nzasíláme přehled lékařských prohlídek vyžadujících pozornost.\n\nCelkem: {totalCount}\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}",
@@ -421,7 +423,8 @@ serve(async (req) => {
       .select(`
         id,
         next_examination_date,
-        employee:employees!medical_examinations_employee_id_fkey(first_name, last_name, email),
+        employee_id,
+        employee:employees!medical_examinations_employee_id_fkey(id, first_name, last_name, email),
         examination_type:medical_examination_types!medical_examinations_examination_type_id_fkey(name)
       `)
       .eq("is_active", true)
@@ -441,6 +444,7 @@ serve(async (req) => {
     const examinationItems: ExaminationItem[] = examinations.map(e => ({
       id: e.id,
       next_examination_date: e.next_examination_date,
+      employee_id: e.employee_id,
       employee_first_name: (e.employee as any)?.first_name || "",
       employee_last_name: (e.employee as any)?.last_name || "",
       employee_email: (e.employee as any)?.email || "",
@@ -502,11 +506,94 @@ serve(async (req) => {
       delivery_mode: recipients.delivery_mode || "bcc",
     });
 
+    let managerEmailsSent = 0;
+    
+    // =====================================================================
+    // MANAGER NOTIFICATIONS - optional, sends filtered data per manager
+    // =====================================================================
+    if (managerNotifications.enabled) {
+      console.log("Manager notifications enabled for medical module");
+      
+      // Get all managers (users with manager role linked to employees)
+      const { data: managerProfiles } = await supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name, employee_id")
+        .not("employee_id", "is", null);
+      
+      if (managerProfiles && managerProfiles.length > 0) {
+        // Check which are actually managers
+        const { data: managerRoles } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["admin", "manager"])
+          .in("user_id", managerProfiles.map(p => p.id));
+        
+        const managerUserIds = new Set(managerRoles?.map(r => r.user_id) || []);
+        const managers = managerProfiles.filter(p => managerUserIds.has(p.id) && p.employee_id);
+        
+        for (const manager of managers) {
+          // Skip if manager already receives the main summary
+          if (recipientEmails.includes(manager.email.toLowerCase())) continue;
+          
+          // Get subordinate employee IDs
+          const { data: subordinates } = await supabase.rpc("get_subordinate_employee_ids", {
+            root_employee_id: manager.employee_id!,
+          });
+          
+          if (!subordinates || subordinates.length <= 1) continue; // Only the manager themselves
+          
+          const subordinateIds = subordinates.map((s: any) => s.employee_id);
+          
+          // Filter examinations to only this manager's subordinates
+          const managerExams = examinationItems.filter(e => subordinateIds.includes(e.employee_id));
+          
+          if (managerExams.length === 0) continue;
+          
+          const mgrExpired = managerExams.filter(e => e.days_until < 0);
+          const mgrExpiring = managerExams.filter(e => e.days_until >= 0);
+          
+          const mgrSubject = `Lékařské prohlídky vašich zaměstnanců (${managerExams.length})`;
+          const mgrTableHtml = buildExaminationsTable(managerExams);
+          const mgrBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; color: #333;">
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <p>Dobrý den, ${manager.first_name} ${manager.last_name},</p>
+                <p>následující lékařské prohlídky vašich podřízených vyžadují pozornost:</p>
+                <p>Celkem: <strong>${managerExams.length}</strong> (prošlé: ${mgrExpired.length}, blížící se: ${mgrExpiring.length})</p>
+              </div>
+              ${mgrTableHtml}
+              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+              <p style="color: #9ca3af; font-size: 12px;">Tento email byl odeslán automaticky systémem evidence PLP.</p>
+            </div>
+          `;
+          
+          const mgrResult = await sendViaSMTP([manager.email], mgrSubject, mgrBody, "to", emailProvider);
+          
+          await supabase.from("medical_reminder_logs").insert({
+            template_name: "Manager notification",
+            recipient_emails: [manager.email],
+            email_subject: mgrSubject,
+            email_body: mgrBody,
+            status: mgrResult.success ? "sent" : "failed",
+            error_message: mgrResult.error || null,
+            is_test: false,
+            delivery_mode: "to",
+          });
+          
+          if (mgrResult.success) {
+            managerEmailsSent++;
+            console.log(`Sent manager medical notification to ${manager.email} with ${managerExams.length} exams`);
+          }
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ 
       success: result.success,
-      emailsSent: result.success ? 1 : 0,
+      emailsSent: (result.success ? 1 : 0) + managerEmailsSent,
       recipientCount: result.success ? recipientEmails.length : 0,
       examinationsCount: examinationItems.length,
+      managerEmailsSent,
       error: result.error,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
