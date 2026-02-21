@@ -1651,6 +1651,7 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      recalculate_all_statuses: { Args: never; Returns: Json }
       resolve_manager_from_email: { Args: never; Returns: number }
       set_user_role: {
         Args: {
