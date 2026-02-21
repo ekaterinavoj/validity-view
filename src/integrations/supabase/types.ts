@@ -414,10 +414,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
-          manager_email: string | null
           manager_employee_id: string | null
-          manager_first_name: string | null
-          manager_last_name: string | null
           notes: string | null
           position: string
           status: string
@@ -434,10 +431,7 @@ export type Database = {
           first_name: string
           id?: string
           last_name: string
-          manager_email?: string | null
           manager_employee_id?: string | null
-          manager_first_name?: string | null
-          manager_last_name?: string | null
           notes?: string | null
           position: string
           status: string
@@ -454,10 +448,7 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
-          manager_email?: string | null
           manager_employee_id?: string | null
-          manager_first_name?: string | null
-          manager_last_name?: string | null
           notes?: string | null
           position?: string
           status?: string
@@ -1652,7 +1643,6 @@ export type Database = {
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
       recalculate_all_statuses: { Args: never; Returns: Json }
-      resolve_manager_from_email: { Args: never; Returns: number }
       set_user_role: {
         Args: {
           _new_role: Database["public"]["Enums"]["app_role"]

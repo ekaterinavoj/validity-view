@@ -21,8 +21,6 @@ const employeeSchema = z.object({
   department: z.string().min(1, "Středisko je povinné").max(50),
   status: z.enum(["employed", "parental_leave", "sick_leave", "terminated"]),
   managerEmail: z.string().email("Neplatný email nadřízeného").max(255).optional().or(z.literal('')),
-  managerFirstName: z.string().max(100).optional().or(z.literal('')),
-  managerLastName: z.string().max(100).optional().or(z.literal('')),
   workCategory: z.union([z.number().int().min(1).max(4), z.nan(), z.undefined()]).optional(),
 });
 
@@ -83,8 +81,6 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       department: String(row['Středisko'] || row['department'] || '').trim(),
       status: String(row['Stav'] || row['status'] || 'employed').toLowerCase().trim(),
       managerEmail: String(row['Email nadřízeného'] || row['managerEmail'] || row['Manager Email'] || row['manager_email'] || '').trim().toLowerCase(),
-      managerFirstName: String(row['Jméno nadřízeného'] || row['managerFirstName'] || '').trim(),
-      managerLastName: String(row['Příjmení nadřízeného'] || row['managerLastName'] || '').trim(),
       workCategory: isNaN(workCategory as number) ? undefined : workCategory,
     };
   };
@@ -246,9 +242,6 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         position: item.data.position,
         department_id: item.data._departmentId || null,
         status: item.data.status,
-        manager_email: item.data.managerEmail || null,
-        manager_first_name: item.data.managerFirstName || null,
-        manager_last_name: item.data.managerLastName || null,
         work_category: item.data.workCategory || null,
       }));
 
@@ -280,9 +273,6 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         position: item.data.position,
         department_id: item.data._departmentId || null,
         status: item.data.status,
-        manager_email: item.data.managerEmail || null,
-        manager_first_name: item.data.managerFirstName || null,
-        manager_last_name: item.data.managerLastName || null,
         work_category: item.data.workCategory || null,
       }).eq("id", existingId);
 
@@ -295,9 +285,33 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       setImportProgress({ current: toInsert.length + i + 1, total: totalOps });
     }
 
-    // Resolve manager hierarchy after import
+    // Resolve manager hierarchy: match managerEmail → employee.email → set manager_employee_id
     try {
-      await supabase.rpc("resolve_manager_from_email");
+      const { data: allEmps } = await supabase
+        .from("employees")
+        .select("id, email")
+        .limit(50000);
+
+      if (allEmps) {
+        const emailToId = new Map(allEmps.map(e => [e.email.toLowerCase(), e.id]));
+        
+        // Find imported employees that have managerEmail but no manager_employee_id
+        const itemsWithManagerEmail = validData.filter(d => d.data.managerEmail);
+        for (const item of itemsWithManagerEmail) {
+          const managerId = emailToId.get(item.data.managerEmail!.toLowerCase());
+          if (managerId) {
+            // Find this employee's ID by email
+            const empId = emailToId.get(item.data.email.toLowerCase());
+            if (empId && empId !== managerId) {
+              await supabase
+                .from("employees")
+                .update({ manager_employee_id: managerId })
+                .eq("id", empId)
+                .is("manager_employee_id", null);
+            }
+          }
+        }
+      }
     } catch {
       // Non-critical - hierarchy can be resolved later
     }
@@ -395,8 +409,6 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         "Stav": "aktivní",
         "Kategorie práce": 2,
         "Email nadřízeného": "karel.dvorak@firma.cz",
-        "Jméno nadřízeného": "Karel",
-        "Příjmení nadřízeného": "Dvořák",
         "Poznámka": ""
       },
       {
@@ -409,8 +421,6 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         "Stav": "aktivní",
         "Kategorie práce": 1,
         "Email nadřízeného": "",
-        "Jméno nadřízeného": "",
-        "Příjmení nadřízeného": "",
         "Poznámka": "Nová zaměstnankyně"
       },
       {
@@ -423,8 +433,6 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         "Stav": "aktivní",
         "Kategorie práce": 3,
         "Email nadřízeného": "jan.novak@firma.cz",
-        "Jméno nadřízeného": "Jan",
-        "Příjmení nadřízeného": "Novák",
         "Poznámka": ""
       }
     ]);

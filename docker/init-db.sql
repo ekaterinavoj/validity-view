@@ -55,9 +55,6 @@ CREATE TABLE IF NOT EXISTS public.employees (
     termination_date DATE,
     work_category INTEGER CHECK (work_category >= 1 AND work_category <= 4),
     notes TEXT,
-    manager_email TEXT,
-    manager_first_name TEXT,
-    manager_last_name TEXT,
     manager_employee_id UUID REFERENCES public.employees(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -799,38 +796,6 @@ BEGIN
 END;
 $$;
 
--- Resolve manager from email
-CREATE OR REPLACE FUNCTION public.resolve_manager_from_email()
-RETURNS INTEGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  updated_count integer := 0;
-BEGIN
-  IF NOT has_role(auth.uid(), 'admin'::app_role) THEN
-    RAISE EXCEPTION 'Forbidden: Only admins can resolve manager hierarchy';
-  END IF;
-
-  WITH matches AS (
-    SELECT 
-      e.id as employee_id,
-      m.id as manager_id
-    FROM public.employees e
-    JOIN public.employees m ON lower(e.manager_email) = lower(m.email)
-    WHERE e.manager_email IS NOT NULL 
-      AND e.manager_employee_id IS NULL
-  )
-  UPDATE public.employees e
-  SET manager_employee_id = matches.manager_id
-  FROM matches
-  WHERE e.id = matches.employee_id;
-  
-  GET DIAGNOSTICS updated_count = ROW_COUNT;
-  RETURN updated_count;
-END;
-$$;
 
 -- Prevent last admin removal
 CREATE OR REPLACE FUNCTION public.prevent_last_admin_removal()

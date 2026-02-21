@@ -51,11 +51,8 @@ const formSchema = z.object({
   terminationDate: z.date().optional(),
   statusStartDate: z.date().optional(),
   notes: z.string().optional(),
-  // Manager fields for hierarchy
+  // Manager hierarchy – only the FK reference
   managerEmployeeId: z.string().optional(),
-  managerFirstName: z.string().optional(),
-  managerLastName: z.string().optional(),
-  managerEmail: z.string().email("Neplatný email nadřízeného").optional().or(z.literal('')),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -197,9 +194,6 @@ export default function Employees() {
       statusStartDate: employee.statusStartDate ? new Date(employee.statusStartDate) : undefined,
       notes: employee.notes || "",
       managerEmployeeId: employee.managerEmployeeId || "",
-      managerFirstName: employee.managerFirstName || "",
-      managerLastName: employee.managerLastName || "",
-      managerEmail: employee.managerEmail || "",
     });
     setDialogOpen(true);
   };
@@ -335,9 +329,6 @@ export default function Employees() {
       form.reset({ 
         status: "employed",
         managerEmployeeId: "",
-        managerFirstName: "",
-        managerLastName: "",
-        managerEmail: "",
       });
     }
   };
@@ -384,11 +375,8 @@ export default function Employees() {
         termination_date: data.terminationDate ? format(data.terminationDate, "yyyy-MM-dd") : null,
         status_start_date: statusStartDate,
         notes: notes || null,
-        // Manager hierarchy fields
+        // Manager hierarchy – only FK
         manager_employee_id: data.managerEmployeeId || null,
-        manager_first_name: data.managerFirstName || null,
-        manager_last_name: data.managerLastName || null,
-        manager_email: data.managerEmail || null,
       };
 
       if (editingEmployee) {
@@ -617,68 +605,32 @@ export default function Employees() {
                 <div className="border-t pt-4 mt-4">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Nadřízený (pro hierarchii)</p>
                   
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Vybrat nadřízeného ze seznamu</Label>
-                      <EmployeeOrCustomInput
-                        employees={employees.filter(e => e.id !== editingEmployee?.id)}
-                        value={
-                          form.watch("managerFirstName") || form.watch("managerLastName")
-                            ? `${form.watch("managerFirstName") || ""} ${form.watch("managerLastName") || ""}`.trim()
-                            : ""
+                  <div>
+                    <Label className="text-sm font-medium">Vybrat nadřízeného ze seznamu</Label>
+                    <EmployeeOrCustomInput
+                      employees={employees.filter(e => e.id !== editingEmployee?.id)}
+                      value={(() => {
+                        const mgrId = form.watch("managerEmployeeId");
+                        if (!mgrId) return "";
+                        const mgr = employees.find(e => e.id === mgrId);
+                        return mgr ? `${mgr.firstName} ${mgr.lastName}` : "";
+                      })()}
+                      onChange={(val: string) => {
+                        const matched = employees.find(e => 
+                          `${e.firstName} ${e.lastName}` === val || 
+                          `${e.lastName} ${e.firstName}` === val
+                        );
+                        if (matched) {
+                          form.setValue("managerEmployeeId", matched.id);
+                        } else {
+                          form.setValue("managerEmployeeId", "");
                         }
-                        onChange={(val: string) => {
-                          // Try to find the employee by name
-                          const matched = employees.find(e => 
-                            `${e.firstName} ${e.lastName}` === val || 
-                            `${e.lastName} ${e.firstName}` === val
-                          );
-                          if (matched) {
-                            form.setValue("managerEmployeeId", matched.id);
-                            form.setValue("managerFirstName", matched.firstName);
-                            form.setValue("managerLastName", matched.lastName);
-                            form.setValue("managerEmail", matched.email);
-                          } else if (val === "") {
-                            form.setValue("managerEmployeeId", "");
-                            form.setValue("managerFirstName", "");
-                            form.setValue("managerLastName", "");
-                            form.setValue("managerEmail", "");
-                          } else {
-                            // Manual input - clear the ID link
-                            form.setValue("managerEmployeeId", "");
-                            const parts = val.trim().split(/\s+/);
-                            if (parts.length >= 2) {
-                              form.setValue("managerFirstName", parts[0]);
-                              form.setValue("managerLastName", parts.slice(1).join(" "));
-                            } else {
-                              form.setValue("managerFirstName", val);
-                              form.setValue("managerLastName", "");
-                            }
-                          }
-                        }}
-                        placeholder="Vyberte nadřízeného (jméno, příjmení, email)"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Výběr ze seznamu vytvoří trvalé propojení – změny údajů nadřízeného se automaticky propsí.
-                      </p>
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="managerEmail"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email nadřízeného (klíčové pole)</FormLabel>
-                          <FormControl>
-                            <Input type="email" {...field} placeholder="nadrizeny@firma.cz" />
-                          </FormControl>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Tento email se použije pro automatické propojení s nadřízeným zaměstnancem.
-                          </p>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      }}
+                      placeholder="Vyberte nadřízeného (jméno, příjmení, email)"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Nadřízený musí existovat v systému. Jméno se vždy dotahuje automaticky.
+                    </p>
                   </div>
                 </div>
 
@@ -934,11 +886,11 @@ export default function Employees() {
                   <WorkCategoryBadge category={employee.workCategory} />
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {employee.managerEmail ? (
-                    <span title={employee.managerEmail}>
+                  {employee.managerEmployeeId ? (
+                    <span title={employee.managerEmail || ''}>
                       {employee.managerFirstName || employee.managerLastName 
                         ? `${employee.managerFirstName || ''} ${employee.managerLastName || ''}`.trim()
-                        : employee.managerEmail}
+                        : employee.managerEmail || '-'}
                     </span>
                   ) : '-'}
                 </TableCell>
