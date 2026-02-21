@@ -235,14 +235,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
-      // For token refresh, just silently update session/user without full reload
-      // This prevents unmounting the entire app (and losing form data)
-      if (event === "TOKEN_REFRESHED" && newSession?.user && currentUserIdRef.current) {
+      console.log(`[AuthContext] onAuthStateChange: event="${event}", user=${newSession?.user?.id ?? 'null'}, currentRef=${currentUserIdRef.current}`);
+
+      // Silent update: same user, just session/token refresh — no unmount, no loading
+      if (
+        newSession?.user &&
+        currentUserIdRef.current &&
+        newSession.user.id === currentUserIdRef.current
+      ) {
+        console.log(`[AuthContext] Silent update for event="${event}" (same user)`);
         setSession(newSession);
         setUser(newSession.user);
         return;
       }
-      // Don't await - the callback cannot be async, but handleSession manages loading state
+
+      // Identity changed (login, logout, different user) — full reload
+      console.log(`[AuthContext] Full handleSession for event="${event}"`);
       void handleSession(newSession);
     });
 
