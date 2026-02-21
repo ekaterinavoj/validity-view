@@ -37,12 +37,28 @@ function mapEmployee(e: any): EmployeeWithDepartment {
     statusStartDate: e.status_start_date,
     notes: e.notes,
     workCategory: e.work_category,
-    // Manager via JOIN (self-referencing FK) – PostgREST may return array or object
     managerEmployeeId: e.manager_employee_id,
-    managerFirstName: (Array.isArray(e.manager) ? e.manager[0]?.first_name : e.manager?.first_name) ?? null,
-    managerLastName: (Array.isArray(e.manager) ? e.manager[0]?.last_name : e.manager?.last_name) ?? null,
-    managerEmail: (Array.isArray(e.manager) ? e.manager[0]?.email : e.manager?.email) ?? null,
+    // Will be resolved after fetch from the employee list itself
+    managerFirstName: null,
+    managerLastName: null,
+    managerEmail: null,
   };
+}
+
+/** Resolve manager names from the flat employee list (avoids PostgREST self-join issues) */
+function resolveManagers(employees: EmployeeWithDepartment[]): EmployeeWithDepartment[] {
+  const byId = new Map(employees.map((e) => [e.id, e]));
+  return employees.map((e) => {
+    if (!e.managerEmployeeId) return e;
+    const mgr = byId.get(e.managerEmployeeId);
+    if (!mgr) return e;
+    return {
+      ...e,
+      managerFirstName: mgr.firstName,
+      managerLastName: mgr.lastName,
+      managerEmail: mgr.email,
+    };
+  });
 }
 
 const EMPLOYEE_SELECT = `
@@ -63,11 +79,6 @@ const EMPLOYEE_SELECT = `
     id,
     code,
     name
-  ),
-  manager:employees!manager_employee_id (
-    first_name,
-    last_name,
-    email
   )
 `;
 
@@ -93,7 +104,7 @@ export function useEmployees(statusFilter?: string) {
       const { data, error: fetchError } = await query;
       if (fetchError) throw fetchError;
 
-      setEmployees((data || []).map(mapEmployee));
+      setEmployees(resolveManagers((data || []).map(mapEmployee)));
     } catch (err: any) {
       console.error("Error fetching employees:", err);
       setError("Nepodařilo se načíst zaměstnance. Zkuste to prosím znovu.");
@@ -127,7 +138,7 @@ export function useInactiveEmployees() {
 
       if (fetchError) throw fetchError;
 
-      setEmployees((data || []).map(mapEmployee));
+      setEmployees(resolveManagers((data || []).map(mapEmployee)));
     } catch (err: any) {
       console.error("Error fetching inactive employees:", err);
       setError("Nepodařilo se načíst neaktivní zaměstnance. Zkuste to prosím znovu.");
