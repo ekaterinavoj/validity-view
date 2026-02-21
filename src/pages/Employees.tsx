@@ -6,6 +6,7 @@ import { EmployeeOrCustomInput } from "@/components/EmployeeOrCustomInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { EmployeeHierarchyTree } from "@/components/EmployeeHierarchyTree";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +20,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download, Loader2, RefreshCw } from "lucide-react";
+import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download, Loader2, RefreshCw, List, GitBranch } from "lucide-react";
 import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,6 +52,7 @@ const formSchema = z.object({
   statusStartDate: z.date().optional(),
   notes: z.string().optional(),
   // Manager fields for hierarchy
+  managerEmployeeId: z.string().optional(),
   managerFirstName: z.string().optional(),
   managerLastName: z.string().optional(),
   managerEmail: z.string().email("Neplatný email nadřízeného").optional().or(z.literal('')),
@@ -87,6 +89,7 @@ export default function Employees() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [saving, setSaving] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "tree">("table");
   const { toast } = useToast();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch } = useEmployees();
@@ -193,6 +196,7 @@ export default function Employees() {
       terminationDate: employee.terminationDate ? new Date(employee.terminationDate) : undefined,
       statusStartDate: employee.statusStartDate ? new Date(employee.statusStartDate) : undefined,
       notes: employee.notes || "",
+      managerEmployeeId: employee.managerEmployeeId || "",
       managerFirstName: employee.managerFirstName || "",
       managerLastName: employee.managerLastName || "",
       managerEmail: employee.managerEmail || "",
@@ -330,6 +334,7 @@ export default function Employees() {
       setEditingEmployee(null);
       form.reset({ 
         status: "employed",
+        managerEmployeeId: "",
         managerFirstName: "",
         managerLastName: "",
         managerEmail: "",
@@ -380,6 +385,7 @@ export default function Employees() {
         status_start_date: statusStartDate,
         notes: notes || null,
         // Manager hierarchy fields
+        manager_employee_id: data.managerEmployeeId || null,
         manager_first_name: data.managerFirstName || null,
         manager_last_name: data.managerLastName || null,
         manager_email: data.managerEmail || null,
@@ -628,11 +634,18 @@ export default function Employees() {
                             `${e.lastName} ${e.firstName}` === val
                           );
                           if (matched) {
+                            form.setValue("managerEmployeeId", matched.id);
                             form.setValue("managerFirstName", matched.firstName);
                             form.setValue("managerLastName", matched.lastName);
                             form.setValue("managerEmail", matched.email);
+                          } else if (val === "") {
+                            form.setValue("managerEmployeeId", "");
+                            form.setValue("managerFirstName", "");
+                            form.setValue("managerLastName", "");
+                            form.setValue("managerEmail", "");
                           } else {
-                            // Manual input - split into first/last name
+                            // Manual input - clear the ID link
+                            form.setValue("managerEmployeeId", "");
                             const parts = val.trim().split(/\s+/);
                             if (parts.length >= 2) {
                               form.setValue("managerFirstName", parts[0]);
@@ -641,13 +654,12 @@ export default function Employees() {
                               form.setValue("managerFirstName", val);
                               form.setValue("managerLastName", "");
                             }
-                            // Don't clear email on manual input
                           }
                         }}
                         placeholder="Vyberte nadřízeného (jméno, příjmení, email)"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Po výběru se automaticky vyplní jméno, příjmení i email nadřízeného.
+                        Výběr ze seznamu vytvoří trvalé propojení – změny údajů nadřízeného se automaticky propsí.
                       </p>
                     </div>
 
@@ -855,12 +867,39 @@ export default function Employees() {
 
       {/* Status Legend + Count - above the table */}
       <div className="flex items-center justify-between">
-        <StatusLegend variant="employee" />
+        <div className="flex items-center gap-2">
+          <StatusLegend variant="employee" />
+          <div className="flex items-center border border-border rounded-md ml-4">
+            <Button
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("table")}
+              className="rounded-r-none"
+            >
+              <List className="w-4 h-4 mr-1" />
+              Tabulka
+            </Button>
+            <Button
+              variant={viewMode === "tree" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("tree")}
+              className="rounded-l-none"
+            >
+              <GitBranch className="w-4 h-4 mr-1" />
+              Strom
+            </Button>
+          </div>
+        </div>
         <p className="text-sm text-muted-foreground">
           Celkem: {filteredEmployees.length} zaměstnanců
         </p>
       </div>
 
+      {viewMode === "tree" ? (
+        <Card className="p-4">
+          <EmployeeHierarchyTree employees={filteredEmployees} />
+        </Card>
+      ) : (
       <Card>
         <Table>
           <TableHeader>
@@ -925,6 +964,7 @@ export default function Employees() {
           </TableBody>
         </Table>
       </Card>
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="max-w-md">
