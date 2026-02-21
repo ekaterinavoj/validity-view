@@ -21,7 +21,7 @@ interface Employee {
   first_name: string;
   last_name: string;
   email: string;
-  employee_number: string;
+  employee_number: string | null;
 }
 
 interface AddUserModalProps {
@@ -258,7 +258,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
                   <SelectContent>
                     {employees.map((emp) => (
                       <SelectItem key={emp.id} value={emp.id}>
-                        {emp.last_name} {emp.first_name} ({emp.employee_number})
+                        {emp.last_name} {emp.first_name}{emp.employee_number ? ` (${emp.employee_number})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -21,7 +21,7 @@ import {
 
 interface Employee {
   id: string;
-  employee_number: string;
+  employee_number: string | null;
   first_name: string;
   last_name: string;
   email: string;
@@ -198,7 +198,7 @@ export function ProfileEmployeeLink({
                 <Badge variant="outline" className="gap-1 text-xs">
                   <Link2 className="h-3 w-3" />
                   {currentEmployee
-                    ? `${currentEmployee.first_name} ${currentEmployee.last_name} (${currentEmployee.employee_number})`
+                    ? `${currentEmployee.first_name} ${currentEmployee.last_name}${currentEmployee.employee_number ? ` (${currentEmployee.employee_number})` : ''}`
                     : "Propojeno"}
                 </Badge>
               </TooltipTrigger>
@@ -250,7 +250,7 @@ export function ProfileEmployeeLink({
                     disabled={isLinked}
                     className="text-xs"
                   >
-                    {emp.first_name} {emp.last_name} ({emp.employee_number})
+                    {emp.first_name} {emp.last_name}{emp.employee_number ? ` (${emp.employee_number})` : ''}
                     {isLinked && " - již přiřazen"}
                   </SelectItem>
                 );
