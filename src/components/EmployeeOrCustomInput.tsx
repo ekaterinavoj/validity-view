@@ -32,6 +32,9 @@ interface EmployeeOrCustomInputProps {
   placeholder?: string;
   disabled?: boolean;
   label?: string;
+  /** When provided, shows a "None" option at the top that triggers onNone */
+  noneLabel?: string;
+  onNone?: () => void;
 }
 
 export function EmployeeOrCustomInput({
@@ -40,6 +43,8 @@ export function EmployeeOrCustomInput({
   onChange,
   placeholder = "Vyberte nebo zadejte jméno",
   disabled = false,
+  noneLabel,
+  onNone,
 }: EmployeeOrCustomInputProps) {
   const [open, setOpen] = useState(false);
   const [isCustom, setIsCustom] = useState(false);
@@ -124,6 +129,25 @@ export function EmployeeOrCustomInput({
             <CommandInput placeholder="Hledat zaměstnance..." />
             <CommandList>
               <CommandEmpty>Žádný zaměstnanec nenalezen.</CommandEmpty>
+              {noneLabel && onNone && (
+                <CommandGroup>
+                  <CommandItem
+                    value="__none__"
+                    onSelect={() => {
+                      onNone();
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        !value ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <span className="text-muted-foreground font-medium">{noneLabel}</span>
+                  </CommandItem>
+                </CommandGroup>
+              )}
               <CommandGroup heading="Zaměstnanci">
                 {employees.map((employee) => {
                   const fullName = `${employee.firstName} ${employee.lastName}`;
