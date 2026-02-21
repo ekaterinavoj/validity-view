@@ -55,6 +55,28 @@ services:
       start_period: 60s
       retries: 5
 
+  # =============================================
+  # Status Recalculation Cron (daily at 1:00 AM)
+  # =============================================
+  status-cron:
+    image: postgres:15-alpine
+    container_name: training-status-cron
+    entrypoint: >
+      sh -c "
+        echo '0 1 * * * PGPASSWORD=$$POSTGRES_PASSWORD psql -h database -U $$POSTGRES_USER -d $$POSTGRES_DB -c \"SELECT public.recalculate_all_statuses();\" >> /proc/1/fd/1 2>&1' > /etc/crontabs/root &&
+        crond -f -l 2
+      "
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-training_system}
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - training-network
+
 networks:
   training-network:
     driver: bridge

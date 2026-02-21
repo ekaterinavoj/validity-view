@@ -983,6 +983,44 @@ BEGIN
 END;
 $$;
 
+-- Recalculate all statuses (trainings, deadlines, medical) - called by cron
+CREATE OR REPLACE FUNCTION public.recalculate_all_statuses()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  t_updated integer := 0;
+  d_updated integer := 0;
+  m_updated integer := 0;
+BEGIN
+  UPDATE public.trainings
+  SET status = calculate_training_status(next_training_date)
+  WHERE is_active = true AND deleted_at IS NULL
+    AND status IS DISTINCT FROM calculate_training_status(next_training_date);
+  GET DIAGNOSTICS t_updated = ROW_COUNT;
+
+  UPDATE public.deadlines
+  SET status = calculate_deadline_status(next_check_date)
+  WHERE is_active = true AND deleted_at IS NULL
+    AND status IS DISTINCT FROM calculate_deadline_status(next_check_date);
+  GET DIAGNOSTICS d_updated = ROW_COUNT;
+
+  UPDATE public.medical_examinations
+  SET status = calculate_examination_status(next_examination_date)
+  WHERE is_active = true AND deleted_at IS NULL
+    AND status IS DISTINCT FROM calculate_examination_status(next_examination_date);
+  GET DIAGNOSTICS m_updated = ROW_COUNT;
+
+  RETURN jsonb_build_object(
+    'trainings_updated', t_updated,
+    'deadlines_updated', d_updated,
+    'medical_updated', m_updated
+  );
+END;
+$$;
+
 -- Set termination note
 CREATE OR REPLACE FUNCTION public.set_termination_note()
 RETURNS TRIGGER
@@ -2346,7 +2384,8 @@ INSERT INTO public.schema_migrations (version, name) VALUES
   ('20260213154948', 'reminder_run_correlation'),
   ('20260213195037', 'set_user_role_function'),
   ('20260216193430', 'trigger_recreation'),
-  ('20260219100000', 'general_documents')
+  ('20260219100000', 'general_documents'),
+  ('20260221150000', 'recalculate_all_statuses')
 ON CONFLICT (version) DO NOTHING;
 
 -- =============================================
