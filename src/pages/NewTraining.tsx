@@ -45,7 +45,6 @@ const formSchema = z.object({
   periodValue: z.number().min(1, "Zadejte periodicitu"),
   periodUnit: z.enum(["days", "months", "years"]),
   trainer: z.string().optional(),
-  supervisor: z.string().optional(),
   company: z.string().optional(),
   reminderTemplateId: z.string().min(1, "Vyberte šablonu připomenutí"),
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
@@ -81,7 +80,6 @@ export default function NewTraining() {
       periodValue: 1,
       periodUnit: "years",
       trainer: "",
-      supervisor: "",
       company: "",
       note: "",
       facility: "",
@@ -120,16 +118,6 @@ export default function NewTraining() {
     }
   }, [selectedTrainingTypeId, trainingTypes, form]);
 
-  // Auto-fill supervisor from selected employee's manager
-  const selectedEmployeeIds = form.watch("employeeIds");
-  useEffect(() => {
-    if (selectedEmployeeIds.length === 1) {
-      const emp = employees.find(e => e.id === selectedEmployeeIds[0]);
-      if (emp?.managerFirstName && emp?.managerLastName) {
-        form.setValue("supervisor", `${emp.managerFirstName} ${emp.managerLastName}`);
-      }
-    }
-  }, [selectedEmployeeIds, employees, form]);
 
   const lastTrainingDate = form.watch("lastTrainingDate");
   const periodValue = form.watch("periodValue");
@@ -178,7 +166,6 @@ export default function NewTraining() {
               last_training_date: format(data.lastTrainingDate, "yyyy-MM-dd"),
               next_training_date: nextTrainingDate,
               trainer: data.trainer || undefined,
-              supervisor: data.supervisor || undefined,
               company: data.company || undefined,
               reminder_template_id: data.reminderTemplateId || undefined,
               remind_days_before: parseInt(data.remindDaysBefore) || 30,
@@ -389,20 +376,7 @@ export default function NewTraining() {
               </FormItem>
             )} />
 
-            <FormField control={form.control} name="supervisor" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nadřízený</FormLabel>
-                <FormControl>
-                  <EmployeeOrCustomInput
-                    employees={employees}
-                    value={field.value || ""}
-                    onChange={field.onChange}
-                    placeholder="Vyberte nadřízeného ze seznamu"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+
 
             <FormField control={form.control} name="company" render={({ field }) => (
               <FormItem><FormLabel>Školící firma</FormLabel><FormControl><Input {...field} placeholder="Název firmy" /></FormControl><FormMessage /></FormItem>
