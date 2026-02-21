@@ -23,42 +23,62 @@ interface EmployeeHierarchyTreeProps {
   className?: string;
 }
 
-function detectCycle(employeeId: string, employees: Employee[]): boolean {
+/**
+ * Find IDs whose manager link should be broken to eliminate all cycles.
+ * Strategy: for each cycle found, break at the employee whose ID is smallest
+ * (deterministic, stable). Only one link per cycle needs to be cut.
+ */
+function findCycleBreaks(employees: Employee[]): Set<string> {
   const empMap = new Map(employees.map(e => [e.id, e]));
   const visited = new Set<string>();
-  let current: string | null | undefined = employeeId;
-  while (current) {
-    if (visited.has(current)) return true;
-    visited.add(current);
-    current = empMap.get(current)?.managerEmployeeId;
+  const breaks = new Set<string>();
+
+  for (const emp of employees) {
+    if (visited.has(emp.id)) continue;
+
+    // Walk the manager chain from this employee
+    const path: string[] = [];
+    const pathSet = new Set<string>();
+    let current: string | null | undefined = emp.id;
+
+    while (current && !visited.has(current)) {
+      if (pathSet.has(current)) {
+        // Found a cycle – collect all members of this cycle
+        const cycleStart = path.indexOf(current);
+        const cycleMembers = path.slice(cycleStart);
+        // Break at the "smallest" id in the cycle (deterministic)
+        const breakId = cycleMembers.reduce((a, b) => (a < b ? a : b));
+        breaks.add(breakId);
+        break;
+      }
+      path.push(current);
+      pathSet.add(current);
+      current = empMap.get(current)?.managerEmployeeId;
+    }
+
+    // Mark all nodes in this path as visited
+    for (const id of path) visited.add(id);
   }
-  return false;
+
+  return breaks;
 }
 
 function buildTree(employees: Employee[]): TreeNode[] {
   const map = new Map<string, TreeNode>();
   const roots: TreeNode[] = [];
 
-  // Create nodes
   for (const emp of employees) {
     map.set(emp.id, { employee: emp, children: [] });
   }
 
-  // Detect circular references and break them
-  const circularIds = new Set<string>();
-  for (const emp of employees) {
-    if (emp.managerEmployeeId && detectCycle(emp.id, employees)) {
-      circularIds.add(emp.id);
-    }
-  }
+  const cycleBreaks = findCycleBreaks(employees);
 
-  // Build parent-child relationships
   for (const emp of employees) {
     const node = map.get(emp.id)!;
     if (
       emp.managerEmployeeId &&
       map.has(emp.managerEmployeeId) &&
-      !circularIds.has(emp.id)
+      !cycleBreaks.has(emp.id)
     ) {
       map.get(emp.managerEmployeeId)!.children.push(node);
     } else {
