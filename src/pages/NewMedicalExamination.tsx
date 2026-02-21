@@ -25,11 +25,13 @@ import { useMedicalExaminationTypes } from "@/hooks/useMedicalExaminationTypes";
 import { useFacilities } from "@/hooks/useFacilities";
 import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { EmployeeMultiSelect } from "@/components/EmployeeMultiSelect";
+import { Progress } from "@/components/ui/progress";
 import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, calculateNextDate } from "@/components/PeriodicityInput";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
-  employeeId: z.string().min(1, "Vyberte zaměstnance"),
+  employeeIds: z.array(z.string()).min(1, "Vyberte alespoň jednoho zaměstnance"),
   examinationTypeId: z.string().min(1, "Vyberte typ prohlídky"),
   lastExaminationDate: z.date({ required_error: "Zadejte datum prohlídky" }),
   periodValue: z.number().min(1, "Zadejte periodicitu"),
@@ -50,6 +52,7 @@ export default function NewMedicalExamination() {
   const navigate = useNavigate();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState(0);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const { toast } = useToast();
@@ -65,6 +68,7 @@ export default function NewMedicalExamination() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      employeeIds: [],
       periodValue: 1,
       periodUnit: "years",
       remindDaysBefore: "30",
@@ -113,65 +117,82 @@ export default function NewMedicalExamination() {
     }
 
     setIsSubmitting(true);
+    setSubmitProgress(0);
 
     try {
       const nextExaminationDate = expirationDate ? format(expirationDate, "yyyy-MM-dd") : format(data.lastExaminationDate, "yyyy-MM-dd");
 
       let status = "valid";
-      if (nextExaminationDate) {
-        const nextDate = new Date(nextExaminationDate);
-        const today = new Date();
-        const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysUntil < 0) {
-          status = "expired";
-        } else if (daysUntil <= 30) {
-          status = "warning";
+      const nextDate = new Date(nextExaminationDate);
+      const today = new Date();
+      const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysUntil < 0) {
+        status = "expired";
+      } else if (daysUntil <= 30) {
+        status = "warning";
+      }
+
+      const totalEmployees = data.employeeIds.length;
+      let created = 0;
+      let failed = 0;
+
+      for (const employeeId of data.employeeIds) {
+        try {
+          const { data: newExamination, error: insertError } = await supabase
+            .from("medical_examinations")
+            .insert([{
+              facility: data.facility,
+              employee_id: employeeId,
+              examination_type_id: data.examinationTypeId,
+              last_examination_date: format(data.lastExaminationDate, "yyyy-MM-dd"),
+              next_examination_date: nextExaminationDate,
+              doctor: data.doctor || undefined,
+              medical_facility: data.medicalFacility || undefined,
+              result: data.result || undefined,
+              reminder_template_id: data.reminderTemplateId || undefined,
+              remind_days_before: parseInt(data.remindDaysBefore) || 30,
+              repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
+              note: data.note || undefined,
+              status,
+              is_active: true,
+              created_by: user.id,
+              requester: profile ? `${profile.first_name} ${profile.last_name}` : undefined,
+            }])
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+
+          if (uploadedFiles.length > 0 && newExamination && created === 0) {
+            const uploadPromises = uploadedFiles.map((uploadedFile) =>
+              uploadMedicalDocument(newExamination.id, uploadedFile.file, uploadedFile.documentType, uploadedFile.description)
+            );
+            await Promise.all(uploadPromises);
+          }
+
+          created++;
+        } catch (err) {
+          console.error(`Chyba při vytváření prohlídky pro zaměstnance ${employeeId}:`, err);
+          failed++;
         }
+        setSubmitProgress(Math.round(((created + failed) / totalEmployees) * 100));
       }
 
-      const { data: newExamination, error: insertError } = await supabase
-        .from("medical_examinations")
-        .insert([{
-          facility: data.facility,
-          employee_id: data.employeeId,
-          examination_type_id: data.examinationTypeId,
-          last_examination_date: format(data.lastExaminationDate, "yyyy-MM-dd"),
-          next_examination_date: nextExaminationDate,
-          doctor: data.doctor || undefined,
-          medical_facility: data.medicalFacility || undefined,
-          result: data.result || undefined,
-          reminder_template_id: data.reminderTemplateId || undefined,
-          remind_days_before: parseInt(data.remindDaysBefore) || 30,
-          repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
-          note: data.note || undefined,
-          status,
-          is_active: true,
-          created_by: user.id,
-          requester: profile ? `${profile.first_name} ${profile.last_name}` : undefined,
-        }])
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      if (uploadedFiles.length > 0 && newExamination) {
-        const uploadPromises = uploadedFiles.map((uploadedFile) =>
-          uploadMedicalDocument(newExamination.id, uploadedFile.file, uploadedFile.documentType, uploadedFile.description)
-        );
-        await Promise.all(uploadPromises);
+      if (created > 0) {
+        toast({
+          title: "Prohlídky vytvořeny",
+          description: `Úspěšně vytvořeno ${created} prohlídek${failed > 0 ? `, ${failed} se nepodařilo` : ""}.`,
+        });
+        navigate("/plp");
+      } else {
+        toast({ title: "Chyba", description: "Nepodařilo se vytvořit žádnou prohlídku.", variant: "destructive" });
       }
-
-      toast({
-        title: "Prohlídka vytvořena",
-        description: `Nová prohlídka byla úspěšně přidána${uploadedFiles.length > 0 ? ` se ${uploadedFiles.length} dokumenty` : ""}.`,
-      });
-
-      navigate("/plp");
     } catch (error: any) {
       console.error("Chyba při vytváření prohlídky:", error);
       toast({ title: "Chyba", description: error.message || "Nepodařilo se vytvořit prohlídku.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setSubmitProgress(0);
     }
   };
 
@@ -258,24 +279,19 @@ export default function NewMedicalExamination() {
 
             <FormField
               control={form.control}
-              name="employeeId"
+              name="employeeIds"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Zaměstnanec *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte zaměstnance" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {activeEmployees.map((emp) => (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          {emp.lastName} {emp.firstName} ({emp.employeeNumber})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Zaměstnanci *</FormLabel>
+                  <FormControl>
+                    <EmployeeMultiSelect
+                      employees={activeEmployees}
+                      selectedIds={field.value}
+                      onChange={field.onChange}
+                      placeholder="Vyberte zaměstnance (lze více)"
+                      error={form.formState.errors.employeeIds?.message}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -326,47 +342,17 @@ export default function NewMedicalExamination() {
             )}
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="doctor"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lékař</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Jméno lékaře" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="medicalFacility"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Zdravotnické zařízení</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Název zařízení" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="doctor" render={({ field }) => (
+                <FormItem><FormLabel>Lékař</FormLabel><FormControl><Input {...field} placeholder="Jméno lékaře" /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="medicalFacility" render={({ field }) => (
+                <FormItem><FormLabel>Zdravotnické zařízení</FormLabel><FormControl><Input {...field} placeholder="Název zařízení" /></FormControl><FormMessage /></FormItem>
+              )} />
             </div>
 
-            <FormField
-              control={form.control}
-              name="result"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Výsledek prohlídky</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="např. Způsobilý bez omezení" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="result" render={({ field }) => (
+              <FormItem><FormLabel>Výsledek prohlídky</FormLabel><FormControl><Input {...field} placeholder="např. Způsobilý bez omezení" /></FormControl><FormMessage /></FormItem>
+            )} />
 
             <div className="space-y-3">
               <div>
@@ -376,83 +362,48 @@ export default function NewMedicalExamination() {
               <FileUploader files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={10} maxSize={20} acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} />
             </div>
 
-            <FormField
-              control={form.control}
-              name="reminderTemplateId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Šablona připomenutí *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte šablonu" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {reminderTemplates.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="reminderTemplateId" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Šablona připomenutí *</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Vyberte šablonu" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    {reminderTemplates.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="remindDaysBefore"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Připomenout dopředu (dní) *</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="repeatDaysAfter"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Opakovat po (dní)</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="remindDaysBefore" render={({ field }) => (
+                <FormItem><FormLabel>Připomenout dopředu (dní) *</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="repeatDaysAfter" render={({ field }) => (
+                <FormItem><FormLabel>Opakovat po (dní)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
             </div>
 
-            <FormField
-              control={form.control}
-              name="note"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Poznámka</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} rows={3} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="note" render={({ field }) => (
+              <FormItem><FormLabel>Poznámka</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
+            )} />
 
             <div className="space-y-2">
               <Label>Zadavatel</Label>
               <Input value={profile ? `${profile.first_name} ${profile.last_name}` : "Načítání..."} disabled className="bg-muted" />
             </div>
 
+            {isSubmitting && submitProgress > 0 && (
+              <div className="space-y-2">
+                <Progress value={submitProgress} />
+                <p className="text-xs text-muted-foreground text-center">Vytvářím prohlídky... {submitProgress}%</p>
+              </div>
+            )}
+
             <div className="flex gap-4">
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {isSubmitting ? "Vytváří se..." : "Vytvořit prohlídku"}
+                {isSubmitting ? "Vytváří se..." : `Vytvořit prohlídku${form.watch("employeeIds").length > 1 ? ` (${form.watch("employeeIds").length} osob)` : ""}`}
               </Button>
               <Button type="button" variant="outline" onClick={() => navigate("/plp")} disabled={isSubmitting}>
                 Zrušit

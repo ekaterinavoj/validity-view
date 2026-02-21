@@ -25,6 +25,8 @@ import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { useFacilities } from "@/hooks/useFacilities";
 import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { EmployeeMultiSelect } from "@/components/EmployeeMultiSelect";
+import { Progress } from "@/components/ui/progress";
 import { 
   PeriodicityInput, 
   PeriodicityUnit, 
@@ -35,7 +37,7 @@ import {
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
-  employeeId: z.string().min(1, "Vyberte školenu osobu"),
+  employeeIds: z.array(z.string()).min(1, "Vyberte alespoň jednoho zaměstnance"),
   trainingTypeId: z.string().min(1, "Vyberte typ školení"),
   lastTrainingDate: z.date({ required_error: "Zadejte datum posledního školení" }),
   periodValue: z.number().min(1, "Zadejte periodicitu"),
@@ -55,6 +57,7 @@ export default function NewTraining() {
   const navigate = useNavigate();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState(0);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const { toast } = useToast();
@@ -63,7 +66,6 @@ export default function NewTraining() {
   const { trainingTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useTrainingTypes();
   const { facilities, loading: facilitiesLoading, error: facilitiesError, refetch: refetchFacilities } = useFacilities();
 
-  // Filter only active employees
   const activeEmployees = useMemo(() => {
     return employees.filter(e => e.status === "employed");
   }, [employees]);
@@ -71,6 +73,7 @@ export default function NewTraining() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      employeeIds: [],
       periodValue: 1,
       periodUnit: "years",
       remindDaysBefore: "30",
@@ -78,7 +81,6 @@ export default function NewTraining() {
     },
   });
 
-  // Load reminder templates
   useEffect(() => {
     const loadTemplates = async () => {
       const { data, error } = await supabase
@@ -86,7 +88,6 @@ export default function NewTraining() {
         .select("*")
         .eq("is_active", true)
         .order("name");
-
       if (!error && data) {
         setReminderTemplates(data);
       }
@@ -94,7 +95,6 @@ export default function NewTraining() {
     loadTemplates();
   }, []);
 
-  // Auto-set periodicity when training type is selected
   const selectedTrainingTypeId = form.watch("trainingTypeId");
   useEffect(() => {
     if (selectedTrainingTypeId) {
@@ -121,86 +121,87 @@ export default function NewTraining() {
 
   const onSubmit = async (data: FormValues) => {
     if (!user) {
-      toast({
-        title: "Chyba",
-        description: "Musíte být přihlášeni.",
-        variant: "destructive",
-      });
+      toast({ title: "Chyba", description: "Musíte být přihlášeni.", variant: "destructive" });
       return;
     }
 
     setIsSubmitting(true);
+    setSubmitProgress(0);
     
     try {
       const nextTrainingDate = expirationDate ? format(expirationDate, "yyyy-MM-dd") : format(data.lastTrainingDate, "yyyy-MM-dd");
       
-      // Calculate status based on next_training_date
       let status = "valid";
-      if (nextTrainingDate) {
-        const nextDate = new Date(nextTrainingDate);
-        const today = new Date();
-        const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysUntil < 0) {
-          status = "expired";
-        } else if (daysUntil <= 30) {
-          status = "warning";
+      const nextDate = new Date(nextTrainingDate);
+      const today = new Date();
+      const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysUntil < 0) {
+        status = "expired";
+      } else if (daysUntil <= 30) {
+        status = "warning";
+      }
+
+      const totalEmployees = data.employeeIds.length;
+      let created = 0;
+      let failed = 0;
+
+      for (const employeeId of data.employeeIds) {
+        try {
+          const { data: newTraining, error: insertError } = await supabase
+            .from("trainings")
+            .insert([{
+              facility: data.facility,
+              employee_id: employeeId,
+              training_type_id: data.trainingTypeId,
+              last_training_date: format(data.lastTrainingDate, "yyyy-MM-dd"),
+              next_training_date: nextTrainingDate,
+              trainer: data.trainer || undefined,
+              company: data.company || undefined,
+              reminder_template_id: data.reminderTemplateId || undefined,
+              remind_days_before: parseInt(data.remindDaysBefore) || 30,
+              repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
+              note: data.note || undefined,
+              status,
+              is_active: true,
+              created_by: user.id,
+              requester: profile ? `${profile.first_name} ${profile.last_name}` : undefined,
+            }])
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+
+          // Upload documents for first employee only (shared docs)
+          if (uploadedFiles.length > 0 && newTraining && created === 0) {
+            const uploadPromises = uploadedFiles.map((uploadedFile) =>
+              uploadTrainingDocument(newTraining.id, uploadedFile.file, uploadedFile.documentType, uploadedFile.description)
+            );
+            await Promise.all(uploadPromises);
+          }
+
+          created++;
+        } catch (err) {
+          console.error(`Chyba při vytváření školení pro zaměstnance ${employeeId}:`, err);
+          failed++;
         }
+        setSubmitProgress(Math.round(((created + failed) / totalEmployees) * 100));
       }
 
-      // Insert training into database
-      const { data: newTraining, error: insertError } = await supabase
-        .from("trainings")
-        .insert([{
-          facility: data.facility,
-          employee_id: data.employeeId,
-          training_type_id: data.trainingTypeId,
-          last_training_date: format(data.lastTrainingDate, "yyyy-MM-dd"),
-          next_training_date: nextTrainingDate,
-          trainer: data.trainer || undefined,
-          company: data.company || undefined,
-          reminder_template_id: data.reminderTemplateId || undefined,
-          remind_days_before: parseInt(data.remindDaysBefore) || 30,
-          repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
-          note: data.note || undefined,
-          status,
-          is_active: true,
-          created_by: user.id,
-          requester: profile ? `${profile.first_name} ${profile.last_name}` : undefined,
-        }])
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Upload documents
-      if (uploadedFiles.length > 0 && newTraining) {
-        const uploadPromises = uploadedFiles.map((uploadedFile) =>
-          uploadTrainingDocument(
-            newTraining.id,
-            uploadedFile.file,
-            uploadedFile.documentType,
-            uploadedFile.description
-          )
-        );
-        
-        await Promise.all(uploadPromises);
+      if (created > 0) {
+        toast({
+          title: "Školení vytvořena",
+          description: `Úspěšně vytvořeno ${created} školení${failed > 0 ? `, ${failed} se nepodařilo` : ""}.`,
+        });
+        navigate("/");
+      } else {
+        toast({ title: "Chyba", description: "Nepodařilo se vytvořit žádné školení.", variant: "destructive" });
       }
-
-      toast({
-        title: "Školení vytvořeno",
-        description: `Nové školení bylo úspěšně přidáno${uploadedFiles.length > 0 ? ` se ${uploadedFiles.length} dokumenty` : ""}.`,
-      });
-      
-      navigate("/");
     } catch (error: any) {
       console.error("Chyba při vytváření školení:", error);
-      toast({
-        title: "Chyba",
-        description: error.message || "Nepodařilo se vytvořit školení.",
-        variant: "destructive",
-      });
+      toast({ title: "Chyba", description: error.message || "Nepodařilo se vytvořit školení.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setSubmitProgress(0);
     }
   };
 
@@ -214,11 +215,7 @@ export default function NewTraining() {
     return (
       <div className="space-y-6">
         <h2 className="text-3xl font-bold text-foreground">Vytvoření nového školení</h2>
-        <ErrorDisplay
-          title="Nepodařilo se načíst data"
-          message={employeesError || typesError || facilitiesError || "Zkuste to prosím znovu."}
-          onRetry={refetch}
-        />
+        <ErrorDisplay title="Nepodařilo se načíst data" message={employeesError || typesError || facilitiesError || "Zkuste to prosím znovu."} onRetry={refetch} />
       </div>
     );
   }
@@ -291,24 +288,19 @@ export default function NewTraining() {
 
             <FormField
               control={form.control}
-              name="employeeId"
+              name="employeeIds"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Školená osoba *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte školenu osobu" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {activeEmployees.map((emp) => (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          {emp.lastName} {emp.firstName} ({emp.employeeNumber})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Školené osoby *</FormLabel>
+                  <FormControl>
+                    <EmployeeMultiSelect
+                      employees={activeEmployees}
+                      selectedIds={field.value}
+                      onChange={field.onChange}
+                      placeholder="Vyberte zaměstnance (lze více)"
+                      error={form.formState.errors.employeeIds?.message}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -366,7 +358,6 @@ export default function NewTraining() {
               <FormItem><FormLabel>Školící firma</FormLabel><FormControl><Input {...field} placeholder="Název firmy" /></FormControl><FormMessage /></FormItem>
             )} />
 
-            {/* File Upload Section */}
             <div className="space-y-3">
               <div>
                 <Label className="text-sm font-medium">Dokumenty (protokol, certifikát)</Label>
@@ -374,13 +365,7 @@ export default function NewTraining() {
                   Nahrajte protokoly, certifikáty nebo jiné dokumenty k tomuto školení
                 </p>
               </div>
-              <FileUploader
-                files={uploadedFiles}
-                onFilesChange={setUploadedFiles}
-                maxFiles={10}
-                maxSize={20}
-                acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
-              />
+              <FileUploader files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={10} maxSize={20} acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} />
             </div>
 
             <FormField control={form.control} name="reminderTemplateId" render={({ field }) => (
@@ -414,10 +399,17 @@ export default function NewTraining() {
               <Input value={profile ? `${profile.first_name} ${profile.last_name}` : 'Načítání...'} disabled className="bg-muted" />
             </div>
 
+            {isSubmitting && submitProgress > 0 && (
+              <div className="space-y-2">
+                <Progress value={submitProgress} />
+                <p className="text-xs text-muted-foreground text-center">Vytvářím školení... {submitProgress}%</p>
+              </div>
+            )}
+
             <div className="flex gap-4">
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {isSubmitting ? "Vytváří se..." : "Vytvořit školení"}
+                {isSubmitting ? "Vytváří se..." : `Vytvořit školení${form.watch("employeeIds").length > 1 ? ` (${form.watch("employeeIds").length} osob)` : ""}`}
               </Button>
               <Button type="button" variant="outline" onClick={() => navigate("/")} disabled={isSubmitting}>
                 Zrušit
