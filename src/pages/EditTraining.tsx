@@ -17,6 +17,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadTrainingDocument } from "@/lib/trainingDocuments";
 import { TrainingDocumentsList } from "@/components/TrainingDocumentsList";
@@ -61,6 +62,7 @@ const mockTrainingData = {
 export default function EditTraining() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAdmin, isManager } = useAuth();
   const canEdit = isAdmin || isManager;
   const [useCustomTrainer, setUseCustomTrainer] = useState(false);
@@ -152,7 +154,8 @@ export default function EditTraining() {
         description: "Změny byly úspěšně uloženy.",
       });
       
-      navigate("/");
+      await queryClient.invalidateQueries({ queryKey: ["trainings"] });
+      navigate("/trainings");
     } catch (error) {
       console.error("Chyba při aktualizaci školení:", error);
       toast({

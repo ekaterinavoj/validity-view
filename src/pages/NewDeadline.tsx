@@ -39,6 +39,7 @@ import { useFacilities } from "@/hooks/useFacilities";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadDeadlineDocument } from "@/lib/deadlineDocuments";
@@ -73,6 +74,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function NewDeadline() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { profile } = useAuth();
   const { equipment, isLoading: equipmentLoading } = useEquipment();
   const { deadlineTypes, isLoading: typesLoading } = useDeadlineTypes();
@@ -205,6 +207,7 @@ export default function NewDeadline() {
         }
       }
 
+      await queryClient.invalidateQueries({ queryKey: ["deadlines"] });
       toast({ title: "Technická událost byla vytvořena" });
       navigate("/deadlines");
     } catch (err) {
