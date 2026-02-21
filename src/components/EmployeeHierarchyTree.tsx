@@ -23,6 +23,18 @@ interface EmployeeHierarchyTreeProps {
   className?: string;
 }
 
+function detectCycle(employeeId: string, employees: Employee[]): boolean {
+  const empMap = new Map(employees.map(e => [e.id, e]));
+  const visited = new Set<string>();
+  let current: string | null | undefined = employeeId;
+  while (current) {
+    if (visited.has(current)) return true;
+    visited.add(current);
+    current = empMap.get(current)?.managerEmployeeId;
+  }
+  return false;
+}
+
 function buildTree(employees: Employee[]): TreeNode[] {
   const map = new Map<string, TreeNode>();
   const roots: TreeNode[] = [];
@@ -32,10 +44,22 @@ function buildTree(employees: Employee[]): TreeNode[] {
     map.set(emp.id, { employee: emp, children: [] });
   }
 
+  // Detect circular references and break them
+  const circularIds = new Set<string>();
+  for (const emp of employees) {
+    if (emp.managerEmployeeId && detectCycle(emp.id, employees)) {
+      circularIds.add(emp.id);
+    }
+  }
+
   // Build parent-child relationships
   for (const emp of employees) {
     const node = map.get(emp.id)!;
-    if (emp.managerEmployeeId && map.has(emp.managerEmployeeId)) {
+    if (
+      emp.managerEmployeeId &&
+      map.has(emp.managerEmployeeId) &&
+      !circularIds.has(emp.id)
+    ) {
       map.get(emp.managerEmployeeId)!.children.push(node);
     } else {
       roots.push(node);
