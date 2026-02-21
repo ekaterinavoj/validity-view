@@ -4,7 +4,7 @@ import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound, Stethoscope, FolderOpen } from "lucide-react";
+import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound, Stethoscope, FolderOpen, AlertTriangle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
@@ -593,6 +593,16 @@ export const Layout = ({
             </div>
           </nav>}
         
+        {/* Warning banner for managers without linked employee */}
+        {isManager && !isAdmin && profile && !profile.employee_id && (
+          <div className="mb-4 flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            <div>
+              <strong>Váš účet není propojen se záznamem zaměstnance.</strong>{" "}
+              Nebudete vidět svůj tým ani podřízené. Kontaktujte administrátora pro propojení vašeho profilu se záznamem zaměstnance.
+            </div>
+          </div>
+        )}
         <main>{children}</main>
       </div>
     </div>;

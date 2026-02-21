@@ -97,6 +97,7 @@ export const MIGRATION_REGISTRY: MigrationEntry[] = [
   { version: "20260221165235", name: "notify_extraordinary_medical_exam", sql: null },
   { version: "20260221174512", name: "drop_training_supervisor", sql: null },
   { version: "20260221175145", name: "propagate_manager_details", sql: null },
+  { version: "20260221200000", name: "auto_link_profile_employee", sql: null },
 ];
 
 /**
