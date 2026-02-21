@@ -171,17 +171,28 @@ export default function ScheduledDeadlines() {
   };
 
   const exportToCSV = () => {
-    const data = filteredDeadlines.map(d => ({
-      "Inventární č.": d.equipment?.inventory_number || "",
-      "Zařízení": d.equipment?.name || "",
-      "Typ události": d.deadline_type?.name || "",
-      "Provozovna": d.facility,
-      "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
-      "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
-      "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
-      "Provádějící": d.performer || "",
-      "Firma": d.company || "",
-    }));
+    const dataToExport = selectedIds.length > 0
+      ? filteredDeadlines.filter(d => selectedIds.includes(d.id))
+      : filteredDeadlines;
+
+    const data = dataToExport.map(d => {
+      const resps = responsiblesMap?.get(d.id) ?? [];
+      const responsibleNames = resps.map(r => r.name).join(", ");
+      return {
+        "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
+        "Inventární č.": d.equipment?.inventory_number || "",
+        "Zařízení": d.equipment?.name || "",
+        "Typ události": d.deadline_type?.name || "",
+        "Provozovna": d.facility,
+        "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
+        "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
+        "Provádějící": d.performer || "",
+        "Firma": d.company || "",
+        "Zadavatel": d.requester || "",
+        "Odpovědní": responsibleNames || "",
+        "Poznámka": d.note || "",
+      };
+    });
     
     const csv = Papa.unparse(data, { delimiter: ";" });
     const BOM = "\uFEFF";

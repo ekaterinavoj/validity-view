@@ -347,35 +347,29 @@ export default function ScheduledTrainings() {
 
       autoTable(pdf, {
         startY: yPosition,
-        head: [['Stav', 'Platne do', 'Typ', 'Cislo', 'Jmeno', 'Stredisko', 'Skolitel', 'Firma']],
+        head: [['Stav', 'Platne do', 'Typ', 'Jmeno', 'Provozovna', 'Stredisko', 'Datum skoleni', 'Skolitel', 'Firma', 'Zadavatel', 'Periodicita', 'Poznamka']],
         body: trainingsToExport.map(t => [
           statusMap[t.status],
           new Date(t.date).toLocaleDateString("cs-CZ"),
           t.type,
-          t.employeeNumber,
           t.employeeName,
-          t.department,
+          getFacilityName(t.facility),
+          t.department || '-',
+          new Date(t.lastTrainingDate).toLocaleDateString("cs-CZ"),
           t.trainer || '-',
-          t.company || '-'
+          t.company || '-',
+          t.requester || '-',
+          formatPeriodicity(t.period) || '-',
+          t.note || '-'
         ]),
         theme: 'striped',
         headStyles: { 
           fillColor: [66, 66, 66],
-          fontSize: 9,
+          fontSize: 8,
           fontStyle: 'bold'
         },
         bodyStyles: {
-          fontSize: 8
-        },
-        columnStyles: {
-          0: { cellWidth: 20 },
-          1: { cellWidth: 25 },
-          2: { cellWidth: 45 },
-          3: { cellWidth: 20 },
-          4: { cellWidth: 40 },
-          5: { cellWidth: 30 },
-          6: { cellWidth: 35 },
-          7: { cellWidth: 35 }
+          fontSize: 7
         },
         margin: { left: 10, right: 10 },
       });
