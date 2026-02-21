@@ -18,6 +18,8 @@ interface DeadlineItem {
   template_id: string | null;
   template_name: string;
   responsible_person: string | null;
+  responsible_persons: string[];
+  responsible_emails: string[];
   status: 'expired' | 'warning';
 }
 
@@ -270,13 +272,16 @@ function buildDeadlinesTable(deadlines: DeadlineItem[], category: 'expired' | 'w
 
   for (const d of deadlines) {
     const statusColor = d.days_until < 0 ? "#ef4444" : d.days_until <= 7 ? "#f59e0b" : "#22c55e";
+    const responsibleDisplay = d.responsible_persons && d.responsible_persons.length > 0 
+      ? d.responsible_persons.join(", ") 
+      : (d.responsible_person || "-");
     
     html += `
       <tr>
         <td style="border: 1px solid #e5e7eb; padding: 10px;">${d.equipment_name}</td>
         <td style="border: 1px solid #e5e7eb; padding: 10px;">${d.equipment_inventory_number}</td>
         <td style="border: 1px solid #e5e7eb; padding: 10px;">${d.deadline_type_name}</td>
-        <td style="border: 1px solid #e5e7eb; padding: 10px;">${d.responsible_person || "-"}</td>
+        <td style="border: 1px solid #e5e7eb; padding: 10px;">${responsibleDisplay}</td>
         <td style="border: 1px solid #e5e7eb; padding: 10px;">${formatDate(d.next_check_date)}</td>
         <td style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">
           <span style="background-color: ${statusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
@@ -609,7 +614,7 @@ const handler = async (req: Request): Promise<Response> => {
   const { data: settings } = await supabase
     .from("system_settings")
     .select("key, value")
-    .in("key", ["reminder_frequency", "reminder_schedule", "deadline_reminder_recipients", "deadline_email_template", "email_provider"]);
+    .in("key", ["reminder_frequency", "reminder_schedule", "deadline_reminder_recipients", "deadline_email_template", "email_provider", "deadline_responsible_notifications"]);
   
   let frequency: ReminderFrequency = { 
     type: "weekly", interval_days: 7, start_time: "08:00", 
@@ -619,6 +624,7 @@ const handler = async (req: Request): Promise<Response> => {
   let moduleRecipients: { user_ids: string[], delivery_mode: string } = { user_ids: [], delivery_mode: "bcc" };
   let moduleEmailTemplate: { subject: string, body: string } | null = null;
   let emailProviderSettings: any = null;
+  let responsibleNotificationsEnabled = false;
   
   if (settings) {
     for (const s of settings) {
@@ -636,6 +642,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
       if (s.key === "email_provider" && s.value && typeof s.value === "object") {
         emailProviderSettings = s.value;
+      }
+      if (s.key === "deadline_responsible_notifications" && s.value && typeof s.value === "object") {
+        responsibleNotificationsEnabled = (s.value as any).enabled === true;
       }
     }
   }
@@ -696,6 +705,103 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
+  // Fetch all deadline_responsibles with profile info and group members
+  const deadlineIds = (deadlines || []).map(d => d.id);
+  let responsiblesMap: Map<string, { names: string[], emails: string[] }> = new Map();
+  
+  if (deadlineIds.length > 0) {
+    // Fetch direct profile responsibles
+    const { data: directResponsibles } = await supabase
+      .from("deadline_responsibles")
+      .select("deadline_id, profile_id, group_id")
+      .in("deadline_id", deadlineIds);
+    
+    // Collect all profile IDs and group IDs
+    const profileIds = new Set<string>();
+    const groupIds = new Set<string>();
+    
+    for (const dr of directResponsibles || []) {
+      if (dr.profile_id) profileIds.add(dr.profile_id);
+      if (dr.group_id) groupIds.add(dr.group_id);
+    }
+    
+    // Fetch profile details
+    let profilesMap: Map<string, { name: string, email: string }> = new Map();
+    if (profileIds.size > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email")
+        .in("id", [...profileIds]);
+      
+      for (const p of profiles || []) {
+        profilesMap.set(p.id, { name: `${p.first_name} ${p.last_name}`.trim(), email: p.email });
+      }
+    }
+    
+    // Fetch group members
+    let groupMembersMap: Map<string, { name: string, email: string }[]> = new Map();
+    if (groupIds.size > 0) {
+      const { data: groupMembers } = await supabase
+        .from("responsibility_group_members")
+        .select("group_id, profile_id")
+        .in("group_id", [...groupIds]);
+      
+      // Get profiles for group members
+      const memberProfileIds = new Set<string>();
+      for (const gm of groupMembers || []) {
+        memberProfileIds.add(gm.profile_id);
+      }
+      
+      if (memberProfileIds.size > 0) {
+        const { data: memberProfiles } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email")
+          .in("id", [...memberProfileIds]);
+        
+        for (const p of memberProfiles || []) {
+          if (!profilesMap.has(p.id)) {
+            profilesMap.set(p.id, { name: `${p.first_name} ${p.last_name}`.trim(), email: p.email });
+          }
+        }
+      }
+      
+      // Build group members map
+      for (const gm of groupMembers || []) {
+        if (!groupMembersMap.has(gm.group_id)) {
+          groupMembersMap.set(gm.group_id, []);
+        }
+        const profile = profilesMap.get(gm.profile_id);
+        if (profile) {
+          groupMembersMap.get(gm.group_id)!.push(profile);
+        }
+      }
+    }
+    
+    // Build responsibles map per deadline
+    for (const dr of directResponsibles || []) {
+      if (!responsiblesMap.has(dr.deadline_id)) {
+        responsiblesMap.set(dr.deadline_id, { names: [], emails: [] });
+      }
+      const entry = responsiblesMap.get(dr.deadline_id)!;
+      
+      if (dr.profile_id) {
+        const profile = profilesMap.get(dr.profile_id);
+        if (profile) {
+          if (!entry.names.includes(profile.name)) entry.names.push(profile.name);
+          if (!entry.emails.includes(profile.email.toLowerCase())) entry.emails.push(profile.email.toLowerCase());
+        }
+      }
+      
+      if (dr.group_id) {
+        const members = groupMembersMap.get(dr.group_id) || [];
+        for (const member of members) {
+          if (!entry.names.includes(member.name)) entry.names.push(member.name);
+          if (!entry.emails.includes(member.email.toLowerCase())) entry.emails.push(member.email.toLowerCase());
+        }
+      }
+    }
+  }
+
   const allDeadlineItems: DeadlineItem[] = [];
   
   for (const d of deadlines || []) {
@@ -710,6 +816,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (daysUntil <= remindDays) {
       const templateId = d.reminder_template_id || defaultTemplate.id;
       const template = templatesMap.get(templateId) || defaultTemplate;
+      const responsibles = responsiblesMap.get(d.id);
       
       const item: DeadlineItem = {
         id: d.id,
@@ -723,6 +830,8 @@ const handler = async (req: Request): Promise<Response> => {
         template_id: template.id,
         template_name: template.name,
         responsible_person: equipment.responsible_person || null,
+        responsible_persons: responsibles?.names || [],
+        responsible_emails: responsibles?.emails || [],
         status: daysUntil < 0 ? 'expired' : 'warning',
       };
       
