@@ -77,6 +77,34 @@ services:
     networks:
       - training-network
 
+  # =============================================
+  # Reminder Cron Jobs (Edge Functions via curl)
+  # =============================================
+  reminder-cron:
+    image: alpine:3.19
+    container_name: training-reminder-cron
+    entrypoint: >
+      sh -c "
+        apk add --no-cache curl &&
+        echo '# Training reminders - every hour at :00
+        0 * * * * curl -s -X POST http://kong:8000/functions/v1/send-training-reminders -H \"Content-Type: application/json\" -H \"x-cron-secret: $$X_CRON_SECRET\" -d \"{\\\"triggered_by\\\": \\\"cron\\\"}\" >> /proc/1/fd/1 2>&1
+        # Deadline reminders - every hour at :05
+        5 * * * * curl -s -X POST http://kong:8000/functions/v1/run-deadline-reminders -H \"Content-Type: application/json\" -H \"x-cron-secret: $$X_CRON_SECRET\" -d \"{\\\"triggered_by\\\": \\\"cron\\\"}\" >> /proc/1/fd/1 2>&1
+        # Medical reminders - every hour at :10
+        10 * * * * curl -s -X POST http://kong:8000/functions/v1/run-medical-reminders -H \"Content-Type: application/json\" -H \"x-cron-secret: $$X_CRON_SECRET\" -d \"{\\\"triggered_by\\\": \\\"cron\\\"}\" >> /proc/1/fd/1 2>&1
+        # Weekly summary - Monday at 7:00
+        0 7 * * 1 curl -s -X POST http://kong:8000/functions/v1/run-reminders -H \"Content-Type: application/json\" -H \"x-cron-secret: $$X_CRON_SECRET\" -d \"{\\\"triggered_by\\\": \\\"cron\\\"}\" >> /proc/1/fd/1 2>&1
+        ' > /etc/crontabs/root &&
+        crond -f -l 2
+      "
+    environment:
+      - X_CRON_SECRET=${X_CRON_SECRET:-changeme}
+    depends_on:
+      - frontend
+    restart: unless-stopped
+    networks:
+      - training-network
+
 networks:
   training-network:
     driver: bridge

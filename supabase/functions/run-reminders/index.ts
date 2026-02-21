@@ -784,9 +784,10 @@ const handler = async (req: Request): Promise<Response> => {
   const reminderSchedule = settingsMap.reminder_schedule || { enabled: true, skip_weekends: true };
   const reminderDays = settingsMap.reminder_days || { days_before: [30, 14, 7] };
   const reminderFrequency = settingsMap.reminder_frequency || { type: "weekly", interval_days: 7, enabled: true };
-  const reminderRecipients = settingsMap.reminder_recipients || { user_ids: [], delivery_mode: "bcc" };
-  const emailProvider = settingsMap.email_provider || { provider: "smtp" };
-  const emailTemplate = settingsMap.email_template || {
+    const reminderRecipients = settingsMap.reminder_recipients || { user_ids: [], delivery_mode: "bcc" };
+    const emailProvider = settingsMap.email_provider || { provider: "smtp" };
+    const trainingManagerNotifications = settingsMap.training_manager_notifications || { enabled: false };
+    const emailTemplate = settingsMap.email_template || {
     subject: "Souhrn školení k obnovení - {reportDate}",
     body: "Dobrý den,\n\nzasíláme přehled školení vyžadujících pozornost.\n\nCelkem: {totalCount} školení\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}",
   };
@@ -1234,6 +1235,115 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // =====================================================================
+    // MANAGER NOTIFICATIONS - optional, sends filtered data per manager
+    // =====================================================================
+    let managerEmailsSent = 0;
+    
+    if (trainingManagerNotifications.enabled && !singleRecipientEmail) {
+      console.log("Manager notifications enabled for training module");
+      
+      // Get all managers with linked employees
+      const { data: managerProfiles } = await supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name, employee_id")
+        .not("employee_id", "is", null);
+      
+      if (managerProfiles && managerProfiles.length > 0) {
+        const { data: managerRoles } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["admin", "manager"])
+          .in("user_id", managerProfiles.map(p => p.id));
+        
+        const managerUserIds = new Set(managerRoles?.map(r => r.user_id) || []);
+        const managers = managerProfiles.filter(p => managerUserIds.has(p.id) && p.employee_id);
+        
+        for (const manager of managers) {
+          // Skip if manager already receives the main summary
+          if (recipientEmails.map(e => e.toLowerCase()).includes(manager.email.toLowerCase())) continue;
+          
+          // Get subordinate employee IDs
+          const { data: subordinates } = await supabase.rpc("get_subordinate_employee_ids", {
+            root_employee_id: manager.employee_id!,
+          });
+          
+          if (!subordinates || subordinates.length <= 1) continue;
+          
+          const subordinateIds = subordinates.map((s: any) => s.employee_id);
+          
+          // We need to match allTrainings to employee IDs
+          // Fetch employee IDs for the trainings
+          const trainingIds = allTrainings.map(t => t.id);
+          const { data: trainingEmployees } = await supabase
+            .from("trainings")
+            .select("id, employee_id")
+            .in("id", trainingIds);
+          
+          const trainingToEmployee = new Map<string, string>();
+          for (const te of trainingEmployees || []) {
+            trainingToEmployee.set(te.id, te.employee_id);
+          }
+          
+          const managerTrainings = allTrainings.filter(t => {
+            const empId = trainingToEmployee.get(t.id);
+            return empId && subordinateIds.includes(empId);
+          });
+          
+          if (managerTrainings.length === 0) continue;
+          
+          const mgrExpired = managerTrainings.filter(t => t.days_until < 0);
+          const mgrWarning = managerTrainings.filter(t => t.days_until >= 0);
+          
+          const mgrSubject = `Školení vašich zaměstnanců vyžadují pozornost (${managerTrainings.length})`;
+          const mgrTableHtml = buildTrainingsTable(managerTrainings);
+          const mgrBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; color: #333;">
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <p>Dobrý den, ${manager.first_name} ${manager.last_name},</p>
+                <p>následující školení vašich podřízených zaměstnanců vyžadují pozornost:</p>
+                <p>Celkem: <strong>${managerTrainings.length}</strong> (prošlé: ${mgrExpired.length}, blížící se: ${mgrWarning.length})</p>
+              </div>
+              ${mgrTableHtml}
+              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+              <p style="color: #9ca3af; font-size: 12px;">Tento email byl odeslán automaticky systémem evidence školení.</p>
+            </div>
+          `;
+          
+          const mgrResult = await sendEmail([manager.email], mgrSubject, mgrBody, "to", emailProvider, 3);
+          
+          await supabase.from("reminder_logs").insert({
+            training_id: null,
+            employee_id: null,
+            days_before: null,
+            week_start: runPeriodKey,
+            is_test: testMode,
+            provider_used: mgrResult.provider,
+            recipient_emails: [manager.email],
+            email_subject: mgrSubject,
+            email_body: mgrBody,
+            status: mgrResult.success ? "sent" : "failed",
+            error_message: mgrResult.success ? null : mgrResult.attemptErrors.join(" | "),
+            template_name: "Manager notification",
+            delivery_mode: "to",
+            attempt_number: mgrResult.attempts,
+            max_attempts: 3,
+            attempt_errors: mgrResult.attemptErrors.length > 0 ? mgrResult.attemptErrors : null,
+            final_status: mgrResult.success ? "sent" : "failed",
+            run_id: runId,
+          });
+          
+          if (mgrResult.success) {
+            managerEmailsSent++;
+            emailsSent++;
+            console.log(`Sent manager training notification to ${manager.email} with ${managerTrainings.length} trainings`);
+          } else {
+            emailsFailed++;
+          }
+        }
+      }
+    }
+
     // Update run record
     await supabase
       .from("reminder_runs")
@@ -1244,8 +1354,8 @@ const handler = async (req: Request): Promise<Response> => {
         emails_failed: emailsFailed,
         error_message: errors.length > 0 ? errors[0] : null,
         error_details: errors.length > 0 
-          ? { errors, trainings_count: totalCount, expired_count: expiredCount, warning_count: expiringCount, dual_mode: dualMode } 
-          : { trainings_count: totalCount, expired_count: expiredCount, warning_count: expiringCount, dual_mode: dualMode },
+          ? { errors, trainings_count: totalCount, expired_count: expiredCount, warning_count: expiringCount, dual_mode: dualMode, manager_emails: managerEmailsSent } 
+          : { trainings_count: totalCount, expired_count: expiredCount, warning_count: expiringCount, dual_mode: dualMode, manager_emails: managerEmailsSent },
       })
       .eq("id", runId);
 
@@ -1258,6 +1368,7 @@ const handler = async (req: Request): Promise<Response> => {
         expiredCount,
         warningCount: expiringCount,
         dualMode,
+        managerEmailsSent,
         recipients: actualRecipients,
         errors: errors.length > 0 ? errors : undefined,
       }),
