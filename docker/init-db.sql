@@ -1547,6 +1547,53 @@ CREATE TRIGGER trg_notify_extraordinary_medical_exam
   AFTER UPDATE ON public.employees
   FOR EACH ROW EXECUTE FUNCTION public.notify_extraordinary_medical_exam();
 
+-- Auto-link profile to employee when emails match
+CREATE OR REPLACE FUNCTION public.auto_link_profile_employee()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'profiles' THEN
+    IF NEW.employee_id IS NULL AND NEW.email IS NOT NULL AND NEW.email != '' THEN
+      UPDATE public.profiles
+      SET employee_id = e.id
+      FROM public.employees e
+      WHERE e.email = NEW.email
+        AND public.profiles.id = NEW.id
+        AND NOT EXISTS (
+          SELECT 1 FROM public.profiles p2
+          WHERE p2.employee_id = e.id AND p2.id != NEW.id
+        );
+    END IF;
+  END IF;
+
+  IF TG_TABLE_NAME = 'employees' THEN
+    UPDATE public.profiles
+    SET employee_id = NEW.id
+    WHERE email = NEW.email
+      AND employee_id IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM public.profiles p2
+        WHERE p2.employee_id = NEW.id
+      );
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_auto_link_profile_employee ON public.profiles;
+CREATE TRIGGER trg_auto_link_profile_employee
+  AFTER INSERT OR UPDATE OF email ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.auto_link_profile_employee();
+
+DROP TRIGGER IF EXISTS trg_auto_link_employee_profile ON public.employees;
+CREATE TRIGGER trg_auto_link_employee_profile
+  AFTER INSERT OR UPDATE OF email ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.auto_link_profile_employee();
+
 -- equipment triggers
 DROP TRIGGER IF EXISTS on_equipment_status_change_deadlines ON public.equipment;
 CREATE TRIGGER on_equipment_status_change_deadlines
@@ -2395,7 +2442,8 @@ INSERT INTO public.schema_migrations (version, name) VALUES
   ('20260221150000', 'recalculate_all_statuses'),
   ('20260221165235', 'notify_extraordinary_medical_exam'),
   ('20260221174512', 'drop_training_supervisor'),
-  ('20260221175145', 'propagate_manager_details')
+  ('20260221175145', 'propagate_manager_details'),
+  ('20260221200000', 'auto_link_profile_employee')
 ON CONFLICT (version) DO NOTHING;
 
 -- =============================================
