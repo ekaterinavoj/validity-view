@@ -91,6 +91,7 @@ export const MIGRATION_REGISTRY: MigrationEntry[] = [
   { version: "20260213154948", name: "reminder_run_correlation", sql: null },
   { version: "20260213195037", name: "set_user_role_function", sql: null },
   { version: "20260216193430", name: "trigger_recreation", sql: null },
+  { version: "20260221174512", name: "drop_training_supervisor", sql: null },
 
   {
     version: "20260219100000",
