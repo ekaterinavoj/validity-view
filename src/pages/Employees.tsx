@@ -1,6 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { EmployeeOrCustomInput } from "@/components/EmployeeOrCustomInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -608,52 +610,64 @@ export default function Employees() {
                 {/* Manager/Supervisor Section */}
                 <div className="border-t pt-4 mt-4">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Nadřízený (pro hierarchii)</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="managerFirstName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Jméno nadřízeného</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Jan" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Vybrat nadřízeného ze seznamu</Label>
+                      <EmployeeOrCustomInput
+                        employees={employees.filter(e => e.id !== editingEmployee?.id)}
+                        value={
+                          form.watch("managerFirstName") || form.watch("managerLastName")
+                            ? `${form.watch("managerFirstName") || ""} ${form.watch("managerLastName") || ""}`.trim()
+                            : ""
+                        }
+                        onChange={(val: string) => {
+                          // Try to find the employee by name
+                          const matched = employees.find(e => 
+                            `${e.firstName} ${e.lastName}` === val || 
+                            `${e.lastName} ${e.firstName}` === val
+                          );
+                          if (matched) {
+                            form.setValue("managerFirstName", matched.firstName);
+                            form.setValue("managerLastName", matched.lastName);
+                            form.setValue("managerEmail", matched.email);
+                          } else {
+                            // Manual input - split into first/last name
+                            const parts = val.trim().split(/\s+/);
+                            if (parts.length >= 2) {
+                              form.setValue("managerFirstName", parts[0]);
+                              form.setValue("managerLastName", parts.slice(1).join(" "));
+                            } else {
+                              form.setValue("managerFirstName", val);
+                              form.setValue("managerLastName", "");
+                            }
+                            // Don't clear email on manual input
+                          }
+                        }}
+                        placeholder="Vyberte nadřízeného (jméno, příjmení, email)"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Po výběru se automaticky vyplní jméno, příjmení i email nadřízeného.
+                      </p>
+                    </div>
 
                     <FormField
                       control={form.control}
-                      name="managerLastName"
+                      name="managerEmail"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Příjmení nadřízeného</FormLabel>
+                          <FormLabel>Email nadřízeného (klíčové pole)</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Novák" />
+                            <Input type="email" {...field} placeholder="nadrizeny@firma.cz" />
                           </FormControl>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Tento email se použije pro automatické propojení s nadřízeným zaměstnancem.
+                          </p>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-
-                  <FormField
-                    control={form.control}
-                    name="managerEmail"
-                    render={({ field }) => (
-                      <FormItem className="mt-4">
-                        <FormLabel>Email nadřízeného (klíčové pole)</FormLabel>
-                        <FormControl>
-                          <Input type="email" {...field} placeholder="nadrizeny@firma.cz" />
-                        </FormControl>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Tento email se použije pro automatické propojení s nadřízeným zaměstnancem.
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
 
                 <FormField
