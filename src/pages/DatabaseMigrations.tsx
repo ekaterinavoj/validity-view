@@ -12,6 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Loader2,
   Database,
   CheckCircle2,
@@ -21,6 +26,7 @@ import {
   RefreshCw,
   Plus,
   ArrowLeft,
+  ChevronDown,
 } from "lucide-react";
 import {
   MIGRATION_REGISTRY,
@@ -437,74 +443,111 @@ export default function DatabaseMigrations() {
             Kompletní přehled všech registrovaných migrací a jejich stavu.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[500px]">
+        <CardContent className="space-y-4">
+          {/* Pending migrations in the list */}
+          {allMigrations.filter((m) => !m.isApplied).length > 0 && (
             <div className="space-y-1">
-              {allMigrations.map((m) => (
-                <div
-                  key={m.version}
-                  className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted/50"
-                >
-                  <div className="flex items-center gap-3">
-                    {m.isApplied ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                    ) : m.sql === null ? (
-                      <AlertTriangle className="w-4 h-4 text-muted-foreground shrink-0" />
-                    ) : (
+              <p className="text-sm font-medium text-amber-600 dark:text-amber-400 px-3 pb-1">
+                Čekající ({allMigrations.filter((m) => !m.isApplied).length})
+              </p>
+              {allMigrations
+                .filter((m) => !m.isApplied)
+                .map((m) => (
+                  <div
+                    key={m.version}
+                    className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted/50"
+                  >
+                    <div className="flex items-center gap-3">
                       <Clock className="w-4 h-4 text-amber-500 shrink-0" />
-                    )}
-                    <div>
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {m.version}
-                      </span>
-                      <span className="ml-2 text-sm">{m.name}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {m.sql === null && (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">
-                        Bazální
-                      </Badge>
-                    )}
-                    {m.isApplied && m.appliedAt && (
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(m.appliedAt).toLocaleDateString("cs-CZ")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {/* Unknown applied migrations */}
-              {unknownApplied.length > 0 && (
-                <>
-                  <Separator className="my-4" />
-                  <p className="text-sm text-muted-foreground px-3 pb-2">
-                    Migrace aplikované mimo registr:
-                  </p>
-                  {unknownApplied.map((m) => (
-                    <div
-                      key={m.version}
-                      className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
-                        <div>
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {m.version}
-                          </span>
-                          <span className="ml-2 text-sm">{m.name}</span>
-                        </div>
+                      <div>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {m.version}
+                        </span>
+                        <span className="ml-2 text-sm">{m.name}</span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(m.applied_at).toLocaleDateString("cs-CZ")}
-                      </span>
                     </div>
-                  ))}
-                </>
-              )}
+                  </div>
+                ))}
             </div>
-          </ScrollArea>
+          )}
+
+          {/* Applied migrations - collapsible */}
+          {allMigrations.filter((m) => m.isApplied).length > 0 && (
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded hover:bg-muted/50 group">
+                  <ChevronDown className="w-4 h-4 transition-transform group-data-[state=closed]:-rotate-90" />
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  Aplikované migrace ({allMigrations.filter((m) => m.isApplied).length})
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ScrollArea className="max-h-[400px]">
+                  <div className="space-y-1 mt-1">
+                    {allMigrations
+                      .filter((m) => m.isApplied)
+                      .map((m) => (
+                        <div
+                          key={m.version}
+                          className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted/50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                            <div>
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {m.version}
+                              </span>
+                              <span className="ml-2 text-sm">{m.name}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {m.sql === null && (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">
+                                Bazální
+                              </Badge>
+                            )}
+                            {m.appliedAt && (
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(m.appliedAt).toLocaleDateString("cs-CZ")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                    {/* Unknown applied migrations */}
+                    {unknownApplied.length > 0 && (
+                      <>
+                        <Separator className="my-4" />
+                        <p className="text-sm text-muted-foreground px-3 pb-2">
+                          Migrace aplikované mimo registr:
+                        </p>
+                        {unknownApplied.map((m) => (
+                          <div
+                            key={m.version}
+                            className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted/50"
+                          >
+                            <div className="flex items-center gap-3">
+                              <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
+                              <div>
+                                <span className="font-mono text-xs text-muted-foreground">
+                                  {m.version}
+                                </span>
+                                <span className="ml-2 text-sm">{m.name}</span>
+                              </div>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(m.applied_at).toLocaleDateString("cs-CZ")}
+                            </span>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </ScrollArea>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </CardContent>
       </Card>
     </div>
