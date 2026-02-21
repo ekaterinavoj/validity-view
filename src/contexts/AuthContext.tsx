@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -175,6 +175,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Ref to track current user ID inside the onAuthStateChange closure
+  const currentUserIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     let mounted = true;
     // Counter to deduplicate concurrent handleSession calls (race between onAuthStateChange + getSession)
@@ -189,6 +192,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setSession(newSession);
       setUser(newSession?.user ?? null);
+      currentUserIdRef.current = newSession?.user?.id ?? null;
 
       if (newSession?.user) {
         // Clear stale data immediately
@@ -231,9 +235,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
-      // For token refresh, just update session/user without full reload
+      // For token refresh, just silently update session/user without full reload
       // This prevents unmounting the entire app (and losing form data)
-      if (event === "TOKEN_REFRESHED" && newSession?.user && user) {
+      if (event === "TOKEN_REFRESHED" && newSession?.user && currentUserIdRef.current) {
         setSession(newSession);
         setUser(newSession.user);
         return;
