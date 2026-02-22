@@ -1,0 +1,111 @@
+# =============================================
+# Environment Variables for Docker Deployment
+# =============================================
+# Konfiguraci pro Self-hosted Supabase stack
+# (docker-compose-wiro.yml)
+# =============================================
+
+FRONTEND_PORT=8087
+
+# -------------------------------------------
+# Database
+# -------------------------------------------
+# Heslo PostgreSQL databáze
+# Vygenerujte: openssl rand -base64 32
+POSTGRES_PASSWORD=kODB2yruOsQzfbfn5dNemLO2PSvMXKFl
+POSTGRES_DB=postgres
+POSTGRES_PORT=5432
+
+# -------------------------------------------
+# SECRETS - ZMĚŇTE PŘED NASAZENÍM!
+# -------------------------------------------
+# JWT Secret (min 32 znaků)
+# Vygenerujte: openssl rand -base64 32
+JWT_SECRET=QZW8YR0xqLBxCOp0OanEAUKkS3vuBBqvoRY02maj
+
+# Anon Key (JWT token s rolí 'anon')
+# Vygenerujte na: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
+ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzcxMjgyODAwLCJleHAiOjE5MjkwNDkyMDB9.loRWYOpwcKjuLQuVzH3ssHTICZ8aCfe1--se2ehwzaM
+
+# Service Role Key (JWT token s rolí 'service_role')
+SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NzEyODI4MDAsImV4cCI6MTkyOTA0OTIwMH0.NWSaYk77hfCpn_3rzU0Q1tcgk9Rb9GogGcsZDek4FNc
+
+# Dashboard přihlášení (Studio)
+DASHBOARD_USERNAME=supabase
+DASHBOARD_PASSWORD=this_password_is_insecure_and_should_be_updated
+
+# Šifrovací klíč
+# Vygenerujte: openssl rand -hex 16
+SECRET_KEY_BASE=874b377e004339b273ca62c79cd61316
+
+# -------------------------------------------
+# API Gateway (Kong)
+# -------------------------------------------
+KONG_HTTP_PORT=8091
+KONG_HTTPS_PORT=8443
+
+# -------------------------------------------
+# PostgREST
+# -------------------------------------------
+PGRST_DB_SCHEMAS=public,storage,graphql_public
+
+# -------------------------------------------
+# Auth (GoTrue)
+# -------------------------------------------
+SITE_URL=https://frontend.domain
+SITE_DOMAIN=frontend.domain
+ADDITIONAL_REDIRECT_URLS=
+JWT_EXPIRY=3600
+DISABLE_SIGNUP=true
+
+# API_EXTERNAL_URL - DŮLEŽITÉ!
+# Tato proměnná ovlivňuje:
+#   1. GoTrue Auth (callback URL, ověřovací odkazy v emailech)
+#   2. Frontend VITE_SUPABASE_URL (kam se aplikace připojuje jako backend)
+API_EXTERNAL_URL=https://frontend-api.domain
+
+# Email
+ENABLE_EMAIL_SIGNUP=true
+ENABLE_EMAIL_AUTOCONFIRM=true
+ENABLE_ANONYMOUS_USERS=false
+
+# SMTP pro Auth (potvrzovací emaily, reset hesla)
+SMTP_ADMIN_EMAIL=admin@frontend.domain
+SMTP_HOST=smtp.server
+SMTP_PORT=25
+SMTP_USER=
+SMTP_PASS=
+SMTP_SENDER_NAME=Training System
+
+# SMTP email odesílatele pro edge funkce (připomínky)
+SMTP_FROM=noreply@frontend.domain
+
+# Mailer URL paths
+MAILER_URLPATHS_CONFIRMATION=/auth/v1/verify
+MAILER_URLPATHS_INVITE=/auth/v1/verify
+MAILER_URLPATHS_RECOVERY=/auth/v1/verify
+MAILER_URLPATHS_EMAIL_CHANGE=/auth/v1/verify
+
+# Phone auth (vypnuto)
+ENABLE_PHONE_SIGNUP=false
+ENABLE_PHONE_AUTOCONFIRM=false
+
+# -------------------------------------------
+# Edge Functions
+# -------------------------------------------
+FUNCTIONS_VERIFY_JWT=false
+
+# -------------------------------------------
+# CRON - Připomínky
+# -------------------------------------------
+# Vygenerujte: openssl rand -hex 32
+X_CRON_SECRET=0c9tbJDeVtN0mJFLMbJ19Q41FgznfUy3
+
+# =============================================
+# CRON JOB SETUP (integrován v docker-compose)
+# =============================================
+# CRON kontejner je součástí stacku.
+# Připomínky se spouštějí automaticky každou hodinu:
+#   :00 - Školení (send-training-reminders)
+#   :05 - Technické události (run-deadline-reminders)
+#   :10 - PLP prohlídky (run-medical-reminders)
