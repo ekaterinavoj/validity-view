@@ -18,7 +18,7 @@ export default function Statistics() {
   const {
     toast
   } = useToast();
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedYear, setSelectedYear] = useState("all");
 
   // Fetch real data from database
   const {
@@ -40,6 +40,7 @@ export default function Statistics() {
 
   // Filter trainings by selected year (based on next_training_date)
   const yearFilteredTrainings = useMemo(() => {
+    if (selectedYear === "all") return activeTrainings;
     return activeTrainings.filter(t => {
       const date = new Date(t.date);
       return date.getFullYear().toString() === selectedYear;
@@ -309,9 +310,9 @@ export default function Statistics() {
     }
   };
   const currentYear = new Date().getFullYear();
-  const years = Array.from({
+  const years = ["all", ...Array.from({
     length: 5
-  }, (_, i) => (currentYear - i).toString());
+  }, (_, i) => (currentYear - i).toString())];
 
   // Chart refs for copying
   const departmentChartRef = useRef<HTMLDivElement>(null);
@@ -474,7 +475,7 @@ export default function Statistics() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {years.map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
+              {years.map(year => <SelectItem key={year} value={year}>{year === "all" ? "Všechny roky" : year}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={handleExportCSV} disabled={trainingsLoading || typesLoading || totalTrainings === 0}>
