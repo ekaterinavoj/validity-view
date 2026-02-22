@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, CheckCircle, XCircle, Clock, Activity, Download, TrendingUp, Users, AlertTriangle, Loader2, Timer, Copy } from "lucide-react";
+import { Calendar, CheckCircle, XCircle, Clock, Activity, Download, TrendingUp, Users, AlertTriangle, Loader2, Timer, Copy, RefreshCw } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, PieChart, Pie, Cell } from "recharts";
 import { useToast } from "@/hooks/use-toast";
@@ -309,10 +309,16 @@ export default function Statistics() {
       color: "hsl(var(--status-expired))"
     }
   };
-  const currentYear = new Date().getFullYear();
-  const years = ["all", ...Array.from({
-    length: 5
-  }, (_, i) => (currentYear - i).toString())];
+  // Dynamic year list from actual data
+  const years = useMemo(() => {
+    const yearSet = new Set<string>();
+    allTrainings.forEach(t => {
+      if (t.date) yearSet.add(new Date(t.date).getFullYear().toString());
+      if (t.lastTrainingDate) yearSet.add(new Date(t.lastTrainingDate).getFullYear().toString());
+    });
+    const sorted = Array.from(yearSet).sort((a, b) => Number(b) - Number(a));
+    return ["all", ...sorted];
+  }, [allTrainings]);
 
   // Chart refs for copying
   const departmentChartRef = useRef<HTMLDivElement>(null);
@@ -470,8 +476,11 @@ export default function Statistics() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold text-foreground">Statistika</h2>
         <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={refetch} disabled={trainingsLoading || typesLoading} title="Obnovit data">
+            <RefreshCw className={`w-4 h-4 ${trainingsLoading ? 'animate-spin' : ''}`} />
+          </Button>
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
