@@ -22,18 +22,15 @@ services:
   # Frontend - Vite React Application (Nginx)
   # =============================================
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - VITE_SUPABASE_URL=${API_EXTERNAL_URL:-http://${SITE_DOMAIN:-localhost}:${KONG_HTTP_PORT:-8000}}
-        - VITE_SUPABASE_PUBLISHABLE_KEY=${ANON_KEY}
-        - VITE_SUPABASE_PROJECT_ID=self-hosted
+    image: ghcr.io/ekaterinavoj/validity-view:latest
     container_name: training-frontend
     ports:
       - "${FRONTEND_PORT:-80}:80"
     environment:
       - NODE_ENV=production
+      - VITE_SUPABASE_URL=${API_EXTERNAL_URL:-http://${SITE_DOMAIN:-localhost}:${KONG_HTTP_PORT:-8000}}
+      - VITE_SUPABASE_PUBLISHABLE_KEY=${ANON_KEY}
+      - VITE_SUPABASE_PROJECT_ID=self-hosted
     restart: unless-stopped
     depends_on:
       kong:
