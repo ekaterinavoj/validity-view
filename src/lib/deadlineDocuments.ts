@@ -156,7 +156,7 @@ export async function getDeadlineDocumentDownloadUrl(
     // Ensure we have full URL (in case SDK returns relative path)
     let signedUrl = data.signedUrl;
     if (signedUrl && !signedUrl.startsWith("http")) {
-      const supabaseUrl = (supabase as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+      const supabaseUrl = (supabase as any).supabaseUrl || window._env_?.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
       signedUrl = `${supabaseUrl}${signedUrl.startsWith("/") ? "" : "/"}${signedUrl}`;
     }
 
