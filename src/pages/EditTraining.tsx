@@ -9,7 +9,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Loader2, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
-import { PeriodicityInput, PeriodicityUnit, periodicityToDays, daysToPeriodicityUnit, calculateNextDate, formatPeriodicityDisplay } from "@/components/PeriodicityInput";
 import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,19 +21,30 @@ import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadTrainingDocument } from "@/lib/trainingDocuments";
 import { TrainingDocumentsList } from "@/components/TrainingDocumentsList";
 import { useAuth } from "@/contexts/AuthContext";
-
+import { supabase } from "@/integrations/supabase/client";
+import { useEmployees } from "@/hooks/useEmployees";
+import { useTrainingTypes } from "@/hooks/useTrainingTypes";
+import { useFacilities } from "@/hooks/useFacilities";
+import { FormSkeleton } from "@/components/LoadingSkeletons";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { EmployeeOrCustomInput } from "@/components/EmployeeOrCustomInput";
+import {
+  PeriodicityInput,
+  PeriodicityUnit,
+  daysToPeriodicityUnit,
+  periodicityToDays,
+  calculateNextDate,
+} from "@/components/PeriodicityInput";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
   employeeId: z.string().min(1, "Vyberte školenu osobu"),
   trainingTypeId: z.string().min(1, "Vyberte typ školení"),
   lastTrainingDate: z.date({ required_error: "Zadejte datum školení" }),
-  periodDays: z.string().min(1, "Zadejte periodicitu"),
-  trainerId: z.string().optional(),
-  customTrainerName: z.string().optional(),
-  companyId: z.string().optional(),
-  customCompanyName: z.string().optional(),
-  protocol: z.any().optional(),
+  periodValue: z.number().min(1, "Zadejte periodicitu"),
+  periodUnit: z.enum(["days", "months", "years"]),
+  trainer: z.string().optional(),
+  company: z.string().optional(),
   reminderTemplateId: z.string().min(1, "Vyberte šablonu připomenutí"),
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
@@ -43,124 +53,189 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Mock data pro načtení existujícího školení
-const mockTrainingData = {
-  id: "1",
-  facility: "qlar-jenec-dc3",
-  employeeId: "employee1",
-  trainingTypeId: "type1",
-  lastTrainingDate: new Date("2024-12-15"),
-  periodDays: "365",
-  trainerId: "trainer1",
-  companyId: "company1",
-  reminderTemplateId: "template1",
-  remindDaysBefore: "30",
-  repeatDaysAfter: "30",
-  note: "Pravidelné školení",
-};
-
 export default function EditTraining() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isAdmin, isManager } = useAuth();
+  const { profile, user, isAdmin, isManager } = useAuth();
   const canEdit = isAdmin || isManager;
-  const [useCustomTrainer, setUseCustomTrainer] = useState(false);
-  const [useCustomCompany, setUseCustomCompany] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [periodicityValue, setPeriodicityValue] = useState<number>(1);
-  const [periodicityUnit, setPeriodicityUnit] = useState<PeriodicityUnit>("years");
   const [loading, setLoading] = useState(true);
-  // Always add new files without replacing existing ones
+  const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
+  const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const { toast } = useToast();
+
+  const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
+  const { trainingTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useTrainingTypes();
+  const { facilities, loading: facilitiesLoading, error: facilitiesError, refetch: refetchFacilities } = useFacilities();
+
+  const activeEmployees = useMemo(() => {
+    return employees.filter((e) => e.status === "employed");
+  }, [employees]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      periodDays: "365",
+      periodValue: 1,
+      periodUnit: "years",
       remindDaysBefore: "30",
       repeatDaysAfter: "30",
     },
   });
 
-  // Načtení dat školení
+  // Load training data from database
   useEffect(() => {
     const loadTraining = async () => {
+      if (!id) return;
+
       setLoading(true);
       try {
-        // TODO: Načíst data z databáze podle ID
-        // Pro teď použijeme mock data
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        
-        form.reset({
-          facility: mockTrainingData.facility,
-          employeeId: mockTrainingData.employeeId,
-          trainingTypeId: mockTrainingData.trainingTypeId,
-          lastTrainingDate: mockTrainingData.lastTrainingDate,
-          periodDays: mockTrainingData.periodDays,
-          trainerId: mockTrainingData.trainerId,
-          companyId: mockTrainingData.companyId,
-          reminderTemplateId: mockTrainingData.reminderTemplateId,
-          remindDaysBefore: mockTrainingData.remindDaysBefore,
-          repeatDaysAfter: mockTrainingData.repeatDaysAfter,
-          note: mockTrainingData.note,
-        });
-      } catch (error) {
+        const { data: training, error } = await supabase
+          .from("trainings")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (error) throw error;
+
+        if (training) {
+          // Get period from training type
+          const { data: trainingType } = await supabase
+            .from("training_types")
+            .select("period_days")
+            .eq("id", training.training_type_id)
+            .single();
+
+          const { value, unit } = trainingType
+            ? daysToPeriodicityUnit(trainingType.period_days)
+            : { value: 1, unit: "years" as PeriodicityUnit };
+
+          form.reset({
+            facility: training.facility,
+            employeeId: training.employee_id,
+            trainingTypeId: training.training_type_id,
+            lastTrainingDate: new Date(training.last_training_date),
+            periodValue: value,
+            periodUnit: unit,
+            trainer: training.trainer || "",
+            company: training.company || "",
+            reminderTemplateId: training.reminder_template_id || "",
+            remindDaysBefore: String(training.remind_days_before || 30),
+            repeatDaysAfter: String(training.repeat_days_after || 30),
+            note: training.note || "",
+          });
+          setPeriodUnit(unit);
+        }
+      } catch (error: any) {
         toast({
           title: "Chyba při načítání",
-          description: "Nepodařilo se načíst data školení.",
+          description: error.message,
           variant: "destructive",
         });
+        navigate("/trainings");
       } finally {
         setLoading(false);
       }
     };
 
     loadTraining();
-  }, [id, form, toast]);
+  }, [id, form, toast, navigate]);
 
-  // Automatický výpočet data expirace
+  // Load reminder templates
+  useEffect(() => {
+    const loadTemplates = async () => {
+      const { data, error } = await supabase
+        .from("reminder_templates")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+      if (!error && data) {
+        setReminderTemplates(data);
+      }
+    };
+    loadTemplates();
+  }, []);
+
   const lastTrainingDate = form.watch("lastTrainingDate");
-  
+  const periodValue = form.watch("periodValue");
+  const watchedPeriodUnit = form.watch("periodUnit");
+
   const expirationDate = useMemo(() => {
-    if (!lastTrainingDate || periodicityValue <= 0) return null;
-    return calculateNextDate(lastTrainingDate, periodicityValue, periodicityUnit);
-  }, [lastTrainingDate, periodicityValue, periodicityUnit]);
+    if (!lastTrainingDate || !periodValue) return null;
+    if (periodValue <= 0) return null;
+    return calculateNextDate(lastTrainingDate, periodValue, watchedPeriodUnit as PeriodicityUnit);
+  }, [lastTrainingDate, periodValue, watchedPeriodUnit]);
 
   const onSubmit = async (data: FormValues) => {
+    if (!user || !id) {
+      toast({ title: "Chyba", description: "Musíte být přihlášeni.", variant: "destructive" });
+      return;
+    }
+
     setIsSubmitting(true);
-    
+
     try {
-      // TODO: Aktualizovat školení v databázi
-      console.log("Aktualizuji školení:", data);
-      
-      // Nahrání nových souborů (vždy se přidávají k existujícím)
+      const nextTrainingDate = expirationDate
+        ? format(expirationDate, "yyyy-MM-dd")
+        : format(data.lastTrainingDate, "yyyy-MM-dd");
+
+      let status = "valid";
+      const nextDate = new Date(nextTrainingDate);
+      const today = new Date();
+      const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysUntil < 0) {
+        status = "expired";
+      } else if (daysUntil <= 30) {
+        status = "warning";
+      }
+
+      const { error: updateError } = await supabase
+        .from("trainings")
+        .update({
+          facility: data.facility,
+          employee_id: data.employeeId,
+          training_type_id: data.trainingTypeId,
+          last_training_date: format(data.lastTrainingDate, "yyyy-MM-dd"),
+          next_training_date: nextTrainingDate,
+          trainer: data.trainer || null,
+          company: data.company || null,
+          reminder_template_id: data.reminderTemplateId || null,
+          remind_days_before: parseInt(data.remindDaysBefore) || 30,
+          repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
+          note: data.note || null,
+          status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      // Upload new files
       if (uploadedFiles.length > 0) {
         const uploadPromises = uploadedFiles.map((uploadedFile) =>
           uploadTrainingDocument(
-            id || "",
+            id,
             uploadedFile.file,
             uploadedFile.documentType,
             uploadedFile.description
           )
         );
-        
         await Promise.all(uploadPromises);
       }
-      
+
       toast({
         title: "Školení aktualizováno",
         description: "Změny byly úspěšně uloženy.",
       });
-      
+
       await queryClient.invalidateQueries({ queryKey: ["trainings"] });
       navigate("/trainings");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chyba při aktualizaci školení:", error);
       toast({
         title: "Chyba",
-        description: "Nepodařilo se aktualizovat školení.",
+        description: error.message || "Nepodařilo se aktualizovat školení.",
         variant: "destructive",
       });
     } finally {
@@ -168,10 +243,30 @@ export default function EditTraining() {
     }
   };
 
-  if (loading) {
+  const refetch = () => {
+    refetchEmployees();
+    refetchTypes();
+    refetchFacilities();
+  };
+
+  if (employeesError || typesError || facilitiesError) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <h2 className="text-3xl font-bold text-foreground">Úprava školení</h2>
+        <ErrorDisplay
+          title="Nepodařilo se načíst data"
+          message={employeesError || typesError || facilitiesError || "Zkuste to prosím znovu."}
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
+
+  if (loading || employeesLoading || typesLoading || facilitiesLoading) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-3xl font-bold text-foreground">Úprava školení</h2>
+        <FormSkeleton />
       </div>
     );
   }
@@ -191,9 +286,9 @@ export default function EditTraining() {
           </div>
         </div>
       )}
-      
+
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/trainings")}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
@@ -201,26 +296,53 @@ export default function EditTraining() {
           <p className="text-muted-foreground mt-1">ID: {id}</p>
         </div>
       </div>
-      
+
       <Card className="p-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="trainingTypeId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Typ školení *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                    <FormControl>
+                      <SelectTrigger disabled={!canEdit}>
+                        <SelectValue placeholder="Vyberte typ školení" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {trainingTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name} ({type.periodDays} dní)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="facility"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Provozovna *</FormLabel>
-                   <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
-                     <FormControl>
-                       <SelectTrigger disabled={!canEdit}>
-                         <SelectValue placeholder="Vyberte provozovnu" />
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                    <FormControl>
+                      <SelectTrigger disabled={!canEdit}>
+                        <SelectValue placeholder="Vyberte provozovnu" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="qlar-jenec-dc3">
-                        Qlar Czech s.r.o. - Schenck Process s.r.o., závod Jeneč Hala DC3
-                      </SelectItem>
+                      {facilities.map((facility) => (
+                        <SelectItem key={facility.id} value={facility.code}>
+                          {facility.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -234,36 +356,18 @@ export default function EditTraining() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Školená osoba *</FormLabel>
-                   <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
-                     <FormControl>
-                       <SelectTrigger disabled={!canEdit}>
-                         <SelectValue placeholder="Vyberte školenu osobu" />
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                    <FormControl>
+                      <SelectTrigger disabled={!canEdit}>
+                        <SelectValue placeholder="Vyberte školenu osobu" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="employee1">Ongerová Petra (102756)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="trainingTypeId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Typ školení *</FormLabel>
-                   <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
-                     <FormControl>
-                       <SelectTrigger disabled={!canEdit}>
-                         <SelectValue placeholder="Vyberte typ školení" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="type1">HSE - REA/RR</SelectItem>
-                      <SelectItem value="type2">ATEX</SelectItem>
+                      {activeEmployees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.lastName} {emp.firstName} ({emp.employeeNumber})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -280,24 +384,24 @@ export default function EditTraining() {
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
-                         <Button
-                           variant="outline"
-                           className="w-full justify-start text-left font-normal"
-                           disabled={!canEdit}
-                         >
-                           <CalendarIcon className="mr-2 h-4 w-4" />
-                           {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
-                         </Button>
-                       </FormControl>
-                     </PopoverTrigger>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          disabled={!canEdit}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
-                         mode="single"
-                         selected={field.value}
-                         onSelect={canEdit ? field.onChange : undefined}
-                         initialFocus
-                         disabled={!canEdit}
-                       />
+                        mode="single"
+                        selected={field.value}
+                        onSelect={canEdit ? field.onChange : undefined}
+                        initialFocus
+                        disabled={!canEdit}
+                      />
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
@@ -305,50 +409,28 @@ export default function EditTraining() {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="periodDays"
-              render={({ field }) => {
-                // Sync local state with form when form value changes externally
-                const handlePeriodicityValueChange = (val: number) => {
-                  setPeriodicityValue(val);
-                  field.onChange(periodicityToDays(val, periodicityUnit).toString());
-                };
-                
-                const handlePeriodicityUnitChange = (u: PeriodicityUnit) => {
-                  setPeriodicityUnit(u);
-                  field.onChange(periodicityToDays(periodicityValue, u).toString());
-                };
-                
-                return (
-                  <FormItem>
-                    <PeriodicityInput
-                       value={periodicityValue}
-                       unit={periodicityUnit}
-                       onValueChange={(val) => {
-                         if (canEdit) handlePeriodicityValueChange(val);
-                       }}
-                       onUnitChange={(u) => {
-                         if (canEdit) handlePeriodicityUnitChange(u);
-                       }}
-                       label="Periodicita"
-                       required
-                       disabled={!canEdit}
-                      />
-                    <FormMessage />
-                  </FormItem>
-                );
+            <PeriodicityInput
+              value={form.watch("periodValue")}
+              unit={form.watch("periodUnit") as PeriodicityUnit}
+              onValueChange={(val) => {
+                if (canEdit) form.setValue("periodValue", val);
               }}
+              onUnitChange={(unit) => {
+                if (canEdit) {
+                  form.setValue("periodUnit", unit);
+                  setPeriodUnit(unit);
+                }
+              }}
+              label="Periodicita"
+              required
+              disabled={!canEdit}
             />
 
-            {/* Automaticky vypočítané datum platnosti */}
             {expirationDate && (
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm font-medium text-foreground">
-                      Školení platné do
-                    </Label>
+                    <Label className="text-sm font-medium text-foreground">Školení platné do</Label>
                     <p className="text-xs text-muted-foreground mt-1">
                       Automaticky přepočítáno: Datum školení + periodicita
                     </p>
@@ -365,79 +447,39 @@ export default function EditTraining() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label>Školitel</Label>
-              <div className="space-y-2">
-                <Select 
-                   onValueChange={(value) => {
-                     setUseCustomTrainer(value === "custom");
-                     form.setValue("trainerId", value !== "custom" ? value : undefined);
-                   }}
-                   value={form.watch("trainerId") || ""}
-                   disabled={useCustomTrainer || !canEdit}
-                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Vyberte školitele" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="trainer1">Hodková Blanka</SelectItem>
-                    <SelectItem value="custom">(jiný)</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {useCustomTrainer && (
-                  <FormField
-                    control={form.control}
-                    name="customTrainerName"
-                    render={({ field }) => (
-                      <FormItem>
-                         <FormControl>
-                           <Input placeholder="Příjmení Jméno" {...field} disabled={!canEdit} />
-                         </FormControl>
-                         <FormMessage />
-                       </FormItem>
-                    )}
-                  />
-                )}
-              </div>
-            </div>
+            <FormField
+              control={form.control}
+              name="trainer"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Školitel</FormLabel>
+                  <FormControl>
+                    <EmployeeOrCustomInput
+                      employees={employees}
+                      value={field.value || ""}
+                      onChange={canEdit ? field.onChange : () => {}}
+                      placeholder="Vyberte školitele nebo zadejte ručně"
+                      disabled={!canEdit}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <div className="space-y-2">
-              <Label>Školící firma</Label>
-              <div className="space-y-2">
-                <Select 
-                   onValueChange={(value) => {
-                     setUseCustomCompany(value === "custom");
-                     form.setValue("companyId", value !== "custom" ? value : undefined);
-                   }}
-                   value={form.watch("companyId") || ""}
-                   disabled={useCustomCompany || !canEdit}
-                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Vyberte firmu" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="company1">Schenck Process</SelectItem>
-                    <SelectItem value="custom">(jiná)</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {useCustomCompany && (
-                  <FormField
-                    control={form.control}
-                    name="customCompanyName"
-                    render={({ field }) => (
-                      <FormItem>
-                         <FormControl>
-                           <Input placeholder="Název firmy" {...field} disabled={!canEdit} />
-                         </FormControl>
-                         <FormMessage />
-                       </FormItem>
-                    )}
-                  />
-                )}
-              </div>
-            </div>
+            <FormField
+              control={form.control}
+              name="company"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Školící firma</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Název firmy" disabled={!canEdit} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Existing Documents */}
             <div className="space-y-3">
@@ -475,14 +517,18 @@ export default function EditTraining() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Šablona připomenutí *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger disabled={!canEdit}>
                         <SelectValue placeholder="Vyberte šablonu" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="template1">Schenck Process</SelectItem>
+                      {reminderTemplates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -490,39 +536,34 @@ export default function EditTraining() {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="remindDaysBefore"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Připomenout dopředu *</FormLabel>
-                  <div className="flex gap-2 items-center">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="remindDaysBefore"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Připomenout dopředu (dní) *</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} className="w-32" />
+                      <Input type="number" {...field} disabled={!canEdit} />
                     </FormControl>
-                    <span className="text-sm text-muted-foreground">Dní</span>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="repeatDaysAfter"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Opakovat (každých)</FormLabel>
-                  <div className="flex gap-2 items-center">
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="repeatDaysAfter"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Opakovat po (dní)</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} className="w-32" />
+                      <Input type="number" {...field} disabled={!canEdit} />
                     </FormControl>
-                    <span className="text-sm text-muted-foreground">Dní po vypršení lhůty</span>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}
@@ -531,12 +572,21 @@ export default function EditTraining() {
                 <FormItem>
                   <FormLabel>Poznámka</FormLabel>
                   <FormControl>
-                    <Textarea {...field} rows={4} />
+                    <Textarea {...field} rows={3} disabled={!canEdit} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <div className="space-y-2">
+              <Label>Zadavatel</Label>
+              <Input
+                value={profile ? `${profile.first_name} ${profile.last_name}` : "Načítání..."}
+                disabled
+                className="bg-muted"
+              />
+            </div>
 
             <div className="flex gap-4 pt-4 border-t">
               {canEdit && (
@@ -545,9 +595,9 @@ export default function EditTraining() {
                   Uložit změny
                 </Button>
               )}
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => navigate("/trainings")}
                 disabled={isSubmitting}
               >
