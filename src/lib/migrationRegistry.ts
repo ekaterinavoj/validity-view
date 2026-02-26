@@ -91,12 +91,18 @@ export const MIGRATION_REGISTRY: MigrationEntry[] = [
   { version: "20260213154948", name: "reminder_run_correlation", sql: null },
   { version: "20260213195037", name: "set_user_role_function", sql: null },
   { version: "20260216193430", name: "trigger_recreation", sql: null },
+  { version: "20260217200531", name: "schema_migrations_table", sql: null },
   { version: "20260219100000", name: "general_documents", sql: null },
   { version: "20260221000001", name: "employee_number_optional", sql: null },
   { version: "20260221150000", name: "recalculate_all_statuses", sql: null },
   { version: "20260221165235", name: "notify_extraordinary_medical_exam", sql: null },
+  { version: "20260221173502", name: "add_training_supervisor", sql: null },
   { version: "20260221174512", name: "drop_training_supervisor", sql: null },
   { version: "20260221175145", name: "propagate_manager_details", sql: null },
+  { version: "20260221182753", name: "cleanup_manager_propagation", sql: null },
+  { version: "20260221183742", name: "schema_reload", sql: null },
+  { version: "20260221185611", name: "subordinate_function_update", sql: null },
+  { version: "20260221190405", name: "subordinate_function_v2", sql: null },
   { version: "20260221200000", name: "auto_link_profile_employee", sql: null },
 
   // ===== Incremental migrations (not yet in init-db.sql) =====
