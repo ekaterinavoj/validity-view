@@ -98,6 +98,24 @@ export const MIGRATION_REGISTRY: MigrationEntry[] = [
   { version: "20260221174512", name: "drop_training_supervisor", sql: null },
   { version: "20260221175145", name: "propagate_manager_details", sql: null },
   { version: "20260221200000", name: "auto_link_profile_employee", sql: null },
+
+  // ===== Incremental migrations (not yet in init-db.sql) =====
+  {
+    version: "20260226201357",
+    name: "result_column",
+    sql: `
+-- Add result column to trainings table
+ALTER TABLE public.trainings 
+ADD COLUMN IF NOT EXISTS result text DEFAULT 'passed';
+
+-- Add result column to deadlines table
+ALTER TABLE public.deadlines 
+ADD COLUMN IF NOT EXISTS result text DEFAULT 'passed';
+
+COMMENT ON COLUMN public.trainings.result IS 'Training result: passed, passed_with_reservations, failed';
+COMMENT ON COLUMN public.deadlines.result IS 'Deadline result: passed (compliant), passed_with_reservations, failed (non_compliant)';
+    `.trim(),
+  },
 ];
 
 /**
