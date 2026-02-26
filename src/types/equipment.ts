@@ -55,6 +55,7 @@ export interface Deadline {
   last_check_date: string;
   next_check_date: string;
   status: "valid" | "warning" | "expired";
+  result?: "passed" | "passed_with_reservations" | "failed";
   remind_days_before?: number | null;
   repeat_days_after?: number | null;
   reminder_template_id?: string | null;

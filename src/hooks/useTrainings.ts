@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface TrainingWithDetails {
   id: string;
   status: "valid" | "warning" | "expired";
+  result: "passed" | "passed_with_reservations" | "failed";
   date: string; // next_training_date
   type: string;
   employeeNumber: string;
@@ -50,6 +51,7 @@ export function useTrainings(activeOnly: boolean = true) {
           requester,
           note,
           status,
+          result,
           is_active,
           last_training_date,
           next_training_date,
@@ -116,33 +118,38 @@ export function useTrainings(activeOnly: boolean = true) {
             return employeeStatus !== "employed";
           }
         })
-        .map((t: any) => ({
-          id: t.id,
-          // Compute status dynamically instead of using stored value
-          status: computeStatus(t.next_training_date),
-          date: t.next_training_date,
-          type: t.training_types?.name || "",
-          employeeNumber: t.employees?.employee_number || "",
-          employeeName: `${t.employees?.first_name || ""} ${t.employees?.last_name || ""}`.trim(),
-          employeeId: t.employee_id,
-          employeeStatus: t.employees?.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
-          facility: t.facility || t.training_types?.facility || "",
-          department: t.employees?.departments?.code || "",
-          departmentId: t.employees?.department_id,
-          lastTrainingDate: t.last_training_date,
-          trainer: t.trainer || "",
-          company: t.company || "",
-          requester: t.requester || "",
-          period: t.training_types?.period_days || 365,
-          reminderTemplate: t.reminder_templates?.name || "",
-          calendar: "Ano",
-          note: t.note || "",
-          is_active: t.is_active,
-          remindDaysBefore: t.remind_days_before ?? 30,
-          repeatDaysAfter: t.repeat_days_after ?? 30,
-          trainingTypeId: t.training_type_id,
-          deletedAt: t.deleted_at,
-        }));
+        .map((t: any) => {
+          const result = (t.result as "passed" | "passed_with_reservations" | "failed") || "passed";
+          // If result is failed, force expired status
+          const computedStatus = result === "failed" ? "expired" : computeStatus(t.next_training_date);
+          return {
+            id: t.id,
+            status: computedStatus,
+            result,
+            date: t.next_training_date,
+            type: t.training_types?.name || "",
+            employeeNumber: t.employees?.employee_number || "",
+            employeeName: `${t.employees?.first_name || ""} ${t.employees?.last_name || ""}`.trim(),
+            employeeId: t.employee_id,
+            employeeStatus: t.employees?.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
+            facility: t.facility || t.training_types?.facility || "",
+            department: t.employees?.departments?.code || "",
+            departmentId: t.employees?.department_id,
+            lastTrainingDate: t.last_training_date,
+            trainer: t.trainer || "",
+            company: t.company || "",
+            requester: t.requester || "",
+            period: t.training_types?.period_days || 365,
+            reminderTemplate: t.reminder_templates?.name || "",
+            calendar: "Ano",
+            note: t.note || "",
+            is_active: t.is_active,
+            remindDaysBefore: t.remind_days_before ?? 30,
+            repeatDaysAfter: t.repeat_days_after ?? 30,
+            trainingTypeId: t.training_type_id,
+            deletedAt: t.deleted_at,
+          };
+        });
 
       setTrainings(transformedData);
     } catch (err: any) {

@@ -1,4 +1,5 @@
 import { StatusBadge } from "@/components/StatusBadge";
+import { ResultBadge, getResultLabel } from "@/components/ResultBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -266,6 +267,7 @@ export default function ScheduledTrainings() {
 
       const data = trainingsToExport.map(training => ({
         "Stav": training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
+        "Výsledek": getResultLabel(training.result, "training"),
         "Školení platné do": new Date(training.date).toLocaleDateString("cs-CZ"),
         "Typ školení": training.type || "",
         "Osobní číslo": training.employeeNumber || "",
@@ -463,6 +465,7 @@ export default function ScheduledTrainings() {
                   <TableHead>Firma</TableHead>
                   <TableHead>Zadavatel</TableHead>
                   <TableHead>Periodicita</TableHead>
+                  <TableHead>Výsledek</TableHead>
                   <TableHead>Poznámka</TableHead>
                   <TableHead className="text-center">Protokol</TableHead>
                   <TableHead className="w-[80px]"></TableHead>
@@ -471,7 +474,7 @@ export default function ScheduledTrainings() {
               <TableBody>
                 {filteredTrainings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={canEdit ? 15 : 14} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={canEdit ? 16 : 15} className="text-center py-8 text-muted-foreground">
                       Žádná školení nenalezena
                     </TableCell>
                   </TableRow>
@@ -508,6 +511,13 @@ export default function ScheduledTrainings() {
                       <TableCell className="whitespace-nowrap">{training.requester}</TableCell>
                       <TableCell className="text-center">
                         {formatPeriodicity(training.period)}
+                      </TableCell>
+                      <TableCell>
+                        <ResultBadge 
+                          result={training.result} 
+                          context="training" 
+                          note={training.note} 
+                        />
                       </TableCell>
                       <TableCell className="max-w-xs truncate" title={training.note}>
                         {training.note || "-"}

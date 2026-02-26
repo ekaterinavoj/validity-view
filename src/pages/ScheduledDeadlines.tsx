@@ -31,6 +31,7 @@ import { DeadlineProtocolCell } from "@/components/DeadlineProtocolCell";
 import { DeadlineResponsiblesBadges } from "@/components/DeadlineResponsiblesBadges";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
+import { ResultBadge, getResultLabel } from "@/components/ResultBadge";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkEditDeadlinesDialog } from "@/components/BulkEditDeadlinesDialog";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
@@ -180,6 +181,7 @@ export default function ScheduledDeadlines() {
       const responsibleNames = resps.map(r => r.name).join(", ");
       return {
         "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
+        "Výsledek": getResultLabel((d.result as any) || "passed", "deadline"),
         "Inventární č.": d.equipment?.inventory_number || "",
         "Zařízení": d.equipment?.name || "",
         "Typ události": d.deadline_type?.name || "",
@@ -297,6 +299,7 @@ export default function ScheduledDeadlines() {
                 <TableHead>Příští</TableHead>
                 <TableHead>Provádějící</TableHead>
                 <TableHead>Odpovědní</TableHead>
+                <TableHead>Výsledek</TableHead>
                 <TableHead>Protokol</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
@@ -304,7 +307,7 @@ export default function ScheduledDeadlines() {
             <TableBody>
              {filteredDeadlines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canEdit ? 12 : 11} className="text-center py-8 text-muted-foreground">
+                   <TableCell colSpan={canEdit ? 13 : 12} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
@@ -347,6 +350,13 @@ export default function ScheduledDeadlines() {
                       <DeadlineResponsiblesBadges 
                         deadlineId={deadline.id} 
                         responsibles={responsiblesMap?.get(deadline.id) ?? []}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <ResultBadge 
+                        result={(deadline.result as any) || "passed"} 
+                        context="deadline" 
+                        note={deadline.note || undefined} 
                       />
                     </TableCell>
                     <TableCell>

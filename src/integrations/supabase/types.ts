@@ -322,6 +322,7 @@ export type Database = {
           reminder_template_id: string | null
           repeat_days_after: number | null
           requester: string | null
+          result: string | null
           status: string
           updated_at: string
         }
@@ -343,6 +344,7 @@ export type Database = {
           reminder_template_id?: string | null
           repeat_days_after?: number | null
           requester?: string | null
+          result?: string | null
           status?: string
           updated_at?: string
         }
@@ -364,6 +366,7 @@ export type Database = {
           reminder_template_id?: string | null
           repeat_days_after?: number | null
           requester?: string | null
+          result?: string | null
           status?: string
           updated_at?: string
         }
@@ -1435,6 +1438,7 @@ export type Database = {
           reminder_template_id: string | null
           repeat_days_after: number | null
           requester: string | null
+          result: string | null
           status: string
           trainer: string | null
           training_type_id: string
@@ -1457,6 +1461,7 @@ export type Database = {
           reminder_template_id?: string | null
           repeat_days_after?: number | null
           requester?: string | null
+          result?: string | null
           status?: string
           trainer?: string | null
           training_type_id: string
@@ -1479,6 +1484,7 @@ export type Database = {
           reminder_template_id?: string | null
           repeat_days_after?: number | null
           requester?: string | null
+          result?: string | null
           status?: string
           trainer?: string | null
           training_type_id?: string
