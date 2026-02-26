@@ -1,3 +1,7 @@
-// Runtime environment config placeholder
-// In Docker production, this file is overwritten by docker-entrypoint.sh
-// In development, Vite uses import.meta.env from .env file
+// Runtime environment configuration
+// This file provides Supabase connection details for the Lovable preview environment
+window._env_ = {
+  VITE_SUPABASE_URL: "https://xgtwutpbojltmktprdui.supabase.co",
+  VITE_SUPABASE_PUBLISHABLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhndHd1dHBib2psdG1rdHByZHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4NjU0MDQsImV4cCI6MjA3ODQ0MTQwNH0.x0_qioPsnP0xLbrVIEHtOJR1UW_1AE9QQKaIo0bRCnI",
+  VITE_SUPABASE_PROJECT_ID: "xgtwutpbojltmktprdui"
+};
