@@ -263,6 +263,7 @@ export default function ScheduledExaminations() {
               <TableHead>Jméno</TableHead>
               <TableHead>Kategorie</TableHead>
               <TableHead>Výsledek</TableHead>
+              <TableHead>Poznámka</TableHead>
               <TableHead>Protokol</TableHead>
               <TableHead>Lékař</TableHead>
               <TableHead className="w-[80px]"></TableHead>
@@ -271,7 +272,7 @@ export default function ScheduledExaminations() {
           <TableBody>
             {filteredExaminations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 11 : 10} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={canEdit ? 12 : 11} className="text-center text-muted-foreground py-8">
                   Žádné prohlídky k zobrazení.
                 </TableCell>
               </TableRow>
@@ -297,6 +298,9 @@ export default function ScheduledExaminations() {
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
+                  </TableCell>
+                  <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={exam.note || ""}>
+                    {exam.note || "-"}
                   </TableCell>
                   <TableCell className="text-center">
                     <MedicalProtocolCell examinationId={exam.id} />

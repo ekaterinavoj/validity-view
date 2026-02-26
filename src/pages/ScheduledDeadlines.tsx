@@ -300,6 +300,7 @@ export default function ScheduledDeadlines() {
                 <TableHead>Provádějící</TableHead>
                 <TableHead>Odpovědní</TableHead>
                 <TableHead>Výsledek</TableHead>
+                <TableHead>Poznámka</TableHead>
                 <TableHead>Protokol</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
@@ -307,7 +308,7 @@ export default function ScheduledDeadlines() {
             <TableBody>
              {filteredDeadlines.length === 0 ? (
                 <TableRow>
-                   <TableCell colSpan={canEdit ? 13 : 12} className="text-center py-8 text-muted-foreground">
+                   <TableCell colSpan={canEdit ? 14 : 13} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
@@ -358,6 +359,9 @@ export default function ScheduledDeadlines() {
                         context="deadline" 
                         note={deadline.note || undefined} 
                       />
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={deadline.note || ""}>
+                      {deadline.note || "-"}
                     </TableCell>
                     <TableCell>
                       <DeadlineProtocolCell deadlineId={deadline.id} />
