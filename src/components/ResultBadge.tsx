@@ -66,23 +66,19 @@ export function ResultBadge({ result, context, note, className }: ResultBadgePro
 
   if (showWarningIcon) {
     return (
-      <span className={cn("inline-flex items-center gap-1 text-sm font-medium text-status-valid", className)}>
-        {label}
-        {note ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <AlertTriangle className="w-4 h-4 text-status-warning cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p className="text-sm">{note}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <AlertTriangle className="w-4 h-4 text-status-warning" />
-        )}
-      </span>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn("inline-flex items-center gap-1 text-sm font-medium text-status-valid cursor-help", className)}>
+              {label}
+              <AlertTriangle className="w-4 h-4 text-status-warning" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <p className="text-sm">{note || "Bez komentáře"}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
