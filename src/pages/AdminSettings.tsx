@@ -147,7 +147,7 @@ export default function AdminSettings() {
     smtp_user: "",
     smtp_password: "",
     smtp_auth_enabled: true,
-    smtp_auth_type: "basic" as string, // "basic" | "oauth2_m365"
+    smtp_auth_type: "basic" as string, // "basic" | "oauth2_m365" | "oauth2_gmail"
     smtp_from_email: "",
     smtp_from_name: "Training System",
     smtp_secure: true,
@@ -157,6 +157,10 @@ export default function AdminSettings() {
     smtp_oauth_tenant_id: "",
     smtp_oauth_client_id: "",
     smtp_oauth_client_secret: "",
+    // Gmail OAuth2
+    smtp_gmail_client_id: "",
+    smtp_gmail_client_secret: "",
+    smtp_gmail_refresh_token: "",
   });
   
   const [emailTemplate, setEmailTemplate] = useState({
@@ -973,9 +977,13 @@ export default function AdminSettings() {
                       value={emailProvider.smtp_auth_type || "basic"}
                       onValueChange={(value) => {
                         const updates: any = { ...emailProvider, smtp_auth_type: value };
-                        // Pre-fill M365 SMTP settings
+                        // Pre-fill SMTP settings based on provider
                         if (value === "oauth2_m365") {
                           updates.smtp_host = updates.smtp_host || "smtp.office365.com";
+                          updates.smtp_port = 587;
+                          updates.smtp_tls_mode = "starttls";
+                        } else if (value === "oauth2_gmail") {
+                          updates.smtp_host = "smtp.gmail.com";
                           updates.smtp_port = 587;
                           updates.smtp_tls_mode = "starttls";
                         }
@@ -988,11 +996,14 @@ export default function AdminSettings() {
                       <SelectContent>
                         <SelectItem value="basic">Základní (LOGIN / PLAIN)</SelectItem>
                         <SelectItem value="oauth2_m365">Microsoft 365 OAuth2</SelectItem>
+                        <SelectItem value="oauth2_gmail">Gmail / Google Workspace OAuth2</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
                       {emailProvider.smtp_auth_type === "oauth2_m365" 
                         ? "OAuth2 client credentials s XOAUTH2 pro Microsoft 365 / Exchange Online"
+                        : emailProvider.smtp_auth_type === "oauth2_gmail"
+                        ? "OAuth2 s refresh tokenem a XOAUTH2 pro Gmail / Google Workspace"
                         : "Klasické přihlášení uživatelským jménem a heslem"}
                     </p>
                   </div>
@@ -1053,6 +1064,77 @@ export default function AdminSettings() {
                           </div>
                           <p className="text-xs text-muted-foreground">
                             Tajný klíč aplikace (Certificates & secrets → New client secret)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : emailProvider.smtp_auth_type === "oauth2_gmail" ? (
+                    <div className="space-y-4">
+                      <div className="p-3 rounded-lg bg-muted text-sm">
+                        <p className="font-medium mb-1">📋 Postup nastavení Gmail OAuth2:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                          <li>V <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a> vytvořte projekt a aktivujte Gmail API</li>
+                          <li>Vytvořte OAuth 2.0 Client ID (typ: Web application)</li>
+                          <li>Nastavte Authorized redirect URI (např. <code className="text-xs bg-background px-1 rounded">https://developers.google.com/oauthplayground</code>)</li>
+                          <li>V <a href="https://developers.google.com/oauthplayground/" target="_blank" rel="noopener noreferrer" className="underline">OAuth 2.0 Playground</a> vygenerujte refresh token se scope <code className="text-xs bg-background px-1 rounded">https://mail.google.com/</code></li>
+                          <li>Email odesílatele musí odpovídat Gmail / Google Workspace účtu</li>
+                        </ol>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <Label>Client ID *</Label>
+                          <Input
+                            value={emailProvider.smtp_gmail_client_id || ""}
+                            onChange={(e) => 
+                              setEmailProvider({ ...emailProvider, smtp_gmail_client_id: e.target.value })
+                            }
+                            placeholder="xxxxxxxxxxxx.apps.googleusercontent.com"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            OAuth 2.0 Client ID z Google Cloud Console → Credentials
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Client Secret *</Label>
+                          <div className="relative">
+                            <Input
+                              type={showSmtpPassword ? "text" : "password"}
+                              value={emailProvider.smtp_gmail_client_secret || ""}
+                              onChange={(e) => 
+                                setEmailProvider({ ...emailProvider, smtp_gmail_client_secret: e.target.value })
+                              }
+                              placeholder="••••••••"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            >
+                              {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Refresh Token *</Label>
+                          <div className="relative">
+                            <Input
+                              type={showSmtpPassword ? "text" : "password"}
+                              value={emailProvider.smtp_gmail_refresh_token || ""}
+                              onChange={(e) => 
+                                setEmailProvider({ ...emailProvider, smtp_gmail_refresh_token: e.target.value })
+                              }
+                              placeholder="1//xxxxxxxxxxxxxxxxx"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            >
+                              {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Refresh token vygenerovaný přes OAuth 2.0 Playground nebo vlastní OAuth flow
                           </p>
                         </div>
                       </div>
@@ -1188,7 +1270,7 @@ export default function AdminSettings() {
                           Server: {emailProvider.smtp_host}:{emailProvider.smtp_port} | 
                           Odesílatel: {emailProvider.smtp_from_email} | 
                           {emailProvider.smtp_auth_enabled !== false 
-                            ? (emailProvider.smtp_auth_type === "oauth2_m365" ? " M365 OAuth2" : " Základní autorizace") 
+                            ? (emailProvider.smtp_auth_type === "oauth2_m365" ? " M365 OAuth2" : emailProvider.smtp_auth_type === "oauth2_gmail" ? " Gmail OAuth2" : " Základní autorizace") 
                             : " Bez autorizace"}
                         </p>
                       </div>
