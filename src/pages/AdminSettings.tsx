@@ -145,13 +145,18 @@ export default function AdminSettings() {
     smtp_host: "",
     smtp_port: 587,
     smtp_user: "",
-    smtp_password: "", // Will be stored encrypted in system_settings
+    smtp_password: "",
     smtp_auth_enabled: true,
+    smtp_auth_type: "basic" as string, // "basic" | "oauth2_m365"
     smtp_from_email: "",
     smtp_from_name: "Training System",
     smtp_secure: true,
     smtp_tls_mode: "starttls",
     smtp_ignore_tls: false,
+    // M365 OAuth2
+    smtp_oauth_tenant_id: "",
+    smtp_oauth_client_id: "",
+    smtp_oauth_client_secret: "",
   });
   
   const [emailTemplate, setEmailTemplate] = useState({
@@ -961,37 +966,131 @@ export default function AdminSettings() {
               </div>
 
               {emailProvider.smtp_auth_enabled !== false && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Uživatelské jméno</Label>
-                    <Input
-                      value={emailProvider.smtp_user}
-                      onChange={(e) => 
-                        setEmailProvider({ ...emailProvider, smtp_user: e.target.value })
-                      }
-                      placeholder="user@example.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Heslo</Label>
-                    <div className="relative">
-                      <Input
-                        type={showSmtpPassword ? "text" : "password"}
-                        value={emailProvider.smtp_password || ""}
-                        onChange={(e) => 
-                          setEmailProvider({ ...emailProvider, smtp_password: e.target.value })
+                    <Label>Typ autorizace</Label>
+                    <Select
+                      value={emailProvider.smtp_auth_type || "basic"}
+                      onValueChange={(value) => {
+                        const updates: any = { ...emailProvider, smtp_auth_type: value };
+                        // Pre-fill M365 SMTP settings
+                        if (value === "oauth2_m365") {
+                          updates.smtp_host = updates.smtp_host || "smtp.office365.com";
+                          updates.smtp_port = 587;
+                          updates.smtp_tls_mode = "starttls";
                         }
-                        placeholder="••••••••"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowSmtpPassword(!showSmtpPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                      >
-                        {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
+                        setEmailProvider(updates);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="basic">Základní (LOGIN / PLAIN)</SelectItem>
+                        <SelectItem value="oauth2_m365">Microsoft 365 OAuth2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {emailProvider.smtp_auth_type === "oauth2_m365" 
+                        ? "OAuth2 client credentials s XOAUTH2 pro Microsoft 365 / Exchange Online"
+                        : "Klasické přihlášení uživatelským jménem a heslem"}
+                    </p>
                   </div>
+
+                  {emailProvider.smtp_auth_type === "oauth2_m365" ? (
+                    <div className="space-y-4">
+                      <div className="p-3 rounded-lg bg-muted text-sm">
+                        <p className="font-medium mb-1">📋 Postup nastavení M365 OAuth2:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                          <li>V Azure Portal → App registrations vytvořte novou aplikaci</li>
+                          <li>Přidejte API permission: <code className="text-xs bg-background px-1 rounded">Mail.Send</code> (Application)</li>
+                          <li>Vytvořte Client secret a zkopírujte hodnoty níže</li>
+                          <li>Email odesílatele musí odpovídat licencované M365 schránce</li>
+                        </ol>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <Label>Tenant ID *</Label>
+                          <Input
+                            value={emailProvider.smtp_oauth_tenant_id || ""}
+                            onChange={(e) => 
+                              setEmailProvider({ ...emailProvider, smtp_oauth_tenant_id: e.target.value })
+                            }
+                            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            ID vašeho Azure AD tenanta (najdete v Azure Portal → Azure Active Directory → Overview)
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Client ID (Application ID) *</Label>
+                          <Input
+                            value={emailProvider.smtp_oauth_client_id || ""}
+                            onChange={(e) => 
+                              setEmailProvider({ ...emailProvider, smtp_oauth_client_id: e.target.value })
+                            }
+                            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Client Secret *</Label>
+                          <div className="relative">
+                            <Input
+                              type={showSmtpPassword ? "text" : "password"}
+                              value={emailProvider.smtp_oauth_client_secret || ""}
+                              onChange={(e) => 
+                                setEmailProvider({ ...emailProvider, smtp_oauth_client_secret: e.target.value })
+                              }
+                              placeholder="••••••••"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            >
+                              {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Tajný klíč aplikace (Certificates & secrets → New client secret)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Uživatelské jméno</Label>
+                        <Input
+                          value={emailProvider.smtp_user}
+                          onChange={(e) => 
+                            setEmailProvider({ ...emailProvider, smtp_user: e.target.value })
+                          }
+                          placeholder="user@example.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Heslo</Label>
+                        <div className="relative">
+                          <Input
+                            type={showSmtpPassword ? "text" : "password"}
+                            value={emailProvider.smtp_password || ""}
+                            onChange={(e) => 
+                              setEmailProvider({ ...emailProvider, smtp_password: e.target.value })
+                            }
+                            placeholder="••••••••"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                          >
+                            {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1088,7 +1187,9 @@ export default function AdminSettings() {
                         <p className="text-sm text-muted-foreground">
                           Server: {emailProvider.smtp_host}:{emailProvider.smtp_port} | 
                           Odesílatel: {emailProvider.smtp_from_email} | 
-                          {emailProvider.smtp_auth_enabled !== false ? " S autorizací" : " Bez autorizace"}
+                          {emailProvider.smtp_auth_enabled !== false 
+                            ? (emailProvider.smtp_auth_type === "oauth2_m365" ? " M365 OAuth2" : " Základní autorizace") 
+                            : " Bez autorizace"}
                         </p>
                       </div>
                       <SendTestSmtpEmail 
