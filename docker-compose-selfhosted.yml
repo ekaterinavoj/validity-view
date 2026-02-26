@@ -284,6 +284,14 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@training.local}
+      # SMTP OAuth2 - Microsoft M365 (optional)
+      SMTP_M365_TENANT_ID: ${SMTP_M365_TENANT_ID:-}
+      SMTP_M365_CLIENT_ID: ${SMTP_M365_CLIENT_ID:-}
+      SMTP_M365_CLIENT_SECRET: ${SMTP_M365_CLIENT_SECRET:-}
+      # SMTP OAuth2 - Gmail (optional)
+      SMTP_GMAIL_CLIENT_ID: ${SMTP_GMAIL_CLIENT_ID:-}
+      SMTP_GMAIL_CLIENT_SECRET: ${SMTP_GMAIL_CLIENT_SECRET:-}
+      SMTP_GMAIL_REFRESH_TOKEN: ${SMTP_GMAIL_REFRESH_TOKEN:-}
       # CRON secret
       X_CRON_SECRET: ${X_CRON_SECRET:-}
     command:
