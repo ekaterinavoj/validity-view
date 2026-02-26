@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Edit, Plus, Download, RefreshCw, Eye } from "lucide-react";
+import { ResultBadge } from "@/components/ResultBadge";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -293,11 +294,11 @@ export default function ScheduledExaminations() {
                   <TableCell>{exam.employeeName}</TableCell>
                   <TableCell><WorkCategoryBadge category={exam.employeeWorkCategory} /></TableCell>
                   <TableCell>
-                    {exam.result ? (
-                      <span className="text-sm">{exam.result}</span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
+                    <ResultBadge 
+                      result={(exam.result as any) || "passed"} 
+                      context="medical" 
+                      note={exam.note || undefined} 
+                    />
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={exam.note || ""}>
                     {exam.note || "-"}

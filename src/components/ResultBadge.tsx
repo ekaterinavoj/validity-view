@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/tooltip";
 
 export type ResultValue = "passed" | "passed_with_reservations" | "failed";
-export type ResultContext = "training" | "deadline";
+export type ResultContext = "training" | "deadline" | "medical";
 
 interface ResultBadgeProps {
   result: ResultValue;
@@ -27,6 +27,11 @@ const resultLabels: Record<ResultContext, Record<ResultValue, string>> = {
     passed: "Vyhovuje",
     passed_with_reservations: "Vyhovuje s výhradami",
     failed: "Nevyhovuje",
+  },
+  medical: {
+    passed: "Způsobilý",
+    passed_with_reservations: "Způsobilý s podmínkou",
+    failed: "Nezpůsobilý",
   },
 };
 
