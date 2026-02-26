@@ -80,6 +80,26 @@ SMTP_SENDER_NAME=Training System
 # SMTP email odesílatele pro edge funkce (připomínky)
 SMTP_FROM=noreply@frontend.domain
 
+# -------------------------------------------
+# SMTP OAuth2 - Microsoft M365 (volitelné)
+# -------------------------------------------
+# Pro M365 použijte XOAUTH2 místo hesla.
+# Registrujte aplikaci v Azure AD → App registrations.
+# Přidělte oprávnění: Mail.Send (Application).
+# SMTP_M365_TENANT_ID=your-azure-tenant-id
+# SMTP_M365_CLIENT_ID=your-azure-client-id
+# SMTP_M365_CLIENT_SECRET=your-azure-client-secret
+
+# -------------------------------------------
+# SMTP OAuth2 - Gmail / Google Workspace (volitelné)
+# -------------------------------------------
+# Pro Gmail použijte XOAUTH2 místo hesla.
+# Vytvořte OAuth2 credentials v Google Cloud Console.
+# Povolte Gmail API a vygenerujte refresh token.
+# SMTP_GMAIL_CLIENT_ID=your-google-client-id
+# SMTP_GMAIL_CLIENT_SECRET=your-google-client-secret
+# SMTP_GMAIL_REFRESH_TOKEN=your-google-refresh-token
+
 # Mailer URL paths
 MAILER_URLPATHS_CONFIRMATION=/auth/v1/verify
 MAILER_URLPATHS_INVITE=/auth/v1/verify
