@@ -1,4 +1,4 @@
-// Shared SMTP sender with M365 OAuth2 (XOAUTH2) support
+// Shared SMTP sender with M365 & Gmail OAuth2 (XOAUTH2) support
 // Used by all reminder and test email edge functions
 
 export interface SmtpConfig {
@@ -7,7 +7,7 @@ export interface SmtpConfig {
   smtp_from_email: string;
   smtp_from_name?: string;
   smtp_auth_enabled?: boolean;
-  smtp_auth_type?: "basic" | "oauth2_m365";
+  smtp_auth_type?: "basic" | "oauth2_m365" | "oauth2_gmail";
   smtp_user?: string;
   smtp_password?: string;
   smtp_tls_mode?: string;
@@ -16,6 +16,10 @@ export interface SmtpConfig {
   smtp_oauth_tenant_id?: string;
   smtp_oauth_client_id?: string;
   smtp_oauth_client_secret?: string;
+  // Gmail OAuth2 fields
+  smtp_gmail_client_id?: string;
+  smtp_gmail_client_secret?: string;
+  smtp_gmail_refresh_token?: string;
 }
 
 interface SmtpResult {
@@ -58,6 +62,36 @@ function buildXOAuth2Token(user: string, accessToken: string): string {
   return btoa(`user=${user}\x01auth=Bearer ${accessToken}\x01\x01`);
 }
 
+// ---- Gmail OAuth2 helpers ----
+
+async function getGmailOAuthToken(config: SmtpConfig): Promise<string> {
+  const { smtp_gmail_client_id, smtp_gmail_client_secret, smtp_gmail_refresh_token } = config;
+  if (!smtp_gmail_client_id || !smtp_gmail_client_secret || !smtp_gmail_refresh_token) {
+    throw new Error("Gmail OAuth2: client_id, client_secret a refresh_token jsou povinné");
+  }
+  const tokenUrl = "https://oauth2.googleapis.com/token";
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: smtp_gmail_client_id,
+    client_secret: smtp_gmail_client_secret,
+    refresh_token: smtp_gmail_refresh_token,
+  });
+  console.log("Fetching Gmail OAuth token...");
+  const response = await fetch(tokenUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gmail OAuth token error (${response.status}): ${errorText}`);
+  }
+  const data = await response.json();
+  if (!data.access_token) throw new Error("Gmail OAuth: access_token not found");
+  console.log("Gmail OAuth token obtained");
+  return data.access_token;
+}
+
 // ---- Low-level SMTP helpers ----
 
 function makeReadResponse(reader: ReadableStreamDefaultReader<Uint8Array>) {
@@ -98,13 +132,15 @@ async function performAuth(
   if (!authEnabled) return;
   const authType = config.smtp_auth_type || "basic";
 
-  if (authType === "oauth2_m365") {
+  if (authType === "oauth2_m365" || authType === "oauth2_gmail") {
     const user = config.smtp_from_email || config.smtp_user || "";
-    const accessToken = await getM365OAuthToken(config);
+    const accessToken = authType === "oauth2_m365"
+      ? await getM365OAuthToken(config)
+      : await getGmailOAuthToken(config);
     const xoauth2Token = buildXOAuth2Token(user, accessToken);
     const resp = await sendCmd(`AUTH XOAUTH2 ${xoauth2Token}`);
     if (resp.code !== 235) throw new Error(`AUTH XOAUTH2 failed (${resp.code}): ${resp.msg}`);
-    console.log("SMTP AUTH XOAUTH2 successful");
+    console.log(`SMTP AUTH XOAUTH2 (${authType}) successful`);
   } else {
     const username = config.smtp_user;
     const password = config.smtp_password;
