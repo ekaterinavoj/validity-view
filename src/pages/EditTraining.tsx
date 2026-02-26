@@ -28,6 +28,7 @@ import { useFacilities } from "@/hooks/useFacilities";
 import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeOrCustomInput } from "@/components/EmployeeOrCustomInput";
+import { getResultOptions, type ResultValue } from "@/components/ResultBadge";
 import {
   PeriodicityInput,
   PeriodicityUnit,
@@ -48,7 +49,16 @@ const formSchema = z.object({
   reminderTemplateId: z.string().min(1, "Vyberte šablonu připomenutí"),
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
+  result: z.enum(["passed", "passed_with_reservations", "failed"]),
   note: z.string().optional(),
+}).refine((data) => {
+  if ((data.result === "passed_with_reservations" || data.result === "failed") && (!data.note || data.note.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Pro vybraný stav je nutné uvést důvod nebo specifikovat výhrady do pole Komentář.",
+  path: ["note"],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -81,6 +91,7 @@ export default function EditTraining() {
       periodUnit: "years",
       remindDaysBefore: "30",
       repeatDaysAfter: "30",
+      result: "passed" as const,
     },
   });
 
@@ -123,6 +134,7 @@ export default function EditTraining() {
             reminderTemplateId: training.reminder_template_id || "",
             remindDaysBefore: String(training.remind_days_before || 30),
             repeatDaysAfter: String(training.repeat_days_after || 30),
+            result: (training.result as "passed" | "passed_with_reservations" | "failed") || "passed",
             note: training.note || "",
           });
           setPeriodUnit(unit);
@@ -180,14 +192,19 @@ export default function EditTraining() {
         ? format(expirationDate, "yyyy-MM-dd")
         : format(data.lastTrainingDate, "yyyy-MM-dd");
 
+      // If result is "failed", force status to expired
       let status = "valid";
-      const nextDate = new Date(nextTrainingDate);
-      const today = new Date();
-      const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysUntil < 0) {
+      if (data.result === "failed") {
         status = "expired";
-      } else if (daysUntil <= 30) {
-        status = "warning";
+      } else {
+        const nextDate = new Date(nextTrainingDate);
+        const today = new Date();
+        const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysUntil < 0) {
+          status = "expired";
+        } else if (daysUntil <= 30) {
+          status = "warning";
+        }
       }
 
       const { error: updateError } = await supabase
@@ -204,6 +221,7 @@ export default function EditTraining() {
           remind_days_before: parseInt(data.remindDaysBefore) || 30,
           repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
           note: data.note || null,
+          result: data.result,
           status,
           updated_at: new Date().toISOString(),
         })
@@ -567,12 +585,46 @@ export default function EditTraining() {
 
             <FormField
               control={form.control}
+              name="result"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Výsledek školení *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                    <FormControl>
+                      <SelectTrigger disabled={!canEdit}>
+                        <SelectValue placeholder="Vyberte výsledek" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {getResultOptions("training").map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="note"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Poznámka</FormLabel>
+                  <FormLabel>
+                    Komentář
+                    {(form.watch("result") === "passed_with_reservations" || form.watch("result") === "failed") && (
+                      <span className="text-destructive ml-1">*</span>
+                    )}
+                  </FormLabel>
                   <FormControl>
-                    <Textarea {...field} rows={3} disabled={!canEdit} />
+                    <Textarea {...field} rows={3} disabled={!canEdit} placeholder={
+                      form.watch("result") === "passed_with_reservations" || form.watch("result") === "failed"
+                        ? "Uveďte důvod nebo specifikujte výhrady..."
+                        : "Doplňující informace"
+                    } />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

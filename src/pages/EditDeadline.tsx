@@ -6,6 +6,7 @@ import { z } from "zod";
 import { format, parseISO } from "date-fns";
 import { cs } from "date-fns/locale";
 import { CalendarIcon, Loader2 } from "lucide-react";
+import { getResultOptions } from "@/components/ResultBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -64,10 +65,19 @@ const formSchema = z.object({
   period_unit: z.enum(["days", "months", "years"]),
   performer: z.string().optional(),
   company: z.string().optional(),
+  result: z.enum(["passed", "passed_with_reservations", "failed"]),
   note: z.string().optional(),
   reminder_template_id: z.string().min(1, "Vyberte šablonu připomenutí"),
   remind_days_before: z.number().min(1, "Zadejte počet dní"),
   repeat_days_after: z.number().optional(),
+}).refine((data) => {
+  if ((data.result === "passed_with_reservations" || data.result === "failed") && (!data.note || data.note.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Pro vybraný stav je nutné uvést důvod nebo specifikovat výhrady do pole Komentář.",
+  path: ["note"],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -106,6 +116,7 @@ export default function EditDeadline() {
       period_unit: "years",
       remind_days_before: 30,
       repeat_days_after: 30,
+      result: "passed" as const,
     },
   });
 
@@ -167,6 +178,7 @@ export default function EditDeadline() {
         period_unit: pUnit,
         performer: data.performer || "",
         company: data.company || "",
+        result: (data.result as "passed" | "passed_with_reservations" | "failed") || "passed",
         note: data.note || "",
         reminder_template_id: data.reminder_template_id || "",
         remind_days_before: data.remind_days_before || 30,
@@ -209,8 +221,11 @@ export default function EditDeadline() {
       const thirtyDaysFromNow = new Date(today);
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
       
+      // If result is "failed", force status to expired
       let status: "valid" | "warning" | "expired" = "valid";
-      if (next_check_date < today) {
+      if (data.result === "failed") {
+        status = "expired";
+      } else if (next_check_date < today) {
         status = "expired";
       } else if (next_check_date <= thirtyDaysFromNow) {
         status = "warning";
@@ -228,6 +243,7 @@ export default function EditDeadline() {
           performer: data.performer || null,
           company: data.company || null,
           note: data.note || null,
+          result: data.result,
           reminder_template_id: data.reminder_template_id,
           remind_days_before: data.remind_days_before,
           repeat_days_after: data.repeat_days_after || 30,
@@ -615,12 +631,46 @@ export default function EditDeadline() {
 
               <FormField
                 control={form.control}
+                name="result"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Výsledek kontroly *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                      <FormControl>
+                        <SelectTrigger disabled={!canEdit}>
+                          <SelectValue placeholder="Vyberte výsledek" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {getResultOptions("deadline").map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="note"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Poznámka</FormLabel>
+                    <FormLabel>
+                      Komentář
+                      {(form.watch("result") === "passed_with_reservations" || form.watch("result") === "failed") && (
+                        <span className="text-destructive ml-1">*</span>
+                      )}
+                    </FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Doplňující informace" />
+                      <Textarea {...field} placeholder={
+                        form.watch("result") === "passed_with_reservations" || form.watch("result") === "failed"
+                          ? "Uveďte důvod nebo specifikujte výhrady..."
+                          : "Doplňující informace"
+                      } disabled={!canEdit} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

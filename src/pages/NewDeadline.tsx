@@ -53,6 +53,7 @@ import {
 } from "@/components/PeriodicityInput";
 import { ResponsiblesPicker, ResponsiblesSelection } from "@/components/ResponsiblesPicker";
 import { useDeadlineResponsibles } from "@/hooks/useDeadlineResponsibles";
+import { getResultOptions } from "@/components/ResultBadge";
 
 const formSchema = z.object({
   deadline_type_id: z.string().min(1, "Vyberte typ události"),
@@ -63,10 +64,19 @@ const formSchema = z.object({
   period_unit: z.enum(["days", "months", "years"]),
   performer: z.string().optional(),
   company: z.string().optional(),
+  result: z.enum(["passed", "passed_with_reservations", "failed"]),
   note: z.string().optional(),
   reminder_template_id: z.string().min(1, "Vyberte šablonu připomenutí"),
   remind_days_before: z.number().min(1, "Zadejte počet dní"),
   repeat_days_after: z.number().optional(),
+}).refine((data) => {
+  if ((data.result === "passed_with_reservations" || data.result === "failed") && (!data.note || data.note.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Pro vybraný stav je nutné uvést důvod nebo specifikovat výhrady do pole Komentář.",
+  path: ["note"],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -94,6 +104,7 @@ export default function NewDeadline() {
       repeat_days_after: 30,
       period_value: 1,
       period_unit: "years",
+      result: "passed" as const,
     },
   });
 
@@ -147,7 +158,9 @@ export default function NewDeadline() {
       const today = new Date();
       
       let status: "valid" | "warning" | "expired" = "valid";
-      if (next_check_date < today) {
+      if (data.result === "failed") {
+        status = "expired";
+      } else if (next_check_date < today) {
         status = "expired";
       } else if (next_check_date <= new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)) {
         status = "warning";
@@ -163,6 +176,7 @@ export default function NewDeadline() {
         performer: data.performer || null,
         company: data.company || null,
         note: data.note || null,
+        result: data.result,
         reminder_template_id: data.reminder_template_id,
         remind_days_before: data.remind_days_before,
         repeat_days_after: data.repeat_days_after || 30,
@@ -511,12 +525,46 @@ export default function NewDeadline() {
 
               <FormField
                 control={form.control}
+                name="result"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Výsledek kontroly *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Vyberte výsledek" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {getResultOptions("deadline").map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="note"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Poznámka</FormLabel>
+                    <FormLabel>
+                      Komentář
+                      {(form.watch("result") === "passed_with_reservations" || form.watch("result") === "failed") && (
+                        <span className="text-destructive ml-1">*</span>
+                      )}
+                    </FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Doplňující informace" />
+                      <Textarea {...field} placeholder={
+                        form.watch("result") === "passed_with_reservations" || form.watch("result") === "failed"
+                          ? "Uveďte důvod nebo specifikujte výhrady..."
+                          : "Doplňující informace"
+                      } />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
