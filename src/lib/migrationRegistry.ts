@@ -122,6 +122,23 @@ COMMENT ON COLUMN public.trainings.result IS 'Training result: passed, passed_wi
 COMMENT ON COLUMN public.deadlines.result IS 'Deadline result: passed (compliant), passed_with_reservations, failed (non_compliant)';
     `.trim(),
   },
+  {
+    version: "20260310092500",
+    name: "work_category_to_text",
+    sql: `
+-- Drop existing CHECK constraint on work_category
+ALTER TABLE public.employees DROP CONSTRAINT IF EXISTS employees_work_category_check;
+
+-- Change column type from integer to text
+ALTER TABLE public.employees ALTER COLUMN work_category TYPE text USING work_category::text;
+
+-- Add new CHECK constraint for valid categories (1, 2, 2R, 3, 4)
+ALTER TABLE public.employees ADD CONSTRAINT employees_work_category_check 
+  CHECK (work_category IN ('1', '2', '2R', '3', '4'));
+
+COMMENT ON COLUMN public.employees.work_category IS 'Kategorie práce: 1, 2, 2R, 3, 4 dle rizikovosti';
+    `.trim(),
+  },
 ];
 
 /**
