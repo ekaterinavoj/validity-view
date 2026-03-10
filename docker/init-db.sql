@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS public.employees (
     status TEXT NOT NULL DEFAULT 'employed',
     status_start_date DATE,
     termination_date DATE,
-    work_category INTEGER CHECK (work_category >= 1 AND work_category <= 4),
+    work_category TEXT CHECK (work_category IN ('1', '2', '2R', '3', '4')),
     notes TEXT,
     manager_employee_id UUID REFERENCES public.employees(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

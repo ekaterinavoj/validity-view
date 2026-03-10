@@ -370,7 +370,7 @@ export default function Employees() {
         employee_number: data.employeeNumber || '',
         position: data.position,
         department_id: data.departmentId || null,
-        work_category: data.workCategory ? parseInt(data.workCategory) : null,
+        work_category: data.workCategory || null,
         status: data.status,
         termination_date: data.terminationDate ? format(data.terminationDate, "yyyy-MM-dd") : null,
         status_start_date: statusStartDate,
@@ -577,11 +577,15 @@ export default function Employees() {
                         <SelectContent>
                           <SelectItem value="1">
                             <span className="font-medium">Kategorie 1</span>
-                            <span className="text-xs text-muted-foreground ml-2">- nejnižší riziko</span>
+                            <span className="text-xs text-muted-foreground ml-2">- bez rizika</span>
                           </SelectItem>
                           <SelectItem value="2">
                             <span className="font-medium">Kategorie 2</span>
-                            <span className="text-xs text-muted-foreground ml-2">- zvýšené riziko</span>
+                            <span className="text-xs text-muted-foreground ml-2">- nízké riziko</span>
+                          </SelectItem>
+                          <SelectItem value="2R">
+                            <span className="font-medium">Kategorie 2R</span>
+                            <span className="text-xs text-muted-foreground ml-2">- riziková (2. kategorie)</span>
                           </SelectItem>
                           <SelectItem value="3">
                             <span className="font-medium">Kategorie 3</span>
@@ -594,7 +598,7 @@ export default function Employees() {
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Kategorie dle rizikovosti práce (1-4)
+                        Kategorie dle rizikovosti práce (1, 2, 2R, 3, 4)
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -800,6 +804,7 @@ export default function Employees() {
               <SelectItem value="all">Všechny kategorie</SelectItem>
               <SelectItem value="1">Kategorie 1</SelectItem>
               <SelectItem value="2">Kategorie 2</SelectItem>
+              <SelectItem value="2R">Kategorie 2R</SelectItem>
               <SelectItem value="3">Kategorie 3</SelectItem>
               <SelectItem value="4">Kategorie 4</SelectItem>
             </SelectContent>

@@ -424,7 +424,7 @@ export type Database = {
           status_start_date: string | null
           termination_date: string | null
           updated_at: string
-          work_category: number | null
+          work_category: string | null
         }
         Insert: {
           created_at?: string
@@ -441,7 +441,7 @@ export type Database = {
           status_start_date?: string | null
           termination_date?: string | null
           updated_at?: string
-          work_category?: number | null
+          work_category?: string | null
         }
         Update: {
           created_at?: string
@@ -458,7 +458,7 @@ export type Database = {
           status_start_date?: string | null
           termination_date?: string | null
           updated_at?: string
-          work_category?: number | null
+          work_category?: string | null
         }
         Relationships: [
           {
