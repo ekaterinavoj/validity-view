@@ -804,6 +804,7 @@ export default function Employees() {
               <SelectItem value="all">Všechny kategorie</SelectItem>
               <SelectItem value="1">Kategorie 1</SelectItem>
               <SelectItem value="2">Kategorie 2</SelectItem>
+              <SelectItem value="2R">Kategorie 2R</SelectItem>
               <SelectItem value="3">Kategorie 3</SelectItem>
               <SelectItem value="4">Kategorie 4</SelectItem>
             </SelectContent>

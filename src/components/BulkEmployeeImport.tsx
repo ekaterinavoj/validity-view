@@ -70,7 +70,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
 
   const mapRowToEmployee = (row: any) => {
     const rawCategory = row['Kategorie práce'] || row['workCategory'] || row['work_category'];
-    const workCategory = rawCategory ? parseInt(String(rawCategory), 10) : undefined;
+    const workCategory = rawCategory ? String(rawCategory).trim().toUpperCase() : undefined;
 
     return {
       firstName: String(row['Jméno'] || row['firstName'] || '').trim(),
@@ -81,7 +81,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       department: String(row['Středisko'] || row['department'] || '').trim(),
       status: String(row['Stav'] || row['status'] || 'employed').toLowerCase().trim(),
       managerEmail: String(row['Email nadřízeného'] || row['managerEmail'] || row['Manager Email'] || row['manager_email'] || '').trim().toLowerCase(),
-      workCategory: isNaN(workCategory as number) ? undefined : workCategory,
+      workCategory: workCategory && ['1', '2', '2R', '3', '4'].includes(workCategory) ? workCategory : undefined,
     };
   };
 
