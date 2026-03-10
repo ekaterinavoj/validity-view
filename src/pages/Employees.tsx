@@ -577,11 +577,15 @@ export default function Employees() {
                         <SelectContent>
                           <SelectItem value="1">
                             <span className="font-medium">Kategorie 1</span>
-                            <span className="text-xs text-muted-foreground ml-2">- nejnižší riziko</span>
+                            <span className="text-xs text-muted-foreground ml-2">- bez rizika</span>
                           </SelectItem>
                           <SelectItem value="2">
                             <span className="font-medium">Kategorie 2</span>
-                            <span className="text-xs text-muted-foreground ml-2">- zvýšené riziko</span>
+                            <span className="text-xs text-muted-foreground ml-2">- nízké riziko</span>
+                          </SelectItem>
+                          <SelectItem value="2R">
+                            <span className="font-medium">Kategorie 2R</span>
+                            <span className="text-xs text-muted-foreground ml-2">- riziková (2. kategorie)</span>
                           </SelectItem>
                           <SelectItem value="3">
                             <span className="font-medium">Kategorie 3</span>
@@ -594,7 +598,7 @@ export default function Employees() {
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Kategorie dle rizikovosti práce (1-4)
+                        Kategorie dle rizikovosti práce (1, 2, 2R, 3, 4)
                       </p>
                       <FormMessage />
                     </FormItem>
