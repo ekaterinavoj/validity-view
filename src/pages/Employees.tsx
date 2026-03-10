@@ -370,7 +370,7 @@ export default function Employees() {
         employee_number: data.employeeNumber || '',
         position: data.position,
         department_id: data.departmentId || null,
-        work_category: data.workCategory ? parseInt(data.workCategory) : null,
+        work_category: data.workCategory || null,
         status: data.status,
         termination_date: data.terminationDate ? format(data.terminationDate, "yyyy-MM-dd") : null,
         status_start_date: statusStartDate,
