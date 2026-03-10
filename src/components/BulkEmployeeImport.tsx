@@ -21,7 +21,7 @@ const employeeSchema = z.object({
   department: z.string().min(1, "Středisko je povinné").max(50),
   status: z.enum(["employed", "parental_leave", "sick_leave", "terminated"]),
   managerEmail: z.string().email("Neplatný email nadřízeného").max(255).optional().or(z.literal('')),
-  workCategory: z.union([z.number().int().min(1).max(4), z.nan(), z.undefined()]).optional(),
+  workCategory: z.enum(['1', '2', '2R', '3', '4']).optional().or(z.literal('')).or(z.undefined()),
 });
 
 type DuplicateStrategy = 'skip' | 'overwrite';
