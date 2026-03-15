@@ -282,6 +282,9 @@ export default function Equipment() {
                 <TableHead>Inv. číslo</TableHead>
                 <TableHead>Název</TableHead>
                 <TableHead>Typ</TableHead>
+                <TableHead>Výrobce</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Sériové č.</TableHead>
                 <TableHead>Provozovna</TableHead>
                 <TableHead>Umístění</TableHead>
                 <TableHead>Odpovědná osoba</TableHead>
@@ -292,7 +295,7 @@ export default function Equipment() {
             <TableBody>
               {filteredEquipment.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     <Wrench className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     Nebylo nalezeno žádné zařízení
                   </TableCell>
@@ -303,6 +306,9 @@ export default function Equipment() {
                     <TableCell className="font-mono text-sm">{eq.inventory_number}</TableCell>
                     <TableCell className="font-medium">{eq.name}</TableCell>
                     <TableCell>{eq.equipment_type}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{eq.manufacturer || "-"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{eq.model || "-"}</TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground">{eq.serial_number || "-"}</TableCell>
                     <TableCell>{eq.facility}</TableCell>
                     <TableCell>{eq.location || "-"}</TableCell>
                     <TableCell>
