@@ -293,6 +293,10 @@ export default function ScheduledDeadlines() {
                 <TableHead>Stav</TableHead>
                 <TableHead>Inventární č.</TableHead>
                 <TableHead>Zařízení</TableHead>
+                <TableHead>Typ zařízení</TableHead>
+                <TableHead>Výrobce</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Sériové č.</TableHead>
                 <TableHead>Typ události</TableHead>
                 <TableHead>Provozovna</TableHead>
                 <TableHead>Poslední</TableHead>
