@@ -295,7 +295,7 @@ export default function Equipment() {
             <TableBody>
               {filteredEquipment.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     <Wrench className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     Nebylo nalezeno žádné zařízení
                   </TableCell>
