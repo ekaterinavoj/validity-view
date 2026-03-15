@@ -296,7 +296,7 @@ export default function ScheduledDeadlines() {
                 <TableHead>Typ zařízení</TableHead>
                 <TableHead>Výrobce</TableHead>
                 <TableHead>Model</TableHead>
-                <TableHead>Sériové č.</TableHead>
+                
                 <TableHead>Typ události</TableHead>
                 <TableHead>Provozovna</TableHead>
                 <TableHead>Poslední</TableHead>
