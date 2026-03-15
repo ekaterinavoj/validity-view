@@ -351,9 +351,6 @@ export default function ScheduledDeadlines() {
                     <TableCell className="text-sm text-muted-foreground">
                       {deadline.equipment?.model || "-"}
                     </TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">
-                      {deadline.equipment?.serial_number || "-"}
-                    </TableCell>
                     <TableCell>{deadline.deadline_type?.name}</TableCell>
                     <TableCell>{deadline.facility}</TableCell>
                     <TableCell>
