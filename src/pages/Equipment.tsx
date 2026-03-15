@@ -282,6 +282,9 @@ export default function Equipment() {
                 <TableHead>Inv. číslo</TableHead>
                 <TableHead>Název</TableHead>
                 <TableHead>Typ</TableHead>
+                <TableHead>Výrobce</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Sériové č.</TableHead>
                 <TableHead>Provozovna</TableHead>
                 <TableHead>Umístění</TableHead>
                 <TableHead>Odpovědná osoba</TableHead>
