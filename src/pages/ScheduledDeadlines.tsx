@@ -293,6 +293,10 @@ export default function ScheduledDeadlines() {
                 <TableHead>Stav</TableHead>
                 <TableHead>Inventární č.</TableHead>
                 <TableHead>Zařízení</TableHead>
+                <TableHead>Typ zařízení</TableHead>
+                <TableHead>Výrobce</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Sériové č.</TableHead>
                 <TableHead>Typ události</TableHead>
                 <TableHead>Provozovna</TableHead>
                 <TableHead>Poslední</TableHead>
@@ -308,7 +312,7 @@ export default function ScheduledDeadlines() {
             <TableBody>
              {filteredDeadlines.length === 0 ? (
                 <TableRow>
-                   <TableCell colSpan={canEdit ? 14 : 13} className="text-center py-8 text-muted-foreground">
+                   <TableCell colSpan={canEdit ? 18 : 17} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
@@ -337,6 +341,18 @@ export default function ScheduledDeadlines() {
                     </TableCell>
                     <TableCell className="font-medium">
                       {deadline.equipment?.name}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {deadline.equipment?.equipment_type || "-"}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {deadline.equipment?.manufacturer || "-"}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {deadline.equipment?.model || "-"}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground">
+                      {deadline.equipment?.serial_number || "-"}
                     </TableCell>
                     <TableCell>{deadline.deadline_type?.name}</TableCell>
                     <TableCell>{deadline.facility}</TableCell>

@@ -340,6 +340,33 @@ export default function NewDeadline() {
                 )}
               />
 
+              {/* Read-only equipment details */}
+              {(() => {
+                const selectedEquipmentId = form.watch("equipment_id");
+                const selectedEquipment = activeEquipment.find(e => e.id === selectedEquipmentId);
+                if (!selectedEquipment) return null;
+                return (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-muted-foreground">Typ zařízení</Label>
+                      <Input value={selectedEquipment.equipment_type || ""} disabled className="bg-muted" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-muted-foreground">Výrobce</Label>
+                      <Input value={selectedEquipment.manufacturer || ""} disabled className="bg-muted" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-muted-foreground">Model</Label>
+                      <Input value={selectedEquipment.model || ""} disabled className="bg-muted" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-muted-foreground">Sériové číslo</Label>
+                      <Input value={selectedEquipment.serial_number || ""} disabled className="bg-muted" />
+                    </div>
+                  </div>
+                );
+              })()}
+
               <FormField
                 control={form.control}
                 name="last_check_date"

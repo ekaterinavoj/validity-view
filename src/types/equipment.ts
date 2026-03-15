@@ -9,6 +9,9 @@ export interface EquipmentRef {
   status: string;
   location?: string | null;
   responsible_person?: string | null;
+  manufacturer?: string | null;
+  model?: string | null;
+  serial_number?: string | null;
 }
 
 export interface DeadlineTypeRef {

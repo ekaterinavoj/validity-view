@@ -39,7 +39,7 @@ export function useDeadlines() {
         .select(`
           *,
           equipment:equipment_id (
-            id, inventory_number, name, equipment_type, facility, department_id, status, location, responsible_person
+            id, inventory_number, name, equipment_type, facility, department_id, status, location, responsible_person, manufacturer, model, serial_number
           ),
           deadline_types:deadline_type_id (
             id, name, facility, period_days
