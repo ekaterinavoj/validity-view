@@ -306,6 +306,9 @@ export default function Equipment() {
                     <TableCell className="font-mono text-sm">{eq.inventory_number}</TableCell>
                     <TableCell className="font-medium">{eq.name}</TableCell>
                     <TableCell>{eq.equipment_type}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{eq.manufacturer || "-"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{eq.model || "-"}</TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground">{eq.serial_number || "-"}</TableCell>
                     <TableCell>{eq.facility}</TableCell>
                     <TableCell>{eq.location || "-"}</TableCell>
                     <TableCell>
