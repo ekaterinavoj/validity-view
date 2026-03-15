@@ -312,7 +312,7 @@ export default function ScheduledDeadlines() {
             <TableBody>
              {filteredDeadlines.length === 0 ? (
                 <TableRow>
-                   <TableCell colSpan={canEdit ? 14 : 13} className="text-center py-8 text-muted-foreground">
+                   <TableCell colSpan={canEdit ? 18 : 17} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
