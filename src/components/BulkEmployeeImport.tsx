@@ -264,6 +264,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         department_id: item.data._departmentId || null,
         status: item.data.status,
         work_category: item.data.workCategory || null,
+        birth_date: item.data.birthDate || null,
       }));
 
       const { error } = await supabase.from("employees").insert(insertRows);
