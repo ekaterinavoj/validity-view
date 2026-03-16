@@ -108,6 +108,7 @@ export function useTrainingHistory(includeArchived: boolean = false) {
         employeeStatus: t.employees?.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
         facility: t.facility || t.training_types?.facility || "",
         department: t.employees?.departments?.code || "",
+        departmentName: t.employees?.departments?.name || "",
         lastTrainingDate: t.last_training_date,
         trainer: t.trainer || "",
         company: t.company || "",

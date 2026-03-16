@@ -135,6 +135,7 @@ export function useTrainings(activeOnly: boolean = true) {
             employeeStatus: t.employees?.status as "employed" | "parental_leave" | "sick_leave" | "terminated",
             facility: t.facility || t.training_types?.facility || "",
             department: t.employees?.departments?.code || "",
+            departmentName: t.employees?.departments?.name || "",
             departmentId: t.employees?.department_id,
             lastTrainingDate: t.last_training_date,
             trainer: t.trainer || "",

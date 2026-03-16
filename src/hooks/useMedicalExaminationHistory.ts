@@ -100,6 +100,7 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
         employeeStatus: t.employees?.status as any,
         facility: t.facility || t.medical_examination_types?.facility || "",
         department: t.employees?.departments?.code || "",
+        departmentName: t.employees?.departments?.name || "",
         doctor: t.doctor || "",
         medicalFacility: t.medical_facility || "",
         result: t.result || "",

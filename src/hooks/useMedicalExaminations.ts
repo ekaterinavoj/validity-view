@@ -131,6 +131,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           employeeWorkCategory: e.employees?.work_category || null,
           facility: e.facility || e.medical_examination_types?.facility || "",
           department: e.employees?.departments?.code || "",
+          departmentName: e.employees?.departments?.name || "",
           departmentId: e.employees?.department_id,
           doctor: e.doctor || "",
           medicalFacility: e.medical_facility || "",

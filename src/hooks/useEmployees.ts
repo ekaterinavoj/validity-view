@@ -32,6 +32,7 @@ function mapEmployee(e: any): EmployeeWithDepartment {
     email: e.email,
     position: e.position,
     department: e.departments?.code || "",
+    departmentName: e.departments?.name || "",
     departmentId: e.department_id,
     status: e.status as EmployeeWithDepartment["status"],
     terminationDate: e.termination_date,
