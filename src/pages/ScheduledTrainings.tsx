@@ -30,6 +30,7 @@ import { useTrainings } from "@/hooks/useTrainings";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { RefreshCw } from "lucide-react";
+import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
