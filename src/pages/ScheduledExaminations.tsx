@@ -100,6 +100,8 @@ export default function ScheduledExaminations() {
     });
   }, [filters, examinations, facilityNameMap]);
 
+  const { sortedData: sortedExaminations, sortConfig, requestSort } = useSortable(filteredExaminations);
+
   const toggleSelectAll = () => {
     if (selectedExaminations.size === filteredExaminations.length) {
       setSelectedExaminations(new Set());
