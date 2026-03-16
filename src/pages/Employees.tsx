@@ -917,6 +917,8 @@ export default function Employees() {
               <SortableTableHead label="Pozice" sortKey="position" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Středisko" sortKey="department" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Kategorie" sortKey="workCategory" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Dat. narození" sortKey="birthDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <TableHead>Věk</TableHead>
               <TableHead>Nadřízený</TableHead>
               <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[100px]"></TableHead>
