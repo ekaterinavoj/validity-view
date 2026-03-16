@@ -78,6 +78,7 @@ const EMPLOYEE_SELECT = `
   notes,
   department_id,
   work_category,
+  birth_date,
   manager_employee_id,
   departments (
     id,

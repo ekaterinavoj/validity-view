@@ -2449,7 +2449,8 @@ INSERT INTO public.schema_migrations (version, name) VALUES
   ('20260221200000', 'auto_link_profile_employee'),
   ('20260226201357', 'result_column'),
   ('20260310092500', 'work_category_to_text'),
-  ('20260316100000', 'enable_realtime_tables')
+  ('20260316100000', 'enable_realtime_tables'),
+  ('20260316120000', 'employee_birth_date')
 ON CONFLICT (version) DO NOTHING;
 
 -- =============================================
