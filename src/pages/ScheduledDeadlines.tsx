@@ -193,7 +193,7 @@ export default function ScheduledDeadlines() {
         "Inventární č.": d.equipment?.inventory_number || "",
         "Zařízení": d.equipment?.name || "",
         "Typ události": d.deadline_type?.name || "",
-        "Provozovna": d.facility,
+        "Provozovna": getFacilityName(d.facility),
         "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
         "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
         "Provádějící": d.performer || "",
