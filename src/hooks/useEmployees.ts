@@ -16,6 +16,7 @@ export interface EmployeeWithDepartment {
   statusStartDate?: string;
   notes?: string;
   workCategory?: string | null;
+  birthDate?: string | null;
   // Manager hierarchy – resolved via JOIN
   managerEmployeeId?: string | null;
   managerFirstName?: string | null;
