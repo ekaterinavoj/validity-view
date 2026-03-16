@@ -40,6 +40,7 @@ function mapEmployee(e: any): EmployeeWithDepartment {
     statusStartDate: e.status_start_date,
     notes: e.notes,
     workCategory: e.work_category,
+    birthDate: e.birth_date,
     managerEmployeeId: e.manager_employee_id,
     // Will be resolved after fetch from the employee list itself
     managerFirstName: null,
