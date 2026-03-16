@@ -38,6 +38,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeStatusBadge, EmployeeStatus } from "@/components/EmployeeStatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
+import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),
