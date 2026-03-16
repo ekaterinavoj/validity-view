@@ -59,9 +59,17 @@ export default function ScheduledDeadlines() {
   }, [deadlines]);
   const { data: responsiblesMap } = useDeadlineResponsiblesBatch(filteredDeadlineIds);
 
-  // Create filter options
+  const facilityNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    facilities.forEach(f => { map[f.code] = f.name; });
+    return map;
+  }, [facilities]);
+
+  const getFacilityName = (code: string): string => facilityNameMap[code] || code;
+
+  // Create filter options - show names
   const facilityList = useMemo(() => 
-    facilities.map(f => f.code),
+    facilities.map(f => f.name),
     [facilities]
   );
 
