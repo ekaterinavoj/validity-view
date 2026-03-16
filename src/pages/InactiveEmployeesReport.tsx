@@ -13,6 +13,7 @@ import { Download, UserX, Calendar, Loader2, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
+import { formatDepartment } from "@/components/DepartmentCell";
 import {
   Collapsible,
   CollapsibleContent,
