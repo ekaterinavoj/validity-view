@@ -109,7 +109,7 @@ export default function Statistics() {
   // Facility statistics - filtered by year
   const facilityStats = useMemo(() => {
     return yearFilteredTrainings.reduce((acc, training) => {
-      const facility = training.facility || "Nezařazeno";
+      const facility = getFacilityName(training.facility || "Nezařazeno");
       if (!acc[facility]) {
         acc[facility] = {
           valid: 0,
