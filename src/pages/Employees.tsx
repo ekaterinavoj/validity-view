@@ -886,14 +886,14 @@ export default function Employees() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredEmployees.length === 0 ? (
+            {sortedEmployees.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Žádní zaměstnanci nenalezeni
                 </TableCell>
               </TableRow>
             ) : (
-              filteredEmployees.map((employee) => (
+              sortedEmployees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.employeeNumber}</TableCell>
                 <TableCell>{employee.firstName} {employee.lastName}</TableCell>

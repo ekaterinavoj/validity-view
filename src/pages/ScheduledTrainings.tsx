@@ -477,14 +477,14 @@ export default function ScheduledTrainings() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTrainings.length === 0 ? (
+                {sortedTrainings.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={canEdit ? 16 : 15} className="text-center py-8 text-muted-foreground">
                       Žádná školení nenalezena
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredTrainings.map((training) => (
+                  sortedTrainings.map((training) => (
                     <TableRow key={training.id}>
                       {/* Checkbox pouze pro admin a manažera */}
                       {canEdit && (

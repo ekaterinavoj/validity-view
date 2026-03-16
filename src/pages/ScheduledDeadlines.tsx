@@ -322,14 +322,14 @@ export default function ScheduledDeadlines() {
               </TableRow>
             </TableHeader>
             <TableBody>
-             {filteredDeadlines.length === 0 ? (
+             {sortedDeadlines.length === 0 ? (
                 <TableRow>
                    <TableCell colSpan={canEdit ? 17 : 16} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredDeadlines.map(deadline => (
+                sortedDeadlines.map(deadline => (
                   <TableRow 
                     key={deadline.id}
                     className={cn(

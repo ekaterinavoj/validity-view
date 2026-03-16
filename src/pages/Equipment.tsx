@@ -305,7 +305,7 @@ export default function Equipment() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEquipment.length === 0 ? (
+              {sortedEquipment.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     <Wrench className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -313,7 +313,7 @@ export default function Equipment() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredEquipment.map(eq => (
+                sortedEquipment.map(eq => (
                   <TableRow key={eq.id}>
                     <TableCell className="font-mono text-sm">{eq.inventory_number}</TableCell>
                     <TableCell className="font-medium">{eq.name}</TableCell>

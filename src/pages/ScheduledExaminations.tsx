@@ -276,14 +276,14 @@ export default function ScheduledExaminations() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredExaminations.length === 0 ? (
+            {sortedExaminations.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={canEdit ? 12 : 11} className="text-center text-muted-foreground py-8">
                   Žádné prohlídky k zobrazení.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredExaminations.map((exam) => (
+              sortedExaminations.map((exam) => (
                 <TableRow key={exam.id}>
                   {canEdit && (
                     <TableCell>
