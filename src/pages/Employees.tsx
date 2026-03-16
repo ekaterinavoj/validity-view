@@ -779,9 +779,9 @@ export default function Employees() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Všechna střediska</SelectItem>
-              {uniqueDepartments.map((dept) => (
-                <SelectItem key={dept} value={dept}>
-                  {dept}
+              {uniqueDepartments.map(([code, name]) => (
+                <SelectItem key={code} value={code}>
+                  {code} - {name}
                 </SelectItem>
               ))}
             </SelectContent>
