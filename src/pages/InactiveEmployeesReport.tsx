@@ -100,7 +100,7 @@ export default function InactiveEmployeesReport() {
               "Jméno": `${employee.firstName} ${employee.lastName}`,
               "Email": employee.email || "",
               "Pozice": employee.position || "",
-              "Středisko": employee.department || "",
+              "Středisko": formatDepartment(employee.department, employee.departmentName),
               "Stav zaměstnance": statusLabels[employee.status] || "",
               "Typ školení": training.type || "",
               "Školení platné do": new Date(training.date).toLocaleDateString("cs-CZ"),
