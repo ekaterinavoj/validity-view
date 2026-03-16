@@ -262,16 +262,16 @@ export default function ScheduledExaminations() {
                   <Checkbox checked={selectedExaminations.size === filteredExaminations.length && filteredExaminations.length > 0} onCheckedChange={toggleSelectAll} />
                 </TableHead>
               )}
-              <TableHead>Stav</TableHead>
-              <TableHead>Platnost do</TableHead>
-              <TableHead>Typ prohlídky</TableHead>
-              <TableHead>Os. číslo</TableHead>
-              <TableHead>Jméno</TableHead>
+              <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Platnost do" sortKey="nextExaminationDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Typ prohlídky" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead>Kategorie</TableHead>
               <TableHead>Výsledek</TableHead>
               <TableHead>Poznámka</TableHead>
               <TableHead>Protokol</TableHead>
-              <TableHead>Lékař</TableHead>
+              <SortableTableHead label="Lékař" sortKey="doctor" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
