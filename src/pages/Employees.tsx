@@ -861,7 +861,7 @@ export default function Employees() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          Celkem: {filteredEmployees.length} zaměstnanců
+          Celkem: {sortedEmployees.length} zaměstnanců
         </p>
       </div>
 
