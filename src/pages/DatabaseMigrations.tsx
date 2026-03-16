@@ -350,7 +350,8 @@ export default function DatabaseMigrations() {
                   <span className="font-mono text-sm text-muted-foreground">
                     {r.version}
                   </span>
-                  <span className="ml-3 font-medium">{r.name}</span>
+                  <span className="mx-2 text-muted-foreground">—</span>
+                  <span className="font-medium">{r.name}</span>
                   {r.error && (
                     <p className="text-sm text-destructive mt-1">{r.error}</p>
                   )}
