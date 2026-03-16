@@ -69,6 +69,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
             department_id,
             status,
             work_category,
+            birth_date,
             departments (
               id,
               code,
