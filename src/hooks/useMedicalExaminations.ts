@@ -14,6 +14,7 @@ export interface MedicalExaminationWithDetails {
   employeeWorkCategory: number | null;
   facility: string;
   department: string;
+  departmentName: string;
   departmentId: string | null;
   doctor: string;
   medicalFacility: string;
