@@ -12,6 +12,7 @@ export interface HistoryExamination {
   employeeStatus: "employed" | "parental_leave" | "sick_leave" | "terminated";
   facility: string;
   department: string;
+  departmentName: string;
   doctor: string;
   medicalFacility: string;
   result: string;
