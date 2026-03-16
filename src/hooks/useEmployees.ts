@@ -9,6 +9,7 @@ export interface EmployeeWithDepartment {
   email: string;
   position: string;
   department: string;
+  departmentName: string;
   departmentId: string | null;
   status: "employed" | "parental_leave" | "sick_leave" | "terminated";
   terminationDate?: string;
