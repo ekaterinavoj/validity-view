@@ -299,6 +299,12 @@ export default function ScheduledExaminations() {
                   <TableCell className="font-medium">{exam.type}</TableCell>
                   <TableCell>{exam.employeeNumber}</TableCell>
                   <TableCell>{exam.employeeName}</TableCell>
+                  <TableCell className="text-sm">
+                    {exam.employeeBirthDate ? format(parseISO(exam.employeeBirthDate), "dd.MM.yyyy") : "-"}
+                  </TableCell>
+                  <TableCell className="text-sm text-center">
+                    {exam.employeeBirthDate ? differenceInYears(new Date(), parseISO(exam.employeeBirthDate)) : "-"}
+                  </TableCell>
                   <TableCell><WorkCategoryBadge category={exam.employeeWorkCategory} /></TableCell>
                   <TableCell>
                     <ResultBadge 
