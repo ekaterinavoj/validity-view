@@ -384,6 +384,7 @@ export default function Employees() {
         position: data.position,
         department_id: data.departmentId || null,
         work_category: data.workCategory || null,
+        birth_date: data.birthDate ? format(data.birthDate, "yyyy-MM-dd") : null,
         status: data.status,
         termination_date: data.terminationDate ? format(data.terminationDate, "yyyy-MM-dd") : null,
         status_start_date: statusStartDate,
