@@ -825,7 +825,7 @@ export default function Employees() {
         {hasActiveFilters && (
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
             <p className="text-sm text-muted-foreground">
-              Zobrazeno {filteredEmployees.length} z {employees.length} zaměstnanců
+              Zobrazeno {sortedEmployees.length} z {employees.length} zaměstnanců
             </p>
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <X className="w-4 h-4 mr-2" />
