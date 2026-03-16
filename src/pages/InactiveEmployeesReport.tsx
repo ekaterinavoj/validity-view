@@ -287,7 +287,7 @@ export default function InactiveEmployeesReport() {
                               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                                 <span>{employee.position}</span>
                                 <span>•</span>
-                                <span>{employee.department}</span>
+                                <span>{employee.department}{employee.departmentName ? ` - ${employee.departmentName}` : ""}</span>
                                 <span>•</span>
                                 <span>{employee.email}</span>
                               </div>
