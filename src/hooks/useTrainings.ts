@@ -166,5 +166,15 @@ export function useTrainings(activeOnly: boolean = true) {
     fetchTrainings();
   }, [fetchTrainings]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("trainings-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "trainings" }, () => {
+        fetchTrainings();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchTrainings]);
+
   return { trainings, loading, error, refetch: fetchTrainings };
 }
