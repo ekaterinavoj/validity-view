@@ -274,7 +274,7 @@ export default function ScheduledTrainings() {
         "Osobní číslo": training.employeeNumber || "",
         "Jméno": training.employeeName || "",
         "Provozovna": getFacilityName(training.facility) || "",
-        "Středisko": training.department || "",
+        "Středisko": formatDepartment(training.department, training.departmentName),
         "Datum školení": new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
         "Školitel": training.trainer || "",
         "Firma": training.company || "",
