@@ -144,6 +144,8 @@ export default function ScheduledTrainings() {
     });
   }, [filters, trainings]);
 
+  const { sortedData: sortedTrainings, sortConfig, requestSort } = useSortable(filteredTrainings);
+
   const toggleSelectAll = () => {
     if (selectedTrainings.size === filteredTrainings.length) {
       setSelectedTrainings(new Set());
