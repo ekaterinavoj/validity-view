@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { uploadGeneralDocument, getGeneralDocuments, deleteGeneralDocument, getGeneralDocumentUrl } from "@/lib/generalDocuments";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
-import { PlusCircle, Search, Trash2, Download, Eye, FileText, Upload } from "lucide-react";
+import { PlusCircle, Search, Trash2, Download, FileText, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 
