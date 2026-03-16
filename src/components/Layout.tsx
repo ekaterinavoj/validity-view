@@ -111,7 +111,7 @@ export const Layout = ({
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <img src={companyLogo} alt="Engel Gematex" className="h-16 xl:h-20 w-auto" />
+              <span className="text-xl font-bold text-primary">Lhůtník</span>
               
               {/* Mode Switcher Tabs - Only show accessible modules */}
               {accessibleModulesCount > 0 && (

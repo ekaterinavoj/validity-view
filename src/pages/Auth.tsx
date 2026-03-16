@@ -84,8 +84,9 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <Card className="w-full max-w-md p-8 shadow-lg">
-        <div className="flex items-center justify-center mb-6">
+        <div className="flex flex-col items-center justify-center mb-6 gap-2">
           <img src={companyLogo} alt="Engel Gematex" className="h-14 w-auto" />
+          <h1 className="text-2xl font-bold text-primary">Lhůtník</h1>
         </div>
 
         {/* Info about admin-only mode */}
