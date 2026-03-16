@@ -59,6 +59,16 @@ export function useDeadlines() {
     },
   });
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("deadlines-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "deadlines" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["deadlines"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   const createMutation = useMutation({
     mutationFn: async (newDeadline: Omit<Deadline, "id" | "created_at" | "updated_at" | "equipment" | "deadline_type">) => {
       const { data, error } = await supabase

@@ -30,6 +30,16 @@ export function useEquipment() {
     },
   });
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("equipment-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "equipment" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["equipment"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   const checkDependencies = async (id: string): Promise<EquipmentDependencies> => {
     const { count } = await supabase
       .from("deadlines")
