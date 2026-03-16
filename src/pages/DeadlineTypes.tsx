@@ -181,7 +181,7 @@ export default function DeadlineTypes() {
                 filteredTypes.map(type => (
                   <TableRow key={type.id}>
                     <TableCell className="font-medium">{type.name}</TableCell>
-                    <TableCell>{type.facility}</TableCell>
+                    <TableCell>{getFacilityName(type.facility)}</TableCell>
                     <TableCell>{formatPeriodicity(type.period_days)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {type.description || "-"}

@@ -317,7 +317,7 @@ export default function Equipment() {
                     <TableCell className="text-sm text-muted-foreground">{eq.manufacturer || "-"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{eq.model || "-"}</TableCell>
                     <TableCell className="font-mono text-sm text-muted-foreground">{eq.serial_number || "-"}</TableCell>
-                    <TableCell>{eq.facility}</TableCell>
+                    <TableCell>{getFacilityName(eq.facility)}</TableCell>
                     <TableCell>{eq.location || "-"}</TableCell>
                     <TableCell>
                       <EquipmentResponsiblesBadges equipmentId={eq.id} />

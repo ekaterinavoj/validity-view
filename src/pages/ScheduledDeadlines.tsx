@@ -360,7 +360,7 @@ export default function ScheduledDeadlines() {
                       {deadline.equipment?.model || "-"}
                     </TableCell>
                     <TableCell>{deadline.deadline_type?.name}</TableCell>
-                    <TableCell>{deadline.facility}</TableCell>
+                    <TableCell>{getFacilityName(deadline.facility)}</TableCell>
                     <TableCell>
                       {format(new Date(deadline.last_check_date), "dd.MM.yyyy")}
                     </TableCell>
