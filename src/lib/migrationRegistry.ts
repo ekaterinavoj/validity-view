@@ -109,6 +109,7 @@ export const MIGRATION_REGISTRY: MigrationEntry[] = [
   { version: "20260226201357", name: "result_column", sql: null },
   { version: "20260310092500", name: "work_category_to_text", sql: null },
   { version: "20260316100000", name: "enable_realtime_tables", sql: null },
+  { version: "20260316120000", name: "employee_birth_date", sql: null },
 
   // ===== Incremental migrations (not yet in init-db.sql) =====
 ];

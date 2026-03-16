@@ -17,7 +17,7 @@ import { MedicalProtocolCell } from "@/components/MedicalProtocolCell";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, differenceInYears, parseISO } from "date-fns";
 import Papa from "papaparse";
 import { formatPeriodicity } from "@/lib/utils";
 import { formatDepartment } from "@/components/DepartmentCell";
@@ -267,6 +267,8 @@ export default function ScheduledExaminations() {
               <SortableTableHead label="Typ prohlídky" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <TableHead>Dat. nar.</TableHead>
+              <TableHead>Věk</TableHead>
               <TableHead>Kategorie</TableHead>
               <TableHead>Výsledek</TableHead>
               <TableHead>Poznámka</TableHead>
@@ -278,7 +280,7 @@ export default function ScheduledExaminations() {
           <TableBody>
             {sortedExaminations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 12 : 11} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={canEdit ? 14 : 13} className="text-center text-muted-foreground py-8">
                   Žádné prohlídky k zobrazení.
                 </TableCell>
               </TableRow>
@@ -297,6 +299,12 @@ export default function ScheduledExaminations() {
                   <TableCell className="font-medium">{exam.type}</TableCell>
                   <TableCell>{exam.employeeNumber}</TableCell>
                   <TableCell>{exam.employeeName}</TableCell>
+                  <TableCell className="text-sm">
+                    {exam.employeeBirthDate ? format(parseISO(exam.employeeBirthDate), "dd.MM.yyyy") : "-"}
+                  </TableCell>
+                  <TableCell className="text-sm text-center">
+                    {exam.employeeBirthDate ? differenceInYears(new Date(), parseISO(exam.employeeBirthDate)) : "-"}
+                  </TableCell>
                   <TableCell><WorkCategoryBadge category={exam.employeeWorkCategory} /></TableCell>
                   <TableCell>
                     <ResultBadge 

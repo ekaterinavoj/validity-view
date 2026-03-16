@@ -29,7 +29,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInYears } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useEmployees, EmployeeWithDepartment } from "@/hooks/useEmployees";
 import Papa from "papaparse";
@@ -50,6 +50,7 @@ const formSchema = z.object({
   position: z.string().min(1, "Zadejte pracovní pozici"),
   departmentId: z.string().optional().default(""),
   workCategory: z.string().optional(),
+  birthDate: z.date().optional(),
   status: z.enum(["employed", "parental_leave", "sick_leave", "terminated"]),
   terminationDate: z.date().optional(),
   statusStartDate: z.date().optional(),
@@ -200,6 +201,7 @@ export default function Employees() {
       position: employee.position,
       departmentId: employee.departmentId || "",
       workCategory: employee.workCategory?.toString() || "",
+      birthDate: employee.birthDate ? new Date(employee.birthDate) : undefined,
       status: employee.status,
       terminationDate: employee.terminationDate ? new Date(employee.terminationDate) : undefined,
       statusStartDate: employee.statusStartDate ? new Date(employee.statusStartDate) : undefined,
@@ -382,6 +384,7 @@ export default function Employees() {
         position: data.position,
         department_id: data.departmentId || null,
         work_category: data.workCategory || null,
+        birth_date: data.birthDate ? format(data.birthDate, "yyyy-MM-dd") : null,
         status: data.status,
         termination_date: data.terminationDate ? format(data.terminationDate, "yyyy-MM-dd") : null,
         status_start_date: statusStartDate,
@@ -616,7 +619,41 @@ export default function Employees() {
                   )}
                 />
 
-                {/* Manager/Supervisor Section */}
+                <FormField
+                  control={form.control}
+                  name="birthDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Datum narození</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                            captionLayout="dropdown-buttons"
+                            fromYear={1940}
+                            toYear={new Date().getFullYear()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="border-t pt-4 mt-4">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Nadřízený (pro hierarchii)</p>
                   
@@ -880,6 +917,8 @@ export default function Employees() {
               <SortableTableHead label="Pozice" sortKey="position" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Středisko" sortKey="department" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Kategorie" sortKey="workCategory" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Dat. narození" sortKey="birthDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <TableHead>Věk</TableHead>
               <TableHead>Nadřízený</TableHead>
               <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[100px]"></TableHead>
@@ -888,7 +927,7 @@ export default function Employees() {
           <TableBody>
             {sortedEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   Žádní zaměstnanci nenalezeni
                 </TableCell>
               </TableRow>
@@ -902,6 +941,12 @@ export default function Employees() {
                 <TableCell className="text-sm"><DepartmentCell code={employee.department} name={employee.departmentName} /></TableCell>
                 <TableCell className="text-center">
                   <WorkCategoryBadge category={employee.workCategory} />
+                </TableCell>
+                <TableCell className="text-sm">
+                  {employee.birthDate ? format(parseISO(employee.birthDate), "dd.MM.yyyy") : "-"}
+                </TableCell>
+                <TableCell className="text-sm text-center">
+                  {employee.birthDate ? differenceInYears(new Date(), parseISO(employee.birthDate)) : "-"}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {employee.managerEmployeeId ? (
