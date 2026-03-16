@@ -8,6 +8,8 @@ import { Edit, Plus, Download, RefreshCw, Eye } from "lucide-react";
 import { ResultBadge } from "@/components/ResultBadge";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
+import { useSortable } from "@/hooks/useSortable";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
@@ -97,6 +99,8 @@ export default function ScheduledExaminations() {
       return matchesSearch && matchesStatus && matchesFacility && matchesDepartment && matchesType && matchesDoctor && matchesDateFrom && matchesDateTo;
     });
   }, [filters, examinations, facilityNameMap]);
+
+  const { sortedData: sortedExaminations, sortConfig, requestSort } = useSortable(filteredExaminations);
 
   const toggleSelectAll = () => {
     if (selectedExaminations.size === filteredExaminations.length) {
@@ -258,28 +262,28 @@ export default function ScheduledExaminations() {
                   <Checkbox checked={selectedExaminations.size === filteredExaminations.length && filteredExaminations.length > 0} onCheckedChange={toggleSelectAll} />
                 </TableHead>
               )}
-              <TableHead>Stav</TableHead>
-              <TableHead>Platnost do</TableHead>
-              <TableHead>Typ prohlídky</TableHead>
-              <TableHead>Os. číslo</TableHead>
-              <TableHead>Jméno</TableHead>
+              <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Platnost do" sortKey="nextExaminationDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Typ prohlídky" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead>Kategorie</TableHead>
               <TableHead>Výsledek</TableHead>
               <TableHead>Poznámka</TableHead>
               <TableHead>Protokol</TableHead>
-              <TableHead>Lékař</TableHead>
+              <SortableTableHead label="Lékař" sortKey="doctor" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredExaminations.length === 0 ? (
+            {sortedExaminations.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={canEdit ? 12 : 11} className="text-center text-muted-foreground py-8">
                   Žádné prohlídky k zobrazení.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredExaminations.map((exam) => (
+              sortedExaminations.map((exam) => (
                 <TableRow key={exam.id}>
                   {canEdit && (
                     <TableCell>

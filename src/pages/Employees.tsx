@@ -26,6 +26,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useMemo, useCallback } from "react";
+import { useSortable } from "@/hooks/useSortable";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -122,6 +124,11 @@ export default function Employees() {
       return matchesSearch && matchesDepartment && matchesStatus && matchesCategory;
     });
   }, [searchQuery, departmentFilter, statusFilter, categoryFilter, employees]);
+
+  const { sortedData: sortedEmployees, sortConfig, requestSort } = useSortable(
+    filteredEmployees,
+    { key: "employeeNumber", direction: "asc" }
+  );
 
   const hasActiveFilters =
     searchQuery !== "" || departmentFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all";
@@ -818,7 +825,7 @@ export default function Employees() {
         {hasActiveFilters && (
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
             <p className="text-sm text-muted-foreground">
-              Zobrazeno {filteredEmployees.length} z {employees.length} zaměstnanců
+              Zobrazeno {sortedEmployees.length} z {employees.length} zaměstnanců
             </p>
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <X className="w-4 h-4 mr-2" />
@@ -854,7 +861,7 @@ export default function Employees() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          Celkem: {filteredEmployees.length} zaměstnanců
+          Celkem: {sortedEmployees.length} zaměstnanců
         </p>
       </div>
 
@@ -867,26 +874,26 @@ export default function Employees() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Os. číslo</TableHead>
-              <TableHead>Jméno</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Pozice</TableHead>
-              <TableHead>Středisko</TableHead>
-              <TableHead>Kategorie</TableHead>
+              <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Jméno" sortKey="lastName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Email" sortKey="email" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Pozice" sortKey="position" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Středisko" sortKey="department" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Kategorie" sortKey="workCategory" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead>Nadřízený</TableHead>
-              <TableHead>Stav</TableHead>
+              <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredEmployees.length === 0 ? (
+            {sortedEmployees.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Žádní zaměstnanci nenalezeni
                 </TableCell>
               </TableRow>
             ) : (
-              filteredEmployees.map((employee) => (
+              sortedEmployees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.employeeNumber}</TableCell>
                 <TableCell>{employee.firstName} {employee.lastName}</TableCell>

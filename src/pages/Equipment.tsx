@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useSortable } from "@/hooks/useSortable";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { format } from "date-fns";
 import Papa from "papaparse";
 import {
@@ -115,6 +117,8 @@ export default function Equipment() {
       return true;
     });
   }, [equipment, searchQuery, statusFilter]);
+
+  const { sortedData: sortedEquipment, sortConfig, requestSort } = useSortable(filteredEquipment);
 
   const openCreateDialog = () => {
     setEditingItem(null);
@@ -287,21 +291,21 @@ export default function Equipment() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Inv. číslo</TableHead>
-                <TableHead>Název</TableHead>
-                <TableHead>Typ</TableHead>
-                <TableHead>Výrobce</TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>Sériové č.</TableHead>
-                <TableHead>Provozovna</TableHead>
-                <TableHead>Umístění</TableHead>
+                <SortableTableHead label="Inv. číslo" sortKey="inventory_number" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Název" sortKey="name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Typ" sortKey="equipment_type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Výrobce" sortKey="manufacturer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Model" sortKey="model" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Sériové č." sortKey="serial_number" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Provozovna" sortKey="facility" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Umístění" sortKey="location" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <TableHead>Odpovědná osoba</TableHead>
-                <TableHead>Stav</TableHead>
+                <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <TableHead className="w-24"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEquipment.length === 0 ? (
+              {sortedEquipment.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     <Wrench className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -309,7 +313,7 @@ export default function Equipment() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredEquipment.map(eq => (
+                sortedEquipment.map(eq => (
                   <TableRow key={eq.id}>
                     <TableCell className="font-mono text-sm">{eq.inventory_number}</TableCell>
                     <TableCell className="font-medium">{eq.name}</TableCell>
