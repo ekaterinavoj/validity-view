@@ -458,18 +458,18 @@ export default function ScheduledTrainings() {
                       />
                     </TableHead>
                   )}
-                  <TableHead>Stav</TableHead>
-                  <TableHead>Školení platné do</TableHead>
-                  <TableHead>Typ školení</TableHead>
+                  <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  <SortableTableHead label="Školení platné do" sortKey="date" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  <SortableTableHead label="Typ školení" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   
-                  <TableHead>Jméno</TableHead>
-                  <TableHead>Provozovna</TableHead>
-                  <TableHead>Středisko</TableHead>
-                  <TableHead>Datum školení</TableHead>
-                  <TableHead>Školitel</TableHead>
-                  <TableHead>Firma</TableHead>
-                  <TableHead>Zadavatel</TableHead>
-                  <TableHead>Periodicita</TableHead>
+                  <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  <SortableTableHead label="Provozovna" sortKey="facility" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  <SortableTableHead label="Středisko" sortKey="department" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  <SortableTableHead label="Datum školení" sortKey="lastTrainingDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  <SortableTableHead label="Školitel" sortKey="trainer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  <SortableTableHead label="Firma" sortKey="company" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  <SortableTableHead label="Zadavatel" sortKey="requester" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  <SortableTableHead label="Periodicita" sortKey="period" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <TableHead>Výsledek</TableHead>
                   <TableHead>Poznámka</TableHead>
                   <TableHead className="text-center">Protokol</TableHead>
