@@ -2443,8 +2443,21 @@ INSERT INTO public.schema_migrations (version, name) VALUES
   ('20260221165235', 'notify_extraordinary_medical_exam'),
   ('20260221174512', 'drop_training_supervisor'),
   ('20260221175145', 'propagate_manager_details'),
-  ('20260221200000', 'auto_link_profile_employee')
+  ('20260221200000', 'auto_link_profile_employee'),
+  ('20260226201357', 'result_column'),
+  ('20260310092500', 'work_category_to_text'),
+  ('20260316100000', 'enable_realtime_tables')
 ON CONFLICT (version) DO NOTHING;
+
+-- =============================================
+-- REALTIME PUBLICATION
+-- =============================================
+-- Enable realtime for main data tables
+ALTER PUBLICATION supabase_realtime ADD TABLE public.employees;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.trainings;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.medical_examinations;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.deadlines;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.equipment;
 
 -- =============================================
 

@@ -139,6 +139,18 @@ ALTER TABLE public.employees ADD CONSTRAINT employees_work_category_check
 COMMENT ON COLUMN public.employees.work_category IS 'Kategorie práce: 1, 2, 2R, 3, 4 dle rizikovosti';
     `.trim(),
   },
+  {
+    version: "20260316100000",
+    name: "enable_realtime_tables",
+    sql: `
+-- Enable realtime for main data tables
+ALTER PUBLICATION supabase_realtime ADD TABLE public.employees;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.trainings;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.medical_examinations;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.deadlines;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.equipment;
+    `.trim(),
+  },
 ];
 
 /**
