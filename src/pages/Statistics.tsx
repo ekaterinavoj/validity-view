@@ -13,6 +13,7 @@ import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import html2canvas from "html2canvas";
+import { useFacilities } from "@/hooks/useFacilities";
 
 export default function Statistics() {
   const {
