@@ -132,6 +132,8 @@ export default function ScheduledDeadlines() {
     });
   }, [deadlines, filters, getEquipmentIdsByProfile]);
 
+  const { sortedData: sortedDeadlines, sortConfig, requestSort } = useSortable(filteredDeadlines);
+
   const handleSelectAll = (checked: boolean) => {
     setSelectedIds(checked ? filteredDeadlines.map(d => d.id) : []);
   };
