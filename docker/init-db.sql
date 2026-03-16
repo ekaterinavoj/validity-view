@@ -371,6 +371,7 @@ CREATE TABLE IF NOT EXISTS public.deadlines (
     remind_days_before INTEGER DEFAULT 30,
     repeat_days_after INTEGER DEFAULT 30,
     note TEXT,
+    result TEXT,
     status TEXT NOT NULL DEFAULT 'valid',
     is_active BOOLEAN NOT NULL DEFAULT true,
     deleted_at TIMESTAMPTZ,
