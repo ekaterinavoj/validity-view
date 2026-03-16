@@ -48,8 +48,16 @@ export default function DeadlineHistory() {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
+  const facilityNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    facilities.forEach(f => { map[f.code] = f.name; });
+    return map;
+  }, [facilities]);
+
+  const getFacilityName = (code: string): string => facilityNameMap[code] || code;
+
   const facilityList = useMemo(() => 
-    facilities.map(f => f.code),
+    facilities.map(f => f.name),
     [facilities]
   );
 
