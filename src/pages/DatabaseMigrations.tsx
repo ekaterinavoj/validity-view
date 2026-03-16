@@ -498,7 +498,8 @@ export default function DatabaseMigrations() {
                               <span className="font-mono text-xs text-muted-foreground">
                                 {m.version}
                               </span>
-                              <span className="ml-2 text-sm">{m.name}</span>
+                              <span className="mx-2 text-muted-foreground">—</span>
+                              <span className="text-sm">{m.name}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
