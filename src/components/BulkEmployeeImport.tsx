@@ -68,6 +68,26 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     });
   };
 
+  const parseBirthDate = (raw: any): string | null => {
+    if (!raw) return null;
+    // Handle Excel Date objects
+    if (raw instanceof Date && !isNaN(raw.getTime())) {
+      const y = raw.getFullYear();
+      const m = String(raw.getMonth() + 1).padStart(2, '0');
+      const d = String(raw.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    const str = String(raw).trim();
+    if (!str) return null;
+    // DD.MM.YYYY
+    const czMatch = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (czMatch) return `${czMatch[3]}-${czMatch[2].padStart(2, '0')}-${czMatch[1].padStart(2, '0')}`;
+    // YYYY-MM-DD
+    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) return str;
+    return null;
+  };
+
   const mapRowToEmployee = (row: any) => {
     const rawCategory = row['Kategorie práce'] || row['workCategory'] || row['work_category'];
     const workCategory = rawCategory ? String(rawCategory).trim().toUpperCase() : undefined;
@@ -82,6 +102,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       status: String(row['Stav'] || row['status'] || 'employed').toLowerCase().trim(),
       managerEmail: String(row['Email nadřízeného'] || row['managerEmail'] || row['Manager Email'] || row['manager_email'] || '').trim().toLowerCase(),
       workCategory: workCategory && ['1', '2', '2R', '3', '4'].includes(workCategory) ? workCategory : undefined,
+      birthDate: parseBirthDate(row['Datum narození'] || row['birthDate'] || row['birth_date']),
     };
   };
 
