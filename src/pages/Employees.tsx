@@ -201,6 +201,7 @@ export default function Employees() {
       position: employee.position,
       departmentId: employee.departmentId || "",
       workCategory: employee.workCategory?.toString() || "",
+      birthDate: employee.birthDate ? new Date(employee.birthDate) : undefined,
       status: employee.status,
       terminationDate: employee.terminationDate ? new Date(employee.terminationDate) : undefined,
       statusStartDate: employee.statusStartDate ? new Date(employee.statusStartDate) : undefined,
