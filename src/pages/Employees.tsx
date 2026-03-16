@@ -50,6 +50,7 @@ const formSchema = z.object({
   position: z.string().min(1, "Zadejte pracovní pozici"),
   departmentId: z.string().optional().default(""),
   workCategory: z.string().optional(),
+  birthDate: z.date().optional(),
   status: z.enum(["employed", "parental_leave", "sick_leave", "terminated"]),
   terminationDate: z.date().optional(),
   statusStartDate: z.date().optional(),
