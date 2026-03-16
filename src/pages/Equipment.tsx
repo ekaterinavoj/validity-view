@@ -118,6 +118,8 @@ export default function Equipment() {
     });
   }, [equipment, searchQuery, statusFilter]);
 
+  const { sortedData: sortedEquipment, sortConfig, requestSort } = useSortable(filteredEquipment);
+
   const openCreateDialog = () => {
     setEditingItem(null);
     setSelectedResponsibleIds([]);
