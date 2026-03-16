@@ -12,6 +12,7 @@ export interface MedicalExaminationWithDetails {
   employeeId: string;
   employeeStatus: "employed" | "parental_leave" | "sick_leave" | "terminated";
   employeeWorkCategory: number | null;
+  employeeBirthDate: string | null;
   facility: string;
   department: string;
   departmentName: string;
