@@ -8,6 +8,8 @@ import { Edit, Plus, Download, RefreshCw, Eye } from "lucide-react";
 import { ResultBadge } from "@/components/ResultBadge";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
+import { useSortable } from "@/hooks/useSortable";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
