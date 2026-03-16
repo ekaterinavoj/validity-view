@@ -13,6 +13,7 @@ export interface TrainingWithDetails {
   employeeStatus: "employed" | "parental_leave" | "sick_leave" | "terminated";
   facility: string;
   department: string;
+  departmentName: string;
   departmentId: string | null;
   lastTrainingDate: string;
   trainer: string;
