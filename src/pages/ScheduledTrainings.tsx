@@ -15,6 +15,8 @@ import { Edit, Plus, CalendarClock, Eye, Download } from "lucide-react";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
+import { useSortable } from "@/hooks/useSortable";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
