@@ -94,8 +94,12 @@ export default function Employees() {
   const { departments, loading: departmentsLoading } = useDepartments();
 
   const uniqueDepartments = useMemo(() => {
-    const depts = new Set(employees.map((e) => e.department).filter(Boolean));
-    return Array.from(depts).sort();
+    const deptMap = new Map<string, string>();
+    employees.forEach(e => {
+      if (e.department) deptMap.set(e.department, e.departmentName || e.department);
+    });
+    return Array.from(deptMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [employees]);
   }, [employees]);
 
   const filteredEmployees = useMemo(() => {
