@@ -143,12 +143,20 @@ COMMENT ON COLUMN public.employees.work_category IS 'Kategorie práce: 1, 2, 2R,
     version: "20260316100000",
     name: "enable_realtime_tables",
     sql: `
--- Enable realtime for main data tables
-ALTER PUBLICATION supabase_realtime ADD TABLE public.employees;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.trainings;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.medical_examinations;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.deadlines;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.equipment;
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['employees','trainings','medical_examinations','deadlines','equipment']
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_publication_tables
+      WHERE pubname = 'supabase_realtime' AND tablename = t AND schemaname = 'public'
+    ) THEN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', t);
+    END IF;
+  END LOOP;
+END$$;
     `.trim(),
   },
 ];
