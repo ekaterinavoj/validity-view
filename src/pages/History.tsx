@@ -286,7 +286,7 @@ export default function History() {
         "Osobní číslo": training.employeeNumber || "",
         "Jméno": training.employeeName || "",
         "Stav zaměstnance": employeeStatusLabels[training.employeeStatus] || training.employeeStatus || "",
-        "Středisko": training.department || "",
+        "Středisko": formatDepartment(training.department, training.departmentName),
         "Školitel": training.trainer || "",
         "Firma": training.company || "",
         "Poznámka": training.note || "",
