@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import Papa from "papaparse";
 import { formatPeriodicity } from "@/lib/utils";
+import { formatDepartment } from "@/components/DepartmentCell";
 import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
