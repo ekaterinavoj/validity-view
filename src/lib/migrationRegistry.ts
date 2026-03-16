@@ -105,60 +105,12 @@ export const MIGRATION_REGISTRY: MigrationEntry[] = [
   { version: "20260221190405", name: "subordinate_function_v2", sql: null },
   { version: "20260221200000", name: "auto_link_profile_employee", sql: null },
 
+  // These migrations are now included in init-db.sql base schema
+  { version: "20260226201357", name: "result_column", sql: null },
+  { version: "20260310092500", name: "work_category_to_text", sql: null },
+  { version: "20260316100000", name: "enable_realtime_tables", sql: null },
+
   // ===== Incremental migrations (not yet in init-db.sql) =====
-  {
-    version: "20260226201357",
-    name: "result_column",
-    sql: `
--- Add result column to trainings table
-ALTER TABLE public.trainings 
-ADD COLUMN IF NOT EXISTS result text DEFAULT 'passed';
-
--- Add result column to deadlines table
-ALTER TABLE public.deadlines 
-ADD COLUMN IF NOT EXISTS result text DEFAULT 'passed';
-
-COMMENT ON COLUMN public.trainings.result IS 'Training result: passed, passed_with_reservations, failed';
-COMMENT ON COLUMN public.deadlines.result IS 'Deadline result: passed (compliant), passed_with_reservations, failed (non_compliant)';
-    `.trim(),
-  },
-  {
-    version: "20260310092500",
-    name: "work_category_to_text",
-    sql: `
--- Drop existing CHECK constraint on work_category
-ALTER TABLE public.employees DROP CONSTRAINT IF EXISTS employees_work_category_check;
-
--- Change column type from integer to text
-ALTER TABLE public.employees ALTER COLUMN work_category TYPE text USING work_category::text;
-
--- Add new CHECK constraint for valid categories (1, 2, 2R, 3, 4)
-ALTER TABLE public.employees ADD CONSTRAINT employees_work_category_check 
-  CHECK (work_category IN ('1', '2', '2R', '3', '4'));
-
-COMMENT ON COLUMN public.employees.work_category IS 'Kategorie práce: 1, 2, 2R, 3, 4 dle rizikovosti';
-    `.trim(),
-  },
-  {
-    version: "20260316100000",
-    name: "enable_realtime_tables",
-    sql: `
-DO $$
-DECLARE
-  t text;
-BEGIN
-  FOREACH t IN ARRAY ARRAY['employees','trainings','medical_examinations','deadlines','equipment']
-  LOOP
-    IF NOT EXISTS (
-      SELECT 1 FROM pg_publication_tables
-      WHERE pubname = 'supabase_realtime' AND tablename = t AND schemaname = 'public'
-    ) THEN
-      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', t);
-    END IF;
-  END LOOP;
-END$$;
-    `.trim(),
-  },
 ];
 
 /**
