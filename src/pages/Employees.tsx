@@ -29,7 +29,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInYears } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useEmployees, EmployeeWithDepartment } from "@/hooks/useEmployees";
 import Papa from "papaparse";
