@@ -12,6 +12,7 @@ export interface HistoryTraining {
   employeeStatus: "employed" | "parental_leave" | "sick_leave" | "terminated";
   facility: string;
   department: string;
+  departmentName: string;
   lastTrainingDate: string;
   trainer: string;
   company: string;
