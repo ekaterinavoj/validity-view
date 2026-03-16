@@ -291,16 +291,16 @@ export default function Equipment() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Inv. číslo</TableHead>
-                <TableHead>Název</TableHead>
-                <TableHead>Typ</TableHead>
-                <TableHead>Výrobce</TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>Sériové č.</TableHead>
-                <TableHead>Provozovna</TableHead>
-                <TableHead>Umístění</TableHead>
+                <SortableTableHead label="Inv. číslo" sortKey="inventory_number" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Název" sortKey="name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Typ" sortKey="equipment_type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Výrobce" sortKey="manufacturer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Model" sortKey="model" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Sériové č." sortKey="serial_number" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Provozovna" sortKey="facility" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Umístění" sortKey="location" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <TableHead>Odpovědná osoba</TableHead>
-                <TableHead>Stav</TableHead>
+                <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <TableHead className="w-24"></TableHead>
               </TableRow>
             </TableHeader>
