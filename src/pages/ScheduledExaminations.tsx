@@ -154,7 +154,7 @@ export default function ScheduledExaminations() {
       "Jméno": e.employeeName,
       "Kategorie": e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
       "Provozovna": getFacilityName(e.facility) || "",
-      "Středisko": e.department || "",
+      "Středisko": formatDepartment(e.department, e.departmentName),
       "Datum prohlídky": format(new Date(e.lastExaminationDate), "dd.MM.yyyy"),
       "Periodicita": formatPeriodicity(e.period),
       "Výsledek": e.result || "-",

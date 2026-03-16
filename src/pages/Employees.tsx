@@ -889,7 +889,7 @@ export default function Employees() {
                 <TableCell>{employee.firstName} {employee.lastName}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{employee.email}</TableCell>
                 <TableCell className="text-sm">{employee.position}</TableCell>
-                <TableCell className="text-sm">{employee.department}</TableCell>
+                <TableCell className="text-sm"><DepartmentCell code={employee.department} name={employee.departmentName} /></TableCell>
                 <TableCell className="text-center">
                   <WorkCategoryBadge category={employee.workCategory} />
                 </TableCell>

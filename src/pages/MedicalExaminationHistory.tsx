@@ -362,7 +362,7 @@ export default function MedicalExaminationHistory() {
                         {employeeStatusLabels[exam.employeeStatus] || exam.employeeStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell>{exam.department}</TableCell>
+                    <TableCell><DepartmentCell code={exam.department} name={exam.departmentName} /></TableCell>
                     <TableCell>{exam.doctor || "-"}</TableCell>
                     <TableCell>{exam.medicalFacility || "-"}</TableCell>
                     <TableCell>{exam.result || "-"}</TableCell>

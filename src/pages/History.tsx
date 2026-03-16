@@ -487,7 +487,7 @@ export default function History() {
                         {employeeStatusLabels[training.employeeStatus] || training.employeeStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell>{training.department}</TableCell>
+                    <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
                     <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                     <TableCell className="whitespace-nowrap">{training.company}</TableCell>
                     <TableCell>{training.note || "-"}</TableCell>
