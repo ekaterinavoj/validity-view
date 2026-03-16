@@ -204,7 +204,7 @@ export default function Equipment() {
       "Inv. číslo": eq.inventory_number || "",
       "Název": eq.name || "",
       "Typ": eq.equipment_type || "",
-      "Provozovna": eq.facility || "",
+      "Provozovna": getFacilityName(eq.facility) || "",
       "Výrobce": eq.manufacturer || "",
       "Model": eq.model || "",
       "Sériové č.": eq.serial_number || "",
