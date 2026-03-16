@@ -125,6 +125,11 @@ export default function Employees() {
     });
   }, [searchQuery, departmentFilter, statusFilter, categoryFilter, employees]);
 
+  const { sortedData: sortedEmployees, sortConfig, requestSort } = useSortable(
+    filteredEmployees,
+    { key: "employeeNumber", direction: "asc" }
+  );
+
   const hasActiveFilters =
     searchQuery !== "" || departmentFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all";
 
