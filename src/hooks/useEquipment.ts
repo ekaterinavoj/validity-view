@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Equipment } from "@/types/equipment";
@@ -28,6 +29,16 @@ export function useEquipment() {
       return data as Equipment[];
     },
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("equipment-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "equipment" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["equipment"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   const checkDependencies = async (id: string): Promise<EquipmentDependencies> => {
     const { count } = await supabase

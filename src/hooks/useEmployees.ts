@@ -119,6 +119,16 @@ export function useEmployees(statusFilter?: string) {
     fetchEmployees();
   }, [fetchEmployees]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("employees-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "employees" }, () => {
+        fetchEmployees();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchEmployees]);
+
   return { employees, loading, error, refetch: fetchEmployees };
 }
 

@@ -160,5 +160,15 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
     fetchExaminations();
   }, [fetchExaminations]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("medical-examinations-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "medical_examinations" }, () => {
+        fetchExaminations();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchExaminations]);
+
   return { examinations, loading, error, refetch: fetchExaminations };
 }
