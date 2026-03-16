@@ -302,18 +302,18 @@ export default function ScheduledDeadlines() {
                     />
                   </TableHead>
                 )}
-                <TableHead>Stav</TableHead>
-                <TableHead>Inventární č.</TableHead>
-                <TableHead>Zařízení</TableHead>
-                <TableHead>Typ zařízení</TableHead>
-                <TableHead>Výrobce</TableHead>
-                <TableHead>Model</TableHead>
+                <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Inventární č." sortKey="equipment.inventory_number" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Zařízení" sortKey="equipment.name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Typ zařízení" sortKey="equipment.equipment_type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Výrobce" sortKey="equipment.manufacturer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Model" sortKey="equipment.model" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 
-                <TableHead>Typ události</TableHead>
-                <TableHead>Provozovna</TableHead>
-                <TableHead>Poslední</TableHead>
-                <TableHead>Příští</TableHead>
-                <TableHead>Provádějící</TableHead>
+                <SortableTableHead label="Typ události" sortKey="deadline_type.name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Provozovna" sortKey="facility" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Poslední" sortKey="last_check_date" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Příští" sortKey="next_check_date" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                <SortableTableHead label="Provádějící" sortKey="performer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <TableHead>Odpovědní</TableHead>
                 <TableHead>Výsledek</TableHead>
                 <TableHead>Poznámka</TableHead>
