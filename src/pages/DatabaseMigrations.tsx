@@ -306,10 +306,11 @@ export default function DatabaseMigrations() {
                 className="flex items-center justify-between p-3 bg-background rounded-lg border"
               >
                 <div>
-                  <span className="font-mono text-sm text-muted-foreground">
-                    {m.version}
-                  </span>
-                  <span className="ml-3 font-medium">{m.name}</span>
+309:                   <span className="font-mono text-sm text-muted-foreground">
+310:                     {m.version}
+311:                   </span>
+312:                   <span className="mx-2 text-muted-foreground">—</span>
+313:                   <span className="font-medium">{m.name}</span>
                 </div>
                 <Badge variant="outline" className="text-amber-600 border-amber-300">
                   Čeká
