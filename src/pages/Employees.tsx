@@ -138,7 +138,7 @@ export default function Employees() {
         "Příjmení": employee.lastName || "",
         "Email": employee.email || "",
         "Pozice": employee.position || "",
-        "Středisko": employee.department || "",
+        "Středisko": formatDepartment(employee.department, employee.departmentName),
         "Stav": getStatusLabel(employee.status) || "",
         "Datum od": employee.statusStartDate || employee.terminationDate 
           ? format(parseISO(employee.statusStartDate || employee.terminationDate || ""), "dd.MM.yyyy", { locale: cs })
