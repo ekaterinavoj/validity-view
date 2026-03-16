@@ -430,6 +430,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         "Pozice": "Technik",
         "Středisko": "IT",
         "Stav": "aktivní",
+        "Datum narození": "15.03.1985",
         "Kategorie práce": 2,
         "Email nadřízeného": "karel.dvorak@firma.cz",
         "Poznámka": ""
@@ -442,6 +443,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         "Pozice": "Účetní",
         "Středisko": "FIN",
         "Stav": "aktivní",
+        "Datum narození": "22.07.1990",
         "Kategorie práce": 1,
         "Email nadřízeného": "",
         "Poznámka": "Nová zaměstnankyně"
@@ -454,6 +456,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         "Pozice": "Skladník",
         "Středisko": "SKLAD",
         "Stav": "aktivní",
+        "Datum narození": "01.12.1978",
         "Kategorie práce": 3,
         "Email nadřízeného": "jan.novak@firma.cz",
         "Poznámka": ""

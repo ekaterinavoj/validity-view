@@ -157,6 +157,8 @@ export default function ScheduledExaminations() {
       "Typ prohlídky": e.type,
       "Os. číslo": e.employeeNumber,
       "Jméno": e.employeeName,
+      "Datum narození": e.employeeBirthDate ? format(parseISO(e.employeeBirthDate), "dd.MM.yyyy") : "",
+      "Věk": e.employeeBirthDate ? String(differenceInYears(new Date(), parseISO(e.employeeBirthDate))) : "",
       "Kategorie": e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
       "Provozovna": getFacilityName(e.facility) || "",
       "Středisko": formatDepartment(e.department, e.departmentName),

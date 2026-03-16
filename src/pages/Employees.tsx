@@ -151,6 +151,8 @@ export default function Employees() {
         "Pozice": employee.position || "",
         "Středisko": formatDepartment(employee.department, employee.departmentName),
         "Stav": getStatusLabel(employee.status) || "",
+        "Datum narození": employee.birthDate ? format(parseISO(employee.birthDate), "dd.MM.yyyy") : "",
+        "Věk": employee.birthDate ? String(differenceInYears(new Date(), parseISO(employee.birthDate))) : "",
         "Datum od": employee.statusStartDate || employee.terminationDate 
           ? format(parseISO(employee.statusStartDate || employee.terminationDate || ""), "dd.MM.yyyy", { locale: cs })
           : "",
