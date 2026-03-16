@@ -105,7 +105,7 @@ export default function ScheduledDeadlines() {
     return deadlines.filter(d => {
       if (!d.is_active) return false;
       
-      if (filters.facilityFilter !== "all" && d.facility !== filters.facilityFilter) return false;
+      if (filters.facilityFilter !== "all" && getFacilityName(d.facility) !== filters.facilityFilter) return false;
       if (filters.typeFilter !== "all" && d.deadline_type?.name !== filters.typeFilter) return false;
       if (filters.trainerFilter !== "all" && d.performer !== filters.trainerFilter) return false;
       if (filters.statusFilter !== "all" && d.status !== filters.statusFilter) return false;
