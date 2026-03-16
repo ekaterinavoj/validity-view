@@ -9,6 +9,7 @@ export interface EmployeeWithDepartment {
   email: string;
   position: string;
   department: string;
+  departmentName: string;
   departmentId: string | null;
   status: "employed" | "parental_leave" | "sick_leave" | "terminated";
   terminationDate?: string;
@@ -31,6 +32,7 @@ function mapEmployee(e: any): EmployeeWithDepartment {
     email: e.email,
     position: e.position,
     department: e.departments?.code || "",
+    departmentName: e.departments?.name || "",
     departmentId: e.department_id,
     status: e.status as EmployeeWithDepartment["status"],
     terminationDate: e.termination_date,

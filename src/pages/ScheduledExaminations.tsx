@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import Papa from "papaparse";
 import { formatPeriodicity } from "@/lib/utils";
+import { formatDepartment } from "@/components/DepartmentCell";
 import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
@@ -154,7 +155,7 @@ export default function ScheduledExaminations() {
       "Jméno": e.employeeName,
       "Kategorie": e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
       "Provozovna": getFacilityName(e.facility) || "",
-      "Středisko": e.department || "",
+      "Středisko": formatDepartment(e.department, e.departmentName),
       "Datum prohlídky": format(new Date(e.lastExaminationDate), "dd.MM.yyyy"),
       "Periodicita": formatPeriodicity(e.period),
       "Výsledek": e.result || "-",

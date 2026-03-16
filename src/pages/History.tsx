@@ -1,3 +1,4 @@
+import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -286,7 +287,7 @@ export default function History() {
         "Osobní číslo": training.employeeNumber || "",
         "Jméno": training.employeeName || "",
         "Stav zaměstnance": employeeStatusLabels[training.employeeStatus] || training.employeeStatus || "",
-        "Středisko": training.department || "",
+        "Středisko": formatDepartment(training.department, training.departmentName),
         "Školitel": training.trainer || "",
         "Firma": training.company || "",
         "Poznámka": training.note || "",
@@ -487,7 +488,7 @@ export default function History() {
                         {employeeStatusLabels[training.employeeStatus] || training.employeeStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell>{training.department}</TableCell>
+                    <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
                     <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                     <TableCell className="whitespace-nowrap">{training.company}</TableCell>
                     <TableCell>{training.note || "-"}</TableCell>

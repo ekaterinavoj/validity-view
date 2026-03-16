@@ -91,7 +91,8 @@ export default function Statistics() {
   // Department statistics - filtered by year
   const departmentStats = useMemo(() => {
     return yearFilteredTrainings.reduce((acc, training) => {
-      const dept = training.department || "Nezařazeno";
+      const deptCode = training.department || "Nezařazeno";
+      const dept = training.departmentName ? `${deptCode} - ${training.departmentName}` : deptCode;
       if (!acc[dept]) {
         acc[dept] = {
           valid: 0,

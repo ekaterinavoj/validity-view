@@ -13,6 +13,7 @@ import { Download, UserX, Calendar, Loader2, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
+import { formatDepartment } from "@/components/DepartmentCell";
 import {
   Collapsible,
   CollapsibleContent,
@@ -84,7 +85,7 @@ export default function InactiveEmployeesReport() {
             "Jméno": `${employee.firstName} ${employee.lastName}`,
             "Email": employee.email || "",
             "Pozice": employee.position || "",
-            "Středisko": employee.department || "",
+            "Středisko": formatDepartment(employee.department, employee.departmentName),
             "Stav zaměstnance": statusLabels[employee.status] || "",
             "Typ školení": "-",
             "Školení platné do": "-",
@@ -99,7 +100,7 @@ export default function InactiveEmployeesReport() {
               "Jméno": `${employee.firstName} ${employee.lastName}`,
               "Email": employee.email || "",
               "Pozice": employee.position || "",
-              "Středisko": employee.department || "",
+              "Středisko": formatDepartment(employee.department, employee.departmentName),
               "Stav zaměstnance": statusLabels[employee.status] || "",
               "Typ školení": training.type || "",
               "Školení platné do": new Date(training.date).toLocaleDateString("cs-CZ"),
@@ -286,7 +287,7 @@ export default function InactiveEmployeesReport() {
                               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                                 <span>{employee.position}</span>
                                 <span>•</span>
-                                <span>{employee.department}</span>
+                                <span>{employee.department}{employee.departmentName ? ` - ${employee.departmentName}` : ""}</span>
                                 <span>•</span>
                                 <span>{employee.email}</span>
                               </div>

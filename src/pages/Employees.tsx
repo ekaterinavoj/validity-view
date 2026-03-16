@@ -38,6 +38,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeStatusBadge, EmployeeStatus } from "@/components/EmployeeStatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
+import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),
@@ -93,8 +94,11 @@ export default function Employees() {
   const { departments, loading: departmentsLoading } = useDepartments();
 
   const uniqueDepartments = useMemo(() => {
-    const depts = new Set(employees.map((e) => e.department).filter(Boolean));
-    return Array.from(depts).sort();
+    const deptMap = new Map<string, string>();
+    employees.forEach(e => {
+      if (e.department) deptMap.set(e.department, e.departmentName || e.department);
+    });
+    return Array.from(deptMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [employees]);
 
   const filteredEmployees = useMemo(() => {
@@ -137,7 +141,7 @@ export default function Employees() {
         "Příjmení": employee.lastName || "",
         "Email": employee.email || "",
         "Pozice": employee.position || "",
-        "Středisko": employee.department || "",
+        "Středisko": formatDepartment(employee.department, employee.departmentName),
         "Stav": getStatusLabel(employee.status) || "",
         "Datum od": employee.statusStartDate || employee.terminationDate 
           ? format(parseISO(employee.statusStartDate || employee.terminationDate || ""), "dd.MM.yyyy", { locale: cs })
@@ -775,9 +779,9 @@ export default function Employees() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Všechna střediska</SelectItem>
-              {uniqueDepartments.map((dept) => (
-                <SelectItem key={dept} value={dept}>
-                  {dept}
+              {uniqueDepartments.map(([code, name]) => (
+                <SelectItem key={code} value={code}>
+                  {code} - {name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -888,7 +892,7 @@ export default function Employees() {
                 <TableCell>{employee.firstName} {employee.lastName}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{employee.email}</TableCell>
                 <TableCell className="text-sm">{employee.position}</TableCell>
-                <TableCell className="text-sm">{employee.department}</TableCell>
+                <TableCell className="text-sm"><DepartmentCell code={employee.department} name={employee.departmentName} /></TableCell>
                 <TableCell className="text-center">
                   <WorkCategoryBadge category={employee.workCategory} />
                 </TableCell>

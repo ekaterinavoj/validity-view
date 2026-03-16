@@ -30,6 +30,7 @@ import { useTrainings } from "@/hooks/useTrainings";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { RefreshCw } from "lucide-react";
+import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
@@ -273,7 +274,7 @@ export default function ScheduledTrainings() {
         "Osobní číslo": training.employeeNumber || "",
         "Jméno": training.employeeName || "",
         "Provozovna": getFacilityName(training.facility) || "",
-        "Středisko": training.department || "",
+        "Středisko": formatDepartment(training.department, training.departmentName),
         "Datum školení": new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
         "Školitel": training.trainer || "",
         "Firma": training.company || "",
@@ -502,7 +503,7 @@ export default function ScheduledTrainings() {
                       <TableCell className="max-w-xs truncate" title={getFacilityName(training.facility)}>
                         {getFacilityName(training.facility)}
                       </TableCell>
-                      <TableCell>{training.department}</TableCell>
+                      <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
                       <TableCell className="whitespace-nowrap">
                         {new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ")}
                       </TableCell>
