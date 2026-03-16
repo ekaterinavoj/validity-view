@@ -874,14 +874,14 @@ export default function Employees() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Os. číslo</TableHead>
-              <TableHead>Jméno</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Pozice</TableHead>
-              <TableHead>Středisko</TableHead>
-              <TableHead>Kategorie</TableHead>
+              <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Jméno" sortKey="lastName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Email" sortKey="email" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Pozice" sortKey="position" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Středisko" sortKey="department" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <SortableTableHead label="Kategorie" sortKey="workCategory" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead>Nadřízený</TableHead>
-              <TableHead>Stav</TableHead>
+              <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
