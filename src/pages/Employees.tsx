@@ -942,6 +942,12 @@ export default function Employees() {
                 <TableCell className="text-center">
                   <WorkCategoryBadge category={employee.workCategory} />
                 </TableCell>
+                <TableCell className="text-sm">
+                  {employee.birthDate ? format(parseISO(employee.birthDate), "dd.MM.yyyy") : "-"}
+                </TableCell>
+                <TableCell className="text-sm text-center">
+                  {employee.birthDate ? differenceInYears(new Date(), parseISO(employee.birthDate)) : "-"}
+                </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {employee.managerEmployeeId ? (
                     <span title={employee.managerEmail || ''}>
