@@ -100,7 +100,6 @@ export default function Employees() {
     });
     return Array.from(deptMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [employees]);
-  }, [employees]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
