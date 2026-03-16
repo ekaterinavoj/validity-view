@@ -36,6 +36,14 @@ export default function Statistics() {
     loading: typesLoading
   } = useTrainingTypes();
 
+  const { facilities: facilitiesData } = useFacilities();
+  const facilityNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    facilitiesData.forEach(f => { map[f.code] = f.name; });
+    return map;
+  }, [facilitiesData]);
+  const getFacilityName = (code: string): string => facilityNameMap[code] || code;
+
   // Combine all trainings for complete statistics
   const allTrainings = useMemo(() => [...activeTrainings, ...inactiveTrainings], [activeTrainings, inactiveTrainings]);
 
