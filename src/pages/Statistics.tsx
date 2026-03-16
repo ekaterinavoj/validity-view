@@ -13,6 +13,7 @@ import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import html2canvas from "html2canvas";
+import { useFacilities } from "@/hooks/useFacilities";
 
 export default function Statistics() {
   const {
@@ -34,6 +35,14 @@ export default function Statistics() {
     trainingTypes,
     loading: typesLoading
   } = useTrainingTypes();
+
+  const { facilities: facilitiesData } = useFacilities();
+  const facilityNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    facilitiesData.forEach(f => { map[f.code] = f.name; });
+    return map;
+  }, [facilitiesData]);
+  const getFacilityName = (code: string): string => facilityNameMap[code] || code;
 
   // Combine all trainings for complete statistics
   const allTrainings = useMemo(() => [...activeTrainings, ...inactiveTrainings], [activeTrainings, inactiveTrainings]);
@@ -108,7 +117,7 @@ export default function Statistics() {
   // Facility statistics - filtered by year
   const facilityStats = useMemo(() => {
     return yearFilteredTrainings.reduce((acc, training) => {
-      const facility = training.facility || "Nezařazeno";
+      const facility = getFacilityName(training.facility || "Nezařazeno");
       if (!acc[facility]) {
         acc[facility] = {
           valid: 0,
@@ -568,7 +577,7 @@ export default function Statistics() {
               </div>
             </Card>
 
-            
+
 
             
 

@@ -51,6 +51,11 @@ import {
 export default function DeadlineTypes() {
   const { deadlineTypes, isLoading, error, refetch, createDeadlineType, updateDeadlineType, deleteDeadlineType, isCreating, isUpdating } = useDeadlineTypes();
   const { facilities } = useFacilities();
+
+  const getFacilityName = (code: string): string => {
+    const f = facilities.find(fac => fac.code === code);
+    return f ? f.name : code;
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<DeadlineType | null>(null);
@@ -176,7 +181,7 @@ export default function DeadlineTypes() {
                 filteredTypes.map(type => (
                   <TableRow key={type.id}>
                     <TableCell className="font-medium">{type.name}</TableCell>
-                    <TableCell>{type.facility}</TableCell>
+                    <TableCell>{getFacilityName(type.facility)}</TableCell>
                     <TableCell>{formatPeriodicity(type.period_days)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {type.description || "-"}

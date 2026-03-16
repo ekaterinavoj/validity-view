@@ -48,8 +48,16 @@ export default function DeadlineHistory() {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
+  const facilityNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    facilities.forEach(f => { map[f.code] = f.name; });
+    return map;
+  }, [facilities]);
+
+  const getFacilityName = (code: string): string => facilityNameMap[code] || code;
+
   const facilityList = useMemo(() => 
-    facilities.map(f => f.code),
+    facilities.map(f => f.name),
     [facilities]
   );
 
@@ -86,7 +94,7 @@ export default function DeadlineHistory() {
       if (archiveFilter === "active" && d.deleted_at) return false;
       if (archiveFilter === "archived" && !d.deleted_at) return false;
 
-      if (filters.facilityFilter !== "all" && d.facility !== filters.facilityFilter) return false;
+      if (filters.facilityFilter !== "all" && getFacilityName(d.facility) !== filters.facilityFilter) return false;
       if (filters.typeFilter !== "all" && d.deadline_type?.name !== filters.typeFilter) return false;
       if (filters.trainerFilter !== "all" && d.performer !== filters.trainerFilter) return false;
       if (filters.statusFilter !== "all" && d.status !== filters.statusFilter) return false;
@@ -229,7 +237,7 @@ export default function DeadlineHistory() {
       "Inventární č.": d.equipment?.inventory_number || "",
       "Zařízení": d.equipment?.name || "",
       "Typ události": d.deadline_type?.name || "",
-      "Provozovna": d.facility,
+      "Provozovna": getFacilityName(d.facility),
       "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
       "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
       "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
@@ -370,7 +378,7 @@ export default function DeadlineHistory() {
                       {deadline.equipment?.name}
                     </TableCell>
                     <TableCell>{deadline.deadline_type?.name}</TableCell>
-                    <TableCell>{deadline.facility}</TableCell>
+                    <TableCell>{getFacilityName(deadline.facility)}</TableCell>
                     <TableCell>
                       {format(new Date(deadline.last_check_date), "dd.MM.yyyy")}
                     </TableCell>

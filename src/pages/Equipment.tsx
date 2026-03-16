@@ -68,6 +68,14 @@ export default function Equipment() {
   const { toast } = useToast();
   const { equipment, isLoading, error, refetch, createEquipment, updateEquipment, deleteEquipment, checkDependencies, isCreating, isUpdating, isDeleting } = useEquipment();
   const { facilities } = useFacilities();
+
+  const facilityNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    facilities.forEach(f => { map[f.code] = f.name; });
+    return map;
+  }, [facilities]);
+
+  const getFacilityName = (code: string): string => facilityNameMap[code] || code;
   const { departments } = useDepartments();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -196,7 +204,7 @@ export default function Equipment() {
       "Inv. číslo": eq.inventory_number || "",
       "Název": eq.name || "",
       "Typ": eq.equipment_type || "",
-      "Provozovna": eq.facility || "",
+      "Provozovna": getFacilityName(eq.facility) || "",
       "Výrobce": eq.manufacturer || "",
       "Model": eq.model || "",
       "Sériové č.": eq.serial_number || "",
@@ -309,7 +317,7 @@ export default function Equipment() {
                     <TableCell className="text-sm text-muted-foreground">{eq.manufacturer || "-"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{eq.model || "-"}</TableCell>
                     <TableCell className="font-mono text-sm text-muted-foreground">{eq.serial_number || "-"}</TableCell>
-                    <TableCell>{eq.facility}</TableCell>
+                    <TableCell>{getFacilityName(eq.facility)}</TableCell>
                     <TableCell>{eq.location || "-"}</TableCell>
                     <TableCell>
                       <EquipmentResponsiblesBadges equipmentId={eq.id} />
