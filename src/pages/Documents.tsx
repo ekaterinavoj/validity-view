@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { uploadGeneralDocument, getGeneralDocuments, deleteGeneralDocument, getGeneralDocumentUrl } from "@/lib/generalDocuments";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
-import { PlusCircle, Search, Trash2, Download, Eye, FileText, Upload } from "lucide-react";
+import { PlusCircle, Search, Trash2, Download, FileText, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 
@@ -290,7 +290,7 @@ export default function Documents() {
                         <div className="flex items-center justify-end gap-1">
                           {canPreview(doc.file_type) && (
                             <Button variant="ghost" size="sm" onClick={() => handlePreview(doc)} title="Náhled">
-                              <Eye className="w-4 h-4" />
+                              <FileText className="w-4 h-4 text-primary" />
                             </Button>
                           )}
                           <Button variant="ghost" size="sm" onClick={() => handleDownload(doc)} title="Stáhnout">
