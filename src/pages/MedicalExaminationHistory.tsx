@@ -356,7 +356,7 @@ export default function MedicalExaminationHistory() {
                       </TableCell>
                     )}
                     <TableCell className="whitespace-nowrap">
-                      {new Date(exam.date).toLocaleDateString("cs-CZ")}
+                      {formatDisplayDate(exam.date)}
                     </TableCell>
                     <TableCell className="font-medium">{exam.type}</TableCell>
                     <TableCell>{exam.employeeNumber}</TableCell>

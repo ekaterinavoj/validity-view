@@ -946,7 +946,7 @@ export default function Employees() {
                   <WorkCategoryBadge category={employee.workCategory} />
                 </TableCell>
                 <TableCell className="text-sm">
-                  {employee.birthDate ? format(parseISO(employee.birthDate), "dd.MM.yyyy") : "-"}
+                  {employee.birthDate ? formatDisplayDate(employee.birthDate) : "-"}
                 </TableCell>
                 <TableCell className="text-sm text-center">
                   {employee.birthDate ? differenceInYears(new Date(), parseISO(employee.birthDate)) : "-"}

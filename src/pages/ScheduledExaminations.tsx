@@ -343,7 +343,7 @@ export default function ScheduledExaminations() {
                     {exam.note || "-"}
                   </TableCell>
                   <TableCell className="text-sm whitespace-nowrap">
-                    {exam.longTermFitnessLossDate ? format(new Date(exam.longTermFitnessLossDate), "dd.MM.yyyy") : "-"}
+                    {exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : "-"}
                   </TableCell>
                   <TableCell className="text-center">
                     <MedicalProtocolCell examinationId={exam.id} />
