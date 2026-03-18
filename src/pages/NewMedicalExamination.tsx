@@ -171,14 +171,16 @@ export default function NewMedicalExamination() {
         "yyyy-MM-dd"
       );
 
-      let status = "valid";
+      let status = getMedicalExaminationStatusFromResult(data.result, "valid");
       const nextDate = new Date(nextExaminationDate);
       const today = new Date();
       const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysUntil < 0) {
-        status = "expired";
-      } else if (daysUntil <= 30) {
-        status = "warning";
+      if (status !== "expired") {
+        if (daysUntil < 0) {
+          status = "expired";
+        } else if (daysUntil <= 30) {
+          status = "warning";
+        }
       }
 
       const totalEmployees = data.employeeIds.length;
