@@ -345,6 +345,7 @@ export default function DeadlineHistory() {
                 <TableHead>Poslední kontrola</TableHead>
                 <TableHead>Příští kontrola</TableHead>
                 <TableHead>Provádějící</TableHead>
+                <TableHead>Poznámka</TableHead>
                 <TableHead>Stav</TableHead>
                 {canEdit && archiveFilter !== "active" && <TableHead className="w-12"></TableHead>}
               </TableRow>
@@ -352,7 +353,7 @@ export default function DeadlineHistory() {
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canBulkActions && archiveFilter !== "active" ? 10 : 9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canBulkActions && archiveFilter !== "active" ? 11 : 10} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné záznamy
                   </TableCell>
                 </TableRow>
