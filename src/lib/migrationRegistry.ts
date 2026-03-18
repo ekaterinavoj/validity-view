@@ -120,6 +120,12 @@ export const MIGRATION_REGISTRY: MigrationEntry[] = [
 ALTER TABLE public.medical_examinations ADD COLUMN IF NOT EXISTS period_days_override INTEGER;
 ALTER TABLE public.deadlines ADD COLUMN IF NOT EXISTS period_days_override INTEGER;`,
   },
+  {
+    version: "20260318194000",
+    name: "plp_inactive_visibility_toggle",
+    sql: `-- UI-only PLP visibility change, no database schema updates required.
+SELECT 1;`,
+  },
 ];
 
 /**

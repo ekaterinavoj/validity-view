@@ -91,8 +91,8 @@ export default function EditMedicalExamination() {
   const { examinationTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useMedicalExaminationTypes();
   const { facilities, loading: facilitiesLoading, error: facilitiesError, refetch: refetchFacilities } = useFacilities();
 
-  const activeEmployees = useMemo(() => {
-    return employees.filter((e) => e.status === "employed");
+  const selectableEmployees = useMemo(() => {
+    return employees.filter((e) => e.status !== "terminated");
   }, [employees]);
 
   const form = useForm<FormValues>({
@@ -401,7 +401,7 @@ export default function EditMedicalExamination() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {activeEmployees.map((emp) => (
+                      {selectableEmployees.map((emp) => (
                         <SelectItem key={emp.id} value={emp.id}>
                           {emp.lastName} {emp.firstName} ({emp.employeeNumber})
                         </SelectItem>

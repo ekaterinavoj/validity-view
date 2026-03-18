@@ -90,8 +90,8 @@ export default function NewMedicalExamination() {
   const { examinationTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useMedicalExaminationTypes();
   const { facilities, loading: facilitiesLoading, error: facilitiesError, refetch: refetchFacilities } = useFacilities();
 
-  const activeEmployees = useMemo(() => {
-    return employees.filter((e) => e.status === "employed");
+  const selectableEmployees = useMemo(() => {
+    return employees.filter((e) => e.status !== "terminated");
   }, [employees]);
 
   const form = useForm<FormValues>({
@@ -340,10 +340,10 @@ export default function NewMedicalExamination() {
                   <FormLabel>Zaměstnanci *</FormLabel>
                   <FormControl>
                     <EmployeeMultiSelect
-                      employees={activeEmployees}
+                      employees={selectableEmployees}
                       selectedIds={field.value}
                       onChange={field.onChange}
-                      placeholder="Vyberte zaměstnance (lze více)"
+                      placeholder="Vyberte zaměstnance (aktivní, nemocenská, mateřská/rodičovská)"
                       error={form.formState.errors.employeeIds?.message}
                     />
                   </FormControl>
