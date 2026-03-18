@@ -480,7 +480,7 @@ export default function EditDeadline() {
                              disabled={!canEdit}
                            >
                             {field.value ? (
-                              format(field.value, "dd.MM.yyyy", { locale: cs })
+                              formatDisplayDate(field.value)
                             ) : (
                               "Vyberte datum"
                             )}
