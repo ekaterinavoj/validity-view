@@ -29,6 +29,7 @@ import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkEditExaminationsDialog } from "@/components/BulkEditExaminationsDialog";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { HealthRisksSummary } from "@/components/HealthRisksSummary";
+import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
