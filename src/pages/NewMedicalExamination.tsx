@@ -393,7 +393,7 @@ export default function NewMedicalExamination() {
             {expirationDate && (
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
                 <p className="text-sm font-medium">
-                  Platnost do: <span className="font-bold">{format(expirationDate, "d. MMMM yyyy", { locale: cs })}</span>
+                  Platnost do: <span className="font-bold">{formatDisplayDate(expirationDate)}</span>
                 </p>
               </div>
             )}
