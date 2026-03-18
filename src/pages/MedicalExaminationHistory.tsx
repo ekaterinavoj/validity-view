@@ -25,6 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
+import { formatDisplayDate } from "@/lib/dateFormat";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
