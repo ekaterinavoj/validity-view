@@ -387,7 +387,7 @@ export default function EditMedicalExamination() {
               unit={form.watch("periodUnit") as PeriodicityUnit}
               onValueChange={(val) => {
                 if (canEdit) {
-                  form.setValue("periodValue", val);
+                  form.setValue("periodValue", val ?? 1);
                 }
               }}
               onUnitChange={(unit) => {
