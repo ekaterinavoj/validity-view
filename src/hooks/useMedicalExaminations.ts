@@ -57,6 +57,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           is_active,
           last_examination_date,
           next_examination_date,
+          period_days_override,
           remind_days_before,
           repeat_days_after,
           reminder_template_id,

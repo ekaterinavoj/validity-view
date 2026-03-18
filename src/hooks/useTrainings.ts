@@ -56,6 +56,7 @@ export function useTrainings(activeOnly: boolean = true) {
           is_active,
           last_training_date,
           next_training_date,
+          period_days_override,
           remind_days_before,
           repeat_days_after,
           reminder_template_id,

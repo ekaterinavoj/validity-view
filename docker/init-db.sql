@@ -253,6 +253,7 @@ CREATE TABLE IF NOT EXISTS public.trainings (
     training_type_id UUID NOT NULL REFERENCES public.training_types(id),
     last_training_date DATE NOT NULL,
     next_training_date DATE NOT NULL,
+    period_days_override INTEGER,
     trainer TEXT,
     company TEXT,
     requester TEXT,
