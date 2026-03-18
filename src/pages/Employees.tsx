@@ -356,7 +356,7 @@ export default function Employees() {
       // Automaticky nastavit poznámku pro ukončené zaměstnance
       let notes = data.notes;
       if (data.status === "terminated" && data.terminationDate) {
-        notes = `Ukončen ke dni ${format(data.terminationDate, "dd.MM.yyyy", { locale: cs })}`;
+        notes = `Ukončen ke dni ${formatDisplayDate(data.terminationDate)}`;
       }
 
       // Determine status_start_date based on status change
