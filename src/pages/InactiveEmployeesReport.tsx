@@ -104,8 +104,8 @@ export default function InactiveEmployeesReport() {
               "Středisko": formatDepartment(employee.department, employee.departmentName),
               "Stav zaměstnance": statusLabels[employee.status] || "",
               "Typ školení": training.type || "",
-              "Školení platné do": new Date(training.date).toLocaleDateString("cs-CZ"),
-              "Datum školení": new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
+              "Školení platné do": formatDisplayDate(training.date, ""),
+              "Datum školení": formatDisplayDate(training.lastTrainingDate, ""),
               "Stav školení": training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
               "Poznámka": training.note || "",
             });
