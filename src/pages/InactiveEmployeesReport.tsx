@@ -325,10 +325,10 @@ export default function InactiveEmployeesReport() {
                                 <TableRow key={training.id}>
                                   <TableCell className="font-medium">{training.type}</TableCell>
                                   <TableCell className="whitespace-nowrap">
-                                    {new Date(training.date).toLocaleDateString("cs-CZ")}
+                                    {formatDisplayDate(training.date)}
                                   </TableCell>
                                   <TableCell className="whitespace-nowrap">
-                                    {new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ")}
+                                    {formatDisplayDate(training.lastTrainingDate)}
                                   </TableCell>
                                   <TableCell className="text-center">
                                     {formatPeriodicity(training.period)}

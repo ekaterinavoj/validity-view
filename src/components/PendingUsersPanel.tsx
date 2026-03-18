@@ -257,7 +257,7 @@ export function PendingUsersPanel() {
                   <TableCell>{pendingUser.email}</TableCell>
                   <TableCell>{pendingUser.position || '-'}</TableCell>
                   <TableCell>
-                    {format(new Date(pendingUser.created_at), 'dd.MM.yyyy HH:mm', { locale: cs })}
+                    {formatDisplayDateTime(pendingUser.created_at)}
                   </TableCell>
                   <TableCell>
                     <Select

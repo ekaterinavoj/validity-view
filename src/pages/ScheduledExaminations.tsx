@@ -20,7 +20,7 @@ import { MedicalProtocolCell } from "@/components/MedicalProtocolCell";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { differenceInYears, parseISO } from "date-fns";
+import { format, differenceInYears, parseISO } from "date-fns";
 import Papa from "papaparse";
 import { formatPeriodicity } from "@/lib/utils";
 import { formatDisplayDate } from "@/lib/dateFormat";

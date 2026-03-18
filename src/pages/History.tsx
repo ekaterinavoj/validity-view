@@ -476,7 +476,7 @@ export default function History() {
                       </TableCell>
                     )}
                     <TableCell className="whitespace-nowrap">
-                      {new Date(training.date).toLocaleDateString("cs-CZ")}
+                      {formatDisplayDate(training.date)}
                     </TableCell>
                     <TableCell className="font-medium">{training.type}</TableCell>
                     <TableCell>{training.employeeNumber}</TableCell>

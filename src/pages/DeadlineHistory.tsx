@@ -381,10 +381,10 @@ export default function DeadlineHistory() {
                     <TableCell>{deadline.deadline_type?.name}</TableCell>
                     <TableCell>{getFacilityName(deadline.facility)}</TableCell>
                     <TableCell>
-                      {format(new Date(deadline.last_check_date), "dd.MM.yyyy")}
+                      {formatDisplayDate(deadline.last_check_date)}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(deadline.next_check_date), "dd.MM.yyyy")}
+                      {formatDisplayDate(deadline.next_check_date)}
                     </TableCell>
                     <TableCell>{deadline.performer || "-"}</TableCell>
                     <TableCell>

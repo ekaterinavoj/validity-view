@@ -500,7 +500,7 @@ export default function ScheduledTrainings() {
                         <StatusBadge status={training.status} />
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {new Date(training.date).toLocaleDateString("cs-CZ")}
+                        {formatDisplayDate(training.date)}
                       </TableCell>
                       <TableCell className="font-medium">{training.type}</TableCell>
                       
@@ -510,7 +510,7 @@ export default function ScheduledTrainings() {
                       </TableCell>
                       <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ")}
+                        {formatDisplayDate(training.lastTrainingDate)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                       <TableCell className="whitespace-nowrap">{training.company}</TableCell>
