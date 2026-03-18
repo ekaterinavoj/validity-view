@@ -34,6 +34,7 @@ import Papa from "papaparse";
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
+import { NoteTooltipText } from "@/components/NoteTooltipText";
 
 export default function DeadlineHistory() {
   const { history, isLoading, error, refetch } = useDeadlineHistory();

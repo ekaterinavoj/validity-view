@@ -27,6 +27,7 @@ import Papa from 'papaparse';
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
+import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { formatDisplayDate } from "@/lib/dateFormat";
 
 const employeeStatusLabels: Record<string, string> = {
