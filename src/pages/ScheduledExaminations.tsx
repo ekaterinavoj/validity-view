@@ -28,6 +28,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkEditExaminationsDialog } from "@/components/BulkEditExaminationsDialog";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
+import { HealthRisksSummary } from "@/components/HealthRisksSummary";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -193,7 +194,7 @@ export default function ScheduledExaminations() {
     return (
       <div className="space-y-6">
         <PageHeaderSkeleton />
-        <TableSkeleton columns={11} />
+        <TableSkeleton columns={12} />
       </div>
     );
   }
@@ -220,7 +221,6 @@ export default function ScheduledExaminations() {
         </div>
       </div>
 
-      {/* Legend + Count */}
       <div className="flex items-center justify-between">
         <StatusLegend variant="training" />
         <p className="text-sm text-muted-foreground">
@@ -244,7 +244,6 @@ export default function ScheduledExaminations() {
         trainerLabel="doctors"
       />
 
-      {/* Bulk Actions Bar */}
       {canEdit && (
         <BulkActionsBar
           selectedCount={selectedExaminations.size}
@@ -272,6 +271,7 @@ export default function ScheduledExaminations() {
               <TableHead>Dat. nar.</TableHead>
               <TableHead>Věk</TableHead>
               <TableHead>Kategorie</TableHead>
+              <TableHead>Zdravotní rizika</TableHead>
               <TableHead>Výsledek</TableHead>
               <TableHead>Poznámka</TableHead>
               <TableHead>Protokol</TableHead>
@@ -282,7 +282,7 @@ export default function ScheduledExaminations() {
           <TableBody>
             {sortedExaminations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 14 : 13} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={canEdit ? 15 : 14} className="text-center text-muted-foreground py-8">
                   Žádné prohlídky k zobrazení.
                 </TableCell>
               </TableRow>
@@ -308,11 +308,14 @@ export default function ScheduledExaminations() {
                     {exam.employeeBirthDate ? differenceInYears(new Date(), parseISO(exam.employeeBirthDate)) : "-"}
                   </TableCell>
                   <TableCell><WorkCategoryBadge category={exam.employeeWorkCategory} /></TableCell>
+                  <TableCell className="min-w-[260px] align-top">
+                    <HealthRisksSummary value={exam.healthRisks} />
+                  </TableCell>
                   <TableCell>
-                    <ResultBadge 
-                      result={(exam.result as any) || "passed"} 
-                      context="medical" 
-                      note={exam.note || undefined} 
+                    <ResultBadge
+                      result={(exam.result as any) || "passed"}
+                      context="medical"
+                      note={exam.note || undefined}
                     />
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={exam.note || ""}>
@@ -340,7 +343,6 @@ export default function ScheduledExaminations() {
         </Table>
       </Card>
 
-      {/* Bulk Edit Dialog */}
       <BulkEditExaminationsDialog
         open={bulkEditDialogOpen}
         onOpenChange={setBulkEditDialogOpen}
@@ -351,7 +353,6 @@ export default function ScheduledExaminations() {
         }}
       />
 
-      {/* Bulk Archive Dialog */}
       <BulkArchiveDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
