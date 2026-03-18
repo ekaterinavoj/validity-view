@@ -500,13 +500,59 @@ export default function EditMedicalExamination() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Výsledek prohlídky</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="např. Způsobilý bez omezení" disabled={!canEdit} />
-                  </FormControl>
+                  <Select value={field.value || "passed"} onValueChange={field.onChange} disabled={!canEdit}>
+                    <FormControl>
+                      <SelectTrigger disabled={!canEdit}>
+                        <SelectValue placeholder="Vyberte výsledek" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {medicalExaminationResultOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {medicalExaminationResultRequiresLossDate(selectedResult) && (
+              <FormField
+                control={form.control}
+                name="longTermFitnessLossDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Datum pozbytí dlouhodobé zdravotní způsobilosti</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={!canEdit}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={field.value} onSelect={canEdit ? field.onChange : undefined} initialFocus disabled={!canEdit} />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {medicalExaminationResultRequiresNote(selectedResult) && (
+              <div className="rounded-lg border border-status-warning/40 bg-status-warning/10 p-4 text-sm text-foreground">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 text-status-warning" />
+                  <p>Prohlídka zůstává platná, ale musíte doplnit podmínku nebo omezení do poznámky.</p>
+                </div>
+              </div>
+            )}
 
             <HealthRisksSection value={healthRisks} onChange={setHealthRisks} disabled={!canEdit} />
 
