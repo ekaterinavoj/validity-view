@@ -113,6 +113,13 @@ export const MIGRATION_REGISTRY: MigrationEntry[] = [
   { version: "20260318105142", name: "medical_examination_health_risks", sql: null },
 
   // ===== Incremental migrations (not yet in init-db.sql) =====
+  {
+    version: "20260318130500",
+    name: "record_period_overrides",
+    sql: `ALTER TABLE public.trainings ADD COLUMN IF NOT EXISTS period_days_override INTEGER;
+ALTER TABLE public.medical_examinations ADD COLUMN IF NOT EXISTS period_days_override INTEGER;
+ALTER TABLE public.deadlines ADD COLUMN IF NOT EXISTS period_days_override INTEGER;`,
+  },
 ];
 
 /**

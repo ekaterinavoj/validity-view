@@ -142,7 +142,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           medicalFacility: e.medical_facility || "",
           result: e.result || "",
           requester: e.requester || "",
-          period: e.medical_examination_types?.period_days || 365,
+          period: e.period_days_override ?? e.medical_examination_types?.period_days ?? 365,
           reminderTemplate: e.medical_reminder_templates?.name || "",
           note: e.note || "",
           healthRisks: fromDbHealthRisks(e.zdravotni_rizika),

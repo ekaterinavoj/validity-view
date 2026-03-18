@@ -142,7 +142,7 @@ export function useTrainings(activeOnly: boolean = true) {
             trainer: t.trainer || "",
             company: t.company || "",
             requester: t.requester || "",
-            period: t.training_types?.period_days || 365,
+            period: t.period_days_override ?? t.training_types?.period_days ?? 365,
             reminderTemplate: t.reminder_templates?.name || "",
             calendar: "Ano",
             note: t.note || "",

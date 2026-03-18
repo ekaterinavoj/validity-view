@@ -472,6 +472,7 @@ CREATE TABLE IF NOT EXISTS public.medical_examinations (
     examination_type_id UUID NOT NULL REFERENCES public.medical_examination_types(id),
     last_examination_date DATE NOT NULL,
     next_examination_date DATE NOT NULL,
+    period_days_override INTEGER,
     doctor TEXT,
     medical_facility TEXT,
     result TEXT,

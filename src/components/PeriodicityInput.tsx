@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,13 +7,15 @@ import { addDays, addMonths, addYears } from "date-fns";
 export type PeriodicityUnit = "days" | "months" | "years";
 
 interface PeriodicityInputProps {
-  value: number;
+  value: number | null;
   unit: PeriodicityUnit;
-  onValueChange: (value: number) => void;
+  onValueChange: (value: number | null) => void;
   onUnitChange: (unit: PeriodicityUnit) => void;
   label?: string;
   required?: boolean;
   disabled?: boolean;
+  placeholder?: string;
+  emptyHint?: string;
 }
 
 /**
@@ -103,24 +105,45 @@ export function PeriodicityInput({
   label = "Periodicita",
   required = false,
   disabled = false,
+  placeholder,
+  emptyHint,
 }: PeriodicityInputProps) {
-  const [localValue, setLocalValue] = useState<string>(String(value));
+  const [localValue, setLocalValue] = useState<string>(value == null ? "" : String(value));
 
-  // Sync local value when parent value changes (e.g. unit switch recalculates)
+  useEffect(() => {
+    setLocalValue(value == null ? "" : String(value));
+  }, [value]);
+
   const handleBlur = () => {
-    const parsed = parseInt(localValue);
-    if (!parsed || parsed < 1) {
+    const trimmed = localValue.trim();
+
+    if (trimmed === "") {
+      if (!required) {
+        onValueChange(null);
+        return;
+      }
+
       setLocalValue("1");
       onValueChange(1);
+      return;
+    }
+
+    const parsed = parseInt(trimmed, 10);
+    if (!parsed || parsed < 1) {
+      if (required) {
+        setLocalValue("1");
+        onValueChange(1);
+      } else {
+        setLocalValue("");
+        onValueChange(null);
+      }
     } else {
+      setLocalValue(String(parsed));
       onValueChange(parsed);
     }
   };
 
-  // Keep local state in sync if parent resets value
-  const displayValue = localValue;
-
-  const totalDays = periodicityToDays(value, unit);
+  const totalDays = value != null && value >= 1 ? periodicityToDays(value, unit) : null;
   const isApproximate = unit !== "days";
 
   return (
@@ -132,11 +155,20 @@ export function PeriodicityInput({
         <Input
           type="number"
           min="1"
-          value={displayValue}
+          value={localValue}
+          placeholder={placeholder}
           onChange={(e) => {
-            setLocalValue(e.target.value);
-            // Update parent only if valid, but don't force "1"
-            const parsed = parseInt(e.target.value);
+            const nextValue = e.target.value;
+            setLocalValue(nextValue);
+
+            if (nextValue.trim() === "") {
+              if (!required) {
+                onValueChange(null);
+              }
+              return;
+            }
+
+            const parsed = parseInt(nextValue, 10);
             if (parsed && parsed >= 1) {
               onValueChange(parsed);
             }
@@ -148,9 +180,8 @@ export function PeriodicityInput({
         <Select
           value={unit}
           onValueChange={(v) => {
-            // When unit changes, ensure localValue stays in sync
-            const parsed = parseInt(localValue);
-            if (!parsed || parsed < 1) {
+            const parsed = parseInt(localValue, 10);
+            if (required && (!parsed || parsed < 1)) {
               setLocalValue("1");
               onValueChange(1);
             }
@@ -168,10 +199,14 @@ export function PeriodicityInput({
           </SelectContent>
         </Select>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {isApproximate ? "≈ " : "= "}{totalDays} dní celkem
-        {isApproximate && " (orientační)"}
-      </p>
+      {totalDays != null ? (
+        <p className="text-xs text-muted-foreground">
+          {isApproximate ? "≈ " : "= "}{totalDays} dní celkem
+          {isApproximate && " (orientační)"}
+        </p>
+      ) : emptyHint ? (
+        <p className="text-xs text-muted-foreground">{emptyHint}</p>
+      ) : null}
     </div>
   );
 }
