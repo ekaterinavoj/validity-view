@@ -249,7 +249,7 @@ export function AdvancedFilters({
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {filters.dateFrom ? (
-                    format(filters.dateFrom, "dd.MM.yyyy", { locale: cs })
+                    formatDisplayDate(filters.dateFrom)
                   ) : (
                     <span>Vyberte datum</span>
                   )}
