@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { formatDisplayDate } from "@/lib/dateFormat";
 
 interface TrainingDocumentsListProps {
