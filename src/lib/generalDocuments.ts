@@ -9,6 +9,7 @@ export async function uploadGeneralDocument(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Uživatel není přihlášen");
 
+    const normalizedGroupName = groupName.trim().replace(/\s+/g, " ");
     const fileExt = file.name.split('.').pop();
     const filePath = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
 
@@ -22,7 +23,7 @@ export async function uploadGeneralDocument(
       .from("general_documents")
       .insert({
         name,
-        group_name: groupName,
+        group_name: normalizedGroupName,
         file_name: file.name,
         file_path: filePath,
         file_type: file.type,

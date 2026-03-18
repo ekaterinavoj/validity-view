@@ -7,12 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { uploadGeneralDocument, getGeneralDocuments, deleteGeneralDocument, getGeneralDocumentUrl } from "@/lib/generalDocuments";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
-import { PlusCircle, Search, Trash2, Download, FileText, Upload } from "lucide-react";
+import { PlusCircle, Search, Trash2, Download, FileText, Upload, FolderOpen } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 
@@ -37,16 +37,13 @@ export default function Documents() {
   const [uploading, setUploading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Form state
   const [docName, setDocName] = useState("");
   const [docGroup, setDocGroup] = useState("");
   const [docFile, setDocFile] = useState<File | null>(null);
 
-  // Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [groupFilter, setGroupFilter] = useState("all");
 
-  // Preview state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFiles, setPreviewFiles] = useState<Array<{ name: string; url: string; type: string }>>([]);
 
@@ -65,23 +62,49 @@ export default function Documents() {
     loadDocuments();
   }, []);
 
-  // Get unique groups for filter
   const groups = useMemo(() => {
-    const unique = [...new Set(documents.map(d => d.group_name))].sort();
-    return unique;
+    return [...new Set(documents.map((d) => d.group_name))].sort((a, b) => a.localeCompare(b, "cs"));
   }, [documents]);
 
-  // Filtered documents
   const filteredDocuments = useMemo(() => {
-    return documents.filter(doc => {
-      const matchesSearch = searchQuery === "" ||
-        doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.file_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.group_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.trim().toLowerCase();
+
+    return documents.filter((doc) => {
+      const matchesSearch =
+        query === "" ||
+        doc.name.toLowerCase().includes(query) ||
+        doc.file_name.toLowerCase().includes(query) ||
+        doc.group_name.toLowerCase().includes(query);
       const matchesGroup = groupFilter === "all" || doc.group_name === groupFilter;
       return matchesSearch && matchesGroup;
     });
   }, [documents, searchQuery, groupFilter]);
+
+  const folderSections = useMemo(() => {
+    const grouped = new Map<string, GeneralDocument[]>();
+
+    filteredDocuments.forEach((doc) => {
+      const existing = grouped.get(doc.group_name) ?? [];
+      existing.push(doc);
+      grouped.set(doc.group_name, existing);
+    });
+
+    return [...grouped.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], "cs"))
+      .map(([groupName, docs]) => ({ groupName, docs }));
+  }, [filteredDocuments]);
+
+  const defaultOpenFolders = useMemo(() => {
+    if (folderSections.length === 1) {
+      return [folderSections[0].groupName];
+    }
+
+    if (groupFilter !== "all") {
+      return folderSections.map((section) => section.groupName);
+    }
+
+    return [] as string[];
+  }, [folderSections, groupFilter]);
 
   const handleUpload = async () => {
     if (!docName.trim() || !docGroup.trim() || !docFile) {
@@ -141,16 +164,48 @@ export default function Documents() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const canPreview = (type: string) => {
-    return type === "application/pdf" || type.startsWith("image/");
-  };
+  const canPreview = (type: string) => type === "application/pdf" || type.startsWith("image/");
+
+  const renderActions = (doc: GeneralDocument) => (
+    <div className="flex items-center justify-end gap-1">
+      {canPreview(doc.file_type) && (
+        <Button variant="ghost" size="sm" onClick={() => handlePreview(doc)} title="Náhled">
+          <FileText className="w-4 h-4 text-primary" />
+        </Button>
+      )}
+      <Button variant="ghost" size="sm" onClick={() => handleDownload(doc)} title="Stáhnout">
+        <Download className="w-4 h-4" />
+      </Button>
+      {(isAdmin || isManager) && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="sm" title="Smazat">
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Smazat dokument?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Opravdu chcete smazat dokument &quot;{doc.name}&quot;? Tato akce je nevratná.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Zrušit</AlertDialogCancel>
+              <AlertDialogAction onClick={() => handleDelete(doc)}>Smazat</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Dokumentace</h1>
-          <p className="text-muted-foreground">Správa firemních dokumentů</p>
+          <h1 className="text-2xl font-bold text-foreground">Dokumenty</h1>
+          <p className="text-muted-foreground">Firemní dokumenty rozdělené do přehledných složek podle skupin.</p>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -175,7 +230,7 @@ export default function Documents() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="doc-group">Skupina</Label>
+                <Label htmlFor="doc-group">Skupina / složka</Label>
                 <Input
                   id="doc-group"
                   value={docGroup}
@@ -184,10 +239,11 @@ export default function Documents() {
                   list="group-suggestions"
                 />
                 <datalist id="group-suggestions">
-                  {groups.map(g => (
+                  {groups.map((g) => (
                     <option key={g} value={g} />
                   ))}
                 </datalist>
+                <p className="text-xs text-muted-foreground">Pokud skupina ještě neexistuje, vytvoří se automaticky jako nová složka.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="doc-file">Soubor</Label>
@@ -210,120 +266,138 @@ export default function Documents() {
         </Dialog>
       </div>
 
-      {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Hledat podle názvu, souboru nebo skupiny..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="w-full sm:w-48">
-              <Select value={groupFilter} onValueChange={setGroupFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Skupina" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Všechny skupiny</SelectItem>
-                  {groups.map(g => (
-                    <SelectItem key={g} value={g}>{g}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <CardContent className="pt-6 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Hledat podle názvu, souboru nebo skupiny..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={groupFilter === "all" ? "default" : "outline"}
+              size="sm"
+              className="gap-2"
+              onClick={() => setGroupFilter("all")}
+            >
+              <FolderOpen className="w-4 h-4" />
+              Všechny složky
+              <Badge variant="secondary">{documents.length}</Badge>
+            </Button>
+            {groups.map((group) => {
+              const count = documents.filter((doc) => doc.group_name === group).length;
+              return (
+                <Button
+                  key={group}
+                  type="button"
+                  variant={groupFilter === group ? "default" : "outline"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setGroupFilter(group)}
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  {group}
+                  <Badge variant="secondary">{count}</Badge>
+                </Button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
 
-      {/* Document list */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Dokumenty ({filteredDocuments.length})
+            <FolderOpen className="w-5 h-5" />
+            {groupFilter === "all" ? "Složky dokumentů" : `Složka: ${groupFilter}`}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <p className="text-muted-foreground text-center py-8">Načítám...</p>
-          ) : filteredDocuments.length === 0 ? (
+          ) : folderSections.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              {documents.length === 0 ? "Zatím nebyly nahrány žádné dokumenty" : "Žádné dokumenty neodpovídají filtru"}
+              {documents.length === 0
+                ? "Zatím nebyly nahrány žádné dokumenty"
+                : "Žádné dokumenty neodpovídají vybranému filtru nebo hledání"}
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Název</TableHead>
-                    <TableHead>Skupina</TableHead>
-                    <TableHead>Soubor</TableHead>
-                    <TableHead>Velikost</TableHead>
-                    <TableHead>Nahráno</TableHead>
-                    <TableHead className="text-right">Akce</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDocuments.map((doc) => (
-                    <TableRow key={doc.id}>
-                      <TableCell className="font-medium">{doc.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{doc.group_name}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                        {doc.file_name}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatFileSize(doc.file_size)}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(doc.uploaded_at), "d. M. yyyy", { locale: cs })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {canPreview(doc.file_type) && (
-                            <Button variant="ghost" size="sm" onClick={() => handlePreview(doc)} title="Náhled">
-                              <FileText className="w-4 h-4 text-primary" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="sm" onClick={() => handleDownload(doc)} title="Stáhnout">
-                            <Download className="w-4 h-4" />
-                          </Button>
-                          {(isAdmin || isManager) && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" title="Smazat">
-                                  <Trash2 className="w-4 h-4 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Smazat dokument?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Opravdu chcete smazat dokument "{doc.name}"? Tato akce je nevratná.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(doc)}>Smazat</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
+            <Accordion
+              key={`${groupFilter}-${searchQuery}-${folderSections.length}`}
+              type="multiple"
+              defaultValue={defaultOpenFolders}
+              className="w-full"
+            >
+              {folderSections.map((section) => (
+                <AccordionItem key={section.groupName} value={section.groupName}>
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex w-full items-center justify-between pr-4">
+                      <div className="flex items-center gap-3 text-left">
+                        <FolderOpen className="w-4 h-4 text-primary" />
+                        <div>
+                          <p className="font-medium text-foreground">{section.groupName}</p>
+                          <p className="text-xs text-muted-foreground">{section.docs.length} dokumentů</p>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      </div>
+                      <Badge variant="secondary">{section.docs.length}</Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4">
+                    <div className="grid gap-3 md:hidden">
+                      {section.docs.map((doc) => (
+                        <Card key={doc.id}>
+                          <CardContent className="p-4 space-y-3">
+                            <div>
+                              <p className="font-medium text-foreground">{doc.name}</p>
+                              <p className="text-sm text-muted-foreground truncate">{doc.file_name}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                              <Badge variant="secondary">{section.groupName}</Badge>
+                              <span>{formatFileSize(doc.file_size)}</span>
+                              <span>{format(new Date(doc.uploaded_at), "d. M. yyyy", { locale: cs })}</span>
+                            </div>
+                            <div className="flex justify-end">{renderActions(doc)}</div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    <div className="hidden md:block overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Název</TableHead>
+                            <TableHead>Soubor</TableHead>
+                            <TableHead>Velikost</TableHead>
+                            <TableHead>Nahráno</TableHead>
+                            <TableHead className="text-right">Akce</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {section.docs.map((doc) => (
+                            <TableRow key={doc.id}>
+                              <TableCell className="font-medium">{doc.name}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground max-w-[240px] truncate">{doc.file_name}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{formatFileSize(doc.file_size)}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {format(new Date(doc.uploaded_at), "d. M. yyyy", { locale: cs })}
+                              </TableCell>
+                              <TableCell className="text-right">{renderActions(doc)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           )}
         </CardContent>
       </Card>
