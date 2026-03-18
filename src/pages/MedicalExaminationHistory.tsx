@@ -25,6 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
+import { formatDisplayDate } from "@/lib/dateFormat";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
@@ -355,7 +356,7 @@ export default function MedicalExaminationHistory() {
                       </TableCell>
                     )}
                     <TableCell className="whitespace-nowrap">
-                      {new Date(exam.date).toLocaleDateString("cs-CZ")}
+                      {formatDisplayDate(exam.date)}
                     </TableCell>
                     <TableCell className="font-medium">{exam.type}</TableCell>
                     <TableCell>{exam.employeeNumber}</TableCell>

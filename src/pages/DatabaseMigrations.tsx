@@ -28,6 +28,7 @@ import {
   ArrowLeft,
   ChevronDown,
 } from "lucide-react";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import {
   MIGRATION_REGISTRY,
   getPendingMigrations,
@@ -511,7 +512,7 @@ export default function DatabaseMigrations() {
                             )}
                             {m.appliedAt && (
                               <span className="text-xs text-muted-foreground">
-                                {new Date(m.appliedAt).toLocaleDateString("cs-CZ")}
+                                {formatDisplayDate(m.appliedAt)}
                               </span>
                             )}
                           </div>
@@ -540,7 +541,7 @@ export default function DatabaseMigrations() {
                               </div>
                             </div>
                             <span className="text-xs text-muted-foreground">
-                              {new Date(m.applied_at).toLocaleDateString("cs-CZ")}
+                              {formatDisplayDate(m.applied_at)}
                             </span>
                           </div>
                         ))}

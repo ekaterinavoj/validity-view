@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { RefreshCw, Download, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -238,8 +239,8 @@ export default function DeadlineHistory() {
       "Zařízení": d.equipment?.name || "",
       "Typ události": d.deadline_type?.name || "",
       "Provozovna": getFacilityName(d.facility),
-      "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
-      "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
+      "Poslední kontrola": formatDisplayDate(d.last_check_date, ""),
+      "Příští kontrola": formatDisplayDate(d.next_check_date, ""),
       "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
       "Provádějící": d.performer || "",
       "Firma": d.company || "",
@@ -380,10 +381,10 @@ export default function DeadlineHistory() {
                     <TableCell>{deadline.deadline_type?.name}</TableCell>
                     <TableCell>{getFacilityName(deadline.facility)}</TableCell>
                     <TableCell>
-                      {format(new Date(deadline.last_check_date), "dd.MM.yyyy")}
+                      {formatDisplayDate(deadline.last_check_date)}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(deadline.next_check_date), "dd.MM.yyyy")}
+                      {formatDisplayDate(deadline.next_check_date)}
                     </TableCell>
                     <TableCell>{deadline.performer || "-"}</TableCell>
                     <TableCell>

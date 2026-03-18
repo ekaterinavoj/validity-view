@@ -24,9 +24,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Search, X, Calendar as CalendarIcon, Save, Star, Trash2 } from "lucide-react";
-import { format } from "date-fns";
-import { cs } from "date-fns/locale";
 import { useState } from "react";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { FilterState, SavedFilter } from "@/hooks/useAdvancedFilters";
 
 interface ResponsiblePerson {
@@ -250,7 +249,7 @@ export function AdvancedFilters({
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {filters.dateFrom ? (
-                    format(filters.dateFrom, "dd.MM.yyyy", { locale: cs })
+                    formatDisplayDate(filters.dateFrom)
                   ) : (
                     <span>Vyberte datum</span>
                   )}
@@ -279,7 +278,7 @@ export function AdvancedFilters({
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {filters.dateTo ? (
-                    format(filters.dateTo, "dd.MM.yyyy", { locale: cs })
+                    formatDisplayDate(filters.dateTo)
                   ) : (
                     <span>Vyberte datum</span>
                   )}

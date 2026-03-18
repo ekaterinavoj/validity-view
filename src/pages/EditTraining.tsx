@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Loader2, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -435,7 +436,7 @@ export default function EditTraining() {
                           disabled={!canEdit}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                          {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
@@ -483,7 +484,7 @@ export default function EditTraining() {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-primary">
-                      {format(expirationDate, "dd.MM.yyyy", { locale: cs })}
+                      {formatDisplayDate(expirationDate)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {format(expirationDate, "EEEE", { locale: cs })}

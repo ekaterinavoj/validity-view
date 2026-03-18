@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -424,7 +425,7 @@ export default function EditMedicalExamination() {
                       <FormControl>
                         <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={!canEdit}>
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                          {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
@@ -460,7 +461,7 @@ export default function EditMedicalExamination() {
             {expirationDate && (
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
                 <p className="text-sm font-medium">
-                  Platnost do: <span className="font-bold">{format(expirationDate, "d. MMMM yyyy", { locale: cs })}</span>
+                  Platnost do: <span className="font-bold">{formatDisplayDate(expirationDate)}</span>
                 </p>
               </div>
             )}
@@ -531,7 +532,7 @@ export default function EditMedicalExamination() {
                         <FormControl>
                           <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={!canEdit}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                            {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
                           </Button>
                         </FormControl>
                       </PopoverTrigger>

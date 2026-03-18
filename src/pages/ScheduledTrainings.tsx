@@ -28,6 +28,7 @@ import { format } from "date-fns";
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { formatPeriodicity } from "@/lib/utils";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { useTrainings } from "@/hooks/useTrainings";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
@@ -273,13 +274,13 @@ export default function ScheduledTrainings() {
       const data = trainingsToExport.map(training => ({
         "Stav": training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
         "Výsledek": getResultLabel(training.result, "training"),
-        "Školení platné do": new Date(training.date).toLocaleDateString("cs-CZ"),
+        "Školení platné do": formatDisplayDate(training.date, ""),
         "Typ školení": training.type || "",
         "Osobní číslo": training.employeeNumber || "",
         "Jméno": training.employeeName || "",
         "Provozovna": getFacilityName(training.facility) || "",
         "Středisko": formatDepartment(training.department, training.departmentName),
-        "Datum školení": new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
+        "Datum školení": formatDisplayDate(training.lastTrainingDate, ""),
         "Školitel": training.trainer || "",
         "Firma": training.company || "",
         "Zadavatel": training.requester || "",
@@ -499,7 +500,7 @@ export default function ScheduledTrainings() {
                         <StatusBadge status={training.status} />
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {new Date(training.date).toLocaleDateString("cs-CZ")}
+                        {formatDisplayDate(training.date)}
                       </TableCell>
                       <TableCell className="font-medium">{training.type}</TableCell>
                       
@@ -509,7 +510,7 @@ export default function ScheduledTrainings() {
                       </TableCell>
                       <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ")}
+                        {formatDisplayDate(training.lastTrainingDate)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                       <TableCell className="whitespace-nowrap">{training.company}</TableCell>

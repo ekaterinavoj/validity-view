@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -405,7 +406,7 @@ export default function NewDeadline() {
                             )}
                           >
                             {field.value ? (
-                              format(field.value, "dd.MM.yyyy", { locale: cs })
+                              formatDisplayDate(field.value)
                             ) : (
                               "Vyberte datum"
                             )}

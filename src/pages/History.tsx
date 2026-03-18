@@ -27,6 +27,7 @@ import Papa from 'papaparse';
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
+import { formatDisplayDate } from "@/lib/dateFormat";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
@@ -282,7 +283,7 @@ export default function History() {
   const exportToCSV = () => {
     try {
       const data = filteredHistory.map((training) => ({
-        "Datum": new Date(training.date).toLocaleDateString("cs-CZ"),
+        "Datum": formatDisplayDate(training.date, ""),
         "Typ školení": training.type || "",
         "Osobní číslo": training.employeeNumber || "",
         "Jméno": training.employeeName || "",
@@ -476,7 +477,7 @@ export default function History() {
                       </TableCell>
                     )}
                     <TableCell className="whitespace-nowrap">
-                      {new Date(training.date).toLocaleDateString("cs-CZ")}
+                      {formatDisplayDate(training.date)}
                     </TableCell>
                     <TableCell className="font-medium">{training.type}</TableCell>
                     <TableCell>{training.employeeNumber}</TableCell>

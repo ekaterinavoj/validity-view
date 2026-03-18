@@ -126,6 +126,12 @@ ALTER TABLE public.deadlines ADD COLUMN IF NOT EXISTS period_days_override INTEG
     sql: `-- UI-only PLP visibility change, no database schema updates required.
 SELECT 1;`,
   },
+  {
+    version: "20260318203000",
+    name: "unify_display_date_format",
+    sql: `-- UI-only date format unification, no database schema updates required.
+SELECT 1;`,
+  },
 ];
 
 /**

@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { formatDisplayDate } from "@/lib/dateFormat";
 
 interface TrainingDocumentsListProps {
   trainingId: string;
@@ -199,7 +200,7 @@ export function TrainingDocumentsList({
                       {formatFileSize(document.file_size)}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(document.uploaded_at).toLocaleDateString("cs-CZ")}
+                      {formatDisplayDate(document.uploaded_at)}
                     </span>
                   </div>
                   {document.description && (

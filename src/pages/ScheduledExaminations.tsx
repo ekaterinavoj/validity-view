@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInYears, parseISO } from "date-fns";
 import Papa from "papaparse";
 import { formatPeriodicity } from "@/lib/utils";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { formatDepartment } from "@/components/DepartmentCell";
 import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
@@ -159,20 +160,20 @@ export default function ScheduledExaminations() {
 
     const data = dataToExport.map((e) => ({
       "Stav": e.status === "valid" ? "Platné" : e.status === "warning" ? "Blíží se" : "Expirované",
-      "Platnost do": format(new Date(e.nextExaminationDate), "dd.MM.yyyy"),
+      "Platnost do": formatDisplayDate(e.nextExaminationDate, ""),
       "Typ prohlídky": e.type,
       "Os. číslo": e.employeeNumber,
       "Jméno": e.employeeName,
       "Stav zaměstnance": e.employeeStatus,
-      "Datum narození": e.employeeBirthDate ? format(parseISO(e.employeeBirthDate), "dd.MM.yyyy") : "",
+      "Datum narození": e.employeeBirthDate ? formatDisplayDate(e.employeeBirthDate, "") : "",
       "Věk": e.employeeBirthDate ? String(differenceInYears(new Date(), parseISO(e.employeeBirthDate))) : "",
       "Kategorie": e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
       "Provozovna": getFacilityName(e.facility) || "",
       "Středisko": formatDepartment(e.department, e.departmentName),
-      "Datum prohlídky": format(new Date(e.lastExaminationDate), "dd.MM.yyyy"),
+      "Datum prohlídky": formatDisplayDate(e.lastExaminationDate, ""),
       "Periodicita": formatPeriodicity(e.period),
       "Výsledek": getMedicalExaminationResultLabel(e.result),
-      "Datum pozbytí dlouhodobé způsobilosti": e.longTermFitnessLossDate ? format(new Date(e.longTermFitnessLossDate), "dd.MM.yyyy") : "",
+      "Datum pozbytí dlouhodobé způsobilosti": e.longTermFitnessLossDate ? formatDisplayDate(e.longTermFitnessLossDate, "") : "",
       "Lékař": e.doctor || "",
       "Zdravotnické zařízení": e.medicalFacility || "",
       "Zadavatel": e.requester || "",
@@ -314,7 +315,7 @@ export default function ScheduledExaminations() {
                   <TableCell>
                     <StatusBadge status={exam.status} />
                   </TableCell>
-                  <TableCell>{format(new Date(exam.nextExaminationDate), "dd.MM.yyyy")}</TableCell>
+                  <TableCell>{formatDisplayDate(exam.nextExaminationDate)}</TableCell>
                   <TableCell className="font-medium">{exam.type}</TableCell>
                   <TableCell>{exam.employeeNumber}</TableCell>
                   <TableCell>{exam.employeeName}</TableCell>
@@ -322,7 +323,7 @@ export default function ScheduledExaminations() {
                     <EmployeeStatusBadge status={exam.employeeStatus} />
                   </TableCell>
                   <TableCell className="text-sm">
-                    {exam.employeeBirthDate ? format(parseISO(exam.employeeBirthDate), "dd.MM.yyyy") : "-"}
+                    {exam.employeeBirthDate ? formatDisplayDate(exam.employeeBirthDate) : "-"}
                   </TableCell>
                   <TableCell className="text-sm text-center">
                     {exam.employeeBirthDate ? differenceInYears(new Date(), parseISO(exam.employeeBirthDate)) : "-"}
@@ -342,7 +343,7 @@ export default function ScheduledExaminations() {
                     {exam.note || "-"}
                   </TableCell>
                   <TableCell className="text-sm whitespace-nowrap">
-                    {exam.longTermFitnessLossDate ? format(new Date(exam.longTermFitnessLossDate), "dd.MM.yyyy") : "-"}
+                    {exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : "-"}
                   </TableCell>
                   <TableCell className="text-center">
                     <MedicalProtocolCell examinationId={exam.id} />

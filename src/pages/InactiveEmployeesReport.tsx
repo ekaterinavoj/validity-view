@@ -22,6 +22,7 @@ import {
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatPeriodicity } from "@/lib/utils";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { useInactiveEmployees } from "@/hooks/useEmployees";
 import { useTrainings } from "@/hooks/useTrainings";
 import { CardsSkeleton, TableSkeleton } from "@/components/LoadingSkeletons";
@@ -103,8 +104,8 @@ export default function InactiveEmployeesReport() {
               "Středisko": formatDepartment(employee.department, employee.departmentName),
               "Stav zaměstnance": statusLabels[employee.status] || "",
               "Typ školení": training.type || "",
-              "Školení platné do": new Date(training.date).toLocaleDateString("cs-CZ"),
-              "Datum školení": new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ"),
+              "Školení platné do": formatDisplayDate(training.date, ""),
+              "Datum školení": formatDisplayDate(training.lastTrainingDate, ""),
               "Stav školení": training.status === "valid" ? "Platné" : training.status === "warning" ? "Brzy vyprší" : "Prošlé",
               "Poznámka": training.note || "",
             });
@@ -324,10 +325,10 @@ export default function InactiveEmployeesReport() {
                                 <TableRow key={training.id}>
                                   <TableCell className="font-medium">{training.type}</TableCell>
                                   <TableCell className="whitespace-nowrap">
-                                    {new Date(training.date).toLocaleDateString("cs-CZ")}
+                                    {formatDisplayDate(training.date)}
                                   </TableCell>
                                   <TableCell className="whitespace-nowrap">
-                                    {new Date(training.lastTrainingDate).toLocaleDateString("cs-CZ")}
+                                    {formatDisplayDate(training.lastTrainingDate)}
                                   </TableCell>
                                   <TableCell className="text-center">
                                     {formatPeriodicity(training.period)}

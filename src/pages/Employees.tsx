@@ -31,6 +31,7 @@ import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, differenceInYears } from "date-fns";
 import { cs } from "date-fns/locale";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { useEmployees, EmployeeWithDepartment } from "@/hooks/useEmployees";
 import Papa from "papaparse";
 import { useDepartments } from "@/hooks/useDepartments";
@@ -151,10 +152,10 @@ export default function Employees() {
         "Pozice": employee.position || "",
         "Středisko": formatDepartment(employee.department, employee.departmentName),
         "Stav": getStatusLabel(employee.status) || "",
-        "Datum narození": employee.birthDate ? format(parseISO(employee.birthDate), "dd.MM.yyyy") : "",
+        "Datum narození": employee.birthDate ? formatDisplayDate(employee.birthDate, "") : "",
         "Věk": employee.birthDate ? String(differenceInYears(new Date(), parseISO(employee.birthDate))) : "",
         "Datum od": employee.statusStartDate || employee.terminationDate 
-          ? format(parseISO(employee.statusStartDate || employee.terminationDate || ""), "dd.MM.yyyy", { locale: cs })
+          ? formatDisplayDate(employee.statusStartDate || employee.terminationDate, "")
           : "",
       }));
 
@@ -251,7 +252,7 @@ export default function Employees() {
         .update({ 
           status: "terminated",
           termination_date: new Date().toISOString().split("T")[0],
-          notes: `Ukončen ke dni ${format(new Date(), "dd.MM.yyyy", { locale: cs })}`
+          notes: `Ukončen ke dni ${formatDisplayDate(new Date())}`
         })
         .eq("id", employeeToDelete.id);
 
@@ -355,7 +356,7 @@ export default function Employees() {
       // Automaticky nastavit poznámku pro ukončené zaměstnance
       let notes = data.notes;
       if (data.status === "terminated" && data.terminationDate) {
-        notes = `Ukončen ke dni ${format(data.terminationDate, "dd.MM.yyyy", { locale: cs })}`;
+        notes = `Ukončen ke dni ${formatDisplayDate(data.terminationDate)}`;
       }
 
       // Determine status_start_date based on status change
@@ -635,7 +636,7 @@ export default function Employees() {
                               className="w-full justify-start text-left font-normal"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                              {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -732,7 +733,7 @@ export default function Employees() {
                                 className="w-full justify-start text-left font-normal"
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                                {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
@@ -769,7 +770,7 @@ export default function Employees() {
                                 className="w-full justify-start text-left font-normal"
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                                {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
@@ -945,7 +946,7 @@ export default function Employees() {
                   <WorkCategoryBadge category={employee.workCategory} />
                 </TableCell>
                 <TableCell className="text-sm">
-                  {employee.birthDate ? format(parseISO(employee.birthDate), "dd.MM.yyyy") : "-"}
+                  {employee.birthDate ? formatDisplayDate(employee.birthDate) : "-"}
                 </TableCell>
                 <TableCell className="text-sm text-center">
                   {employee.birthDate ? differenceInYears(new Date(), parseISO(employee.birthDate)) : "-"}

@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, parseISO } from "date-fns";
 import { cs } from "date-fns/locale";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { getResultOptions } from "@/components/ResultBadge";
 import { Button } from "@/components/ui/button";
@@ -480,7 +481,7 @@ export default function EditDeadline() {
                              disabled={!canEdit}
                            >
                             {field.value ? (
-                              format(field.value, "dd.MM.yyyy", { locale: cs })
+                              formatDisplayDate(field.value)
                             ) : (
                               "Vyberte datum"
                             )}
@@ -531,7 +532,7 @@ export default function EditDeadline() {
                 <Alert className="bg-primary/10 border-primary/30">
                   <AlertDescription className="flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4" />
-                    <span>Příští kontrola: <strong>{format(nextCheckDate, "dd.MM.yyyy", { locale: cs })}</strong></span>
+                    <span>Příští kontrola: <strong>{formatDisplayDate(nextCheckDate)}</strong></span>
                   </AlertDescription>
                 </Alert>
               )}
