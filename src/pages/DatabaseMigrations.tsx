@@ -512,7 +512,7 @@ export default function DatabaseMigrations() {
                             )}
                             {m.appliedAt && (
                               <span className="text-xs text-muted-foreground">
-                                {new Date(m.appliedAt).toLocaleDateString("cs-CZ")}
+                                {formatDisplayDate(m.appliedAt)}
                               </span>
                             )}
                           </div>
