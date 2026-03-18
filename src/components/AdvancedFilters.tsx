@@ -24,9 +24,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Search, X, Calendar as CalendarIcon, Save, Star, Trash2 } from "lucide-react";
-import { format } from "date-fns";
-import { cs } from "date-fns/locale";
 import { useState } from "react";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { FilterState, SavedFilter } from "@/hooks/useAdvancedFilters";
 
 interface ResponsiblePerson {
