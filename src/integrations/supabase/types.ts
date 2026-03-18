@@ -752,6 +752,7 @@ export type Database = {
           result: string | null
           status: string
           updated_at: string
+          zdravotni_rizika: Json
         }
         Insert: {
           created_at?: string
@@ -774,6 +775,7 @@ export type Database = {
           result?: string | null
           status?: string
           updated_at?: string
+          zdravotni_rizika?: Json
         }
         Update: {
           created_at?: string
@@ -796,6 +798,7 @@ export type Database = {
           result?: string | null
           status?: string
           updated_at?: string
+          zdravotni_rizika?: Json
         }
         Relationships: [
           {
