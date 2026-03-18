@@ -53,6 +53,23 @@ const formSchema = z.object({
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   note: z.string().optional(),
+  longTermFitnessLossDate: z.date().optional(),
+}).superRefine((values, ctx) => {
+  if (medicalExaminationResultRequiresNote(values.result) && !values.note?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "U výsledku s podmínkou nebo omezením musíte doplnit poznámku.",
+      path: ["note"],
+    });
+  }
+
+  if (medicalExaminationResultRequiresLossDate(values.result) && !values.longTermFitnessLossDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Vyberte datum pozbytí dlouhodobé zdravotní způsobilosti.",
+      path: ["longTermFitnessLossDate"],
+    });
+  }
 });
 
 type FormValues = z.infer<typeof formSchema>;
