@@ -13,9 +13,9 @@ export function HealthRisksSummary({ value }: HealthRisksSummaryProps) {
   }
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-col gap-1">
       {selectedItems.map((item) => (
-        <Badge key={item.key} variant="secondary" className="whitespace-nowrap text-xs">
+        <Badge key={item.key} variant="secondary" className="w-fit whitespace-nowrap text-xs">
           {item.label} {item.value}
         </Badge>
       ))}
