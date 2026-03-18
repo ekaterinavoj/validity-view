@@ -484,7 +484,7 @@ export default function EditTraining() {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-primary">
-                      {format(expirationDate, "dd.MM.yyyy", { locale: cs })}
+                      {formatDisplayDate(expirationDate)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {format(expirationDate, "EEEE", { locale: cs })}
