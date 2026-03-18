@@ -422,8 +422,8 @@ export default function EditMedicalExamination() {
                   setPeriodUnit(unit);
                 }
               }}
-              label="Periodicita (override)"
-              placeholder="Volitelné"
+              label="Periodicita override (nepovinné)"
+              placeholder="Nepovinné"
               emptyHint={typePeriodHint}
               disabled={!canEdit}
             />

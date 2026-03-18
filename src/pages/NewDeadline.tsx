@@ -432,8 +432,8 @@ export default function NewDeadline() {
                 unit={form.watch("period_unit") as PeriodicityUnit}
                 onValueChange={(val) => form.setValue("period_value", val)}
                 onUnitChange={(unit) => form.setValue("period_unit", unit)}
-                label="Periodicita (override)"
-                placeholder="Volitelné"
+                label="Periodicita override (nepovinné)"
+                placeholder="Nepovinné"
                 emptyHint={typePeriodHint}
               />
 

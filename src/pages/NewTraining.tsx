@@ -382,8 +382,8 @@ export default function NewTraining() {
                 form.setValue("periodUnit", unit);
                 setPeriodUnit(unit);
               }}
-              label="Periodicita (override)"
-              placeholder="Volitelné"
+              label="Periodicita override (nepovinné)"
+              placeholder="Nepovinné"
               emptyHint={typePeriodHint}
             />
 

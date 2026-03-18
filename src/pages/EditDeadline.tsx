@@ -520,8 +520,8 @@ export default function EditDeadline() {
                         form.setValue("period_unit", unit);
                       }
                     }}
-                    label="Periodicita (override)"
-                    placeholder="Volitelné"
+                    label="Periodicita override (nepovinné)"
+                    placeholder="Nepovinné"
                     emptyHint={typePeriodHint}
                     disabled={!canEdit}
                   />
