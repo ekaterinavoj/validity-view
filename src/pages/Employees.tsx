@@ -252,7 +252,7 @@ export default function Employees() {
         .update({ 
           status: "terminated",
           termination_date: new Date().toISOString().split("T")[0],
-          notes: `Ukončen ke dni ${format(new Date(), "dd.MM.yyyy", { locale: cs })}`
+          notes: `Ukončen ke dni ${formatDisplayDate(new Date())}`
         })
         .eq("id", employeeToDelete.id);
 
