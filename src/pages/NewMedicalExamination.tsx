@@ -28,7 +28,8 @@ import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeMultiSelect } from "@/components/EmployeeMultiSelect";
 import { Progress } from "@/components/ui/progress";
-import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, calculateNextDate } from "@/components/PeriodicityInput";
+import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, periodicityToDays, formatPeriodicityDisplay } from "@/components/PeriodicityInput";
+import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import { HealthRisksSection } from "@/components/HealthRisksSection";
 import { createEmptyHealthRisks, toDbHealthRisks, type HealthRisks } from "@/lib/healthRisks";
 
@@ -37,7 +38,7 @@ const formSchema = z.object({
   employeeIds: z.array(z.string()).min(1, "Vyberte alespoň jednoho zaměstnance"),
   examinationTypeId: z.string().min(1, "Vyberte typ prohlídky"),
   lastExaminationDate: z.date({ required_error: "Zadejte datum prohlídky" }),
-  periodValue: z.number().min(1, "Zadejte periodicitu"),
+  periodValue: z.number().min(1, "Zadejte periodicitu").nullable(),
   periodUnit: z.enum(["days", "months", "years"]),
   doctor: z.string().optional(),
   medicalFacility: z.string().optional(),
@@ -74,7 +75,7 @@ export default function NewMedicalExamination() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       employeeIds: [],
-      periodValue: 1,
+      periodValue: null,
       periodUnit: "years",
       remindDaysBefore: "30",
       repeatDaysAfter: "30",
@@ -92,28 +93,34 @@ export default function NewMedicalExamination() {
   }, []);
 
   const selectedTypeId = form.watch("examinationTypeId");
+  const selectedType = examinationTypes.find((t) => t.id === selectedTypeId);
+
   useEffect(() => {
-    if (selectedTypeId) {
-      const selectedType = examinationTypes.find((t) => t.id === selectedTypeId);
-      if (selectedType) {
-        const { value, unit } = daysToPeriodicityUnit(selectedType.periodDays);
-        form.setValue("periodValue", value);
+    if (selectedType) {
+      const { unit } = daysToPeriodicityUnit(selectedType.periodDays);
+      if (form.getValues("periodValue") == null) {
         form.setValue("periodUnit", unit);
         setPeriodUnit(unit);
-        form.setValue("facility", selectedType.facility);
       }
+      form.setValue("facility", selectedType.facility);
     }
-  }, [selectedTypeId, examinationTypes, form]);
+  }, [selectedType, form]);
 
   const lastExaminationDate = form.watch("lastExaminationDate");
   const periodValue = form.watch("periodValue");
   const watchedPeriodUnit = form.watch("periodUnit");
+  const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, watchedPeriodUnit as PeriodicityUnit) : null;
+  const typePeriodHint = selectedType
+    ? `Prázdné = použije se perioda typu (${formatPeriodicityDisplay(
+        daysToPeriodicityUnit(selectedType.periodDays).value,
+        daysToPeriodicityUnit(selectedType.periodDays).unit
+      )})`
+    : "Prázdné = použije se perioda typu";
 
   const expirationDate = useMemo(() => {
-    if (!lastExaminationDate || !periodValue) return null;
-    if (periodValue <= 0) return null;
-    return calculateNextDate(lastExaminationDate, periodValue, watchedPeriodUnit as PeriodicityUnit);
-  }, [lastExaminationDate, periodValue, watchedPeriodUnit]);
+    if (!lastExaminationDate || !selectedType) return null;
+    return calculateNextDateFromPeriodDays(lastExaminationDate, overridePeriodDays, selectedType.periodDays);
+  }, [lastExaminationDate, overridePeriodDays, selectedType]);
 
   const onSubmit = async (data: FormValues) => {
     if (!user) {
@@ -125,7 +132,17 @@ export default function NewMedicalExamination() {
     setSubmitProgress(0);
 
     try {
-      const nextExaminationDate = expirationDate ? format(expirationDate, "yyyy-MM-dd") : format(data.lastExaminationDate, "yyyy-MM-dd");
+      if (!selectedType) {
+        throw new Error("Vyberte typ prohlídky");
+      }
+
+      const overridePeriodDays = data.periodValue != null
+        ? periodicityToDays(data.periodValue, data.periodUnit as PeriodicityUnit)
+        : null;
+      const nextExaminationDate = format(
+        calculateNextDateFromPeriodDays(data.lastExaminationDate, overridePeriodDays, selectedType.periodDays),
+        "yyyy-MM-dd"
+      );
 
       let status = "valid";
       const nextDate = new Date(nextExaminationDate);
@@ -155,6 +172,7 @@ export default function NewMedicalExamination() {
               medical_facility: data.medicalFacility || undefined,
               result: data.result || undefined,
               reminder_template_id: data.reminderTemplateId || undefined,
+              period_days_override: overridePeriodDays,
               remind_days_before: parseInt(data.remindDaysBefore) || 30,
               repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
               note: data.note || undefined,
@@ -331,13 +349,14 @@ export default function NewMedicalExamination() {
             <PeriodicityInput
               value={form.watch("periodValue")}
               unit={form.watch("periodUnit") as PeriodicityUnit}
-              onValueChange={(val) => form.setValue("periodValue", val ?? 1)}
+              onValueChange={(val) => form.setValue("periodValue", val)}
               onUnitChange={(unit) => {
                 form.setValue("periodUnit", unit);
                 setPeriodUnit(unit);
               }}
-              label="Periodicita"
-              required
+              label="Periodicita (override)"
+              placeholder="Volitelné"
+              emptyHint={typePeriodHint}
             />
 
             {expirationDate && (

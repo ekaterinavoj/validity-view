@@ -48,20 +48,21 @@ import { uploadDeadlineDocument } from "@/lib/deadlineDocuments";
 import { ResponsiblesPicker, ResponsiblesSelection } from "@/components/ResponsiblesPicker";
 import { useDeadlineResponsibles } from "@/hooks/useDeadlineResponsibles";
 import { DeadlineDocumentsList } from "@/components/DeadlineDocumentsList";
-import { 
+import {
   PeriodicityInput,
   type PeriodicityUnit,
   daysToPeriodicityUnit,
   periodicityToDays,
-  calculateNextDate 
+  formatPeriodicityDisplay,
 } from "@/components/PeriodicityInput";
+import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 
 const formSchema = z.object({
   deadline_type_id: z.string().min(1, "Vyberte typ události"),
   equipment_id: z.string().min(1, "Vyberte zařízení"),
   facility: z.string().min(1, "Vyberte provozovnu"),
   last_check_date: z.date({ required_error: "Vyberte datum poslední kontroly" }),
-  period_value: z.number().min(1, "Zadejte periodicitu"),
+  period_value: z.number().min(1, "Zadejte periodicitu").nullable(),
   period_unit: z.enum(["days", "months", "years"]),
   performer: z.string().optional(),
   company: z.string().optional(),
@@ -106,13 +107,13 @@ export default function EditDeadline() {
   const [responsiblesError, setResponsiblesError] = useState<string | null>(null);
   const { responsibles: existingResponsibles, setResponsibles: saveResponsibles, isLoading: responsiblesLoading } = useDeadlineResponsibles(id);
 
-  const [periodValue, setPeriodValue] = useState<number>(1);
+  const [periodValue, setPeriodValue] = useState<number | null>(null);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      period_value: 1,
+      period_value: null,
       period_unit: "years",
       remind_days_before: 30,
       repeat_days_after: 30,
@@ -120,10 +121,19 @@ export default function EditDeadline() {
     },
   });
 
+  const selectedTypeId = form.watch("deadline_type_id");
+  const selectedType = deadlineTypes.find((type) => type.id === selectedTypeId);
   const lastCheckDate = form.watch("last_check_date");
+  const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, periodUnit) : null;
+  const typePeriodHint = selectedType
+    ? `Prázdné = použije se perioda typu (${formatPeriodicityDisplay(
+        daysToPeriodicityUnit(selectedType.period_days).value,
+        daysToPeriodicityUnit(selectedType.period_days).unit
+      )})`
+    : "Prázdné = použije se perioda typu";
 
-  const nextCheckDate = lastCheckDate && periodValue
-    ? calculateNextDate(lastCheckDate, periodValue, periodUnit)
+  const nextCheckDate = lastCheckDate && selectedType
+    ? calculateNextDateFromPeriodDays(lastCheckDate, overridePeriodDays, selectedType.period_days)
     : null;
 
   // Load reminder templates
@@ -163,19 +173,22 @@ export default function EditDeadline() {
         return;
       }
 
-      // Convert period_days to value+unit
-      const periodFromDb = data.deadline_types?.period_days || 365;
-      const { value: pValue, unit: pUnit } = daysToPeriodicityUnit(periodFromDb);
-      setPeriodValue(pValue);
-      setPeriodUnit(pUnit);
+      const typePeriod = data.deadline_types?.period_days || 365;
+      const { unit: defaultUnit } = daysToPeriodicityUnit(typePeriod);
+      const overridePeriod = data.period_days_override != null
+        ? daysToPeriodicityUnit(data.period_days_override)
+        : null;
+
+      setPeriodValue(overridePeriod?.value ?? null);
+      setPeriodUnit(overridePeriod?.unit ?? defaultUnit);
 
       form.reset({
         deadline_type_id: data.deadline_type_id,
         equipment_id: data.equipment_id,
         facility: data.facility,
         last_check_date: parseISO(data.last_check_date),
-        period_value: pValue,
-        period_unit: pUnit,
+        period_value: overridePeriod?.value ?? null,
+        period_unit: overridePeriod?.unit ?? defaultUnit,
         performer: data.performer || "",
         company: data.company || "",
         result: (data.result as "passed" | "passed_with_reservations" | "failed") || "passed",
@@ -201,6 +214,13 @@ export default function EditDeadline() {
     }
   }, [existingResponsibles]);
 
+  useEffect(() => {
+    if (selectedType && form.getValues("period_value") == null) {
+      const { unit } = daysToPeriodicityUnit(selectedType.period_days);
+      setPeriodUnit(unit);
+      form.setValue("period_unit", unit);
+    }
+  }, [selectedType, form]);
 
   const onSubmit = async (data: FormValues) => {
     if (!id) return;
@@ -214,9 +234,18 @@ export default function EditDeadline() {
     
     setIsSubmitting(true);
     try {
-      // Calculate next check date using periodicity
-      const periodDays = periodicityToDays(periodValue, periodUnit);
-      const next_check_date = calculateNextDate(data.last_check_date, periodValue, periodUnit);
+      if (!selectedType) {
+        throw new Error("Vyberte typ události");
+      }
+
+      const overridePeriodDays = data.period_value != null
+        ? periodicityToDays(data.period_value, data.period_unit as PeriodicityUnit)
+        : null;
+      const next_check_date = calculateNextDateFromPeriodDays(
+        data.last_check_date,
+        overridePeriodDays,
+        selectedType.period_days
+      );
       const today = new Date();
       const thirtyDaysFromNow = new Date(today);
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
@@ -244,6 +273,7 @@ export default function EditDeadline() {
           company: data.company || null,
           note: data.note || null,
           result: data.result,
+          period_days_override: overridePeriodDays,
           reminder_template_id: data.reminder_template_id,
           remind_days_before: data.remind_days_before,
           repeat_days_after: data.repeat_days_after || 30,
@@ -480,9 +510,8 @@ export default function EditDeadline() {
                     unit={periodUnit}
                     onValueChange={(val) => {
                       if (canEdit) {
-                        const nextValue = val ?? 1;
-                        setPeriodValue(nextValue);
-                        form.setValue("period_value", nextValue);
+                        setPeriodValue(val);
+                        form.setValue("period_value", val);
                       }
                     }}
                     onUnitChange={(unit) => {
@@ -491,8 +520,9 @@ export default function EditDeadline() {
                         form.setValue("period_unit", unit);
                       }
                     }}
-                    label="Periodicita"
-                    required
+                    label="Periodicita (override)"
+                    placeholder="Volitelné"
+                    emptyHint={typePeriodHint}
                     disabled={!canEdit}
                   />
               </div>
