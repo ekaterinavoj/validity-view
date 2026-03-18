@@ -19,6 +19,7 @@ import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { Input } from "@/components/ui/input";
 import { DepartmentCell } from "@/components/DepartmentCell";
+import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { Search, X } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,

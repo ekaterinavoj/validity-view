@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Edit, Plus, Download, RefreshCw, Eye } from "lucide-react";
 import { ResultBadge } from "@/components/ResultBadge";
+import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
 import { useSortable } from "@/hooks/useSortable";
