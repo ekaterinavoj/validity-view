@@ -405,7 +405,7 @@ export default function NewDeadline() {
                             )}
                           >
                             {field.value ? (
-                              format(field.value, "dd.MM.yyyy", { locale: cs })
+                              formatDisplayDate(field.value)
                             ) : (
                               "Vyberte datum"
                             )}

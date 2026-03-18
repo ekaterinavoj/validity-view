@@ -531,7 +531,7 @@ export default function EditDeadline() {
                 <Alert className="bg-primary/10 border-primary/30">
                   <AlertDescription className="flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4" />
-                    <span>Příští kontrola: <strong>{format(nextCheckDate, "dd.MM.yyyy", { locale: cs })}</strong></span>
+                    <span>Příští kontrola: <strong>{formatDisplayDate(nextCheckDate)}</strong></span>
                   </AlertDescription>
                 </Alert>
               )}
