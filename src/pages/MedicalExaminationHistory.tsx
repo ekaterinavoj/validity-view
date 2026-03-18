@@ -371,7 +371,9 @@ export default function MedicalExaminationHistory() {
                     <TableCell>{exam.doctor || "-"}</TableCell>
                     <TableCell>{exam.medicalFacility || "-"}</TableCell>
                     <TableCell>{exam.result || "-"}</TableCell>
-                    <TableCell>{exam.note || "-"}</TableCell>
+                     <TableCell>
+                       <NoteTooltipText note={exam.note} />
+                     </TableCell>
                     {(archiveFilter === "all" || archiveFilter === "archived") && (
                       <TableCell>
                         {exam.isArchived ? (

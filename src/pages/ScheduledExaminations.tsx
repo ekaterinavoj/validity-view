@@ -340,8 +340,8 @@ export default function ScheduledExaminations() {
                       note={exam.note || undefined}
                     />
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={exam.note || ""}>
-                    {exam.note || "-"}
+                  <TableCell>
+                    <NoteTooltipText note={exam.note} />
                   </TableCell>
                   <TableCell className="text-sm whitespace-nowrap">
                     {exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : "-"}
