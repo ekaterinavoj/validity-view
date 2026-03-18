@@ -315,7 +315,7 @@ export default function ScheduledExaminations() {
                   <TableCell>
                     <StatusBadge status={exam.status} />
                   </TableCell>
-                  <TableCell>{format(new Date(exam.nextExaminationDate), "dd.MM.yyyy")}</TableCell>
+                  <TableCell>{formatDisplayDate(exam.nextExaminationDate)}</TableCell>
                   <TableCell className="font-medium">{exam.type}</TableCell>
                   <TableCell>{exam.employeeNumber}</TableCell>
                   <TableCell>{exam.employeeName}</TableCell>
@@ -323,7 +323,7 @@ export default function ScheduledExaminations() {
                     <EmployeeStatusBadge status={exam.employeeStatus} />
                   </TableCell>
                   <TableCell className="text-sm">
-                    {exam.employeeBirthDate ? format(parseISO(exam.employeeBirthDate), "dd.MM.yyyy") : "-"}
+                    {exam.employeeBirthDate ? formatDisplayDate(exam.employeeBirthDate) : "-"}
                   </TableCell>
                   <TableCell className="text-sm text-center">
                     {exam.employeeBirthDate ? differenceInYears(new Date(), parseISO(exam.employeeBirthDate)) : "-"}
