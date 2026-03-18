@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export type ResultValue = "passed" | "passed_with_reservations" | "failed";
+export type ResultValue = "passed" | "passed_with_reservations" | "failed" | "lost_long_term";
 export type ResultContext = "training" | "deadline" | "medical";
 
 interface ResultBadgeProps {
@@ -17,7 +17,7 @@ interface ResultBadgeProps {
   className?: string;
 }
 
-const resultLabels: Record<ResultContext, Record<ResultValue, string>> = {
+const resultLabels: Record<ResultContext, Partial<Record<ResultValue, string>>> = {
   training: {
     passed: "Splněno",
     passed_with_reservations: "Splněno s výhradami",
@@ -29,9 +29,10 @@ const resultLabels: Record<ResultContext, Record<ResultValue, string>> = {
     failed: "Nevyhovuje",
   },
   medical: {
-    passed: "Způsobilý",
-    passed_with_reservations: "Způsobilý s podmínkou",
-    failed: "Nezpůsobilý",
+    passed: "Zdravotně způsobilý / způsobilá",
+    passed_with_reservations: "Zdravotně způsobilý / způsobilá s podmínkou",
+    failed: "Není zdravotně způsobilý / způsobilá",
+    lost_long_term: "Pozbyl(a) dlouhodobě zdravotní způsobilosti",
   },
 };
 
@@ -40,11 +41,9 @@ export function getResultLabel(result: ResultValue, context: ResultContext): str
 }
 
 export function getResultOptions(context: ResultContext) {
-  return [
-    { value: "passed" as const, label: resultLabels[context].passed },
-    { value: "passed_with_reservations" as const, label: resultLabels[context].passed_with_reservations },
-    { value: "failed" as const, label: resultLabels[context].failed },
-  ];
+  return Object.entries(resultLabels[context])
+    .filter(([, label]) => Boolean(label))
+    .map(([value, label]) => ({ value: value as ResultValue, label: label as string }));
 }
 
 /** Returns true if the given result requires a mandatory comment */
@@ -55,8 +54,9 @@ export function resultRequiresComment(result: ResultValue): boolean {
 export function ResultBadge({ result, context, note, className }: ResultBadgeProps) {
   const label = getResultLabel(result, context);
   const showWarningIcon = result === "passed_with_reservations";
+  const isNegativeResult = result === "failed" || result === "lost_long_term";
 
-  if (result === "failed") {
+  if (isNegativeResult) {
     return (
       <span className={cn("inline-flex items-center gap-1 text-sm font-medium text-status-expired", className)}>
         {label}

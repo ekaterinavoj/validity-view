@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMedicalExaminationStatusFromResult } from "@/lib/medicalExaminationResults";
 
 export interface HistoryExamination {
   id: string;
@@ -19,6 +20,7 @@ export interface HistoryExamination {
   note: string;
   deletedAt: string | null;
   isArchived: boolean;
+  longTermFitnessLossDate: string | null;
 }
 
 export function useMedicalExaminationHistory(includeArchived: boolean = false) {
@@ -47,6 +49,7 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
           employee_id,
           examination_type_id,
           deleted_at,
+          long_term_fitness_loss_date,
           employees (
             id,
             employee_number,
@@ -91,7 +94,7 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
 
       const transformedData: HistoryExamination[] = (data || []).map((t: any) => ({
         id: t.id,
-        status: computeStatus(t.next_examination_date),
+        status: getMedicalExaminationStatusFromResult(t.result, computeStatus(t.next_examination_date)),
         date: t.last_examination_date,
         type: t.medical_examination_types?.name || "",
         employeeNumber: t.employees?.employee_number || "",
@@ -107,6 +110,7 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
         note: t.note || "",
         deletedAt: t.deleted_at,
         isArchived: t.deleted_at !== null,
+        longTermFitnessLossDate: t.long_term_fitness_loss_date || null,
       }));
 
       setExaminations(transformedData);
