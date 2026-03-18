@@ -276,6 +276,7 @@ export default function ScheduledExaminations() {
               <TableHead>Zdravotní rizika</TableHead>
               <TableHead>Výsledek</TableHead>
               <TableHead>Poznámka</TableHead>
+              <TableHead>Datum pozbytí ZD způsobilosti</TableHead>
               <TableHead>Protokol</TableHead>
               <SortableTableHead label="Lékař" sortKey="doctor" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[80px]"></TableHead>
