@@ -91,8 +91,8 @@ export default function EditMedicalExamination() {
   const { examinationTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useMedicalExaminationTypes();
   const { facilities, loading: facilitiesLoading, error: facilitiesError, refetch: refetchFacilities } = useFacilities();
 
-  const activeEmployees = useMemo(() => {
-    return employees.filter((e) => e.status === "employed");
+  const selectableEmployees = useMemo(() => {
+    return employees.filter((e) => e.status !== "terminated");
   }, [employees]);
 
   const form = useForm<FormValues>({
