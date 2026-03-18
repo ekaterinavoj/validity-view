@@ -636,7 +636,7 @@ export default function Employees() {
                               className="w-full justify-start text-left font-normal"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                              {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
