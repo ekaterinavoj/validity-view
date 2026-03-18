@@ -321,13 +321,16 @@ export default function ScheduledExaminations() {
                       note={exam.note || undefined}
                     />
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={exam.note || ""}>
-                    {exam.note || "-"}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <MedicalProtocolCell examinationId={exam.id} />
-                  </TableCell>
-                  <TableCell>{exam.doctor || "-"}</TableCell>
+                   <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={exam.note || ""}>
+                     {exam.note || "-"}
+                   </TableCell>
+                   <TableCell className="text-sm whitespace-nowrap">
+                     {exam.longTermFitnessLossDate ? format(new Date(exam.longTermFitnessLossDate), "dd.MM.yyyy") : "-"}
+                   </TableCell>
+                   <TableCell className="text-center">
+                     <MedicalProtocolCell examinationId={exam.id} />
+                   </TableCell>
+                   <TableCell>{exam.doctor || "-"}</TableCell>
                   <TableCell>
                     {canEdit ? (
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>

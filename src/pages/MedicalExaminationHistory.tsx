@@ -327,6 +327,7 @@ export default function MedicalExaminationHistory() {
                 <TableHead>Zdravotnické zařízení</TableHead>
                 <TableHead>Výsledek</TableHead>
                 <TableHead>Poznámka</TableHead>
+                <TableHead>Datum pozbytí ZD způsobilosti</TableHead>
                 {(archiveFilter === "all" || archiveFilter === "archived") && (
                   <TableHead>Stav</TableHead>
                 )}
