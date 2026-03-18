@@ -131,6 +131,7 @@ SELECT 1;`,
     name: "unify_display_date_format",
     sql: `-- UI-only date format unification, no database schema updates required.
 SELECT 1;`,
+  },
 ];
 
 /**
