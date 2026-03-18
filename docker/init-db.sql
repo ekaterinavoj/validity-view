@@ -366,6 +366,7 @@ CREATE TABLE IF NOT EXISTS public.deadlines (
     deadline_type_id UUID NOT NULL REFERENCES public.deadline_types(id),
     last_check_date DATE NOT NULL,
     next_check_date DATE NOT NULL,
+    period_days_override INTEGER,
     performer TEXT,
     company TEXT,
     requester TEXT,
