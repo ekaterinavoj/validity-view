@@ -643,9 +643,9 @@ export default function EditMedicalExamination() {
               name="note"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Poznámka</FormLabel>
+                  <FormLabel>{medicalExaminationResultRequiresNote(selectedResult) ? "Podmínka / omezení *" : "Poznámka"}</FormLabel>
                   <FormControl>
-                    <Textarea {...field} rows={3} />
+                    <Textarea {...field} rows={3} placeholder={medicalExaminationResultRequiresNote(selectedResult) ? "Popište podmínku nebo omezení" : undefined} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
