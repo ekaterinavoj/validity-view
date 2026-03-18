@@ -480,8 +480,9 @@ export default function EditDeadline() {
                     unit={periodUnit}
                     onValueChange={(val) => {
                       if (canEdit) {
-                        setPeriodValue(val);
-                        form.setValue("period_value", val);
+                        const nextValue = val ?? 1;
+                        setPeriodValue(nextValue);
+                        form.setValue("period_value", nextValue);
                       }
                     }}
                     onUnitChange={(unit) => {

@@ -431,7 +431,7 @@ export default function EditTraining() {
               value={form.watch("periodValue")}
               unit={form.watch("periodUnit") as PeriodicityUnit}
               onValueChange={(val) => {
-                if (canEdit) form.setValue("periodValue", val);
+                if (canEdit) form.setValue("periodValue", val ?? 1);
               }}
               onUnitChange={(unit) => {
                 if (canEdit) {

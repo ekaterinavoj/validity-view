@@ -360,7 +360,7 @@ export default function NewTraining() {
             <PeriodicityInput
               value={form.watch("periodValue")}
               unit={form.watch("periodUnit") as PeriodicityUnit}
-              onValueChange={(val) => form.setValue("periodValue", val)}
+              onValueChange={(val) => form.setValue("periodValue", val ?? 1)}
               onUnitChange={(unit) => {
                 form.setValue("periodUnit", unit);
                 setPeriodUnit(unit);

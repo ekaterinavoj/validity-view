@@ -409,7 +409,7 @@ export default function NewDeadline() {
               <PeriodicityInput
                 value={form.watch("period_value")}
                 unit={form.watch("period_unit") as PeriodicityUnit}
-                onValueChange={(val) => form.setValue("period_value", val)}
+                onValueChange={(val) => form.setValue("period_value", val ?? 1)}
                 onUnitChange={(unit) => form.setValue("period_unit", unit)}
                 label="Periodicita"
                 required
