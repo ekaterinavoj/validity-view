@@ -132,6 +132,12 @@ SELECT 1;`,
     sql: `-- UI-only date format unification, no database schema updates required.
 SELECT 1;`,
   },
+  {
+    version: "20260318212000",
+    name: "plp_note_tooltip_unification",
+    sql: `-- UI-only PLP note tooltip unification, no database schema updates required.
+SELECT 1;`,
+  },
 ];
 
 /**
