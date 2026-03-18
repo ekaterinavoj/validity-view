@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useState, useMemo, useEffect } from "react";
@@ -32,6 +32,12 @@ import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, periodicityTo
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import { HealthRisksSection } from "@/components/HealthRisksSection";
 import { createEmptyHealthRisks, toDbHealthRisks, type HealthRisks } from "@/lib/healthRisks";
+import {
+  medicalExaminationResultOptions,
+  medicalExaminationResultRequiresLossDate,
+  medicalExaminationResultRequiresNote,
+  getMedicalExaminationStatusFromResult,
+} from "@/lib/medicalExaminationResults";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
