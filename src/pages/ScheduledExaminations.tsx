@@ -387,30 +387,3 @@ export default function ScheduledExaminations() {
     </div>
   );
 }
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
-
-      <BulkEditExaminationsDialog
-        open={bulkEditDialogOpen}
-        onOpenChange={setBulkEditDialogOpen}
-        selectedIds={Array.from(selectedExaminations)}
-        onSuccess={() => {
-          setSelectedExaminations(new Set());
-          refetch();
-        }}
-      />
-
-      <BulkArchiveDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        selectedCount={selectedExaminations.size}
-        onConfirm={confirmBulkArchive}
-        loading={loading}
-        entityName="prohlídek"
-      />
-    </div>
-  );
-}
