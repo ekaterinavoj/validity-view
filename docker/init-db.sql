@@ -253,7 +253,6 @@ CREATE TABLE IF NOT EXISTS public.trainings (
     training_type_id UUID NOT NULL REFERENCES public.training_types(id),
     last_training_date DATE NOT NULL,
     next_training_date DATE NOT NULL,
-    period_days_override INTEGER,
     trainer TEXT,
     company TEXT,
     requester TEXT,
@@ -270,95 +269,7 @@ CREATE TABLE IF NOT EXISTS public.trainings (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-CREATE TABLE IF NOT EXISTS public.training_documents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
-    file_name TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-    file_type TEXT NOT NULL,
-    file_size INTEGER NOT NULL,
-    document_type TEXT NOT NULL,
-    description TEXT,
-    uploaded_by UUID,
-    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.reminder_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    training_id UUID REFERENCES public.trainings(id) ON DELETE SET NULL,
-    employee_id UUID,
-    template_id UUID REFERENCES public.reminder_templates(id) ON DELETE SET NULL,
-    template_name TEXT NOT NULL,
-    recipient_emails TEXT[] NOT NULL,
-    email_subject TEXT NOT NULL,
-    email_body TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'sent',
-    error_message TEXT,
-    provider_used TEXT,
-    delivery_mode TEXT DEFAULT 'bcc',
-    days_before INTEGER,
-    week_start DATE,
-    is_test BOOLEAN NOT NULL DEFAULT false,
-    resent_from_log_id UUID REFERENCES public.reminder_logs(id),
-    attempt_number INTEGER NOT NULL DEFAULT 1,
-    max_attempts INTEGER NOT NULL DEFAULT 1,
-    attempt_errors JSONB,
-    final_status TEXT,
-    run_id UUID,
-    sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.reminder_runs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    week_start DATE NOT NULL,
-    triggered_by TEXT NOT NULL DEFAULT 'cron',
-    status TEXT NOT NULL DEFAULT 'running',
-    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ended_at TIMESTAMPTZ,
-    emails_sent INTEGER DEFAULT 0,
-    emails_failed INTEGER DEFAULT 0,
-    error_message TEXT,
-    error_details JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT reminder_runs_triggered_by_check CHECK (triggered_by = ANY (ARRAY['cron', 'manual', 'pg_cron', 'test', 'manual_test', 'resend', 'single_test']::text[]))
-);
-
--- Add FK for reminder_logs.run_id after reminder_runs is created
-ALTER TABLE public.reminder_logs ADD CONSTRAINT reminder_logs_run_id_fkey
-    FOREIGN KEY (run_id) REFERENCES public.reminder_runs(id) ON DELETE SET NULL;
-
-CREATE INDEX idx_reminder_logs_run_id ON public.reminder_logs(run_id);
-
--- =============================================
--- DEADLINE MODULE
--- =============================================
-
-CREATE TABLE IF NOT EXISTS public.deadline_types (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    facility TEXT NOT NULL,
-    period_days INTEGER NOT NULL,
-    description TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.deadline_reminder_templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    description TEXT,
-    email_subject TEXT NOT NULL,
-    email_body TEXT NOT NULL,
-    remind_days_before INTEGER NOT NULL DEFAULT 30,
-    repeat_interval_days INTEGER,
-    target_user_ids UUID[] DEFAULT '{}',
-    is_active BOOLEAN NOT NULL DEFAULT true,
-    created_by UUID,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
+...
 CREATE TABLE IF NOT EXISTS public.deadlines (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     facility TEXT NOT NULL,
@@ -366,7 +277,6 @@ CREATE TABLE IF NOT EXISTS public.deadlines (
     deadline_type_id UUID NOT NULL REFERENCES public.deadline_types(id),
     last_check_date DATE NOT NULL,
     next_check_date DATE NOT NULL,
-    period_days_override INTEGER,
     performer TEXT,
     company TEXT,
     requester TEXT,
@@ -382,89 +292,7 @@ CREATE TABLE IF NOT EXISTS public.deadlines (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-CREATE TABLE IF NOT EXISTS public.deadline_responsibles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    deadline_id UUID NOT NULL REFERENCES public.deadlines(id) ON DELETE CASCADE,
-    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    group_id UUID REFERENCES public.responsibility_groups(id) ON DELETE CASCADE,
-    created_by UUID,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT check_single_responsible CHECK (
-        (profile_id IS NOT NULL AND group_id IS NULL) OR
-        (profile_id IS NULL AND group_id IS NOT NULL)
-    ),
-    CONSTRAINT unique_deadline_profile UNIQUE (deadline_id, profile_id),
-    CONSTRAINT unique_deadline_group UNIQUE (deadline_id, group_id)
-);
-
--- Indexes for deadline_responsibles
-CREATE INDEX idx_deadline_responsibles_deadline ON public.deadline_responsibles(deadline_id);
-CREATE INDEX idx_deadline_responsibles_profile ON public.deadline_responsibles(profile_id);
-CREATE INDEX idx_deadline_responsibles_group ON public.deadline_responsibles(group_id);
-CREATE INDEX idx_group_members_group ON public.responsibility_group_members(group_id);
-CREATE INDEX idx_group_members_profile ON public.responsibility_group_members(profile_id);
-
-CREATE TABLE IF NOT EXISTS public.deadline_documents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    deadline_id UUID NOT NULL REFERENCES public.deadlines(id) ON DELETE CASCADE,
-    file_name TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-    file_type TEXT NOT NULL,
-    file_size INTEGER NOT NULL,
-    document_type TEXT NOT NULL,
-    description TEXT,
-    uploaded_by UUID,
-    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.deadline_reminder_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    deadline_id UUID REFERENCES public.deadlines(id) ON DELETE SET NULL,
-    equipment_id UUID REFERENCES public.equipment(id) ON DELETE SET NULL,
-    template_id UUID REFERENCES public.deadline_reminder_templates(id) ON DELETE SET NULL,
-    template_name TEXT NOT NULL,
-    recipient_emails TEXT[] NOT NULL,
-    email_subject TEXT NOT NULL,
-    email_body TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'sent',
-    error_message TEXT,
-    delivery_mode TEXT DEFAULT 'bcc',
-    days_before INTEGER,
-    week_start DATE,
-    is_test BOOLEAN NOT NULL DEFAULT false,
-    sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- =============================================
--- MEDICAL EXAMINATION MODULE
--- =============================================
-
-CREATE TABLE IF NOT EXISTS public.medical_examination_types (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    facility TEXT NOT NULL,
-    period_days INTEGER NOT NULL,
-    description TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.medical_reminder_templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    description TEXT,
-    email_subject TEXT NOT NULL,
-    email_body TEXT NOT NULL,
-    remind_days_before INTEGER NOT NULL DEFAULT 30,
-    repeat_interval_days INTEGER,
-    target_user_ids UUID[] DEFAULT '{}',
-    is_active BOOLEAN NOT NULL DEFAULT true,
-    created_by UUID,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
+...
 CREATE TABLE IF NOT EXISTS public.medical_examinations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     facility TEXT NOT NULL,
@@ -472,7 +300,6 @@ CREATE TABLE IF NOT EXISTS public.medical_examinations (
     examination_type_id UUID NOT NULL REFERENCES public.medical_examination_types(id),
     last_examination_date DATE NOT NULL,
     next_examination_date DATE NOT NULL,
-    period_days_override INTEGER,
     doctor TEXT,
     medical_facility TEXT,
     result TEXT,
