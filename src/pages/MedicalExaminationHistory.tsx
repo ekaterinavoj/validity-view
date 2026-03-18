@@ -24,6 +24,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
@@ -326,6 +327,7 @@ export default function MedicalExaminationHistory() {
                 <TableHead>Zdravotnické zařízení</TableHead>
                 <TableHead>Výsledek</TableHead>
                 <TableHead>Poznámka</TableHead>
+                <TableHead>Datum pozbytí ZD způsobilosti</TableHead>
                 {(archiveFilter === "all" || archiveFilter === "archived") && (
                   <TableHead>Stav</TableHead>
                 )}

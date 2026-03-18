@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fromDbHealthRisks, type HealthRisks } from "@/lib/healthRisks";
+import { getMedicalExaminationStatusFromResult } from "@/lib/medicalExaminationResults";
 
 export interface MedicalExaminationWithDetails {
   id: string;
@@ -31,6 +32,7 @@ export interface MedicalExaminationWithDetails {
   repeatDaysAfter: number;
   examinationTypeId: string;
   deletedAt: string | null;
+  longTermFitnessLossDate: string | null;
 }
 
 export function useMedicalExaminations(activeOnly: boolean = true) {
@@ -65,6 +67,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           examination_type_id,
           deleted_at,
           zdravotni_rizika,
+          long_term_fitness_loss_date,
           employees (
             id,
             employee_number,
@@ -124,7 +127,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
         })
         .map((e: any) => ({
           id: e.id,
-          status: computeStatus(e.next_examination_date),
+          status: getMedicalExaminationStatusFromResult(e.result, computeStatus(e.next_examination_date)),
           nextExaminationDate: e.next_examination_date,
           lastExaminationDate: e.last_examination_date,
           type: e.medical_examination_types?.name || "",
@@ -151,6 +154,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           repeatDaysAfter: e.repeat_days_after ?? 30,
           examinationTypeId: e.examination_type_id,
           deletedAt: e.deleted_at,
+          longTermFitnessLossDate: e.long_term_fitness_loss_date || null,
         }));
 
       setExaminations(transformedData);

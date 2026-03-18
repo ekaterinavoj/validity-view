@@ -29,6 +29,7 @@ import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkEditExaminationsDialog } from "@/components/BulkEditExaminationsDialog";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { HealthRisksSummary } from "@/components/HealthRisksSummary";
+import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -165,7 +166,8 @@ export default function ScheduledExaminations() {
       "Středisko": formatDepartment(e.department, e.departmentName),
       "Datum prohlídky": format(new Date(e.lastExaminationDate), "dd.MM.yyyy"),
       "Periodicita": formatPeriodicity(e.period),
-      "Výsledek": e.result || "-",
+      "Výsledek": getMedicalExaminationResultLabel(e.result),
+      "Datum pozbytí dlouhodobé způsobilosti": e.longTermFitnessLossDate ? format(new Date(e.longTermFitnessLossDate), "dd.MM.yyyy") : "",
       "Lékař": e.doctor || "",
       "Zdravotnické zařízení": e.medicalFacility || "",
       "Zadavatel": e.requester || "",
@@ -274,6 +276,7 @@ export default function ScheduledExaminations() {
               <TableHead>Zdravotní rizika</TableHead>
               <TableHead>Výsledek</TableHead>
               <TableHead>Poznámka</TableHead>
+              <TableHead>Datum pozbytí ZD způsobilosti</TableHead>
               <TableHead>Protokol</TableHead>
               <SortableTableHead label="Lékař" sortKey="doctor" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[80px]"></TableHead>
@@ -282,7 +285,7 @@ export default function ScheduledExaminations() {
           <TableBody>
             {sortedExaminations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 15 : 14} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={canEdit ? 16 : 15} className="text-center text-muted-foreground py-8">
                   Žádné prohlídky k zobrazení.
                 </TableCell>
               </TableRow>
@@ -318,13 +321,16 @@ export default function ScheduledExaminations() {
                       note={exam.note || undefined}
                     />
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={exam.note || ""}>
-                    {exam.note || "-"}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <MedicalProtocolCell examinationId={exam.id} />
-                  </TableCell>
-                  <TableCell>{exam.doctor || "-"}</TableCell>
+                   <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={exam.note || ""}>
+                     {exam.note || "-"}
+                   </TableCell>
+                   <TableCell className="text-sm whitespace-nowrap">
+                     {exam.longTermFitnessLossDate ? format(new Date(exam.longTermFitnessLossDate), "dd.MM.yyyy") : "-"}
+                   </TableCell>
+                   <TableCell className="text-center">
+                     <MedicalProtocolCell examinationId={exam.id} />
+                   </TableCell>
+                   <TableCell>{exam.doctor || "-"}</TableCell>
                   <TableCell>
                     {canEdit ? (
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>

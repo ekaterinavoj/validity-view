@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useState, useMemo, useEffect } from "react";
@@ -32,6 +32,12 @@ import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, periodicityTo
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import { HealthRisksSection } from "@/components/HealthRisksSection";
 import { createEmptyHealthRisks, toDbHealthRisks, type HealthRisks } from "@/lib/healthRisks";
+import {
+  medicalExaminationResultOptions,
+  medicalExaminationResultRequiresLossDate,
+  medicalExaminationResultRequiresNote,
+  getMedicalExaminationStatusFromResult,
+} from "@/lib/medicalExaminationResults";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -47,6 +53,23 @@ const formSchema = z.object({
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   note: z.string().optional(),
+  longTermFitnessLossDate: z.date().optional(),
+}).superRefine((values, ctx) => {
+  if (medicalExaminationResultRequiresNote(values.result) && !values.note?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "U výsledku s podmínkou nebo omezením musíte doplnit poznámku.",
+      path: ["note"],
+    });
+  }
+
+  if (medicalExaminationResultRequiresLossDate(values.result) && !values.longTermFitnessLossDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Vyberte datum pozbytí dlouhodobé zdravotní způsobilosti.",
+      path: ["longTermFitnessLossDate"],
+    });
+  }
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -79,6 +102,7 @@ export default function NewMedicalExamination() {
       periodUnit: "years",
       remindDaysBefore: "30",
       repeatDaysAfter: "30",
+      result: "passed",
     },
   });
 
@@ -117,6 +141,9 @@ export default function NewMedicalExamination() {
       )})`
     : "Prázdné = použije se primární perioda typu";
 
+  const selectedResult = form.watch("result");
+  const longTermFitnessLossDate = form.watch("longTermFitnessLossDate");
+
   const expirationDate = useMemo(() => {
     if (!lastExaminationDate || !selectedType) return null;
     return calculateNextDateFromPeriodDays(lastExaminationDate, overridePeriodDays, selectedType.periodDays);
@@ -144,14 +171,16 @@ export default function NewMedicalExamination() {
         "yyyy-MM-dd"
       );
 
-      let status = "valid";
+      let status = getMedicalExaminationStatusFromResult(data.result, "valid");
       const nextDate = new Date(nextExaminationDate);
       const today = new Date();
       const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysUntil < 0) {
-        status = "expired";
-      } else if (daysUntil <= 30) {
-        status = "warning";
+      if (status !== "expired") {
+        if (daysUntil < 0) {
+          status = "expired";
+        } else if (daysUntil <= 30) {
+          status = "warning";
+        }
       }
 
       const totalEmployees = data.employeeIds.length;
@@ -175,7 +204,8 @@ export default function NewMedicalExamination() {
               period_days_override: overridePeriodDays,
               remind_days_before: parseInt(data.remindDaysBefore) || 30,
               repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
-              note: data.note || undefined,
+              note: data.note?.trim() || undefined,
+              long_term_fitness_loss_date: data.longTermFitnessLossDate ? format(data.longTermFitnessLossDate, "yyyy-MM-dd") : null,
               zdravotni_rizika: toDbHealthRisks(healthRisks),
               status,
               is_active: true,
@@ -376,9 +406,65 @@ export default function NewMedicalExamination() {
               )} />
             </div>
 
-            <FormField control={form.control} name="result" render={({ field }) => (
-              <FormItem><FormLabel>Výsledek prohlídky</FormLabel><FormControl><Input {...field} placeholder="např. Způsobilý bez omezení" /></FormControl><FormMessage /></FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="result"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Výsledek prohlídky</FormLabel>
+                  <Select value={field.value || "passed"} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Vyberte výsledek" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {medicalExaminationResultOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {medicalExaminationResultRequiresLossDate(selectedResult) && (
+              <FormField
+                control={form.control}
+                name="longTermFitnessLossDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Datum pozbytí dlouhodobé zdravotní způsobilosti</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button variant="outline" className="w-full justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {medicalExaminationResultRequiresNote(selectedResult) && (
+              <div className="rounded-lg border border-status-warning/40 bg-status-warning/10 p-4 text-sm text-foreground">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 text-status-warning" />
+                  <p>Prohlídka zůstává platná, ale musíte doplnit podmínku nebo omezení do poznámky.</p>
+                </div>
+              </div>
+            )}
 
             <HealthRisksSection value={healthRisks} onChange={setHealthRisks} />
 
@@ -413,7 +499,7 @@ export default function NewMedicalExamination() {
             </div>
 
             <FormField control={form.control} name="note" render={({ field }) => (
-              <FormItem><FormLabel>Poznámka</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>{medicalExaminationResultRequiresNote(selectedResult) ? "Podmínka / omezení *" : "Poznámka"}</FormLabel><FormControl><Textarea {...field} rows={3} placeholder={medicalExaminationResultRequiresNote(selectedResult) ? "Popište podmínku nebo omezení" : undefined} /></FormControl><FormMessage /></FormItem>
             )} />
 
             <div className="space-y-2">
