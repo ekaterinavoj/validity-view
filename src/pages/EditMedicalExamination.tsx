@@ -142,11 +142,12 @@ export default function EditMedicalExamination() {
             periodUnit: overridePeriod?.unit ?? typeUnit,
             doctor: exam.doctor || "",
             medicalFacility: exam.medical_facility || "",
-            result: exam.result || "",
+            result: exam.result || "passed",
             reminderTemplateId: exam.reminder_template_id || "",
             remindDaysBefore: String(exam.remind_days_before || 30),
             repeatDaysAfter: String(exam.repeat_days_after || 30),
             note: exam.note || "",
+            longTermFitnessLossDate: exam.long_term_fitness_loss_date ? new Date(exam.long_term_fitness_loss_date) : undefined,
           });
           setHealthRisks(fromDbHealthRisks(exam.zdravotni_rizika));
           setPeriodUnit(overridePeriod?.unit ?? typeUnit);
