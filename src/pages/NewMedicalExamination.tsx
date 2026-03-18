@@ -111,11 +111,11 @@ export default function NewMedicalExamination() {
   const watchedPeriodUnit = form.watch("periodUnit");
   const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, watchedPeriodUnit as PeriodicityUnit) : null;
   const typePeriodHint = selectedType
-    ? `Prázdné = použije se perioda typu (${formatPeriodicityDisplay(
+    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
         daysToPeriodicityUnit(selectedType.periodDays).value,
         daysToPeriodicityUnit(selectedType.periodDays).unit
       )})`
-    : "Prázdné = použije se perioda typu";
+    : "Prázdné = použije se primární perioda typu";
 
   const expirationDate = useMemo(() => {
     if (!lastExaminationDate || !selectedType) return null;
@@ -354,8 +354,8 @@ export default function NewMedicalExamination() {
                 form.setValue("periodUnit", unit);
                 setPeriodUnit(unit);
               }}
-              label="Periodicita (override)"
-              placeholder="Volitelné"
+              label="Periodicita override (nepovinné)"
+              placeholder="Nepovinné"
               emptyHint={typePeriodHint}
             />
 
