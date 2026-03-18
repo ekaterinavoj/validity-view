@@ -27,6 +27,7 @@ import Papa from 'papaparse';
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
+import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { formatDisplayDate } from "@/lib/dateFormat";
 
 const employeeStatusLabels: Record<string, string> = {
@@ -492,7 +493,9 @@ export default function History() {
                     <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
                     <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                     <TableCell className="whitespace-nowrap">{training.company}</TableCell>
-                    <TableCell>{training.note || "-"}</TableCell>
+                    <TableCell>
+                      <NoteTooltipText note={training.note} />
+                    </TableCell>
                     {(archiveFilter === "all" || archiveFilter === "archived") && (
                       <TableCell>
                         {training.isArchived ? (

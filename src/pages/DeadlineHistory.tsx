@@ -34,6 +34,7 @@ import Papa from "papaparse";
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
+import { NoteTooltipText } from "@/components/NoteTooltipText";
 
 export default function DeadlineHistory() {
   const { history, isLoading, error, refetch } = useDeadlineHistory();
@@ -344,6 +345,7 @@ export default function DeadlineHistory() {
                 <TableHead>Poslední kontrola</TableHead>
                 <TableHead>Příští kontrola</TableHead>
                 <TableHead>Provádějící</TableHead>
+                <TableHead>Poznámka</TableHead>
                 <TableHead>Stav</TableHead>
                 {canEdit && archiveFilter !== "active" && <TableHead className="w-12"></TableHead>}
               </TableRow>
@@ -351,7 +353,7 @@ export default function DeadlineHistory() {
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canBulkActions && archiveFilter !== "active" ? 10 : 9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canBulkActions && archiveFilter !== "active" ? 11 : 10} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné záznamy
                   </TableCell>
                 </TableRow>
@@ -387,6 +389,9 @@ export default function DeadlineHistory() {
                       {formatDisplayDate(deadline.next_check_date)}
                     </TableCell>
                     <TableCell>{deadline.performer || "-"}</TableCell>
+                    <TableCell>
+                      <NoteTooltipText note={deadline.note} />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {deadline.deleted_at && (
