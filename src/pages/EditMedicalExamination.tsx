@@ -28,6 +28,8 @@ import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, calculateNextDate, periodicityToDays } from "@/components/PeriodicityInput";
 import { MedicalDocumentsList } from "@/components/MedicalDocumentsList";
+import { HealthRisksSection } from "@/components/HealthRisksSection";
+import { createEmptyHealthRisks, fromDbHealthRisks, toDbHealthRisks, type HealthRisks } from "@/lib/healthRisks";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -58,6 +60,7 @@ export default function EditMedicalExamination() {
   const [loading, setLoading] = useState(true);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
+  const [healthRisks, setHealthRisks] = useState<HealthRisks>(createEmptyHealthRisks());
   const { toast } = useToast();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
@@ -78,11 +81,10 @@ export default function EditMedicalExamination() {
     },
   });
 
-  // Load examination data
   useEffect(() => {
     const loadExamination = async () => {
       if (!id) return;
-      
+
       setLoading(true);
       try {
         const { data: exam, error } = await supabase
@@ -95,19 +97,18 @@ export default function EditMedicalExamination() {
 
         if (exam) {
           const { value: periodVal, unit: periodU } = daysToPeriodicityUnit(
-            periodicityToDays(1, "years") // We'll calculate from type
+            periodicityToDays(1, "years")
           );
-          
-          // Get period from examination type
+
           const { data: examType } = await supabase
             .from("medical_examination_types")
             .select("period_days")
             .eq("id", exam.examination_type_id)
             .single();
-          
-          const { value, unit } = examType 
+
+          const { value, unit } = examType
             ? daysToPeriodicityUnit(examType.period_days)
-            : { value: 1, unit: "years" as PeriodicityUnit };
+            : { value: periodVal, unit: periodU };
 
           form.reset({
             facility: exam.facility,
@@ -124,10 +125,9 @@ export default function EditMedicalExamination() {
             repeatDaysAfter: String(exam.repeat_days_after || 30),
             note: exam.note || "",
           });
+          setHealthRisks(fromDbHealthRisks(exam.zdravotni_rizika));
           setPeriodUnit(unit);
         }
-
-        // Documents are now loaded by MedicalDocumentsList component
       } catch (error: any) {
         toast({
           title: "Chyba při načítání",
@@ -200,6 +200,7 @@ export default function EditMedicalExamination() {
           remind_days_before: parseInt(data.remindDaysBefore) || 30,
           repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
           note: data.note || null,
+          zdravotni_rizika: toDbHealthRisks(healthRisks),
           status,
           updated_at: new Date().toISOString(),
         })
@@ -207,9 +208,6 @@ export default function EditMedicalExamination() {
 
       if (updateError) throw updateError;
 
-      // New files are always added to existing documents (no replacement)
-
-      // Upload new files
       if (uploadedFiles.length > 0) {
         const uploadPromises = uploadedFiles.map((uploadedFile) =>
           uploadMedicalDocument(id, uploadedFile.file, uploadedFile.documentType, uploadedFile.description)
@@ -271,7 +269,7 @@ export default function EditMedicalExamination() {
           </div>
         </div>
       )}
-      
+
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/plp")}>
           <ArrowLeft className="w-5 h-5" />
@@ -290,11 +288,11 @@ export default function EditMedicalExamination() {
               name="examinationTypeId"
               render={({ field }) => (
                 <FormItem>
-                   <FormLabel>Typ prohlídky *</FormLabel>
-                   <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
-                     <FormControl>
-                       <SelectTrigger disabled={!canEdit}>
-                         <SelectValue placeholder="Vyberte typ prohlídky" />
+                  <FormLabel>Typ prohlídky *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                    <FormControl>
+                      <SelectTrigger disabled={!canEdit}>
+                        <SelectValue placeholder="Vyberte typ prohlídky" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -315,11 +313,11 @@ export default function EditMedicalExamination() {
               name="facility"
               render={({ field }) => (
                 <FormItem>
-                     <FormLabel>Provozovna *</FormLabel>
-                     <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
-                       <FormControl>
-                         <SelectTrigger disabled={!canEdit}>
-                           <SelectValue placeholder="Vyberte provozovnu" />
+                  <FormLabel>Provozovna *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                    <FormControl>
+                      <SelectTrigger disabled={!canEdit}>
+                        <SelectValue placeholder="Vyberte provozovnu" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -340,11 +338,11 @@ export default function EditMedicalExamination() {
               name="employeeId"
               render={({ field }) => (
                 <FormItem>
-                     <FormLabel>Zaměstnanec *</FormLabel>
-                     <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
-                       <FormControl>
-                         <SelectTrigger disabled={!canEdit}>
-                           <SelectValue placeholder="Vyberte zaměstnance" />
+                  <FormLabel>Zaměstnanec *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                    <FormControl>
+                      <SelectTrigger disabled={!canEdit}>
+                        <SelectValue placeholder="Vyberte zaměstnance" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -369,14 +367,14 @@ export default function EditMedicalExamination() {
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
-                         <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={!canEdit}>
-                           <CalendarIcon className="mr-2 h-4 w-4" />
-                           {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
-                         </Button>
+                        <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={!canEdit}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {field.value ? format(field.value, "dd.MM.yyyy", { locale: cs }) : "Vyberte datum"}
+                        </Button>
                       </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                       <Calendar mode="single" selected={field.value} onSelect={canEdit ? field.onChange : undefined} initialFocus disabled={!canEdit} />
+                      <Calendar mode="single" selected={field.value} onSelect={canEdit ? field.onChange : undefined} initialFocus disabled={!canEdit} />
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
@@ -384,24 +382,24 @@ export default function EditMedicalExamination() {
               )}
             />
 
-             <PeriodicityInput
-                value={form.watch("periodValue")}
-                unit={form.watch("periodUnit") as PeriodicityUnit}
-                onValueChange={(val) => {
-                  if (canEdit) {
-                    form.setValue("periodValue", val);
-                  }
-                }}
-                onUnitChange={(unit) => {
-                  if (canEdit) {
-                    form.setValue("periodUnit", unit);
-                    setPeriodUnit(unit);
-                  }
-                }}
-                label="Periodicita"
-                required
-                disabled={!canEdit}
-              />
+            <PeriodicityInput
+              value={form.watch("periodValue")}
+              unit={form.watch("periodUnit") as PeriodicityUnit}
+              onValueChange={(val) => {
+                if (canEdit) {
+                  form.setValue("periodValue", val);
+                }
+              }}
+              onUnitChange={(unit) => {
+                if (canEdit) {
+                  form.setValue("periodUnit", unit);
+                  setPeriodUnit(unit);
+                }
+              }}
+              label="Periodicita"
+              required
+              disabled={!canEdit}
+            />
 
             {expirationDate && (
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
@@ -418,9 +416,9 @@ export default function EditMedicalExamination() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Lékař</FormLabel>
-                       <FormControl>
-                         <Input {...field} placeholder="Jméno lékaře" disabled={!canEdit} />
-                       </FormControl>
+                    <FormControl>
+                      <Input {...field} placeholder="Jméno lékaře" disabled={!canEdit} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -431,9 +429,9 @@ export default function EditMedicalExamination() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Zdravotnické zařízení</FormLabel>
-                       <FormControl>
-                         <Input {...field} placeholder="Název zařízení" disabled={!canEdit} />
-                       </FormControl>
+                    <FormControl>
+                      <Input {...field} placeholder="Název zařízení" disabled={!canEdit} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -446,15 +444,16 @@ export default function EditMedicalExamination() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Výsledek prohlídky</FormLabel>
-                     <FormControl>
-                       <Input {...field} placeholder="např. Způsobilý bez omezení" disabled={!canEdit} />
-                     </FormControl>
+                  <FormControl>
+                    <Input {...field} placeholder="např. Způsobilý bez omezení" disabled={!canEdit} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Existing Documents */}
+            <HealthRisksSection value={healthRisks} onChange={setHealthRisks} disabled={!canEdit} />
+
             {id && (
               <div className="space-y-3">
                 <div>
@@ -467,33 +466,32 @@ export default function EditMedicalExamination() {
               </div>
             )}
 
-            {/* New Document Upload - only for admin/manager */}
             {canEdit && (
               <div className="space-y-3">
                 <div>
                   <Label className="text-sm font-medium">Přidat nové dokumenty</Label>
                   <p className="text-xs text-muted-foreground mt-1">Nahrajte lékařské zprávy nebo jiné dokumenty</p>
                 </div>
-                <FileUploader 
-                  files={uploadedFiles} 
-                  onFilesChange={setUploadedFiles} 
-                  maxFiles={10} 
-                  maxSize={20} 
-                  acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} 
+                <FileUploader
+                  files={uploadedFiles}
+                  onFilesChange={setUploadedFiles}
+                  maxFiles={10}
+                  maxSize={20}
+                  acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
                 />
               </div>
             )}
 
             <FormField
-               control={form.control}
-               name="reminderTemplateId"
-               render={({ field }) => (
-                 <FormItem>
-                   <FormLabel>Šablona připomenutí *</FormLabel>
-                   <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
-                     <FormControl>
-                       <SelectTrigger disabled={!canEdit}>
-                         <SelectValue placeholder="Vyberte šablonu" />
+              control={form.control}
+              name="reminderTemplateId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Šablona připomenutí *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                    <FormControl>
+                      <SelectTrigger disabled={!canEdit}>
+                        <SelectValue placeholder="Vyberte šablonu" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -566,7 +564,6 @@ export default function EditMedicalExamination() {
           </form>
         </Form>
       </Card>
-
     </div>
   );
 }
