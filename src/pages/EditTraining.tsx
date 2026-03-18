@@ -34,15 +34,16 @@ import {
   PeriodicityUnit,
   daysToPeriodicityUnit,
   periodicityToDays,
-  calculateNextDate,
+  formatPeriodicityDisplay,
 } from "@/components/PeriodicityInput";
+import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
   employeeId: z.string().min(1, "Vyberte školenu osobu"),
   trainingTypeId: z.string().min(1, "Vyberte typ školení"),
   lastTrainingDate: z.date({ required_error: "Zadejte datum školení" }),
-  periodValue: z.number().min(1, "Zadejte periodicitu"),
+  periodValue: z.number().min(1, "Zadejte periodicitu").nullable(),
   periodUnit: z.enum(["days", "months", "years"]),
   trainer: z.string().optional(),
   company: z.string().optional(),
@@ -87,7 +88,7 @@ export default function EditTraining() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      periodValue: 1,
+      periodValue: null,
       periodUnit: "years",
       remindDaysBefore: "30",
       repeatDaysAfter: "30",
@@ -111,24 +112,25 @@ export default function EditTraining() {
         if (error) throw error;
 
         if (training) {
-          // Get period from training type
           const { data: trainingType } = await supabase
             .from("training_types")
             .select("period_days")
             .eq("id", training.training_type_id)
             .single();
 
-          const { value, unit } = trainingType
-            ? daysToPeriodicityUnit(trainingType.period_days)
-            : { value: 1, unit: "years" as PeriodicityUnit };
+          const typePeriod = trainingType?.period_days ?? 365;
+          const { unit: typeUnit } = daysToPeriodicityUnit(typePeriod);
+          const overridePeriod = training.period_days_override != null
+            ? daysToPeriodicityUnit(training.period_days_override)
+            : null;
 
           form.reset({
             facility: training.facility,
             employeeId: training.employee_id,
             trainingTypeId: training.training_type_id,
             lastTrainingDate: new Date(training.last_training_date),
-            periodValue: value,
-            periodUnit: unit,
+            periodValue: overridePeriod?.value ?? null,
+            periodUnit: overridePeriod?.unit ?? typeUnit,
             trainer: training.trainer || "",
             company: training.company || "",
             reminderTemplateId: training.reminder_template_id || "",
@@ -137,7 +139,7 @@ export default function EditTraining() {
             result: (training.result as "passed" | "passed_with_reservations" | "failed") || "passed",
             note: training.note || "",
           });
-          setPeriodUnit(unit);
+          setPeriodUnit(overridePeriod?.unit ?? typeUnit);
         }
       } catch (error: any) {
         toast({
@@ -169,15 +171,31 @@ export default function EditTraining() {
     loadTemplates();
   }, []);
 
+  const selectedTrainingTypeId = form.watch("trainingTypeId");
+  const selectedTrainingType = trainingTypes.find((type) => type.id === selectedTrainingTypeId);
   const lastTrainingDate = form.watch("lastTrainingDate");
   const periodValue = form.watch("periodValue");
   const watchedPeriodUnit = form.watch("periodUnit");
+  const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, watchedPeriodUnit as PeriodicityUnit) : null;
+  const typePeriodHint = selectedTrainingType
+    ? `Prázdné = použije se perioda typu (${formatPeriodicityDisplay(
+        daysToPeriodicityUnit(selectedTrainingType.periodDays).value,
+        daysToPeriodicityUnit(selectedTrainingType.periodDays).unit
+      )})`
+    : "Prázdné = použije se perioda typu";
+
+  useEffect(() => {
+    if (selectedTrainingType && form.getValues("periodValue") == null) {
+      const { unit } = daysToPeriodicityUnit(selectedTrainingType.periodDays);
+      form.setValue("periodUnit", unit);
+      setPeriodUnit(unit);
+    }
+  }, [selectedTrainingType, form]);
 
   const expirationDate = useMemo(() => {
-    if (!lastTrainingDate || !periodValue) return null;
-    if (periodValue <= 0) return null;
-    return calculateNextDate(lastTrainingDate, periodValue, watchedPeriodUnit as PeriodicityUnit);
-  }, [lastTrainingDate, periodValue, watchedPeriodUnit]);
+    if (!lastTrainingDate || !selectedTrainingType) return null;
+    return calculateNextDateFromPeriodDays(lastTrainingDate, overridePeriodDays, selectedTrainingType.periodDays);
+  }, [lastTrainingDate, overridePeriodDays, selectedTrainingType]);
 
   const onSubmit = async (data: FormValues) => {
     if (!user || !id) {
@@ -188,9 +206,17 @@ export default function EditTraining() {
     setIsSubmitting(true);
 
     try {
-      const nextTrainingDate = expirationDate
-        ? format(expirationDate, "yyyy-MM-dd")
-        : format(data.lastTrainingDate, "yyyy-MM-dd");
+      if (!selectedTrainingType) {
+        throw new Error("Vyberte typ školení");
+      }
+
+      const overridePeriodDays = data.periodValue != null
+        ? periodicityToDays(data.periodValue, data.periodUnit as PeriodicityUnit)
+        : null;
+      const nextTrainingDate = format(
+        calculateNextDateFromPeriodDays(data.lastTrainingDate, overridePeriodDays, selectedTrainingType.periodDays),
+        "yyyy-MM-dd"
+      );
 
       // If result is "failed", force status to expired
       let status = "valid";
@@ -218,6 +244,7 @@ export default function EditTraining() {
           trainer: data.trainer || null,
           company: data.company || null,
           reminder_template_id: data.reminderTemplateId || null,
+          period_days_override: overridePeriodDays,
           remind_days_before: parseInt(data.remindDaysBefore) || 30,
           repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
           note: data.note || null,
@@ -431,7 +458,7 @@ export default function EditTraining() {
               value={form.watch("periodValue")}
               unit={form.watch("periodUnit") as PeriodicityUnit}
               onValueChange={(val) => {
-                if (canEdit) form.setValue("periodValue", val ?? 1);
+                if (canEdit) form.setValue("periodValue", val);
               }}
               onUnitChange={(unit) => {
                 if (canEdit) {
@@ -439,8 +466,9 @@ export default function EditTraining() {
                   setPeriodUnit(unit);
                 }
               }}
-              label="Periodicita"
-              required
+              label="Periodicita (override)"
+              placeholder="Volitelné"
+              emptyHint={typePeriodHint}
               disabled={!canEdit}
             />
 
