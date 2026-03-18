@@ -141,6 +141,9 @@ export default function NewMedicalExamination() {
       )})`
     : "Prázdné = použije se primární perioda typu";
 
+  const selectedResult = form.watch("result");
+  const longTermFitnessLossDate = form.watch("longTermFitnessLossDate");
+
   const expirationDate = useMemo(() => {
     if (!lastExaminationDate || !selectedType) return null;
     return calculateNextDateFromPeriodDays(lastExaminationDate, overridePeriodDays, selectedType.periodDays);
