@@ -63,16 +63,27 @@ function isHealthRiskValue(value: unknown): value is HealthRiskValue {
   return typeof value === "string" && HEALTH_RISK_VALUES.includes(value as HealthRiskValue);
 }
 
+function readHealthRiskValue(source: Record<string, unknown>, ...keys: string[]): HealthRiskValue | null {
+  for (const key of keys) {
+    const candidate = source[key];
+    if (isHealthRiskValue(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
 export function fromDbHealthRisks(value: unknown): HealthRisks {
   const source = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 
   return {
-    pracovniPoloha: isHealthRiskValue(source.pracovni_poloha) ? source.pracovni_poloha : null,
-    celkovaFyzickaZatez: isHealthRiskValue(source.celkova_fyzicka_zatez) ? source.celkova_fyzicka_zatez : null,
-    hluk: isHealthRiskValue(source.hluk) ? source.hluk : null,
-    vibracePreneseneNaRuce: isHealthRiskValue(source.vibrace_prenesene_na_ruce) ? source.vibrace_prenesene_na_ruce : null,
-    zrakovaZatez: isHealthRiskValue(source.zrakova_zatez) ? source.zrakova_zatez : null,
-    ultrafialoveZareni: isHealthRiskValue(source.ultrafialove_zareni) ? source.ultrafialove_zareni : null,
+    pracovniPoloha: readHealthRiskValue(source, "pracovni_poloha", "pracovniPoloha"),
+    celkovaFyzickaZatez: readHealthRiskValue(source, "celkova_fyzicka_zatez", "celkovaFyzickaZatez"),
+    hluk: readHealthRiskValue(source, "hluk"),
+    vibracePreneseneNaRuce: readHealthRiskValue(source, "vibrace_prenesene_na_ruce", "vibracePreneseneNaRuce"),
+    zrakovaZatez: readHealthRiskValue(source, "zrakova_zatez", "zrakovaZatez"),
+    ultrafialoveZareni: readHealthRiskValue(source, "ultrafialove_zareni", "ultrafialoveZareni"),
   };
 }
 
