@@ -1,8 +1,11 @@
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
+import { EmployeeStatusBadge } from "@/components/EmployeeStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Edit, Plus, Download, RefreshCw, Eye } from "lucide-react";
 import { ResultBadge } from "@/components/ResultBadge";
@@ -36,7 +39,8 @@ export default function ScheduledExaminations() {
   const navigate = useNavigate();
   const { isAdmin, isManager } = useAuth();
   const canEdit = isAdmin || isManager;
-  const { examinations, loading: examinationsLoading, error: examinationsError, refetch } = useMedicalExaminations(true);
+  const [showInactiveEmployees, setShowInactiveEmployees] = useState(false);
+  const { examinations, loading: examinationsLoading, error: examinationsError, refetch } = useMedicalExaminations(!showInactiveEmployees);
   const { facilities: facilitiesData } = useFacilities();
   const [selectedExaminations, setSelectedExaminations] = useState<Set<string>>(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
@@ -159,6 +163,7 @@ export default function ScheduledExaminations() {
       "Typ prohlídky": e.type,
       "Os. číslo": e.employeeNumber,
       "Jméno": e.employeeName,
+      "Stav zaměstnance": e.employeeStatus,
       "Datum narození": e.employeeBirthDate ? format(parseISO(e.employeeBirthDate), "dd.MM.yyyy") : "",
       "Věk": e.employeeBirthDate ? String(differenceInYears(new Date(), parseISO(e.employeeBirthDate))) : "",
       "Kategorie": e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
@@ -196,7 +201,7 @@ export default function ScheduledExaminations() {
     return (
       <div className="space-y-6">
         <PageHeaderSkeleton />
-        <TableSkeleton columns={12} />
+        <TableSkeleton columns={13} />
       </div>
     );
   }
@@ -204,7 +209,15 @@ export default function ScheduledExaminations() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-foreground">Naplánované prohlídky</h2>
+        <div className="space-y-2">
+          <h2 className="text-3xl font-bold text-foreground">Naplánované prohlídky</h2>
+          <div className="flex items-center gap-3">
+            <Switch id="show-inactive-plp" checked={showInactiveEmployees} onCheckedChange={setShowInactiveEmployees} />
+            <Label htmlFor="show-inactive-plp" className="text-sm text-muted-foreground">
+              Zobrazit zaměstnance na mateřské a nemocenské i mimo historii
+            </Label>
+          </div>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={refetch}>
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -270,6 +283,7 @@ export default function ScheduledExaminations() {
               <SortableTableHead label="Typ prohlídky" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+              <TableHead>Stav zaměstnance</TableHead>
               <TableHead>Dat. nar.</TableHead>
               <TableHead>Věk</TableHead>
               <TableHead>Kategorie</TableHead>
@@ -285,7 +299,7 @@ export default function ScheduledExaminations() {
           <TableBody>
             {sortedExaminations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 16 : 15} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={canEdit ? 17 : 16} className="text-center text-muted-foreground py-8">
                   Žádné prohlídky k zobrazení.
                 </TableCell>
               </TableRow>
@@ -304,6 +318,9 @@ export default function ScheduledExaminations() {
                   <TableCell className="font-medium">{exam.type}</TableCell>
                   <TableCell>{exam.employeeNumber}</TableCell>
                   <TableCell>{exam.employeeName}</TableCell>
+                  <TableCell>
+                    <EmployeeStatusBadge status={exam.employeeStatus} />
+                  </TableCell>
                   <TableCell className="text-sm">
                     {exam.employeeBirthDate ? format(parseISO(exam.employeeBirthDate), "dd.MM.yyyy") : "-"}
                   </TableCell>
@@ -321,16 +338,16 @@ export default function ScheduledExaminations() {
                       note={exam.note || undefined}
                     />
                   </TableCell>
-                   <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={exam.note || ""}>
-                     {exam.note || "-"}
-                   </TableCell>
-                   <TableCell className="text-sm whitespace-nowrap">
-                     {exam.longTermFitnessLossDate ? format(new Date(exam.longTermFitnessLossDate), "dd.MM.yyyy") : "-"}
-                   </TableCell>
-                   <TableCell className="text-center">
-                     <MedicalProtocolCell examinationId={exam.id} />
-                   </TableCell>
-                   <TableCell>{exam.doctor || "-"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={exam.note || ""}>
+                    {exam.note || "-"}
+                  </TableCell>
+                  <TableCell className="text-sm whitespace-nowrap">
+                    {exam.longTermFitnessLossDate ? format(new Date(exam.longTermFitnessLossDate), "dd.MM.yyyy") : "-"}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <MedicalProtocolCell examinationId={exam.id} />
+                  </TableCell>
+                  <TableCell>{exam.doctor || "-"}</TableCell>
                   <TableCell>
                     {canEdit ? (
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
@@ -343,6 +360,33 @@ export default function ScheduledExaminations() {
                     )}
                   </TableCell>
                 </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <BulkEditExaminationsDialog
+        open={bulkEditDialogOpen}
+        onOpenChange={setBulkEditDialogOpen}
+        selectedIds={Array.from(selectedExaminations)}
+        onSuccess={() => {
+          setSelectedExaminations(new Set());
+          refetch();
+        }}
+      />
+
+      <BulkArchiveDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        selectedCount={selectedExaminations.size}
+        onConfirm={confirmBulkArchive}
+        loading={loading}
+        entityName="prohlídek"
+      />
+    </div>
+  );
+}
               ))
             )}
           </TableBody>

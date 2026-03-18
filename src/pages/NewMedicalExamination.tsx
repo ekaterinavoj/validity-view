@@ -340,10 +340,10 @@ export default function NewMedicalExamination() {
                   <FormLabel>Zaměstnanci *</FormLabel>
                   <FormControl>
                     <EmployeeMultiSelect
-                      employees={activeEmployees}
+                      employees={selectableEmployees}
                       selectedIds={field.value}
                       onChange={field.onChange}
-                      placeholder="Vyberte zaměstnance (lze více)"
+                      placeholder="Vyberte zaměstnance (aktivní, nemocenská, mateřská/rodičovská)"
                       error={form.formState.errors.employeeIds?.message}
                     />
                   </FormControl>

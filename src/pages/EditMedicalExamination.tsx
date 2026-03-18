@@ -401,7 +401,7 @@ export default function EditMedicalExamination() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {activeEmployees.map((emp) => (
+                      {selectableEmployees.map((emp) => (
                         <SelectItem key={emp.id} value={emp.id}>
                           {emp.lastName} {emp.firstName} ({emp.employeeNumber})
                         </SelectItem>
