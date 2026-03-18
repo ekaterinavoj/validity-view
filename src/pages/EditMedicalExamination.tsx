@@ -226,8 +226,8 @@ export default function EditMedicalExamination() {
         "yyyy-MM-dd"
       );
 
-      let status = "valid";
-      if (nextExaminationDate) {
+      let status = getMedicalExaminationStatusFromResult(data.result, "valid");
+      if (nextExaminationDate && status !== "expired") {
         const nextDate = new Date(nextExaminationDate);
         const today = new Date();
         const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
