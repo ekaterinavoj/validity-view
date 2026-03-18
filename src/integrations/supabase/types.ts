@@ -745,6 +745,7 @@ export type Database = {
           id: string
           is_active: boolean
           last_examination_date: string
+          long_term_fitness_loss_date: string | null
           medical_facility: string | null
           next_examination_date: string
           note: string | null
@@ -769,6 +770,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_examination_date: string
+          long_term_fitness_loss_date?: string | null
           medical_facility?: string | null
           next_examination_date: string
           note?: string | null
@@ -793,6 +795,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_examination_date?: string
+          long_term_fitness_loss_date?: string | null
           medical_facility?: string | null
           next_examination_date?: string
           note?: string | null
