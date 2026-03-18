@@ -57,6 +57,7 @@ export interface Deadline {
   facility: string;
   last_check_date: string;
   next_check_date: string;
+  period_days_override?: number | null;
   status: "valid" | "warning" | "expired";
   result?: "passed" | "passed_with_reservations" | "failed";
   remind_days_before?: number | null;

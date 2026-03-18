@@ -318,6 +318,7 @@ export type Database = {
           next_check_date: string
           note: string | null
           performer: string | null
+          period_days_override: number | null
           remind_days_before: number | null
           reminder_template_id: string | null
           repeat_days_after: number | null
@@ -340,6 +341,7 @@ export type Database = {
           next_check_date: string
           note?: string | null
           performer?: string | null
+          period_days_override?: number | null
           remind_days_before?: number | null
           reminder_template_id?: string | null
           repeat_days_after?: number | null
@@ -362,6 +364,7 @@ export type Database = {
           next_check_date?: string
           note?: string | null
           performer?: string | null
+          period_days_override?: number | null
           remind_days_before?: number | null
           reminder_template_id?: string | null
           repeat_days_after?: number | null
@@ -745,6 +748,7 @@ export type Database = {
           medical_facility: string | null
           next_examination_date: string
           note: string | null
+          period_days_override: number | null
           remind_days_before: number | null
           reminder_template_id: string | null
           repeat_days_after: number | null
@@ -768,6 +772,7 @@ export type Database = {
           medical_facility?: string | null
           next_examination_date: string
           note?: string | null
+          period_days_override?: number | null
           remind_days_before?: number | null
           reminder_template_id?: string | null
           repeat_days_after?: number | null
@@ -791,6 +796,7 @@ export type Database = {
           medical_facility?: string | null
           next_examination_date?: string
           note?: string | null
+          period_days_override?: number | null
           remind_days_before?: number | null
           reminder_template_id?: string | null
           repeat_days_after?: number | null
@@ -1439,6 +1445,7 @@ export type Database = {
           last_training_date: string
           next_training_date: string
           note: string | null
+          period_days_override: number | null
           remind_days_before: number | null
           reminder_template: string | null
           reminder_template_id: string | null
@@ -1462,6 +1469,7 @@ export type Database = {
           last_training_date: string
           next_training_date: string
           note?: string | null
+          period_days_override?: number | null
           remind_days_before?: number | null
           reminder_template?: string | null
           reminder_template_id?: string | null
@@ -1485,6 +1493,7 @@ export type Database = {
           last_training_date?: string
           next_training_date?: string
           note?: string | null
+          period_days_override?: number | null
           remind_days_before?: number | null
           reminder_template?: string | null
           reminder_template_id?: string | null
