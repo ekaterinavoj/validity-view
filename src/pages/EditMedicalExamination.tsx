@@ -158,11 +158,11 @@ export default function EditMedicalExamination() {
   const watchedPeriodUnit = form.watch("periodUnit");
   const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, watchedPeriodUnit as PeriodicityUnit) : null;
   const typePeriodHint = selectedType
-    ? `Prázdné = použije se perioda typu (${formatPeriodicityDisplay(
+    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
         daysToPeriodicityUnit(selectedType.periodDays).value,
         daysToPeriodicityUnit(selectedType.periodDays).unit
       )})`
-    : "Prázdné = použije se perioda typu";
+    : "Prázdné = použije se primární perioda typu";
 
   useEffect(() => {
     if (selectedType && form.getValues("periodValue") == null) {

@@ -126,11 +126,11 @@ export default function EditDeadline() {
   const lastCheckDate = form.watch("last_check_date");
   const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, periodUnit) : null;
   const typePeriodHint = selectedType
-    ? `Prázdné = použije se perioda typu (${formatPeriodicityDisplay(
+    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
         daysToPeriodicityUnit(selectedType.period_days).value,
         daysToPeriodicityUnit(selectedType.period_days).unit
       )})`
-    : "Prázdné = použije se perioda typu";
+    : "Prázdné = použije se primární perioda typu";
 
   const nextCheckDate = lastCheckDate && selectedType
     ? calculateNextDateFromPeriodDays(lastCheckDate, overridePeriodDays, selectedType.period_days)

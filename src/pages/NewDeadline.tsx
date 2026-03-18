@@ -131,11 +131,11 @@ export default function NewDeadline() {
   const periodUnit = form.watch("period_unit");
 
   const typePeriodHint = selectedType
-    ? `Prázdné = použije se perioda typu (${formatPeriodicityDisplay(
+    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
         daysToPeriodicityUnit(selectedType.period_days).value,
         daysToPeriodicityUnit(selectedType.period_days).unit
       )})`
-    : "Prázdné = použije se perioda typu";
+    : "Prázdné = použije se primární perioda typu";
   const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, periodUnit as PeriodicityUnit) : null;
 
   // Auto-fill facility from type and only sync unit when no override is set

@@ -135,11 +135,11 @@ export default function NewTraining() {
   const watchedPeriodUnit = form.watch("periodUnit");
   const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, watchedPeriodUnit as PeriodicityUnit) : null;
   const typePeriodHint = selectedTrainingType
-    ? `Prázdné = použije se perioda typu (${formatPeriodicityDisplay(
+    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
         daysToPeriodicityUnit(selectedTrainingType.periodDays).value,
         daysToPeriodicityUnit(selectedTrainingType.periodDays).unit
       )})`
-    : "Prázdné = použije se perioda typu";
+    : "Prázdné = použije se primární perioda typu";
 
   const expirationDate = useMemo(() => {
     if (!lastTrainingDate || !selectedTrainingType) return null;
