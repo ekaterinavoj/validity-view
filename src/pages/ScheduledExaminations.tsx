@@ -285,7 +285,7 @@ export default function ScheduledExaminations() {
           <TableBody>
             {sortedExaminations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 15 : 14} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={canEdit ? 16 : 15} className="text-center text-muted-foreground py-8">
                   Žádné prohlídky k zobrazení.
                 </TableCell>
               </TableRow>
