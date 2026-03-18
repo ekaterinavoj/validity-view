@@ -138,7 +138,12 @@ SELECT 1;`,
     sql: `-- UI-only PLP note tooltip unification, no database schema updates required.
 SELECT 1;`,
   },
-];
+  {
+    version: "20260318214500",
+    name: "history_note_tooltip_unification",
+    sql: `-- UI-only history note tooltip unification, no database schema updates required.
+SELECT 1;`,
+  },
 
 /**
  * Get migrations that have SQL and need to be applied

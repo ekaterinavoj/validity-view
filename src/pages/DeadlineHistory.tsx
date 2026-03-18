@@ -390,6 +390,9 @@ export default function DeadlineHistory() {
                     </TableCell>
                     <TableCell>{deadline.performer || "-"}</TableCell>
                     <TableCell>
+                      <NoteTooltipText note={deadline.note} />
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center gap-2">
                         {deadline.deleted_at && (
                           <Badge variant="outline" className="bg-muted">Archivováno</Badge>

@@ -493,7 +493,9 @@ export default function History() {
                     <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
                     <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                     <TableCell className="whitespace-nowrap">{training.company}</TableCell>
-                    <TableCell>{training.note || "-"}</TableCell>
+                    <TableCell>
+                      <NoteTooltipText note={training.note} />
+                    </TableCell>
                     {(archiveFilter === "all" || archiveFilter === "archived") && (
                       <TableCell>
                         {training.isArchived ? (
