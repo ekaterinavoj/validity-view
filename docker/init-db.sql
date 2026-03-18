@@ -478,6 +478,14 @@ CREATE TABLE IF NOT EXISTS public.medical_examinations (
     remind_days_before INTEGER DEFAULT 30,
     repeat_days_after INTEGER DEFAULT 30,
     note TEXT,
+    zdravotni_rizika JSONB NOT NULL DEFAULT jsonb_build_object(
+        'pracovni_poloha', NULL,
+        'celkova_fyzicka_zatez', NULL,
+        'hluk', NULL,
+        'vibrace_prenesene_na_ruce', NULL,
+        'zrakova_zatez', NULL,
+        'ultrafialove_zareni', NULL
+    ),
     status TEXT NOT NULL DEFAULT 'valid',
     is_active BOOLEAN NOT NULL DEFAULT true,
     deleted_at TIMESTAMPTZ,

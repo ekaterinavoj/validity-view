@@ -29,6 +29,8 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeMultiSelect } from "@/components/EmployeeMultiSelect";
 import { Progress } from "@/components/ui/progress";
 import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, calculateNextDate } from "@/components/PeriodicityInput";
+import { HealthRisksSection } from "@/components/HealthRisksSection";
+import { createEmptyHealthRisks, toDbHealthRisks, type HealthRisks } from "@/lib/healthRisks";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -56,6 +58,7 @@ export default function NewMedicalExamination() {
   const [submitProgress, setSubmitProgress] = useState(0);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
   const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
+  const [healthRisks, setHealthRisks] = useState<HealthRisks>(createEmptyHealthRisks());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -155,6 +158,7 @@ export default function NewMedicalExamination() {
               remind_days_before: parseInt(data.remindDaysBefore) || 30,
               repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
               note: data.note || undefined,
+              zdravotni_rizika: toDbHealthRisks(healthRisks),
               status,
               is_active: true,
               created_by: user.id,
@@ -165,7 +169,6 @@ export default function NewMedicalExamination() {
 
           if (insertError) throw insertError;
 
-          // Upload documents for every employee's examination record
           if (uploadedFiles.length > 0 && newExamination) {
             const uploadPromises = uploadedFiles.map((uploadedFile) =>
               uploadMedicalDocument(newExamination.id, uploadedFile.file, uploadedFile.documentType, uploadedFile.description)
@@ -357,6 +360,8 @@ export default function NewMedicalExamination() {
             <FormField control={form.control} name="result" render={({ field }) => (
               <FormItem><FormLabel>Výsledek prohlídky</FormLabel><FormControl><Input {...field} placeholder="např. Způsobilý bez omezení" /></FormControl><FormMessage /></FormItem>
             )} />
+
+            <HealthRisksSection value={healthRisks} onChange={setHealthRisks} />
 
             <div className="space-y-3">
               <div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fromDbHealthRisks, type HealthRisks } from "@/lib/healthRisks";
 
 export interface MedicalExaminationWithDetails {
   id: string;
@@ -11,7 +12,7 @@ export interface MedicalExaminationWithDetails {
   employeeName: string;
   employeeId: string;
   employeeStatus: "employed" | "parental_leave" | "sick_leave" | "terminated";
-  employeeWorkCategory: number | null;
+  employeeWorkCategory: string | null;
   employeeBirthDate: string | null;
   facility: string;
   department: string;
@@ -24,6 +25,7 @@ export interface MedicalExaminationWithDetails {
   period: number;
   reminderTemplate: string;
   note: string;
+  healthRisks: HealthRisks;
   is_active: boolean;
   remindDaysBefore: number;
   repeatDaysAfter: number;
@@ -39,7 +41,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
   const fetchExaminations = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const { data, error: fetchError } = await supabase
         .from("medical_examinations")
@@ -61,6 +63,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           employee_id,
           examination_type_id,
           deleted_at,
+          zdravotni_rizika,
           employees (
             id,
             employee_number,
@@ -99,9 +102,9 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         next.setHours(0, 0, 0, 0);
-        
+
         const diffDays = Math.floor((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         if (diffDays < 0) return "expired";
         if (diffDays <= 30) return "warning";
         return "valid";
@@ -111,14 +114,12 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
         .filter((e: any) => {
           const isActive = e.is_active;
           const employeeStatus = e.employees?.status;
-          
+
           if (activeOnly) {
-            // Show only active examinations (employee is employed and examination is active)
             return isActive && employeeStatus === "employed";
-          } else {
-            // Show suspended examinations (inactive or employee not employed)
-            return !isActive || employeeStatus !== "employed";
           }
+
+          return !isActive || employeeStatus !== "employed";
         })
         .map((e: any) => ({
           id: e.id,
@@ -143,6 +144,7 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           period: e.medical_examination_types?.period_days || 365,
           reminderTemplate: e.medical_reminder_templates?.name || "",
           note: e.note || "",
+          healthRisks: fromDbHealthRisks(e.zdravotni_rizika),
           is_active: e.is_active,
           remindDaysBefore: e.remind_days_before ?? 30,
           repeatDaysAfter: e.repeat_days_after ?? 30,
@@ -170,7 +172,9 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
         fetchExaminations();
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchExaminations]);
 
   return { examinations, loading, error, refetch: fetchExaminations };
