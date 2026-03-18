@@ -102,6 +102,7 @@ export default function NewMedicalExamination() {
       periodUnit: "years",
       remindDaysBefore: "30",
       repeatDaysAfter: "30",
+      result: "passed",
     },
   });
 
