@@ -28,33 +28,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { formatDisplayDate } from "@/lib/dateFormat";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Download, Loader2, RefreshCw, ArchiveRestore, Archive } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
-import { AdvancedFilters } from "@/components/AdvancedFilters";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useTrainingHistory } from "@/hooks/useTrainingHistory";
-import { TableSkeleton } from "@/components/LoadingSkeletons";
-import { ErrorDisplay } from "@/components/ErrorDisplay";
-import { supabase } from "@/integrations/supabase/client";
-import { useFacilities } from "@/hooks/useFacilities";
-import * as XLSX from 'xlsx';
-import Papa from 'papaparse';
-import { useAuth } from "@/contexts/AuthContext";
-import { BulkActionsBar } from "@/components/BulkActionsBar";
-import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
