@@ -22,6 +22,7 @@ import {
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatPeriodicity } from "@/lib/utils";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { useInactiveEmployees } from "@/hooks/useEmployees";
 import { useTrainings } from "@/hooks/useTrainings";
 import { CardsSkeleton, TableSkeleton } from "@/components/LoadingSkeletons";

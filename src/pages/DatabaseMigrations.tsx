@@ -28,6 +28,7 @@ import {
   ArrowLeft,
   ChevronDown,
 } from "lucide-react";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import {
   MIGRATION_REGISTRY,
   getPendingMigrations,

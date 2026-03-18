@@ -28,6 +28,7 @@ import { format } from "date-fns";
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { formatPeriodicity } from "@/lib/utils";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { useTrainings } from "@/hooks/useTrainings";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";

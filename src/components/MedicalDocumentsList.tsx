@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { formatDisplayDate } from "@/lib/dateFormat";
 
 export interface MedicalDocument {
   id: string;

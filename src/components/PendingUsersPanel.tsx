@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Loader2, UserCheck, UserX, Clock, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
+import { formatDisplayDateTime } from "@/lib/dateFormat";
 
 interface PendingUser {
   id: string;
