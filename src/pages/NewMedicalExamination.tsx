@@ -499,7 +499,7 @@ export default function NewMedicalExamination() {
             </div>
 
             <FormField control={form.control} name="note" render={({ field }) => (
-              <FormItem><FormLabel>Poznámka</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>{medicalExaminationResultRequiresNote(selectedResult) ? "Podmínka / omezení *" : "Poznámka"}</FormLabel><FormControl><Textarea {...field} rows={3} placeholder={medicalExaminationResultRequiresNote(selectedResult) ? "Popište podmínku nebo omezení" : undefined} /></FormControl><FormMessage /></FormItem>
             )} />
 
             <div className="space-y-2">
