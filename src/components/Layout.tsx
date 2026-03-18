@@ -336,10 +336,10 @@ export const Layout = ({
             </div>
 
             <div className="flex items-center gap-1">
-              {/* Dokumentace - visible to all approved users */}
+              {/* Dokumenty - visible to all approved users */}
               <NavLink to="/documents" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
                 <FolderOpen className="w-4 h-4" />
-                Dokumentace
+                Dokumenty
               </NavLink>
 
               {/* Statistics only visible in Training mode and for admin/manager */}
@@ -572,7 +572,7 @@ export const Layout = ({
             <div className="space-y-1 pt-2 border-t border-border">
               <Link to="/documents" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/documents" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                 <FolderOpen className="w-4 h-4" />
-                Dokumentace
+                Dokumenty
               </Link>
             </div>
 
