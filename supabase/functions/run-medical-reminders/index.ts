@@ -16,6 +16,8 @@ interface ExaminationItem {
   employee_email: string;
   examination_type_name: string;
   days_until: number;
+  remind_days_before: number;
+  repeat_days_after: number;
 }
 
 interface Recipient {
@@ -215,19 +217,25 @@ serve(async (req) => {
       });
     }
 
-    // Get examinations needing attention (expired or expiring within 30 days)
+    // Get examinations needing attention
+    // Fetch a broad window first (max reasonable remind_days_before), then filter per-record
+    const maxWindowDays = 90;
+    const windowDate = new Date(Date.now() + maxWindowDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
     const { data: examinations } = await supabase
       .from("medical_examinations")
       .select(`
         id,
         next_examination_date,
         employee_id,
+        remind_days_before,
+        repeat_days_after,
         employee:employees!medical_examinations_employee_id_fkey(id, first_name, last_name, email),
         examination_type:medical_examination_types!medical_examinations_examination_type_id_fkey(name)
       `)
       .eq("is_active", true)
       .is("deleted_at", null)
-      .lte("next_examination_date", new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
+      .lte("next_examination_date", windowDate);
 
     if (!examinations || examinations.length === 0) {
       console.log("No examinations need attention");
@@ -239,7 +247,8 @@ serve(async (req) => {
       });
     }
 
-    const examinationItems: ExaminationItem[] = examinations.map(e => ({
+    // Build items and filter by per-record remind_days_before
+    const allItems: ExaminationItem[] = examinations.map(e => ({
       id: e.id,
       next_examination_date: e.next_examination_date,
       employee_id: e.employee_id,
@@ -248,7 +257,67 @@ serve(async (req) => {
       employee_email: (e.employee as any)?.email || "",
       examination_type_name: (e.examination_type as any)?.name || "",
       days_until: getDaysUntil(e.next_examination_date),
+      remind_days_before: e.remind_days_before ?? 30,
+      repeat_days_after: e.repeat_days_after ?? 30,
     }));
+
+    // Only include examinations where days_until <= remind_days_before (expired or within window)
+    const eligibleItems = allItems.filter(e => e.days_until <= e.remind_days_before);
+
+    if (eligibleItems.length === 0) {
+      console.log("No examinations within their remind_days_before window");
+      return new Response(JSON.stringify({ 
+        success: true, 
+        info: "No examinations require reminders",
+        totalSkipped: 0,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // === DEDUPLICATION CHECK ===
+    // For each eligible examination, check if a successful reminder was sent recently
+    let totalSkipped = 0;
+    const examinationItems: ExaminationItem[] = [];
+
+    for (const item of eligibleItems) {
+      const repeatDays = item.repeat_days_after;
+      if (repeatDays > 0) {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - repeatDays);
+        const cutoffDateStr = cutoffDate.toISOString();
+
+        const { data: recentLogs } = await supabase
+          .from("medical_reminder_logs")
+          .select("id, created_at")
+          .eq("examination_id", item.id)
+          .eq("status", "sent")
+          .eq("is_test", false)
+          .gte("created_at", cutoffDateStr)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (recentLogs && recentLogs.length > 0) {
+          console.log(`Skipping examination ${item.id}: reminder already sent on ${recentLogs[0].created_at} (repeat_days_after=${repeatDays})`);
+          totalSkipped++;
+          continue;
+        }
+      }
+
+      examinationItems.push(item);
+    }
+
+    if (examinationItems.length === 0) {
+      console.log(`All examinations skipped by deduplication (${totalSkipped} skipped)`);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        info: "All examinations were skipped (already reminded recently)",
+        totalSkipped,
+        emailsSent: 0,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const expiredItems = examinationItems.filter(e => e.days_until < 0);
     const expiringItems = examinationItems.filter(e => e.days_until >= 0);
@@ -292,17 +361,21 @@ serve(async (req) => {
       emailProvider
     );
 
-    // Log the reminder
-    await supabase.from("medical_reminder_logs").insert({
-      template_name: "Medical Summary",
-      recipient_emails: recipientEmails,
-      email_subject: subject,
-      email_body: fullBody,
-      status: result.success ? "sent" : "failed",
-      error_message: result.error || null,
-      is_test: false,
-      delivery_mode: recipients.delivery_mode || "bcc",
-    });
+    // Log the reminder for each examination (so deduplication works per-examination)
+    for (const item of examinationItems) {
+      await supabase.from("medical_reminder_logs").insert({
+        examination_id: item.id,
+        employee_id: item.employee_id,
+        template_name: "Medical Summary",
+        recipient_emails: recipientEmails,
+        email_subject: subject,
+        email_body: fullBody,
+        status: result.success ? "sent" : "failed",
+        error_message: result.error || null,
+        is_test: false,
+        delivery_mode: recipients.delivery_mode || "bcc",
+      });
+    }
 
     let managerEmailsSent = 0;
     
@@ -367,16 +440,21 @@ serve(async (req) => {
           
           const mgrResult = await sendViaSMTP([manager.email], mgrSubject, mgrBody, "to", emailProvider);
           
-          await supabase.from("medical_reminder_logs").insert({
-            template_name: "Manager notification",
-            recipient_emails: [manager.email],
-            email_subject: mgrSubject,
-            email_body: mgrBody,
-            status: mgrResult.success ? "sent" : "failed",
-            error_message: mgrResult.error || null,
-            is_test: false,
-            delivery_mode: "to",
-          });
+          // Log manager notification per examination too
+          for (const exam of managerExams) {
+            await supabase.from("medical_reminder_logs").insert({
+              examination_id: exam.id,
+              employee_id: exam.employee_id,
+              template_name: "Manager notification",
+              recipient_emails: [manager.email],
+              email_subject: mgrSubject,
+              email_body: mgrBody,
+              status: mgrResult.success ? "sent" : "failed",
+              error_message: mgrResult.error || null,
+              is_test: false,
+              delivery_mode: "to",
+            });
+          }
           
           if (mgrResult.success) {
             managerEmailsSent++;
@@ -386,11 +464,14 @@ serve(async (req) => {
       }
     }
 
+    console.log(`Medical reminder check completed. Emails sent: ${(result.success ? 1 : 0) + managerEmailsSent}, skipped (dedup): ${totalSkipped}`);
+
     return new Response(JSON.stringify({ 
       success: result.success,
       emailsSent: (result.success ? 1 : 0) + managerEmailsSent,
       recipientCount: result.success ? recipientEmails.length : 0,
       examinationsCount: examinationItems.length,
+      totalSkipped,
       managerEmailsSent,
       error: result.error,
     }), {
