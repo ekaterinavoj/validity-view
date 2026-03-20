@@ -454,7 +454,6 @@ export default function DeadlineHistory() {
                     </>
                   );
                 })
-                ))
               )}
             </TableBody>
           </Table>
