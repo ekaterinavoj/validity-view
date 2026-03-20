@@ -39,7 +39,7 @@ import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRo
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkEditDeadlinesDialog } from "@/components/BulkEditDeadlinesDialog";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
-import { cn } from "@/lib/utils";
+import { cn, formatPeriodicity } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import Papa from "papaparse";
