@@ -468,8 +468,17 @@ export default function History() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map((training) => (
-                  <TableRow key={training.id} className={training.isArchived ? "bg-muted/50" : ""}>
+                filteredHistory.map((training) => {
+                  const isExpanded = expandedRowId === training.id;
+                  return (
+                    <>
+                    <TableRow key={training.id} className={training.isArchived ? "bg-muted/50" : ""}>
+                      <TableCell className="w-[40px] px-2">
+                        <ExpandableToggle
+                          isExpanded={isExpanded}
+                          onToggle={() => setExpandedRowId(isExpanded ? null : training.id)}
+                        />
+                      </TableCell>
                     {canBulkActions && archiveFilter !== "active" && (
                       <TableCell>
                         {training.isArchived && (
@@ -535,8 +544,20 @@ export default function History() {
                         )}
                       </TableCell>
                     )}
-                  </TableRow>
-                ))
+                    </TableRow>
+                    {isExpanded && (
+                      <ExpandableDetailRow
+                        colSpan={14}
+                        fields={[
+                          { label: "Periodicita", value: formatPeriodicity(training.period) },
+                          { label: "Zadavatel", value: training.requester },
+                          { label: "Provozovna", value: training.facility },
+                        ]}
+                      />
+                    )}
+                    </>
+                  );
+                })
               )}
             </TableBody>
           </Table>
