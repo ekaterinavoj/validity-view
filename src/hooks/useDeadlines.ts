@@ -18,6 +18,7 @@ interface DeadlineRow {
   performer: string | null;
   company: string | null;
   requester: string | null;
+  result: string | null;
   note: string | null;
   is_active: boolean;
   deleted_at: string | null;
