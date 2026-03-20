@@ -18,8 +18,6 @@ interface ReminderTemplate {
   id: string;
   name: string;
   description: string | null;
-  remind_days_before: number;
-  repeat_interval_days: number | null;
   email_subject: string;
   email_body: string;
   is_active: boolean;
