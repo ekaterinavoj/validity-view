@@ -75,6 +75,7 @@ export function useDeadlines() {
       return (data as DeadlineRow[]).map((item): Deadline => ({
         ...item,
         status: computeStatus(item.next_check_date, item.result),
+        result: (item.result as Deadline["result"]) ?? undefined,
         deadline_type: item.deadline_types,
       }));
     },
