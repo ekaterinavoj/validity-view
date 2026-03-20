@@ -443,7 +443,12 @@ export default function NewTraining() {
 
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="remindDaysBefore" render={({ field }) => (
-                <FormItem><FormLabel>Připomenout dopředu (dní) *</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Připomenout dopředu (dní) *</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <p className="text-xs text-muted-foreground">Za kolik dní před vypršením poslat upozornění</p>
+                  <FormMessage />
+                </FormItem>
               )} />
               <FormField control={form.control} name="repeatDaysAfter" render={({ field }) => (
                 <FormItem><FormLabel>Opakovat po (dní)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
