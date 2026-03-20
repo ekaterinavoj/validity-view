@@ -40,6 +40,12 @@ export function getResultLabel(result: ResultValue, context: ResultContext): str
   return resultLabels[context]?.[result] ?? result;
 }
 
+const tooltipMessages: Record<ResultContext, string> = {
+  training: "Výsledek s výhradami — viz poznámka",
+  deadline: "Vyhovuje s výhradami — viz poznámka",
+  medical: "Způsobilost s podmínkou nebo omezením — viz poznámka",
+};
+
 export function getResultOptions(context: ResultContext) {
   return Object.entries(resultLabels[context])
     .filter(([, label]) => Boolean(label))
@@ -75,7 +81,7 @@ export function ResultBadge({ result, context, note, className }: ResultBadgePro
             </span>
           </TooltipTrigger>
           <TooltipContent className="max-w-xs">
-            <p className="text-sm">{note || "Bez komentáře"}</p>
+            <p className="text-sm">{tooltipMessages[context]}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
