@@ -594,6 +594,7 @@ export default function EditTraining() {
                     <FormControl>
                       <Input type="number" {...field} disabled={!canEdit} />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">Za kolik dní před vypršením poslat upozornění</p>
                     <FormMessage />
                   </FormItem>
                 )}
