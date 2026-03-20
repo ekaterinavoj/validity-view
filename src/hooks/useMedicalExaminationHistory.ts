@@ -50,6 +50,7 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
           employee_id,
           examination_type_id,
           deleted_at,
+          period_days_override,
           long_term_fitness_loss_date,
           employees (
             id,
