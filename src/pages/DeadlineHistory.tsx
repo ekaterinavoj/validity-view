@@ -332,6 +332,7 @@ export default function DeadlineHistory() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]" />
                 {canBulkActions && archiveFilter !== "active" && (
                   <TableHead className="w-12">
                     <Checkbox
@@ -356,16 +357,25 @@ export default function DeadlineHistory() {
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canBulkActions && archiveFilter !== "active" ? 11 : 10} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canBulkActions && archiveFilter !== "active" ? 12 : 11} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné záznamy
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map(deadline => (
-                  <TableRow 
-                    key={deadline.id}
-                    className={cn(deadline.deleted_at && "opacity-60")}
-                  >
+                filteredHistory.map(deadline => {
+                  const isExpanded = expandedRowId === deadline.id;
+                  return (
+                    <>
+                    <TableRow 
+                      key={deadline.id}
+                      className={cn(deadline.deleted_at && "opacity-60")}
+                    >
+                      <TableCell className="w-[40px] px-2">
+                        <ExpandableToggle
+                          isExpanded={isExpanded}
+                          onToggle={() => setExpandedRowId(isExpanded ? null : deadline.id)}
+                        />
+                      </TableCell>
                     {canBulkActions && archiveFilter !== "active" && (
                       <TableCell>
                         {deadline.deleted_at && (
@@ -427,7 +437,23 @@ export default function DeadlineHistory() {
                         )}
                       </TableCell>
                     )}
-                  </TableRow>
+                    </TableRow>
+                    {isExpanded && (
+                      <ExpandableDetailRow
+                        colSpan={12}
+                        fields={[
+                          { label: "Periodicita", value: formatPeriodicity(deadline.period) },
+                          { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
+                          { label: "Výrobce", value: deadline.equipment?.manufacturer },
+                          { label: "Model", value: deadline.equipment?.model },
+                          { label: "Firma", value: deadline.company },
+                          { label: "Zadavatel", value: deadline.requester },
+                        ]}
+                      />
+                    )}
+                    </>
+                  );
+                })
                 ))
               )}
             </TableBody>
