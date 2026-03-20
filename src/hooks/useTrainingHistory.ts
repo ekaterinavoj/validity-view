@@ -43,6 +43,7 @@ export function useTrainingHistory(includeArchived: boolean = false) {
           company,
           requester,
           note,
+          period_days_override,
           status,
           is_active,
           last_training_date,
