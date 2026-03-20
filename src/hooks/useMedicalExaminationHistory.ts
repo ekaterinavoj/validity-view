@@ -21,6 +21,7 @@ export interface HistoryExamination {
   deletedAt: string | null;
   isArchived: boolean;
   longTermFitnessLossDate: string | null;
+  period: number;
 }
 
 export function useMedicalExaminationHistory(includeArchived: boolean = false) {
