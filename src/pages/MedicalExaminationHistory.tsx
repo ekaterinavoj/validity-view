@@ -313,6 +313,7 @@ export default function MedicalExaminationHistory() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]" />
                 {canBulkActions && archiveFilter !== "active" && (
                   <TableHead className="w-12">
                     <Checkbox
