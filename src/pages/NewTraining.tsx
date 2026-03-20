@@ -451,7 +451,12 @@ export default function NewTraining() {
                 </FormItem>
               )} />
               <FormField control={form.control} name="repeatDaysAfter" render={({ field }) => (
-                <FormItem><FormLabel>Opakovat po (dní)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Opakovat po (dní)</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <p className="text-xs text-muted-foreground">Po vypršení termínu — každých X dní opakovat</p>
+                  <FormMessage />
+                </FormItem>
               )} />
             </div>
 
