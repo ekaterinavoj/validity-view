@@ -1257,6 +1257,21 @@ export default function AdminSettings() {
                     }
                   />
                 </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-destructive">Povolit nešifrovaný fallback při selhání STARTTLS</Label>
+                    <p className="text-sm text-muted-foreground">
+                      ⚠️ Nedoporučeno pro produkci — pokud STARTTLS selže, email se odešle nešifrovaně (včetně přihlašovacích údajů)
+                    </p>
+                  </div>
+                  <Switch
+                    checked={emailProvider.smtp_starttls_fallback_allowed || false}
+                    onCheckedChange={(checked) => 
+                      setEmailProvider({ ...emailProvider, smtp_starttls_fallback_allowed: checked })
+                    }
+                  />
+                </div>
               </div>
 
               {/* Status indicator */}
