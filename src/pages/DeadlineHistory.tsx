@@ -37,7 +37,7 @@ import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 
 export default function DeadlineHistory() {
-  const { history, isLoading, error, refetch } = useDeadlineHistory();
+  const { history, loading: isLoading, error, refetch } = useDeadlineHistory(true);
   const { facilities } = useFacilities();
   const { toast } = useToast();
   const { isAdmin, isManager } = useAuth();
@@ -258,7 +258,7 @@ export default function DeadlineHistory() {
   };
 
   if (error) {
-    return <ErrorDisplay title="Chyba při načítání historie" message={error.message} onRetry={() => refetch()} />;
+    return <ErrorDisplay title="Chyba při načítání historie" message={error} onRetry={() => refetch()} />;
   }
 
   if (isLoading) {

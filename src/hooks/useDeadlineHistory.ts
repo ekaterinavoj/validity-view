@@ -1,39 +1,82 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Deadline, EquipmentRef, DeadlineTypeRef } from "@/types/equipment";
 
-interface DeadlineRow {
+export interface HistoryDeadline {
   id: string;
-  equipment_id: string;
-  deadline_type_id: string;
+  status: "valid" | "warning" | "expired";
+  equipmentId: string;
+  equipmentName: string;
+  inventoryNumber: string;
+  equipmentType: string;
+  deadlineTypeName: string;
   facility: string;
+  lastCheckDate: string;
+  nextCheckDate: string;
+  period: number;
+  performer: string;
+  company: string;
+  requester: string;
+  note: string;
+  result: string | null;
+  deletedAt: string | null;
+  isArchived: boolean;
+  // Pass-through fields used by the page
+  equipment: {
+    id: string;
+    inventory_number: string;
+    name: string;
+    equipment_type: string;
+    facility: string;
+    department_id?: string | null;
+    status: string;
+    location?: string | null;
+    responsible_person?: string | null;
+    manufacturer?: string | null;
+    model?: string | null;
+    serial_number?: string | null;
+  } | null;
+  deadline_type: {
+    id: string;
+    name: string;
+    facility: string;
+    period_days: number;
+  } | null;
+  // Raw fields needed by page actions
+  deleted_at: string | null;
   last_check_date: string;
   next_check_date: string;
-  status: "valid" | "warning" | "expired";
-  remind_days_before: number | null;
-  repeat_days_after: number | null;
-  reminder_template_id: string | null;
-  performer: string | null;
-  company: string | null;
-  requester: string | null;
-  note: string | null;
-  is_active: boolean;
-  deleted_at: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-  equipment: EquipmentRef | null;
-  deadline_types: DeadlineTypeRef | null;
+  performer_raw: string | null;
+  company_raw: string | null;
 }
 
-export function useDeadlineHistory() {
-  const { data: history = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["deadline-history"],
-    queryFn: async () => {
-      const { data, error } = await supabase
+export function useDeadlineHistory(includeArchived: boolean = false) {
+  const [history, setHistory] = useState<HistoryDeadline[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchHistory = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let query = supabase
         .from("deadlines")
         .select(`
-          *,
+          id,
+          facility,
+          performer,
+          company,
+          requester,
+          note,
+          status,
+          result,
+          is_active,
+          last_check_date,
+          next_check_date,
+          equipment_id,
+          deadline_type_id,
+          deleted_at,
+          period_days_override,
           equipment:equipment_id (
             id, inventory_number, name, equipment_type, facility, department_id, status, location, responsible_person, manufacturer, model, serial_number
           ),
@@ -43,19 +86,73 @@ export function useDeadlineHistory() {
         `)
         .order("last_check_date", { ascending: false });
 
-      if (error) throw error;
-      
-      return (data as DeadlineRow[]).map((item): Deadline => ({
-        ...item,
-        deadline_type: item.deadline_types,
-      }));
-    },
-  });
+      if (!includeArchived) {
+        query = query.is("deleted_at", null);
+      }
 
-  return {
-    history,
-    isLoading,
-    error,
-    refetch,
-  };
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) throw fetchError;
+
+      const computeStatus = (nextDate: string | null | undefined): "valid" | "warning" | "expired" => {
+        if (!nextDate) return "expired";
+        const next = new Date(nextDate);
+        if (isNaN(next.getTime())) return "expired";
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        next.setHours(0, 0, 0, 0);
+        const diffDays = Math.floor((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return "expired";
+        if (diffDays <= 30) return "warning";
+        return "valid";
+      };
+
+      const transformedData: HistoryDeadline[] = (data || []).map((d: any) => {
+        const eq = d.equipment;
+        const dt = d.deadline_types;
+        const effectivePeriod = d.period_days_override ?? dt?.period_days ?? 365;
+
+        return {
+          id: d.id,
+          status: computeStatus(d.next_check_date),
+          equipmentId: d.equipment_id,
+          equipmentName: eq?.name || "",
+          inventoryNumber: eq?.inventory_number || "",
+          equipmentType: eq?.equipment_type || "",
+          deadlineTypeName: dt?.name || "",
+          facility: d.facility || dt?.facility || "",
+          lastCheckDate: d.last_check_date,
+          nextCheckDate: d.next_check_date,
+          period: effectivePeriod,
+          performer: d.performer || "",
+          company: d.company || "",
+          requester: d.requester || "",
+          note: d.note || "",
+          result: d.result || null,
+          deletedAt: d.deleted_at,
+          isArchived: d.deleted_at !== null,
+          equipment: eq || null,
+          deadline_type: dt ? { id: dt.id, name: dt.name, facility: dt.facility, period_days: dt.period_days } : null,
+          deleted_at: d.deleted_at,
+          last_check_date: d.last_check_date,
+          next_check_date: d.next_check_date,
+          performer_raw: d.performer,
+          company_raw: d.company,
+        };
+      });
+
+      setHistory(transformedData);
+    } catch (err: any) {
+      console.error("Error fetching deadline history:", err);
+      setError("Nepodařilo se načíst historii událostí. Zkuste to prosím znovu.");
+    } finally {
+      setLoading(false);
+    }
+  }, [includeArchived]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  return { history, loading, error, refetch: fetchHistory };
 }
