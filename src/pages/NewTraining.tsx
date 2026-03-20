@@ -49,7 +49,7 @@ const formSchema = z.object({
   periodUnit: z.enum(["days", "months", "years"]),
   trainer: z.string().optional(),
   company: z.string().optional(),
-  reminderTemplateId: z.string().min(1, "Vyberte šablonu připomenutí"),
+  reminderTemplateId: z.string().optional(),
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   result: z.enum(["passed", "passed_with_reservations", "failed"]),
