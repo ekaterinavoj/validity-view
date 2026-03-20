@@ -39,7 +39,7 @@ import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRo
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkEditDeadlinesDialog } from "@/components/BulkEditDeadlinesDialog";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
-import { cn } from "@/lib/utils";
+import { cn, formatPeriodicity } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import Papa from "papaparse";
@@ -414,6 +414,7 @@ export default function ScheduledDeadlines() {
                             { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
                             { label: "Výrobce", value: deadline.equipment?.manufacturer },
                             { label: "Model", value: deadline.equipment?.model },
+                            { label: "Periodicita", value: formatPeriodicity(deadline.period_days_override ?? deadline.deadline_type?.period_days ?? 365) },
                             { label: "Firma", value: deadline.company },
                             { label: "Zadavatel", value: deadline.requester },
                           ]}

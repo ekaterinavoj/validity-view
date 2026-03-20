@@ -11,6 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Download, Loader2, RefreshCw, ArchiveRestore, Archive } from "lucide-react";
+import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
+import { formatPeriodicity } from "@/lib/utils";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdvancedFilters } from "@/hooks/useAdvancedFilters";
@@ -56,6 +58,7 @@ export default function History() {
   const [bulkRestoreDialogOpen, setBulkRestoreDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   
   // Include archived trainings when filter is "all" or "archived"
   const includeArchived = archiveFilter === "all" || archiveFilter === "archived";
@@ -430,6 +433,7 @@ export default function History() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]" />
                 {canBulkActions && archiveFilter !== "active" && (
                   <TableHead className="w-12">
                     <Checkbox
@@ -464,8 +468,17 @@ export default function History() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map((training) => (
-                  <TableRow key={training.id} className={training.isArchived ? "bg-muted/50" : ""}>
+                filteredHistory.map((training) => {
+                  const isExpanded = expandedRowId === training.id;
+                  return (
+                    <>
+                    <TableRow key={training.id} className={training.isArchived ? "bg-muted/50" : ""}>
+                      <TableCell className="w-[40px] px-2">
+                        <ExpandableToggle
+                          isExpanded={isExpanded}
+                          onToggle={() => setExpandedRowId(isExpanded ? null : training.id)}
+                        />
+                      </TableCell>
                     {canBulkActions && archiveFilter !== "active" && (
                       <TableCell>
                         {training.isArchived && (
@@ -531,8 +544,20 @@ export default function History() {
                         )}
                       </TableCell>
                     )}
-                  </TableRow>
-                ))
+                    </TableRow>
+                    {isExpanded && (
+                      <ExpandableDetailRow
+                        colSpan={14}
+                        fields={[
+                          { label: "Periodicita", value: formatPeriodicity(training.period) },
+                          { label: "Zadavatel", value: training.requester },
+                          { label: "Provozovna", value: training.facility },
+                        ]}
+                      />
+                    )}
+                    </>
+                  );
+                })
               )}
             </TableBody>
           </Table>

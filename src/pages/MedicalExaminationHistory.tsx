@@ -5,6 +5,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Download, Loader2, RefreshCw, ArchiveRestore, Archive, Trash2 } from "lucide-react";
+import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
+import { formatPeriodicity } from "@/lib/utils";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +60,7 @@ export default function MedicalExaminationHistory() {
   const [bulkRestoreDialogOpen, setBulkRestoreDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const includeArchived = archiveFilter === "all" || archiveFilter === "archived";
   const { examinations, loading, error, refetch } = useMedicalExaminationHistory(includeArchived);
@@ -310,6 +313,7 @@ export default function MedicalExaminationHistory() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]" />
                 {canBulkActions && archiveFilter !== "active" && (
                   <TableHead className="w-12">
                     <Checkbox
@@ -344,8 +348,17 @@ export default function MedicalExaminationHistory() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map((exam) => (
-                  <TableRow key={exam.id} className={exam.isArchived ? "bg-muted/50" : ""}>
+                filteredHistory.map((exam) => {
+                  const isExpanded = expandedRowId === exam.id;
+                  return (
+                    <>
+                    <TableRow key={exam.id} className={exam.isArchived ? "bg-muted/50" : ""}>
+                      <TableCell className="w-[40px] px-2">
+                        <ExpandableToggle
+                          isExpanded={isExpanded}
+                          onToggle={() => setExpandedRowId(isExpanded ? null : exam.id)}
+                        />
+                      </TableCell>
                     {canBulkActions && archiveFilter !== "active" && (
                       <TableCell>
                         {exam.isArchived && (
@@ -442,8 +455,20 @@ export default function MedicalExaminationHistory() {
                         </div>
                       </TableCell>
                     )}
-                  </TableRow>
-                ))
+                    </TableRow>
+                    {isExpanded && (
+                      <ExpandableDetailRow
+                        colSpan={16}
+                        fields={[
+                          { label: "Periodicita", value: formatPeriodicity(exam.period) },
+                          { label: "Provozovna", value: exam.facility },
+                          { label: "Datum pozbytí ZD způsobilosti", value: exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : null },
+                        ]}
+                      />
+                    )}
+                    </>
+                  );
+                })
               )}
             </TableBody>
           </Table>
