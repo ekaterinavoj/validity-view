@@ -23,6 +23,7 @@ interface Training {
   next_training_date: string;
   employee_id: string;
   reminder_template_id: string | null;
+  repeat_days_after: number | null;
   training_types: Array<{
     name: string;
   }> | { name: string } | null;
@@ -130,6 +131,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Found ${templates.length} active reminder templates`);
 
     let totalEmailsSent = 0;
+    let totalSkipped = 0;
     const results = [];
 
     // Projít všechny šablony
@@ -150,6 +152,7 @@ const handler = async (req: Request): Promise<Response> => {
           next_training_date,
           employee_id,
           reminder_template_id,
+          repeat_days_after,
           training_types (name),
           employees (first_name, last_name, email)
         `)
@@ -225,6 +228,32 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Odeslat email pro každé školení
       for (const training of trainings as Training[]) {
+        // === DEDUPLICATION CHECK ===
+        // Check if a successful reminder was already sent recently for this training + template
+        const repeatDaysAfter = training.repeat_days_after ?? template.repeat_interval_days ?? 0;
+        if (repeatDaysAfter > 0) {
+          const cutoffDate = new Date();
+          cutoffDate.setDate(cutoffDate.getDate() - repeatDaysAfter);
+          const cutoffDateStr = cutoffDate.toISOString();
+
+          const { data: recentLogs } = await supabase
+            .from("reminder_logs")
+            .select("id, created_at")
+            .eq("training_id", training.id)
+            .eq("template_id", template.id)
+            .eq("status", "sent")
+            .eq("is_test", false)
+            .gte("created_at", cutoffDateStr)
+            .order("created_at", { ascending: false })
+            .limit(1);
+
+          if (recentLogs && recentLogs.length > 0) {
+            console.log(`Skipping training ${training.id}: reminder already sent on ${recentLogs[0].created_at} (repeat_days_after=${repeatDaysAfter})`);
+            totalSkipped++;
+            continue;
+          }
+        }
+
         const daysRemaining = Math.ceil(
           (new Date(training.next_training_date).getTime() - new Date().getTime()) / 
           (1000 * 60 * 60 * 24)
@@ -333,12 +362,13 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log(`Reminder check completed. Total emails sent: ${totalEmailsSent}`);
+    console.log(`Reminder check completed. Total emails sent: ${totalEmailsSent}, skipped (dedup): ${totalSkipped}`);
 
     return new Response(
       JSON.stringify({
         message: "Reminder check completed",
         total_emails_sent: totalEmailsSent,
+        total_skipped: totalSkipped,
         results: results,
       }),
       {

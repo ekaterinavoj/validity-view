@@ -12,6 +12,7 @@ export interface SmtpConfig {
   smtp_password?: string;
   smtp_tls_mode?: string;
   smtp_ignore_tls?: boolean;
+  smtp_starttls_fallback_allowed?: boolean;
   // M365 OAuth2 fields
   smtp_oauth_tenant_id?: string;
   smtp_oauth_client_id?: string;
@@ -204,7 +205,7 @@ async function sendEmailData(
   await sendCmd("QUIT");
 }
 
-// ---- Full SMTP session with STARTTLS + fallback ----
+// ---- Full SMTP session with STARTTLS + conditional fallback ----
 
 async function doSmtpSession(
   connection: Deno.TcpConn | Deno.TlsConn,
@@ -260,7 +261,16 @@ async function doSmtpSession(
         tlsConn.close();
         return;
       } catch (tlsError: any) {
-        console.warn(`STARTTLS failed (${tlsError.message}), reconnecting plain`);
+        // Check if plaintext fallback is allowed (default: NOT allowed)
+        const fallbackAllowed = config.smtp_starttls_fallback_allowed === true;
+        
+        if (!fallbackAllowed) {
+          console.error(`STARTTLS failed (${tlsError.message}). Plaintext fallback is DISABLED. Aborting.`);
+          try { connection.close(); } catch {}
+          throw new Error(`STARTTLS negotiation failed and plaintext fallback is disabled: ${tlsError.message}`);
+        }
+
+        console.warn(`STARTTLS failed (${tlsError.message}), plaintext fallback ALLOWED - reconnecting plain`);
         try { connection.close(); } catch {}
         // Fallback: reconnect without TLS
         const plainConn = await Deno.connect({ hostname: host, port: config.smtp_port || 587 });
