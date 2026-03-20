@@ -81,7 +81,7 @@ export function ResultBadge({ result, context, note, className }: ResultBadgePro
             </span>
           </TooltipTrigger>
           <TooltipContent className="max-w-xs">
-            <p className="text-sm">{note || "Bez komentáře"}</p>
+            <p className="text-sm">{tooltipMessages[context]}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
