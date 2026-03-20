@@ -5,6 +5,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Download, Loader2, RefreshCw, ArchiveRestore, Archive, Trash2 } from "lucide-react";
+import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
+import { formatPeriodicity } from "@/lib/utils";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
