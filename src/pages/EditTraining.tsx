@@ -563,14 +563,15 @@ export default function EditTraining() {
               name="reminderTemplateId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Šablona připomenutí *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                  <FormLabel>Šablona připomenutí</FormLabel>
+                  <Select onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} value={field.value || "__none__"} disabled={!canEdit}>
                     <FormControl>
                       <SelectTrigger disabled={!canEdit}>
-                        <SelectValue placeholder="Vyberte šablonu" />
+                        <SelectValue placeholder="Výchozí šablona (nepovinné)" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="__none__">— Bez šablony (výchozí) —</SelectItem>
                       {reminderTemplates.map((t) => (
                         <SelectItem key={t.id} value={t.id}>
                           {t.name}
