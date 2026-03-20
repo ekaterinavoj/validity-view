@@ -429,10 +429,11 @@ export default function NewTraining() {
 
             <FormField control={form.control} name="reminderTemplateId" render={({ field }) => (
               <FormItem>
-                <FormLabel>Šablona připomenutí *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Vyberte šablonu" /></SelectTrigger></FormControl>
+                <FormLabel>Šablona připomenutí</FormLabel>
+                <Select onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} value={field.value || "__none__"}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Výchozí šablona (nepovinné)" /></SelectTrigger></FormControl>
                   <SelectContent>
+                    <SelectItem value="__none__">— Bez šablony (výchozí) —</SelectItem>
                     {reminderTemplates.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
