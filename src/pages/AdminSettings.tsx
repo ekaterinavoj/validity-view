@@ -153,6 +153,7 @@ export default function AdminSettings() {
     smtp_secure: true,
     smtp_tls_mode: "starttls",
     smtp_ignore_tls: false,
+    smtp_starttls_fallback_allowed: false,
     // M365 OAuth2
     smtp_oauth_tenant_id: "",
     smtp_oauth_client_id: "",
