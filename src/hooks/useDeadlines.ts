@@ -18,6 +18,7 @@ interface DeadlineRow {
   performer: string | null;
   company: string | null;
   requester: string | null;
+  result: string | null;
   note: string | null;
   is_active: boolean;
   deleted_at: string | null;
@@ -51,9 +52,30 @@ export function useDeadlines() {
 
       if (error) throw error;
       
+      const computeStatus = (
+        nextDate: string | null | undefined,
+        result?: string | null
+      ): "valid" | "warning" | "expired" => {
+        if (result === "failed") return "expired";
+        if (!nextDate) return "expired";
+        const next = new Date(nextDate);
+        if (isNaN(next.getTime())) return "expired";
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        next.setHours(0, 0, 0, 0);
+        const diffDays = Math.floor(
+          (next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (diffDays < 0) return "expired";
+        if (diffDays <= 30) return "warning";
+        return "valid";
+      };
+
       // Transform data to match Deadline type
       return (data as DeadlineRow[]).map((item): Deadline => ({
         ...item,
+        status: computeStatus(item.next_check_date, item.result),
+        result: (item.result as Deadline["result"]) ?? undefined,
         deadline_type: item.deadline_types,
       }));
     },
