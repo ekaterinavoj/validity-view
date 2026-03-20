@@ -58,6 +58,7 @@ export default function History() {
   const [bulkRestoreDialogOpen, setBulkRestoreDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   
   // Include archived trainings when filter is "all" or "archived"
   const includeArchived = archiveFilter === "all" || archiveFilter === "archived";
