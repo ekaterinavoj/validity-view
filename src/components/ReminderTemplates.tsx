@@ -485,16 +485,6 @@ export const ReminderTemplates = () => {
                           <p className="text-sm text-muted-foreground">{template.description}</p>
                         )}
                         <div className="flex flex-wrap gap-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">Připomenout:</span>
-                            <span className="font-medium">{formatDaysBeforeExpiry(template.remind_days_before)}</span>
-                          </div>
-                          {template.repeat_interval_days && template.repeat_interval_days > 0 && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">Opakovat každých:</span>
-                              <span className="font-medium">{formatDays(template.repeat_interval_days)}</span>
-                            </div>
-                          )}
                         </div>
                         <div className="pt-2">
                           <p className="text-xs text-muted-foreground mb-1">Předmět emailu:</p>
