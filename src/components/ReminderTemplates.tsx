@@ -43,8 +43,6 @@ export const ReminderTemplates = () => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    remind_days_before: 30,
-    repeat_interval_days: 0,
     email_subject: "",
     email_body: "",
     is_active: true,
