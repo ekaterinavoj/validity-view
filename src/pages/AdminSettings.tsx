@@ -153,6 +153,7 @@ export default function AdminSettings() {
     smtp_secure: true,
     smtp_tls_mode: "starttls",
     smtp_ignore_tls: false,
+    smtp_starttls_fallback_allowed: false,
     // M365 OAuth2
     smtp_oauth_tenant_id: "",
     smtp_oauth_client_id: "",
@@ -1253,6 +1254,21 @@ export default function AdminSettings() {
                     checked={emailProvider.smtp_ignore_tls}
                     onCheckedChange={(checked) => 
                       setEmailProvider({ ...emailProvider, smtp_ignore_tls: checked })
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-destructive">Povolit nešifrovaný fallback při selhání STARTTLS</Label>
+                    <p className="text-sm text-muted-foreground">
+                      ⚠️ Nedoporučeno pro produkci — pokud STARTTLS selže, email se odešle nešifrovaně (včetně přihlašovacích údajů)
+                    </p>
+                  </div>
+                  <Switch
+                    checked={emailProvider.smtp_starttls_fallback_allowed || false}
+                    onCheckedChange={(checked) => 
+                      setEmailProvider({ ...emailProvider, smtp_starttls_fallback_allowed: checked })
                     }
                   />
                 </div>

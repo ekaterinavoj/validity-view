@@ -111,13 +111,14 @@ export function useTrainings(activeOnly: boolean = true) {
 
       const transformedData: TrainingWithDetails[] = (data || [])
         .filter((t: any) => {
+          const isActive = t.is_active;
           const employeeStatus = t.employees?.status;
           if (activeOnly) {
-            // Active trainings: employee is employed
-            return employeeStatus === "employed";
+            // Active trainings: employee is employed AND training is active
+            return isActive && employeeStatus === "employed";
           } else {
-            // Inactive trainings: employee is NOT employed
-            return employeeStatus !== "employed";
+            // Inactive trainings: either is_active is false OR employee is NOT employed
+            return !isActive || employeeStatus !== "employed";
           }
         })
         .map((t: any) => {
