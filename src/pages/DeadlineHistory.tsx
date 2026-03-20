@@ -258,7 +258,7 @@ export default function DeadlineHistory() {
   };
 
   if (error) {
-    return <ErrorDisplay title="Chyba při načítání historie" message={error.message} onRetry={() => refetch()} />;
+    return <ErrorDisplay title="Chyba při načítání historie" message={error} onRetry={() => refetch()} />;
   }
 
   if (isLoading) {
