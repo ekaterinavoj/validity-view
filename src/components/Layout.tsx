@@ -129,7 +129,7 @@ export const Layout = ({
                     )}
                     {canAccessDeadlines && (
                       <TabsTrigger value="deadlines" className="flex items-center gap-2">
-                        <Wrench className="w-4 h-4" />
+                        <Wrench className="w-5 h-5" />
                         Tech. události
                       </TabsTrigger>
                     )}
