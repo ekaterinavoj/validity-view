@@ -348,8 +348,17 @@ export default function MedicalExaminationHistory() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map((exam) => (
-                  <TableRow key={exam.id} className={exam.isArchived ? "bg-muted/50" : ""}>
+                filteredHistory.map((exam) => {
+                  const isExpanded = expandedRowId === exam.id;
+                  return (
+                    <>
+                    <TableRow key={exam.id} className={exam.isArchived ? "bg-muted/50" : ""}>
+                      <TableCell className="w-[40px] px-2">
+                        <ExpandableToggle
+                          isExpanded={isExpanded}
+                          onToggle={() => setExpandedRowId(isExpanded ? null : exam.id)}
+                        />
+                      </TableCell>
                     {canBulkActions && archiveFilter !== "active" && (
                       <TableCell>
                         {exam.isArchived && (
@@ -446,8 +455,20 @@ export default function MedicalExaminationHistory() {
                         </div>
                       </TableCell>
                     )}
-                  </TableRow>
-                ))
+                    </TableRow>
+                    {isExpanded && (
+                      <ExpandableDetailRow
+                        colSpan={16}
+                        fields={[
+                          { label: "Periodicita", value: formatPeriodicity(exam.period) },
+                          { label: "Provozovna", value: exam.facility },
+                          { label: "Datum pozbytí ZD způsobilosti", value: exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : null },
+                        ]}
+                      />
+                    )}
+                    </>
+                  );
+                })
               )}
             </TableBody>
           </Table>
