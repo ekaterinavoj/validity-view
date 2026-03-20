@@ -578,31 +578,6 @@ export const ReminderTemplates = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="remind_days_before">Připomenout před (dny) *</Label>
-                <Input
-                  id="remind_days_before"
-                  type="number"
-                  min="1"
-                  value={formData.remind_days_before}
-                  onChange={(e) => setFormData({ ...formData, remind_days_before: parseInt(e.target.value) || 30 })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="repeat_interval_days">Opakovat každých (dny)</Label>
-                <Input
-                  id="repeat_interval_days"
-                  type="number"
-                  min="0"
-                  value={formData.repeat_interval_days}
-                  onChange={(e) => setFormData({ ...formData, repeat_interval_days: parseInt(e.target.value) || 0 })}
-                  placeholder="0 = neopakovat"
-                />
-              </div>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="email_subject">Předmět emailu *</Label>
               <Input

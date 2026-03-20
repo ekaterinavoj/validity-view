@@ -199,7 +199,7 @@ export default function NewTraining() {
               next_training_date: nextTrainingDate,
               trainer: data.trainer || undefined,
               company: data.company || undefined,
-              reminder_template_id: data.reminderTemplateId || undefined,
+              reminder_template_id: data.reminderTemplateId || null,
               period_days_override: overridePeriodDays,
               remind_days_before: parseInt(data.remindDaysBefore) || 30,
               repeat_days_after: parseInt(data.repeatDaysAfter) || 30,

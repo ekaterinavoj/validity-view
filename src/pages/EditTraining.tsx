@@ -608,6 +608,7 @@ export default function EditTraining() {
                     <FormControl>
                       <Input type="number" {...field} disabled={!canEdit} />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">Po vypršení termínu — každých X dní opakovat</p>
                     <FormMessage />
                   </FormItem>
                 )}
