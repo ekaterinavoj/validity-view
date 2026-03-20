@@ -21,6 +21,7 @@ export interface HistoryExamination {
   deletedAt: string | null;
   isArchived: boolean;
   longTermFitnessLossDate: string | null;
+  period: number;
 }
 
 export function useMedicalExaminationHistory(includeArchived: boolean = false) {
@@ -49,6 +50,7 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
           employee_id,
           examination_type_id,
           deleted_at,
+          period_days_override,
           long_term_fitness_loss_date,
           employees (
             id,
@@ -111,6 +113,7 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
         deletedAt: t.deleted_at,
         isArchived: t.deleted_at !== null,
         longTermFitnessLossDate: t.long_term_fitness_loss_date || null,
+        period: t.period_days_override ?? t.medical_examination_types?.period_days ?? 365,
       }));
 
       setExaminations(transformedData);
