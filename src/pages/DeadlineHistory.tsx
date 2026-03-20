@@ -51,6 +51,7 @@ export default function DeadlineHistory() {
   const [bulkRestoreDialogOpen, setBulkRestoreDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};

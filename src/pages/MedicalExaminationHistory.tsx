@@ -60,6 +60,7 @@ export default function MedicalExaminationHistory() {
   const [bulkRestoreDialogOpen, setBulkRestoreDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const includeArchived = archiveFilter === "all" || archiveFilter === "archived";
   const { examinations, loading, error, refetch } = useMedicalExaminationHistory(includeArchived);
