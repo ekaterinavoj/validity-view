@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Edit, Plus, CalendarClock, Eye, Download } from "lucide-react";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
+import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
 import { useSortable } from "@/hooks/useSortable";
@@ -38,6 +39,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { BulkEditTrainingsDialog } from "@/components/BulkEditTrainingsDialog";
+import { NoteTooltipText } from "@/components/NoteTooltipText";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
@@ -51,8 +53,8 @@ export default function ScheduledTrainings() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
-  // Create a map of facility code to name for display
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
     facilitiesData.forEach(f => {
@@ -61,7 +63,6 @@ export default function ScheduledTrainings() {
     return map;
   }, [facilitiesData]);
 
-  // Helper to get facility name from code
   const getFacilityName = (code: string): string => {
     return facilityNameMap[code] || code;
   };
@@ -77,7 +78,6 @@ export default function ScheduledTrainings() {
     savedFilters,
   } = useAdvancedFilters("scheduled-trainings-filters");
 
-  // Get unique values for filters from real data
   const departments = useMemo(() => {
     const depts = new Set(trainings.map((t) => t.department).filter(Boolean));
     return Array.from(depts).sort();
@@ -88,7 +88,6 @@ export default function ScheduledTrainings() {
     return Array.from(facilitySet).sort();
   }, [trainings]);
 
-  // Convert facility codes to names for filter display
   const facilities = useMemo(() => {
     return facilityCodes.map(code => getFacilityName(code)).sort();
   }, [facilityCodes, facilityNameMap]);
@@ -103,7 +102,6 @@ export default function ScheduledTrainings() {
     return Array.from(trainerSet).sort();
   }, [trainings]);
 
-  // Filter data
   const filteredTrainings = useMemo(() => {
     return trainings.filter((training) => {
       const searchLower = filters.searchQuery.toLowerCase();
@@ -186,21 +184,16 @@ export default function ScheduledTrainings() {
       });
       return;
     }
-
     setDeleteDialogOpen(true);
   };
 
   const confirmBulkArchive = async () => {
-    if (selectedTrainings.size === 0) {
-      return;
-    }
+    if (selectedTrainings.size === 0) return;
 
     setLoading(true);
     
     try {
       const selectedIds = Array.from(selectedTrainings);
-      
-      // Soft-delete: set deleted_at timestamp instead of hard delete
       const { error } = await supabase
         .from("trainings")
         .update({ deleted_at: new Date().toISOString(), is_active: false })
@@ -215,7 +208,6 @@ export default function ScheduledTrainings() {
 
       setSelectedTrainings(new Set());
       setDeleteDialogOpen(false);
-      
       refetch();
     } catch (error: any) {
       console.error("Error in bulk archive:", error);
@@ -315,7 +307,8 @@ export default function ScheduledTrainings() {
     }
   };
 
-  // PDF export removed
+  // expand + checkbox? + stav + platnost + typ + jméno + provozovna + středisko + datum + školitel + výsledek + poznámka + protokol + akce = 13 or 14
+  const totalColumns = canEdit ? 14 : 13;
 
   if (trainingsError) {
     return (
@@ -374,7 +367,6 @@ export default function ScheduledTrainings() {
                 : "Export CSV"
               }
             </Button>
-            {/* Tlačítko pro vytvoření školení - pouze admin a manažer */}
             {canEdit && (
               <Button onClick={() => navigate("/new-training")}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -384,7 +376,6 @@ export default function ScheduledTrainings() {
           </div>
         </div>
 
-        {/* Bulk Actions Bar */}
         {canEdit && (
           <BulkActionsBar
             selectedCount={selectedTrainings.size}
@@ -395,7 +386,6 @@ export default function ScheduledTrainings() {
           />
         )}
 
-        {/* Bulk Edit Dialog */}
         <BulkEditTrainingsDialog
           open={bulkEditDialogOpen}
           onOpenChange={setBulkEditDialogOpen}
@@ -406,7 +396,6 @@ export default function ScheduledTrainings() {
           }}
         />
 
-        {/* Bulk Archive Dialog */}
         <BulkArchiveDialog
           open={deleteDialogOpen}
           onOpenChange={setDeleteDialogOpen}
@@ -416,7 +405,6 @@ export default function ScheduledTrainings() {
           entityName="školení"
         />
 
-        {/* Advanced filters */}
         <AdvancedFilters
           filters={filters}
           onFilterChange={updateFilter}
@@ -434,7 +422,6 @@ export default function ScheduledTrainings() {
           totalCount={trainings.length}
         />
 
-        {/* Legend + Count - above the table */}
         <div className="flex items-center justify-between">
           <StatusLegend variant="training" />
           <p className="text-sm text-muted-foreground">
@@ -447,7 +434,7 @@ export default function ScheduledTrainings() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {/* Checkbox pouze pro admin a manažera */}
+                  <TableHead className="w-[40px]" />
                   {canEdit && (
                     <TableHead className="w-12">
                       <Checkbox
@@ -462,15 +449,12 @@ export default function ScheduledTrainings() {
                   <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Školení platné do" sortKey="date" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Typ školení" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                  
+                  <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Provozovna" sortKey="facility" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Středisko" sortKey="department" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Datum školení" sortKey="lastTrainingDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Školitel" sortKey="trainer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                  <SortableTableHead label="Firma" sortKey="company" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                  <SortableTableHead label="Zadavatel" sortKey="requester" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                  <SortableTableHead label="Periodicita" sortKey="period" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <TableHead>Výsledek</TableHead>
                   <TableHead>Poznámka</TableHead>
                   <TableHead className="text-center">Protokol</TableHead>
@@ -480,79 +464,93 @@ export default function ScheduledTrainings() {
               <TableBody>
                 {sortedTrainings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={canEdit ? 16 : 15} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={totalColumns} className="text-center py-8 text-muted-foreground">
                       Žádná školení nenalezena
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedTrainings.map((training) => (
-                    <TableRow key={training.id}>
-                      {/* Checkbox pouze pro admin a manažera */}
-                      {canEdit && (
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedTrainings.has(training.id)}
-                            onCheckedChange={() => toggleSelectTraining(training.id)}
+                  sortedTrainings.map((training) => {
+                    const isExpanded = expandedRowId === training.id;
+                    return (
+                      <>
+                        <TableRow key={training.id}>
+                          <TableCell className="w-[40px] px-2">
+                            <ExpandableToggle
+                              isExpanded={isExpanded}
+                              onToggle={() => setExpandedRowId(isExpanded ? null : training.id)}
+                            />
+                          </TableCell>
+                          {canEdit && (
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedTrainings.has(training.id)}
+                                onCheckedChange={() => toggleSelectTraining(training.id)}
+                              />
+                            </TableCell>
+                          )}
+                          <TableCell>
+                            <StatusBadge status={training.status} />
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {formatDisplayDate(training.date)}
+                          </TableCell>
+                          <TableCell className="font-medium">{training.type}</TableCell>
+                          <TableCell>{training.employeeNumber}</TableCell>
+                          <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
+                          <TableCell className="max-w-xs truncate" title={getFacilityName(training.facility)}>
+                            {getFacilityName(training.facility)}
+                          </TableCell>
+                          <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {formatDisplayDate(training.lastTrainingDate)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
+                          <TableCell>
+                            <ResultBadge 
+                              result={training.result} 
+                              context="training" 
+                              note={training.note} 
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <NoteTooltipText note={training.note} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <TrainingProtocolCell trainingId={training.id} />
+                          </TableCell>
+                          <TableCell>
+                            {canEdit ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigate(`/edit-training/${training.id}`)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigate(`/edit-training/${training.id}`)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <ExpandableDetailRow
+                            colSpan={totalColumns}
+                            fields={[
+                              { label: "Firma", value: training.company },
+                              { label: "Zadavatel", value: training.requester },
+                              { label: "Periodicita", value: formatPeriodicity(training.period) },
+                            ]}
                           />
-                        </TableCell>
-                      )}
-                      <TableCell>
-                        <StatusBadge status={training.status} />
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatDisplayDate(training.date)}
-                      </TableCell>
-                      <TableCell className="font-medium">{training.type}</TableCell>
-                      
-                      <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
-                      <TableCell className="max-w-xs truncate" title={getFacilityName(training.facility)}>
-                        {getFacilityName(training.facility)}
-                      </TableCell>
-                      <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatDisplayDate(training.lastTrainingDate)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
-                      <TableCell className="whitespace-nowrap">{training.company}</TableCell>
-                      <TableCell className="whitespace-nowrap">{training.requester}</TableCell>
-                      <TableCell className="text-center">
-                        {formatPeriodicity(training.period)}
-                      </TableCell>
-                      <TableCell>
-                        <ResultBadge 
-                          result={training.result} 
-                          context="training" 
-                          note={training.note} 
-                        />
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate" title={training.note}>
-                        {training.note || "-"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <TrainingProtocolCell trainingId={training.id} />
-                      </TableCell>
-                      <TableCell>
-                        {/* Admin a manažer mohou editovat, ostatní jen náhled */}
-                        {canEdit ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/edit-training/${training.id}`)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/edit-training/${training.id}`)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
                         )}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                      </>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

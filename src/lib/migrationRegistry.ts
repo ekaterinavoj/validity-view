@@ -144,6 +144,13 @@ SELECT 1;`,
     sql: `-- UI-only history note tooltip unification, no database schema updates required.
 SELECT 1;`,
   },
+  {
+    version: "20260320100000",
+    name: "expandable_row_detail_tables",
+    sql: `-- UI-only expandable row detail in overview tables, no database schema updates required.
+SELECT 1;`,
+  },
+];
 
 /**
  * Get migrations that have SQL and need to be applied

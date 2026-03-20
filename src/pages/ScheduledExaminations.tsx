@@ -1,7 +1,6 @@
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
-import { EmployeeStatusBadge } from "@/components/EmployeeStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -10,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Edit, Plus, Download, RefreshCw, Eye } from "lucide-react";
 import { ResultBadge } from "@/components/ResultBadge";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
+import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useMemo, useState } from "react";
 import { useSortable } from "@/hooks/useSortable";
@@ -35,6 +35,7 @@ import { BulkEditExaminationsDialog } from "@/components/BulkEditExaminationsDia
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { HealthRisksSummary } from "@/components/HealthRisksSummary";
 import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
+import { EmployeeStatusBadge } from "@/components/EmployeeStatusBadge";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -48,6 +49,7 @@ export default function ScheduledExaminations() {
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -190,6 +192,9 @@ export default function ScheduledExaminations() {
     link.click();
   };
 
+  // Total columns: expand + (checkbox?) + status + platnost + typ + os.č. + jméno + provozovna + středisko + datum + kategorie + zdr.rizika + výsledek + poznámka + protokol + akce = 15 or 16
+  const totalColumns = canEdit ? 16 : 15;
+
   if (examinationsError) {
     return (
       <div className="space-y-6">
@@ -275,6 +280,7 @@ export default function ScheduledExaminations() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]" />
               {canEdit && (
                 <TableHead className="w-[40px]">
                   <Checkbox checked={selectedExaminations.size === filteredExaminations.length && filteredExaminations.length > 0} onCheckedChange={toggleSelectAll} />
@@ -285,84 +291,98 @@ export default function ScheduledExaminations() {
               <SortableTableHead label="Typ prohlídky" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-              <TableHead>Stav zaměstnance</TableHead>
-              <TableHead>Dat. nar.</TableHead>
-              <TableHead>Věk</TableHead>
+              <TableHead>Provozovna</TableHead>
+              <TableHead>Středisko</TableHead>
+              <TableHead>Datum prohlídky</TableHead>
               <TableHead>Kategorie</TableHead>
               <TableHead>Zdravotní rizika</TableHead>
               <TableHead>Výsledek</TableHead>
               <TableHead>Poznámka</TableHead>
-              <TableHead>Datum pozbytí ZD způsobilosti</TableHead>
               <TableHead>Protokol</TableHead>
-              <SortableTableHead label="Lékař" sortKey="doctor" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedExaminations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 17 : 16} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={totalColumns} className="text-center text-muted-foreground py-8">
                   Žádné prohlídky k zobrazení.
                 </TableCell>
               </TableRow>
             ) : (
-              sortedExaminations.map((exam) => (
-                <TableRow key={exam.id}>
-                  {canEdit && (
-                    <TableCell>
-                      <Checkbox checked={selectedExaminations.has(exam.id)} onCheckedChange={() => toggleSelectExamination(exam.id)} />
-                    </TableCell>
-                  )}
-                  <TableCell>
-                    <StatusBadge status={exam.status} />
-                  </TableCell>
-                  <TableCell>{formatDisplayDate(exam.nextExaminationDate)}</TableCell>
-                  <TableCell className="font-medium">{exam.type}</TableCell>
-                  <TableCell>{exam.employeeNumber}</TableCell>
-                  <TableCell>{exam.employeeName}</TableCell>
-                  <TableCell>
-                    <EmployeeStatusBadge status={exam.employeeStatus} />
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {exam.employeeBirthDate ? formatDisplayDate(exam.employeeBirthDate) : "-"}
-                  </TableCell>
-                  <TableCell className="text-sm text-center">
-                    {exam.employeeBirthDate ? differenceInYears(new Date(), parseISO(exam.employeeBirthDate)) : "-"}
-                  </TableCell>
-                  <TableCell><WorkCategoryBadge category={exam.employeeWorkCategory} /></TableCell>
-                  <TableCell className="min-w-[260px] align-top">
-                    <HealthRisksSummary value={exam.healthRisks} />
-                  </TableCell>
-                  <TableCell>
-                    <ResultBadge
-                      result={(exam.result as any) || "passed"}
-                      context="medical"
-                      note={exam.note || undefined}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <NoteTooltipText note={exam.note} />
-                  </TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">
-                    {exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : "-"}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <MedicalProtocolCell examinationId={exam.id} />
-                  </TableCell>
-                  <TableCell>{exam.doctor || "-"}</TableCell>
-                  <TableCell>
-                    {canEdit ? (
-                      <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    ) : (
-                      <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
+              sortedExaminations.map((exam) => {
+                const isExpanded = expandedRowId === exam.id;
+                return (
+                  <>
+                    <TableRow key={exam.id}>
+                      <TableCell className="w-[40px] px-2">
+                        <ExpandableToggle
+                          isExpanded={isExpanded}
+                          onToggle={() => setExpandedRowId(isExpanded ? null : exam.id)}
+                        />
+                      </TableCell>
+                      {canEdit && (
+                        <TableCell>
+                          <Checkbox checked={selectedExaminations.has(exam.id)} onCheckedChange={() => toggleSelectExamination(exam.id)} />
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        <StatusBadge status={exam.status} />
+                      </TableCell>
+                      <TableCell>{formatDisplayDate(exam.nextExaminationDate)}</TableCell>
+                      <TableCell className="font-medium">{exam.type}</TableCell>
+                      <TableCell>{exam.employeeNumber}</TableCell>
+                      <TableCell>{exam.employeeName}</TableCell>
+                      <TableCell>{getFacilityName(exam.facility)}</TableCell>
+                      <TableCell>{formatDepartment(exam.department, exam.departmentName)}</TableCell>
+                      <TableCell>{formatDisplayDate(exam.lastExaminationDate)}</TableCell>
+                      <TableCell><WorkCategoryBadge category={exam.employeeWorkCategory} /></TableCell>
+                      <TableCell className="min-w-[260px] align-top">
+                        <HealthRisksSummary value={exam.healthRisks} />
+                      </TableCell>
+                      <TableCell>
+                        <ResultBadge
+                          result={(exam.result as any) || "passed"}
+                          context="medical"
+                          note={exam.note || undefined}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <NoteTooltipText note={exam.note} />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <MedicalProtocolCell examinationId={exam.id} />
+                      </TableCell>
+                      <TableCell>
+                        {canEdit ? (
+                          <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" size="sm" onClick={() => navigate(`/plp/edit/${exam.id}`)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && (
+                      <ExpandableDetailRow
+                        colSpan={totalColumns}
+                        fields={[
+                          { label: "Stav zaměstnance", value: exam.employeeStatus },
+                          { label: "Datum narození", value: exam.employeeBirthDate ? formatDisplayDate(exam.employeeBirthDate) : null },
+                          { label: "Věk", value: exam.employeeBirthDate ? differenceInYears(new Date(), parseISO(exam.employeeBirthDate)) : null },
+                          { label: "Periodicita", value: formatPeriodicity(exam.period) },
+                          { label: "Datum pozbytí dlouhodobé způsobilosti", value: exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : null },
+                          { label: "Lékař", value: exam.doctor },
+                          { label: "Zdravotnické zařízení", value: exam.medicalFacility },
+                          { label: "Zadavatel", value: exam.requester },
+                        ]}
+                      />
                     )}
-                  </TableCell>
-                </TableRow>
-              ))
+                  </>
+                );
+              })
             )}
           </TableBody>
         </Table>
