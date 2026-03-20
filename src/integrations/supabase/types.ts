@@ -1211,8 +1211,6 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
-          remind_days_before: number
-          repeat_interval_days: number | null
           target_user_ids: string[] | null
           updated_at: string
         }
@@ -1225,8 +1223,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
-          remind_days_before?: number
-          repeat_interval_days?: number | null
           target_user_ids?: string[] | null
           updated_at?: string
         }
@@ -1239,8 +1235,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
-          remind_days_before?: number
-          repeat_interval_days?: number | null
           target_user_ids?: string[] | null
           updated_at?: string
         }

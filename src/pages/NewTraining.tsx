@@ -49,7 +49,7 @@ const formSchema = z.object({
   periodUnit: z.enum(["days", "months", "years"]),
   trainer: z.string().optional(),
   company: z.string().optional(),
-  reminderTemplateId: z.string().min(1, "Vyberte šablonu připomenutí"),
+  reminderTemplateId: z.string().optional(),
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   result: z.enum(["passed", "passed_with_reservations", "failed"]),
@@ -199,7 +199,7 @@ export default function NewTraining() {
               next_training_date: nextTrainingDate,
               trainer: data.trainer || undefined,
               company: data.company || undefined,
-              reminder_template_id: data.reminderTemplateId || undefined,
+              reminder_template_id: data.reminderTemplateId || null,
               period_days_override: overridePeriodDays,
               remind_days_before: parseInt(data.remindDaysBefore) || 30,
               repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
@@ -429,10 +429,11 @@ export default function NewTraining() {
 
             <FormField control={form.control} name="reminderTemplateId" render={({ field }) => (
               <FormItem>
-                <FormLabel>Šablona připomenutí *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Vyberte šablonu" /></SelectTrigger></FormControl>
+                <FormLabel>Šablona připomenutí</FormLabel>
+                <Select onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} value={field.value || "__none__"}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Výchozí šablona (nepovinné)" /></SelectTrigger></FormControl>
                   <SelectContent>
+                    <SelectItem value="__none__">— Bez šablony (výchozí) —</SelectItem>
                     {reminderTemplates.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
@@ -442,10 +443,20 @@ export default function NewTraining() {
 
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="remindDaysBefore" render={({ field }) => (
-                <FormItem><FormLabel>Připomenout dopředu (dní) *</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Připomenout dopředu (dní) *</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <p className="text-xs text-muted-foreground">Za kolik dní před vypršením poslat upozornění</p>
+                  <FormMessage />
+                </FormItem>
               )} />
               <FormField control={form.control} name="repeatDaysAfter" render={({ field }) => (
-                <FormItem><FormLabel>Opakovat po (dní)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Opakovat po (dní)</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <p className="text-xs text-muted-foreground">Po vypršení termínu — každých X dní opakovat</p>
+                  <FormMessage />
+                </FormItem>
               )} />
             </div>
 

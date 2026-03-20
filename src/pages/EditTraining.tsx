@@ -48,7 +48,7 @@ const formSchema = z.object({
   periodUnit: z.enum(["days", "months", "years"]),
   trainer: z.string().optional(),
   company: z.string().optional(),
-  reminderTemplateId: z.string().min(1, "Vyberte šablonu připomenutí"),
+  reminderTemplateId: z.string().optional(),
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   result: z.enum(["passed", "passed_with_reservations", "failed"]),
@@ -563,14 +563,15 @@ export default function EditTraining() {
               name="reminderTemplateId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Šablona připomenutí *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
+                  <FormLabel>Šablona připomenutí</FormLabel>
+                  <Select onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} value={field.value || "__none__"} disabled={!canEdit}>
                     <FormControl>
                       <SelectTrigger disabled={!canEdit}>
-                        <SelectValue placeholder="Vyberte šablonu" />
+                        <SelectValue placeholder="Výchozí šablona (nepovinné)" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="__none__">— Bez šablony (výchozí) —</SelectItem>
                       {reminderTemplates.map((t) => (
                         <SelectItem key={t.id} value={t.id}>
                           {t.name}
@@ -593,6 +594,7 @@ export default function EditTraining() {
                     <FormControl>
                       <Input type="number" {...field} disabled={!canEdit} />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">Za kolik dní před vypršením poslat upozornění</p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -606,6 +608,7 @@ export default function EditTraining() {
                     <FormControl>
                       <Input type="number" {...field} disabled={!canEdit} />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">Po vypršení termínu — každých X dní opakovat</p>
                     <FormMessage />
                   </FormItem>
                 )}

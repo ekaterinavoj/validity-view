@@ -18,8 +18,6 @@ interface ReminderTemplate {
   id: string;
   name: string;
   description: string | null;
-  remind_days_before: number;
-  repeat_interval_days: number | null;
   email_subject: string;
   email_body: string;
   is_active: boolean;
@@ -45,8 +43,6 @@ export const ReminderTemplates = () => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    remind_days_before: 30,
-    repeat_interval_days: 0,
     email_subject: "",
     email_body: "",
     is_active: true,
@@ -113,8 +109,6 @@ export const ReminderTemplates = () => {
     setFormData({
       name: "",
       description: "",
-      remind_days_before: 30,
-      repeat_interval_days: 0,
       email_subject: "",
       email_body: "",
       is_active: true,
@@ -126,8 +120,6 @@ export const ReminderTemplates = () => {
     setFormData({
       name: template.name,
       description: template.description || "",
-      remind_days_before: template.remind_days_before,
-      repeat_interval_days: template.repeat_interval_days || 0,
       email_subject: template.email_subject,
       email_body: template.email_body,
       is_active: template.is_active,
@@ -151,8 +143,6 @@ export const ReminderTemplates = () => {
       const templateData = {
         name: formData.name,
         description: formData.description,
-        remind_days_before: formData.remind_days_before,
-        repeat_interval_days: formData.repeat_interval_days || null,
         email_subject: formData.email_subject,
         email_body: formData.email_body,
         is_active: formData.is_active,
@@ -495,16 +485,6 @@ export const ReminderTemplates = () => {
                           <p className="text-sm text-muted-foreground">{template.description}</p>
                         )}
                         <div className="flex flex-wrap gap-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">Připomenout:</span>
-                            <span className="font-medium">{formatDaysBeforeExpiry(template.remind_days_before)}</span>
-                          </div>
-                          {template.repeat_interval_days && template.repeat_interval_days > 0 && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">Opakovat každých:</span>
-                              <span className="font-medium">{formatDays(template.repeat_interval_days)}</span>
-                            </div>
-                          )}
                         </div>
                         <div className="pt-2">
                           <p className="text-xs text-muted-foreground mb-1">Předmět emailu:</p>
@@ -596,31 +576,6 @@ export const ReminderTemplates = () => {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Volitelný popis šablony"
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="remind_days_before">Připomenout před (dny) *</Label>
-                <Input
-                  id="remind_days_before"
-                  type="number"
-                  min="1"
-                  value={formData.remind_days_before}
-                  onChange={(e) => setFormData({ ...formData, remind_days_before: parseInt(e.target.value) || 30 })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="repeat_interval_days">Opakovat každých (dny)</Label>
-                <Input
-                  id="repeat_interval_days"
-                  type="number"
-                  min="0"
-                  value={formData.repeat_interval_days}
-                  onChange={(e) => setFormData({ ...formData, repeat_interval_days: parseInt(e.target.value) || 0 })}
-                  placeholder="0 = neopakovat"
-                />
-              </div>
             </div>
 
             <div className="space-y-2">

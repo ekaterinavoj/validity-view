@@ -160,6 +160,13 @@ CREATE INDEX IF NOT EXISTS idx_deadline_reminder_logs_deadline_template_created
 CREATE INDEX IF NOT EXISTS idx_medical_reminder_logs_examination_created 
   ON public.medical_reminder_logs (examination_id, created_at DESC);`,
   },
+  {
+    version: "20260320120000",
+    name: "remove_timing_from_reminder_templates",
+    sql: `ALTER TABLE public.reminder_templates 
+  DROP COLUMN IF EXISTS remind_days_before,
+  DROP COLUMN IF EXISTS repeat_interval_days;`,
+  },
 ];
 
 /**
