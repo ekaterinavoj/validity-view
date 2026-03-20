@@ -143,8 +143,6 @@ export const ReminderTemplates = () => {
       const templateData = {
         name: formData.name,
         description: formData.description,
-        remind_days_before: formData.remind_days_before,
-        repeat_interval_days: formData.repeat_interval_days || null,
         email_subject: formData.email_subject,
         email_body: formData.email_body,
         is_active: formData.is_active,
