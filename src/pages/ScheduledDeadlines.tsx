@@ -34,6 +34,8 @@ import { DeadlineResponsiblesBadges } from "@/components/DeadlineResponsiblesBad
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { ResultBadge, getResultLabel } from "@/components/ResultBadge";
+import { NoteTooltipText } from "@/components/NoteTooltipText";
+import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkEditDeadlinesDialog } from "@/components/BulkEditDeadlinesDialog";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
@@ -54,8 +56,8 @@ export default function ScheduledDeadlines() {
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [archiveLoading, setArchiveLoading] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
-  // Batch load all responsibles for visible deadlines
   const filteredDeadlineIds = useMemo(() => {
     return deadlines.filter(d => d.is_active).map(d => d.id);
   }, [deadlines]);
@@ -69,7 +71,6 @@ export default function ScheduledDeadlines() {
 
   const getFacilityName = (code: string): string => facilityNameMap[code] || code;
 
-  // Create filter options - show names
   const facilityList = useMemo(() => 
     facilities.map(f => f.name),
     [facilities]
@@ -102,7 +103,6 @@ export default function ScheduledDeadlines() {
     savedFilters
   } = useAdvancedFilters("deadline-filters");
 
-  // Filter deadlines
   const filteredDeadlines = useMemo(() => {
     return deadlines.filter(d => {
       if (!d.is_active) return false;
@@ -112,7 +112,6 @@ export default function ScheduledDeadlines() {
       if (filters.trainerFilter !== "all" && d.performer !== filters.trainerFilter) return false;
       if (filters.statusFilter !== "all" && d.status !== filters.statusFilter) return false;
       
-      // Filter by responsible person
       if (filters.responsibleFilter !== "all") {
         const equipmentIds = getEquipmentIdsByProfile(filters.responsibleFilter);
         if (!equipmentIds.includes(d.equipment_id)) return false;
@@ -196,6 +195,9 @@ export default function ScheduledDeadlines() {
         "Výsledek": getResultLabel((d.result as any) || "passed", "deadline"),
         "Inventární č.": d.equipment?.inventory_number || "",
         "Zařízení": d.equipment?.name || "",
+        "Typ zařízení": d.equipment?.equipment_type || "",
+        "Výrobce": d.equipment?.manufacturer || "",
+        "Model": d.equipment?.model || "",
         "Typ události": d.deadline_type?.name || "",
         "Provozovna": getFacilityName(d.facility),
         "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
@@ -216,6 +218,9 @@ export default function ScheduledDeadlines() {
     link.download = `technicke-udalosti-${format(new Date(), "yyyy-MM-dd")}.csv`;
     link.click();
   };
+
+  // expand + checkbox? + stav + inv.č. + zařízení + typ události + provozovna + poslední + příští + provádějící + odpovědní + výsledek + poznámka + protokol + akce = 14 or 15
+  const totalColumns = canEdit ? 15 : 14;
 
   if (error) {
     return <ErrorDisplay title="Chyba při načítání technických událostí" message={error.message} onRetry={() => refetch()} />;
@@ -270,7 +275,6 @@ export default function ScheduledDeadlines() {
         totalCount={deadlines.length}
       />
 
-      {/* Bulk Actions Bar */}
       {canEdit && (
         <BulkActionsBar
           selectedCount={selectedIds.length}
@@ -281,7 +285,6 @@ export default function ScheduledDeadlines() {
         />
       )}
 
-      {/* Legend + Count */}
       <div className="flex items-center justify-between">
         <StatusLegend variant="deadline" />
         <p className="text-sm text-muted-foreground">
@@ -294,6 +297,7 @@ export default function ScheduledDeadlines() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]" />
                 {canEdit && (
                   <TableHead className="w-12">
                     <Checkbox
@@ -305,10 +309,6 @@ export default function ScheduledDeadlines() {
                 <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Inventární č." sortKey="equipment.inventory_number" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Zařízení" sortKey="equipment.name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                <SortableTableHead label="Typ zařízení" sortKey="equipment.equipment_type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                <SortableTableHead label="Výrobce" sortKey="equipment.manufacturer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                <SortableTableHead label="Model" sortKey="equipment.model" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                
                 <SortableTableHead label="Typ události" sortKey="deadline_type.name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Provozovna" sortKey="facility" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Poslední" sortKey="last_check_date" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
@@ -324,97 +324,110 @@ export default function ScheduledDeadlines() {
             <TableBody>
              {sortedDeadlines.length === 0 ? (
                 <TableRow>
-                   <TableCell colSpan={canEdit ? 17 : 16} className="text-center py-8 text-muted-foreground">
+                   <TableCell colSpan={totalColumns} className="text-center py-8 text-muted-foreground">
                     Nebyly nalezeny žádné technické události
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedDeadlines.map(deadline => (
-                  <TableRow 
-                    key={deadline.id}
-                    className={cn(
-                      deadline.status === "expired" && "bg-destructive/5",
-                      deadline.status === "warning" && "bg-accent/30"
-                    )}
-                  >
-                    {canEdit && (
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedIds.includes(deadline.id)}
-                          onCheckedChange={(checked) => handleSelectOne(deadline.id, !!checked)}
+                sortedDeadlines.map(deadline => {
+                  const isExpanded = expandedRowId === deadline.id;
+                  return (
+                    <>
+                      <TableRow 
+                        key={deadline.id}
+                        className={cn(
+                          deadline.status === "expired" && "bg-destructive/5",
+                          deadline.status === "warning" && "bg-accent/30"
+                        )}
+                      >
+                        <TableCell className="w-[40px] px-2">
+                          <ExpandableToggle
+                            isExpanded={isExpanded}
+                            onToggle={() => setExpandedRowId(isExpanded ? null : deadline.id)}
+                          />
+                        </TableCell>
+                        {canEdit && (
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedIds.includes(deadline.id)}
+                              onCheckedChange={(checked) => handleSelectOne(deadline.id, !!checked)}
+                            />
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <StatusBadge status={deadline.status as "valid" | "warning" | "expired"} />
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {deadline.equipment?.inventory_number}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {deadline.equipment?.name}
+                        </TableCell>
+                        <TableCell>{deadline.deadline_type?.name}</TableCell>
+                        <TableCell>{getFacilityName(deadline.facility)}</TableCell>
+                        <TableCell>
+                          {format(new Date(deadline.last_check_date), "dd.MM.yyyy")}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {format(new Date(deadline.next_check_date), "dd.MM.yyyy")}
+                        </TableCell>
+                        <TableCell>{deadline.performer || "-"}</TableCell>
+                        <TableCell>
+                          <DeadlineResponsiblesBadges 
+                            deadlineId={deadline.id} 
+                            responsibles={responsiblesMap?.get(deadline.id) ?? []}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <ResultBadge 
+                            result={(deadline.result as any) || "passed"} 
+                            context="deadline" 
+                            note={deadline.note || undefined} 
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <NoteTooltipText note={deadline.note} />
+                        </TableCell>
+                        <TableCell>
+                          <DeadlineProtocolCell deadlineId={deadline.id} />
+                        </TableCell>
+                        <TableCell>
+                          {canEdit ? (
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link to={`/deadlines/edit/${deadline.id}`}>
+                                <Edit className="w-4 h-4" />
+                              </Link>
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link to={`/deadlines/edit/${deadline.id}`}>
+                                <Eye className="w-4 h-4" />
+                              </Link>
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <ExpandableDetailRow
+                          colSpan={totalColumns}
+                          fields={[
+                            { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
+                            { label: "Výrobce", value: deadline.equipment?.manufacturer },
+                            { label: "Model", value: deadline.equipment?.model },
+                            { label: "Firma", value: deadline.company },
+                            { label: "Zadavatel", value: deadline.requester },
+                          ]}
                         />
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <StatusBadge status={deadline.status as "valid" | "warning" | "expired"} />
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {deadline.equipment?.inventory_number}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {deadline.equipment?.name}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {deadline.equipment?.equipment_type || "-"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {deadline.equipment?.manufacturer || "-"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {deadline.equipment?.model || "-"}
-                    </TableCell>
-                    <TableCell>{deadline.deadline_type?.name}</TableCell>
-                    <TableCell>{getFacilityName(deadline.facility)}</TableCell>
-                    <TableCell>
-                      {format(new Date(deadline.last_check_date), "dd.MM.yyyy")}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {format(new Date(deadline.next_check_date), "dd.MM.yyyy")}
-                    </TableCell>
-                    <TableCell>{deadline.performer || "-"}</TableCell>
-                    <TableCell>
-                      <DeadlineResponsiblesBadges 
-                        deadlineId={deadline.id} 
-                        responsibles={responsiblesMap?.get(deadline.id) ?? []}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <ResultBadge 
-                        result={(deadline.result as any) || "passed"} 
-                        context="deadline" 
-                        note={deadline.note || undefined} 
-                      />
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground" title={deadline.note || ""}>
-                      {deadline.note || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <DeadlineProtocolCell deadlineId={deadline.id} />
-                    </TableCell>
-                    <TableCell>
-                      {canEdit ? (
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link to={`/deadlines/edit/${deadline.id}`}>
-                            <Edit className="w-4 h-4" />
-                          </Link>
-                        </Button>
-                      ) : (
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link to={`/deadlines/edit/${deadline.id}`}>
-                            <Eye className="w-4 h-4" />
-                          </Link>
-                        </Button>
                       )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                    </>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Bulk Edit Dialog */}
       <BulkEditDeadlinesDialog
         open={bulkEditDialogOpen}
         onOpenChange={setBulkEditDialogOpen}
@@ -425,7 +438,6 @@ export default function ScheduledDeadlines() {
         }}
       />
 
-      {/* Bulk Archive Dialog */}
       <BulkArchiveDialog
         open={archiveDialogOpen}
         onOpenChange={setArchiveDialogOpen}
