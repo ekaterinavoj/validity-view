@@ -414,6 +414,7 @@ export default function ScheduledDeadlines() {
                             { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
                             { label: "Výrobce", value: deadline.equipment?.manufacturer },
                             { label: "Model", value: deadline.equipment?.model },
+                            { label: "Periodicita", value: formatPeriodicity(deadline.period_days_override ?? deadline.deadline_type?.period_days ?? 365) },
                             { label: "Firma", value: deadline.company },
                             { label: "Zadavatel", value: deadline.requester },
                           ]}
