@@ -114,7 +114,7 @@ export function useTrainingHistory(includeArchived: boolean = false) {
         trainer: t.trainer || "",
         company: t.company || "",
         requester: t.requester || "",
-        period: t.training_types?.period_days || 365,
+        period: t.period_days_override ?? t.training_types?.period_days ?? 365,
         note: t.note || "",
         deletedAt: t.deleted_at,
         isArchived: t.deleted_at !== null,

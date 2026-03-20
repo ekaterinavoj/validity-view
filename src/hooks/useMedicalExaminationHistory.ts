@@ -113,6 +113,7 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
         deletedAt: t.deleted_at,
         isArchived: t.deleted_at !== null,
         longTermFitnessLossDate: t.long_term_fitness_loss_date || null,
+        period: t.period_days_override ?? t.medical_examination_types?.period_days ?? 365,
       }));
 
       setExaminations(transformedData);
