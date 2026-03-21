@@ -307,6 +307,8 @@ CREATE TABLE IF NOT EXISTS public.medical_examinations (
     reminder_template_id UUID REFERENCES public.medical_reminder_templates(id),
     remind_days_before INTEGER DEFAULT 30,
     repeat_days_after INTEGER DEFAULT 30,
+    period_days_override INTEGER,
+    long_term_fitness_loss_date DATE,
     note TEXT,
     zdravotni_rizika JSONB NOT NULL DEFAULT jsonb_build_object(
         'pracovni_poloha', NULL,
