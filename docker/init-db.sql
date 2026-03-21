@@ -1451,6 +1451,11 @@ CREATE TRIGGER trg_notify_extraordinary_medical_exam
   AFTER UPDATE ON public.employees
   FOR EACH ROW EXECUTE FUNCTION public.notify_extraordinary_medical_exam();
 
+DROP TRIGGER IF EXISTS trg_notify_employee_age_50 ON public.employees;
+CREATE TRIGGER trg_notify_employee_age_50
+  AFTER INSERT OR UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.notify_employee_age_50();
+
 -- Auto-link profile to employee when emails match
 CREATE OR REPLACE FUNCTION public.auto_link_profile_employee()
 RETURNS trigger
