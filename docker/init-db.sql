@@ -282,6 +282,7 @@ CREATE TABLE IF NOT EXISTS public.deadlines (
     reminder_template_id UUID REFERENCES public.deadline_reminder_templates(id),
     remind_days_before INTEGER DEFAULT 30,
     repeat_days_after INTEGER DEFAULT 30,
+    period_days_override INTEGER,
     note TEXT,
     result TEXT,
     status TEXT NOT NULL DEFAULT 'valid',
