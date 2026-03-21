@@ -237,8 +237,6 @@ CREATE TABLE IF NOT EXISTS public.reminder_templates (
     description TEXT,
     email_subject TEXT NOT NULL,
     email_body TEXT NOT NULL,
-    remind_days_before INTEGER NOT NULL DEFAULT 30,
-    repeat_interval_days INTEGER,
     target_user_ids UUID[] DEFAULT '{}',
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_by UUID,
@@ -260,6 +258,7 @@ CREATE TABLE IF NOT EXISTS public.trainings (
     reminder_template_id UUID REFERENCES public.reminder_templates(id),
     remind_days_before INTEGER DEFAULT 30,
     repeat_days_after INTEGER DEFAULT 30,
+    period_days_override INTEGER,
     note TEXT,
     result TEXT,
     status TEXT NOT NULL DEFAULT 'valid',
@@ -283,6 +282,7 @@ CREATE TABLE IF NOT EXISTS public.deadlines (
     reminder_template_id UUID REFERENCES public.deadline_reminder_templates(id),
     remind_days_before INTEGER DEFAULT 30,
     repeat_days_after INTEGER DEFAULT 30,
+    period_days_override INTEGER,
     note TEXT,
     result TEXT,
     status TEXT NOT NULL DEFAULT 'valid',
@@ -307,6 +307,8 @@ CREATE TABLE IF NOT EXISTS public.medical_examinations (
     reminder_template_id UUID REFERENCES public.medical_reminder_templates(id),
     remind_days_before INTEGER DEFAULT 30,
     repeat_days_after INTEGER DEFAULT 30,
+    period_days_override INTEGER,
+    long_term_fitness_loss_date DATE,
     note TEXT,
     zdravotni_rizika JSONB NOT NULL DEFAULT jsonb_build_object(
         'pracovni_poloha', NULL,
@@ -370,7 +372,15 @@ CREATE TABLE IF NOT EXISTS public.medical_reminder_logs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- =============================================
+-- Deduplication indexes for reminder logs
+CREATE INDEX IF NOT EXISTS idx_reminder_logs_training_template_created
+  ON public.reminder_logs (training_id, template_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deadline_reminder_logs_deadline_template_created
+  ON public.deadline_reminder_logs (deadline_id, template_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_medical_reminder_logs_examination_created
+  ON public.medical_reminder_logs (examination_id, created_at DESC);
+
+
 -- HELPER FUNCTIONS
 -- =============================================
 
@@ -1299,7 +1309,68 @@ BEGIN
 END;
 $$;
 
--- =============================================
+-- Validate medical examination result fields
+CREATE OR REPLACE FUNCTION public.validate_medical_examination_result_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.result = 'lost_long_term' AND NEW.long_term_fitness_loss_date IS NULL THEN
+    RAISE EXCEPTION 'long_term_fitness_loss_date is required when result = lost_long_term';
+  END IF;
+  IF NEW.result IS DISTINCT FROM 'lost_long_term' THEN
+    NEW.long_term_fitness_loss_date := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Notify admins when employee reaches age 50
+CREATE OR REPLACE FUNCTION public.notify_employee_age_50()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  admin_record RECORD;
+  emp_name TEXT;
+  emp_age INT;
+BEGIN
+  IF NEW.birth_date IS NULL THEN
+    RETURN NEW;
+  END IF;
+  emp_age := EXTRACT(YEAR FROM age(CURRENT_DATE, NEW.birth_date));
+  IF emp_age = 50 THEN
+    IF EXISTS (
+      SELECT 1 FROM public.notifications
+      WHERE related_entity_type = 'employee_age_50'
+        AND related_entity_id = NEW.id
+    ) THEN
+      RETURN NEW;
+    END IF;
+    emp_name := NEW.first_name || ' ' || NEW.last_name;
+    FOR admin_record IN
+      SELECT ur.user_id FROM public.user_roles ur WHERE ur.role = 'admin'
+    LOOP
+      INSERT INTO public.notifications (
+        user_id, title, message, type, related_entity_type, related_entity_id
+      ) VALUES (
+        admin_record.user_id,
+        'Zaměstnanec dosáhl věku 50 let',
+        'Zaměstnanec ' || emp_name || ' dosáhl věku 50 let. Zkontrolujte, zda je naplánována mimořádná lékařská prohlídka.',
+        'warning',
+        'employee_age_50',
+        NEW.id
+      );
+    END LOOP;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
 -- TRIGGERS (using DROP IF EXISTS + CREATE pattern)
 -- =============================================
 
@@ -1388,6 +1459,11 @@ CREATE TRIGGER trg_notify_extraordinary_medical_exam
   AFTER UPDATE ON public.employees
   FOR EACH ROW EXECUTE FUNCTION public.notify_extraordinary_medical_exam();
 
+DROP TRIGGER IF EXISTS trg_notify_employee_age_50 ON public.employees;
+CREATE TRIGGER trg_notify_employee_age_50
+  AFTER INSERT OR UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.notify_employee_age_50();
+
 -- Auto-link profile to employee when emails match
 CREATE OR REPLACE FUNCTION public.auto_link_profile_employee()
 RETURNS trigger
@@ -1457,6 +1533,11 @@ DROP TRIGGER IF EXISTS update_medical_examinations_updated_at ON public.medical_
 CREATE TRIGGER update_medical_examinations_updated_at
   BEFORE UPDATE ON public.medical_examinations
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS validate_medical_examination_result_fields_trigger ON public.medical_examinations;
+CREATE TRIGGER validate_medical_examination_result_fields_trigger
+  BEFORE INSERT OR UPDATE ON public.medical_examinations
+  FOR EACH ROW EXECUTE FUNCTION public.validate_medical_examination_result_fields();
 
 -- system_settings triggers
 DROP TRIGGER IF EXISTS update_system_settings_updated_at ON public.system_settings;
@@ -2282,13 +2363,24 @@ INSERT INTO public.schema_migrations (version, name) VALUES
   ('20260221000001', 'employee_number_optional'),
   ('20260221150000', 'recalculate_all_statuses'),
   ('20260221165235', 'notify_extraordinary_medical_exam'),
+  ('20260221173502', 'add_training_supervisor'),
   ('20260221174512', 'drop_training_supervisor'),
   ('20260221175145', 'propagate_manager_details'),
+  ('20260221182753', 'cleanup_manager_propagation'),
+  ('20260221183742', 'schema_reload'),
+  ('20260221185611', 'subordinate_function_update'),
+  ('20260221190405', 'subordinate_function_v2'),
   ('20260221200000', 'auto_link_profile_employee'),
   ('20260226201357', 'result_column'),
   ('20260310092500', 'work_category_to_text'),
   ('20260316100000', 'enable_realtime_tables'),
-  ('20260316120000', 'employee_birth_date')
+  ('20260316120000', 'employee_birth_date'),
+  ('20260318105142', 'medical_examination_health_risks'),
+  ('20260318130500', 'record_period_overrides'),
+  ('20260318175404', 'long_term_fitness_loss_date_and_validation'),
+  ('20260320110000', 'reminder_deduplication_indexes'),
+  ('20260320115314', 'notify_employee_age_50'),
+  ('20260320120000', 'remove_timing_from_reminder_templates')
 ON CONFLICT (version) DO NOTHING;
 
 -- =============================================

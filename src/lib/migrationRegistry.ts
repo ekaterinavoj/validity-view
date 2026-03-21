@@ -112,14 +112,14 @@ export const MIGRATION_REGISTRY: MigrationEntry[] = [
   { version: "20260316120000", name: "employee_birth_date", sql: null },
   { version: "20260318105142", name: "medical_examination_health_risks", sql: null },
 
+  // These migrations are now included in init-db.sql base schema
+  { version: "20260318130500", name: "record_period_overrides", sql: null },
+  { version: "20260318175404", name: "long_term_fitness_loss_date_and_validation", sql: null },
+  { version: "20260320110000", name: "reminder_deduplication_indexes", sql: null },
+  { version: "20260320115314", name: "notify_employee_age_50", sql: null },
+  { version: "20260320120000", name: "remove_timing_from_reminder_templates", sql: null },
+
   // ===== Incremental migrations (not yet in init-db.sql) =====
-  {
-    version: "20260318130500",
-    name: "record_period_overrides",
-    sql: `ALTER TABLE public.trainings ADD COLUMN IF NOT EXISTS period_days_override INTEGER;
-ALTER TABLE public.medical_examinations ADD COLUMN IF NOT EXISTS period_days_override INTEGER;
-ALTER TABLE public.deadlines ADD COLUMN IF NOT EXISTS period_days_override INTEGER;`,
-  },
   {
     version: "20260318194000",
     name: "plp_inactive_visibility_toggle",
@@ -149,105 +149,6 @@ SELECT 1;`,
     name: "expandable_row_detail_tables",
     sql: `-- UI-only expandable row detail in overview tables, no database schema updates required.
 SELECT 1;`,
-  },
-  {
-    version: "20260320110000",
-    name: "reminder_deduplication_indexes",
-    sql: `CREATE INDEX IF NOT EXISTS idx_reminder_logs_training_template_created 
-  ON public.reminder_logs (training_id, template_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_deadline_reminder_logs_deadline_template_created 
-  ON public.deadline_reminder_logs (deadline_id, template_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_medical_reminder_logs_examination_created 
-  ON public.medical_reminder_logs (examination_id, created_at DESC);`,
-  },
-  {
-    version: "20260320120000",
-    name: "remove_timing_from_reminder_templates",
-    sql: `ALTER TABLE public.reminder_templates 
-  DROP COLUMN IF EXISTS remind_days_before,
-  DROP COLUMN IF EXISTS repeat_interval_days;`,
-  },
-  {
-    version: "20260318175404",
-    name: "long_term_fitness_loss_date_and_validation",
-    sql: `ALTER TABLE public.medical_examinations
-ADD COLUMN IF NOT EXISTS long_term_fitness_loss_date date;
-
-COMMENT ON COLUMN public.medical_examinations.long_term_fitness_loss_date IS 'Date when the employee lost long-term medical fitness for work.';
-
-CREATE OR REPLACE FUNCTION public.validate_medical_examination_result_fields()
-RETURNS trigger
-LANGUAGE plpgsql
-SET search_path = public
-AS $$
-BEGIN
-  IF NEW.result = 'lost_long_term' AND NEW.long_term_fitness_loss_date IS NULL THEN
-    RAISE EXCEPTION 'long_term_fitness_loss_date is required when result = lost_long_term';
-  END IF;
-  IF NEW.result IS DISTINCT FROM 'lost_long_term' THEN
-    NEW.long_term_fitness_loss_date := NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS validate_medical_examination_result_fields_trigger ON public.medical_examinations;
-CREATE TRIGGER validate_medical_examination_result_fields_trigger
-BEFORE INSERT OR UPDATE ON public.medical_examinations
-FOR EACH ROW
-EXECUTE FUNCTION public.validate_medical_examination_result_fields();`,
-  },
-  {
-    version: "20260320115314",
-    name: "notify_employee_age_50",
-    sql: `CREATE OR REPLACE FUNCTION public.notify_employee_age_50()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $function$
-DECLARE
-  admin_record RECORD;
-  emp_name TEXT;
-  emp_age INT;
-BEGIN
-  IF NEW.birth_date IS NULL THEN
-    RETURN NEW;
-  END IF;
-  emp_age := EXTRACT(YEAR FROM age(CURRENT_DATE, NEW.birth_date));
-  IF emp_age = 50 THEN
-    IF EXISTS (
-      SELECT 1 FROM public.notifications
-      WHERE related_entity_type = 'employee_age_50'
-        AND related_entity_id = NEW.id
-    ) THEN
-      RETURN NEW;
-    END IF;
-    emp_name := NEW.first_name || ' ' || NEW.last_name;
-    FOR admin_record IN
-      SELECT ur.user_id FROM public.user_roles ur WHERE ur.role = 'admin'
-    LOOP
-      INSERT INTO public.notifications (
-        user_id, title, message, type, related_entity_type, related_entity_id
-      ) VALUES (
-        admin_record.user_id,
-        'Zaměstnanec dosáhl věku 50 let',
-        'Zaměstnanec ' || emp_name || ' dosáhl věku 50 let. Zkontrolujte, zda je naplánována mimořádná lékařská prohlídka.',
-        'warning',
-        'employee_age_50',
-        NEW.id
-      );
-    END LOOP;
-  END IF;
-  RETURN NEW;
-END;
-$function$;
-
-DROP TRIGGER IF EXISTS trg_notify_employee_age_50 ON public.employees;
-CREATE TRIGGER trg_notify_employee_age_50
-  AFTER INSERT OR UPDATE ON public.employees
-  FOR EACH ROW
-  EXECUTE FUNCTION public.notify_employee_age_50();`,
   },
 ];
 
