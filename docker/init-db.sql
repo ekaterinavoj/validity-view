@@ -1526,6 +1526,11 @@ CREATE TRIGGER update_medical_examinations_updated_at
   BEFORE UPDATE ON public.medical_examinations
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS validate_medical_examination_result_fields_trigger ON public.medical_examinations;
+CREATE TRIGGER validate_medical_examination_result_fields_trigger
+  BEFORE INSERT OR UPDATE ON public.medical_examinations
+  FOR EACH ROW EXECUTE FUNCTION public.validate_medical_examination_result_fields();
+
 -- system_settings triggers
 DROP TRIGGER IF EXISTS update_system_settings_updated_at ON public.system_settings;
 CREATE TRIGGER update_system_settings_updated_at
