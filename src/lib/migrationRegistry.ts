@@ -167,6 +167,12 @@ CREATE INDEX IF NOT EXISTS idx_medical_reminder_logs_examination_created
   DROP COLUMN IF EXISTS remind_days_before,
   DROP COLUMN IF EXISTS repeat_interval_days;`,
   },
+  {
+    version: "20260321100000",
+    name: "add_long_term_fitness_loss_date",
+    sql: `ALTER TABLE public.medical_examinations
+  ADD COLUMN IF NOT EXISTS long_term_fitness_loss_date date;`,
+  },
 ];
 
 /**
