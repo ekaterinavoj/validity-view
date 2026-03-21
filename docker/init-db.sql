@@ -1301,7 +1301,68 @@ BEGIN
 END;
 $$;
 
--- =============================================
+-- Validate medical examination result fields
+CREATE OR REPLACE FUNCTION public.validate_medical_examination_result_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.result = 'lost_long_term' AND NEW.long_term_fitness_loss_date IS NULL THEN
+    RAISE EXCEPTION 'long_term_fitness_loss_date is required when result = lost_long_term';
+  END IF;
+  IF NEW.result IS DISTINCT FROM 'lost_long_term' THEN
+    NEW.long_term_fitness_loss_date := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Notify admins when employee reaches age 50
+CREATE OR REPLACE FUNCTION public.notify_employee_age_50()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  admin_record RECORD;
+  emp_name TEXT;
+  emp_age INT;
+BEGIN
+  IF NEW.birth_date IS NULL THEN
+    RETURN NEW;
+  END IF;
+  emp_age := EXTRACT(YEAR FROM age(CURRENT_DATE, NEW.birth_date));
+  IF emp_age = 50 THEN
+    IF EXISTS (
+      SELECT 1 FROM public.notifications
+      WHERE related_entity_type = 'employee_age_50'
+        AND related_entity_id = NEW.id
+    ) THEN
+      RETURN NEW;
+    END IF;
+    emp_name := NEW.first_name || ' ' || NEW.last_name;
+    FOR admin_record IN
+      SELECT ur.user_id FROM public.user_roles ur WHERE ur.role = 'admin'
+    LOOP
+      INSERT INTO public.notifications (
+        user_id, title, message, type, related_entity_type, related_entity_id
+      ) VALUES (
+        admin_record.user_id,
+        'Zaměstnanec dosáhl věku 50 let',
+        'Zaměstnanec ' || emp_name || ' dosáhl věku 50 let. Zkontrolujte, zda je naplánována mimořádná lékařská prohlídka.',
+        'warning',
+        'employee_age_50',
+        NEW.id
+      );
+    END LOOP;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
 -- TRIGGERS (using DROP IF EXISTS + CREATE pattern)
 -- =============================================
 
