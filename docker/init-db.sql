@@ -237,8 +237,6 @@ CREATE TABLE IF NOT EXISTS public.reminder_templates (
     description TEXT,
     email_subject TEXT NOT NULL,
     email_body TEXT NOT NULL,
-    remind_days_before INTEGER NOT NULL DEFAULT 30,
-    repeat_interval_days INTEGER,
     target_user_ids UUID[] DEFAULT '{}',
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_by UUID,
