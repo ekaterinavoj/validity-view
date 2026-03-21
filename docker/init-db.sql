@@ -2363,13 +2363,24 @@ INSERT INTO public.schema_migrations (version, name) VALUES
   ('20260221000001', 'employee_number_optional'),
   ('20260221150000', 'recalculate_all_statuses'),
   ('20260221165235', 'notify_extraordinary_medical_exam'),
+  ('20260221173502', 'add_training_supervisor'),
   ('20260221174512', 'drop_training_supervisor'),
   ('20260221175145', 'propagate_manager_details'),
+  ('20260221182753', 'cleanup_manager_propagation'),
+  ('20260221183742', 'schema_reload'),
+  ('20260221185611', 'subordinate_function_update'),
+  ('20260221190405', 'subordinate_function_v2'),
   ('20260221200000', 'auto_link_profile_employee'),
   ('20260226201357', 'result_column'),
   ('20260310092500', 'work_category_to_text'),
   ('20260316100000', 'enable_realtime_tables'),
-  ('20260316120000', 'employee_birth_date')
+  ('20260316120000', 'employee_birth_date'),
+  ('20260318105142', 'medical_examination_health_risks'),
+  ('20260318130500', 'record_period_overrides'),
+  ('20260318175404', 'long_term_fitness_loss_date_and_validation'),
+  ('20260320110000', 'reminder_deduplication_indexes'),
+  ('20260320115314', 'notify_employee_age_50'),
+  ('20260320120000', 'remove_timing_from_reminder_templates')
 ON CONFLICT (version) DO NOTHING;
 
 -- =============================================
