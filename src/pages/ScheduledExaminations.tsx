@@ -192,8 +192,8 @@ export default function ScheduledExaminations() {
     link.click();
   };
 
-  // Total columns: expand + (checkbox?) + status + platnost + typ + os.č. + jméno + provozovna + středisko + datum + kategorie + zdr.rizika + výsledek + poznámka + protokol + akce = 15 or 16
-  const totalColumns = canEdit ? 16 : 15;
+  // Total columns: expand + (checkbox?) + status + platnost + typ + os.č. + jméno + středisko + datum + kategorie + zdr.rizika + výsledek + poznámka + protokol + akce = 14 or 15
+  const totalColumns = canEdit ? 15 : 14;
 
   if (examinationsError) {
     return (
