@@ -451,7 +451,7 @@ export default function ScheduledTrainings() {
                   <SortableTableHead label="Typ školení" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                  <SortableTableHead label="Provozovna" sortKey="facility" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  
                   <SortableTableHead label="Středisko" sortKey="department" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Datum školení" sortKey="lastTrainingDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Školitel" sortKey="trainer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
