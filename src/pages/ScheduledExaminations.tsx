@@ -333,7 +333,7 @@ export default function ScheduledExaminations() {
                       <TableCell className="font-medium">{exam.type}</TableCell>
                       <TableCell>{exam.employeeNumber}</TableCell>
                       <TableCell>{exam.employeeName}</TableCell>
-                      <TableCell>{getFacilityName(exam.facility)}</TableCell>
+                      
                       <TableCell>{formatDepartment(exam.department, exam.departmentName)}</TableCell>
                       <TableCell>{formatDisplayDate(exam.lastExaminationDate)}</TableCell>
                       <TableCell><WorkCategoryBadge category={exam.employeeWorkCategory} /></TableCell>
