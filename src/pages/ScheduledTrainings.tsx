@@ -539,6 +539,7 @@ export default function ScheduledTrainings() {
                           <ExpandableDetailRow
                             colSpan={totalColumns}
                             fields={[
+                              { label: "Provozovna", value: getFacilityName(training.facility) },
                               { label: "Firma", value: training.company },
                               { label: "Zadavatel", value: training.requester },
                               { label: "Periodicita", value: formatPeriodicity(training.period) },
