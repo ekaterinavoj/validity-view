@@ -310,7 +310,7 @@ export default function ScheduledDeadlines() {
                 <SortableTableHead label="Inventární č." sortKey="equipment.inventory_number" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Zařízení" sortKey="equipment.name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Typ události" sortKey="deadline_type.name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                <SortableTableHead label="Provozovna" sortKey="facility" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                
                 <SortableTableHead label="Poslední" sortKey="last_check_date" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Příští" sortKey="next_check_date" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Provádějící" sortKey="performer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
