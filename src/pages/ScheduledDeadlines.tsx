@@ -219,8 +219,8 @@ export default function ScheduledDeadlines() {
     link.click();
   };
 
-  // expand + checkbox? + stav + inv.č. + zařízení + typ události + provozovna + poslední + příští + provádějící + odpovědní + výsledek + poznámka + protokol + akce = 14 or 15
-  const totalColumns = canEdit ? 15 : 14;
+  // expand + checkbox? + stav + inv.č. + zařízení + typ události + poslední + příští + provádějící + odpovědní + výsledek + poznámka + protokol + akce = 13 or 14
+  const totalColumns = canEdit ? 14 : 13;
 
   if (error) {
     return <ErrorDisplay title="Chyba při načítání technických událostí" message={error.message} onRetry={() => refetch()} />;
