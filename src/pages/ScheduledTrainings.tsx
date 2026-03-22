@@ -497,9 +497,6 @@ export default function ScheduledTrainings() {
                           <TableCell className="font-medium">{training.type}</TableCell>
                           <TableCell>{training.employeeNumber}</TableCell>
                           <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
-                          <TableCell className="max-w-xs truncate" title={getFacilityName(training.facility)}>
-                            {getFacilityName(training.facility)}
-                          </TableCell>
                           <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
                           <TableCell className="whitespace-nowrap">
                             {formatDisplayDate(training.lastTrainingDate)}
