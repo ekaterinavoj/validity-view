@@ -291,7 +291,7 @@ export default function ScheduledExaminations() {
               <SortableTableHead label="Typ prohlídky" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-              <TableHead>Provozovna</TableHead>
+              
               <TableHead>Středisko</TableHead>
               <TableHead>Datum prohlídky</TableHead>
               <TableHead>Kategorie</TableHead>
