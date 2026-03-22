@@ -25,7 +25,7 @@ import { format } from "date-fns";
 import { formatDisplayDate, calculateAge } from "@/lib/dateFormat";
 import Papa from "papaparse";
 import { formatPeriodicity } from "@/lib/utils";
-import { formatDisplayDate } from "@/lib/dateFormat";
+
 import { formatDepartment } from "@/components/DepartmentCell";
 import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
