@@ -949,7 +949,7 @@ export default function Employees() {
                   {employee.birthDate ? formatDisplayDate(employee.birthDate) : "-"}
                 </TableCell>
                 <TableCell className="text-sm text-center">
-                  {employee.birthDate ? differenceInYears(new Date(), parseISO(employee.birthDate)) : "-"}
+                  {employee.birthDate ? (calculateAge(employee.birthDate) ?? "-") : "-"}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {employee.managerEmployeeId ? (
