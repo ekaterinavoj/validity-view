@@ -411,6 +411,7 @@ export default function ScheduledDeadlines() {
                         <ExpandableDetailRow
                           colSpan={totalColumns}
                           fields={[
+                            { label: "Provozovna", value: getFacilityName(deadline.facility) },
                             { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
                             { label: "Výrobce", value: deadline.equipment?.manufacturer },
                             { label: "Model", value: deadline.equipment?.model },
