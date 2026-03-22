@@ -369,9 +369,10 @@ export default function ScheduledExaminations() {
                       <ExpandableDetailRow
                         colSpan={totalColumns}
                         fields={[
+                          { label: "Provozovna", value: getFacilityName(exam.facility) },
                           { label: "Stav zaměstnance", value: exam.employeeStatus },
                           { label: "Datum narození", value: exam.employeeBirthDate ? formatDisplayDate(exam.employeeBirthDate) : null },
-                          { label: "Věk", value: exam.employeeBirthDate ? differenceInYears(new Date(), parseISO(exam.employeeBirthDate)) : null },
+                          { label: "Věk", value: exam.employeeBirthDate ? calculateAge(exam.employeeBirthDate) : null },
                           { label: "Periodicita", value: formatPeriodicity(exam.period) },
                           { label: "Datum pozbytí dlouhodobé způsobilosti", value: exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : null },
                           { label: "Lékař", value: exam.doctor },
