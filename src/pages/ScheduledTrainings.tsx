@@ -307,8 +307,8 @@ export default function ScheduledTrainings() {
     }
   };
 
-  // expand + checkbox? + stav + platnost + typ + jméno + provozovna + středisko + datum + školitel + výsledek + poznámka + protokol + akce = 13 or 14
-  const totalColumns = canEdit ? 14 : 13;
+  // expand + checkbox? + stav + platnost + typ + os.č. + jméno + středisko + datum + školitel + výsledek + poznámka + protokol + akce = 13 or 12
+  const totalColumns = canEdit ? 13 : 12;
 
   if (trainingsError) {
     return (
