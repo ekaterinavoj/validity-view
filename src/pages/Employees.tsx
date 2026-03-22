@@ -29,9 +29,9 @@ import { useState, useMemo, useCallback } from "react";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO, differenceInYears } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { cs } from "date-fns/locale";
-import { formatDisplayDate } from "@/lib/dateFormat";
+import { formatDisplayDate, calculateAge } from "@/lib/dateFormat";
 import { useEmployees, EmployeeWithDepartment } from "@/hooks/useEmployees";
 import Papa from "papaparse";
 import { useDepartments } from "@/hooks/useDepartments";
@@ -153,7 +153,7 @@ export default function Employees() {
         "Středisko": formatDepartment(employee.department, employee.departmentName),
         "Stav": getStatusLabel(employee.status) || "",
         "Datum narození": employee.birthDate ? formatDisplayDate(employee.birthDate, "") : "",
-        "Věk": employee.birthDate ? String(differenceInYears(new Date(), parseISO(employee.birthDate))) : "",
+        "Věk": employee.birthDate ? String(calculateAge(employee.birthDate) ?? "") : "",
         "Datum od": employee.statusStartDate || employee.terminationDate 
           ? formatDisplayDate(employee.statusStartDate || employee.terminationDate, "")
           : "",
@@ -949,7 +949,7 @@ export default function Employees() {
                   {employee.birthDate ? formatDisplayDate(employee.birthDate) : "-"}
                 </TableCell>
                 <TableCell className="text-sm text-center">
-                  {employee.birthDate ? differenceInYears(new Date(), parseISO(employee.birthDate)) : "-"}
+                  {employee.birthDate ? (calculateAge(employee.birthDate) ?? "-") : "-"}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {employee.managerEmployeeId ? (

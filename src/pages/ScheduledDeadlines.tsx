@@ -219,8 +219,8 @@ export default function ScheduledDeadlines() {
     link.click();
   };
 
-  // expand + checkbox? + stav + inv.č. + zařízení + typ události + provozovna + poslední + příští + provádějící + odpovědní + výsledek + poznámka + protokol + akce = 14 or 15
-  const totalColumns = canEdit ? 15 : 14;
+  // expand + checkbox? + stav + inv.č. + zařízení + typ události + poslední + příští + provádějící + odpovědní + výsledek + poznámka + protokol + akce = 13 or 14
+  const totalColumns = canEdit ? 14 : 13;
 
   if (error) {
     return <ErrorDisplay title="Chyba při načítání technických událostí" message={error.message} onRetry={() => refetch()} />;
@@ -310,7 +310,7 @@ export default function ScheduledDeadlines() {
                 <SortableTableHead label="Inventární č." sortKey="equipment.inventory_number" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Zařízení" sortKey="equipment.name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Typ události" sortKey="deadline_type.name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                <SortableTableHead label="Provozovna" sortKey="facility" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                
                 <SortableTableHead label="Poslední" sortKey="last_check_date" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Příští" sortKey="next_check_date" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                 <SortableTableHead label="Provádějící" sortKey="performer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
@@ -364,7 +364,7 @@ export default function ScheduledDeadlines() {
                           {deadline.equipment?.name}
                         </TableCell>
                         <TableCell>{deadline.deadline_type?.name}</TableCell>
-                        <TableCell>{getFacilityName(deadline.facility)}</TableCell>
+                        
                         <TableCell>
                           {format(new Date(deadline.last_check_date), "dd.MM.yyyy")}
                         </TableCell>
@@ -411,6 +411,7 @@ export default function ScheduledDeadlines() {
                         <ExpandableDetailRow
                           colSpan={totalColumns}
                           fields={[
+                            { label: "Provozovna", value: getFacilityName(deadline.facility) },
                             { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
                             { label: "Výrobce", value: deadline.equipment?.manufacturer },
                             { label: "Model", value: deadline.equipment?.model },

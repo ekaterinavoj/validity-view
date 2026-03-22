@@ -21,10 +21,11 @@ import { MedicalProtocolCell } from "@/components/MedicalProtocolCell";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { format, differenceInYears, parseISO } from "date-fns";
+import { format } from "date-fns";
+import { formatDisplayDate, calculateAge } from "@/lib/dateFormat";
 import Papa from "papaparse";
 import { formatPeriodicity } from "@/lib/utils";
-import { formatDisplayDate } from "@/lib/dateFormat";
+
 import { formatDepartment } from "@/components/DepartmentCell";
 import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
@@ -169,7 +170,7 @@ export default function ScheduledExaminations() {
       "Jméno": e.employeeName,
       "Stav zaměstnance": e.employeeStatus,
       "Datum narození": e.employeeBirthDate ? formatDisplayDate(e.employeeBirthDate, "") : "",
-      "Věk": e.employeeBirthDate ? String(differenceInYears(new Date(), parseISO(e.employeeBirthDate))) : "",
+      "Věk": e.employeeBirthDate ? String(calculateAge(e.employeeBirthDate) ?? "") : "",
       "Kategorie": e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
       "Provozovna": getFacilityName(e.facility) || "",
       "Středisko": formatDepartment(e.department, e.departmentName),
@@ -192,8 +193,8 @@ export default function ScheduledExaminations() {
     link.click();
   };
 
-  // Total columns: expand + (checkbox?) + status + platnost + typ + os.č. + jméno + provozovna + středisko + datum + kategorie + zdr.rizika + výsledek + poznámka + protokol + akce = 15 or 16
-  const totalColumns = canEdit ? 16 : 15;
+  // Total columns: expand + (checkbox?) + status + platnost + typ + os.č. + jméno + středisko + datum + kategorie + zdr.rizika + výsledek + poznámka + protokol + akce = 14 or 15
+  const totalColumns = canEdit ? 15 : 14;
 
   if (examinationsError) {
     return (
@@ -291,7 +292,7 @@ export default function ScheduledExaminations() {
               <SortableTableHead label="Typ prohlídky" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-              <TableHead>Provozovna</TableHead>
+              
               <TableHead>Středisko</TableHead>
               <TableHead>Datum prohlídky</TableHead>
               <TableHead>Kategorie</TableHead>
@@ -333,7 +334,7 @@ export default function ScheduledExaminations() {
                       <TableCell className="font-medium">{exam.type}</TableCell>
                       <TableCell>{exam.employeeNumber}</TableCell>
                       <TableCell>{exam.employeeName}</TableCell>
-                      <TableCell>{getFacilityName(exam.facility)}</TableCell>
+                      
                       <TableCell>{formatDepartment(exam.department, exam.departmentName)}</TableCell>
                       <TableCell>{formatDisplayDate(exam.lastExaminationDate)}</TableCell>
                       <TableCell><WorkCategoryBadge category={exam.employeeWorkCategory} /></TableCell>
@@ -369,9 +370,10 @@ export default function ScheduledExaminations() {
                       <ExpandableDetailRow
                         colSpan={totalColumns}
                         fields={[
+                          { label: "Provozovna", value: getFacilityName(exam.facility) },
                           { label: "Stav zaměstnance", value: exam.employeeStatus },
                           { label: "Datum narození", value: exam.employeeBirthDate ? formatDisplayDate(exam.employeeBirthDate) : null },
-                          { label: "Věk", value: exam.employeeBirthDate ? differenceInYears(new Date(), parseISO(exam.employeeBirthDate)) : null },
+                          { label: "Věk", value: exam.employeeBirthDate ? calculateAge(exam.employeeBirthDate) : null },
                           { label: "Periodicita", value: formatPeriodicity(exam.period) },
                           { label: "Datum pozbytí dlouhodobé způsobilosti", value: exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : null },
                           { label: "Lékař", value: exam.doctor },

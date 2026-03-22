@@ -307,8 +307,8 @@ export default function ScheduledTrainings() {
     }
   };
 
-  // expand + checkbox? + stav + platnost + typ + jméno + provozovna + středisko + datum + školitel + výsledek + poznámka + protokol + akce = 13 or 14
-  const totalColumns = canEdit ? 14 : 13;
+  // expand + checkbox? + stav + platnost + typ + os.č. + jméno + středisko + datum + školitel + výsledek + poznámka + protokol + akce = 13 or 12
+  const totalColumns = canEdit ? 13 : 12;
 
   if (trainingsError) {
     return (
@@ -451,7 +451,7 @@ export default function ScheduledTrainings() {
                   <SortableTableHead label="Typ školení" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Os. číslo" sortKey="employeeNumber" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Jméno" sortKey="employeeName" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
-                  <SortableTableHead label="Provozovna" sortKey="facility" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
+                  
                   <SortableTableHead label="Středisko" sortKey="department" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Datum školení" sortKey="lastTrainingDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
                   <SortableTableHead label="Školitel" sortKey="trainer" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
@@ -497,9 +497,6 @@ export default function ScheduledTrainings() {
                           <TableCell className="font-medium">{training.type}</TableCell>
                           <TableCell>{training.employeeNumber}</TableCell>
                           <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
-                          <TableCell className="max-w-xs truncate" title={getFacilityName(training.facility)}>
-                            {getFacilityName(training.facility)}
-                          </TableCell>
                           <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
                           <TableCell className="whitespace-nowrap">
                             {formatDisplayDate(training.lastTrainingDate)}
@@ -542,6 +539,7 @@ export default function ScheduledTrainings() {
                           <ExpandableDetailRow
                             colSpan={totalColumns}
                             fields={[
+                              { label: "Provozovna", value: getFacilityName(training.facility) },
                               { label: "Firma", value: training.company },
                               { label: "Zadavatel", value: training.requester },
                               { label: "Periodicita", value: formatPeriodicity(training.period) },
