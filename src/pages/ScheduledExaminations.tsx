@@ -170,7 +170,7 @@ export default function ScheduledExaminations() {
       "Jméno": e.employeeName,
       "Stav zaměstnance": e.employeeStatus,
       "Datum narození": e.employeeBirthDate ? formatDisplayDate(e.employeeBirthDate, "") : "",
-      "Věk": e.employeeBirthDate ? String(differenceInYears(new Date(), parseISO(e.employeeBirthDate))) : "",
+      "Věk": e.employeeBirthDate ? String(calculateAge(e.employeeBirthDate) ?? "") : "",
       "Kategorie": e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
       "Provozovna": getFacilityName(e.facility) || "",
       "Středisko": formatDepartment(e.department, e.departmentName),
