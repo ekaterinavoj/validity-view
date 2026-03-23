@@ -318,7 +318,7 @@ export default function Facilities() {
                   </TableCell>
                 </TableRow>
               ) : (
-                facilities.map((facility) => (
+                paginatedFacilities.map((facility) => (
                   <TableRow key={facility.id}>
                     <TableCell className="font-medium">{facility.name}</TableCell>
                     <TableCell className="max-w-xs truncate" title={facility.description || ""}>
