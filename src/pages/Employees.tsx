@@ -42,6 +42,9 @@ import { EmployeeStatusBadge, EmployeeStatus } from "@/components/EmployeeStatus
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),
