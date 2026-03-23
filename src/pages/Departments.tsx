@@ -23,6 +23,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useDepartments, Department, DepartmentDependencies } from "@/hooks/useDepartments";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 const formSchema = z.object({
   code: z.string().min(1, "Zadejte číslo střediska"),
@@ -42,6 +45,8 @@ export default function Departments() {
   const { toast } = useToast();
 
   const { departments, loading, error, createDepartment, updateDepartment, deleteDepartment, checkDependencies, refetch } = useDepartments();
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedDepartments, totalItems } = usePagination(departments, preferences.itemsPerPage);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -237,7 +242,7 @@ export default function Departments() {
                 </TableCell>
               </TableRow>
             ) : (
-              departments.map((dept) => (
+              paginatedDepartments.map((dept) => (
                 <TableRow key={dept.id}>
                   <TableCell className="font-medium">{dept.code}</TableCell>
                   <TableCell className="text-sm">{dept.name || "-"}</TableCell>
@@ -256,6 +261,7 @@ export default function Departments() {
             )}
           </TableBody>
         </Table>
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

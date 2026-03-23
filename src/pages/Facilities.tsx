@@ -15,6 +15,9 @@ import { z } from "zod";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 const formSchema = z.object({
   name: z.string().min(1, "Zadejte název provozovny"),
@@ -54,6 +57,8 @@ export default function Facilities() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedFacilities, totalItems } = usePagination(facilities, preferences.itemsPerPage);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -313,7 +318,7 @@ export default function Facilities() {
                   </TableCell>
                 </TableRow>
               ) : (
-                facilities.map((facility) => (
+                paginatedFacilities.map((facility) => (
                   <TableRow key={facility.id}>
                     <TableCell className="font-medium">{facility.name}</TableCell>
                     <TableCell className="max-w-xs truncate" title={facility.description || ""}>
@@ -348,6 +353,7 @@ export default function Facilities() {
             </TableBody>
           </Table>
         )}
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

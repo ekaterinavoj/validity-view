@@ -44,6 +44,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import Papa from "papaparse";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 export default function ScheduledDeadlines() {
   const { toast } = useToast();
@@ -132,6 +135,8 @@ export default function ScheduledDeadlines() {
   }, [deadlines, filters, getEquipmentIdsByProfile]);
 
   const { sortedData: sortedDeadlines, sortConfig, requestSort } = useSortable(filteredDeadlines);
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems, totalItems } = usePagination(sortedDeadlines, preferences.itemsPerPage);
 
   const handleSelectAll = (checked: boolean) => {
     setSelectedIds(checked ? filteredDeadlines.map(d => d.id) : []);
@@ -329,7 +334,7 @@ export default function ScheduledDeadlines() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedDeadlines.map(deadline => {
+                paginatedItems.map(deadline => {
                   const isExpanded = expandedRowId === deadline.id;
                   return (
                     <>
@@ -427,6 +432,7 @@ export default function ScheduledDeadlines() {
               )}
             </TableBody>
           </Table>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
         </CardContent>
       </Card>
 

@@ -47,6 +47,9 @@ import {
   type PeriodicityUnit,
   PeriodicityInput,
 } from "@/components/PeriodicityInput";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 export default function DeadlineTypes() {
   const { deadlineTypes, isLoading, error, refetch, createDeadlineType, updateDeadlineType, deleteDeadlineType, isCreating, isUpdating } = useDeadlineTypes();
@@ -75,6 +78,9 @@ export default function DeadlineTypes() {
       t.facility.toLowerCase().includes(query)
     );
   }, [deadlineTypes, searchQuery]);
+
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTypes, totalItems } = usePagination(filteredTypes, preferences.itemsPerPage);
 
   const openCreateDialog = () => {
     setEditingItem(null);
@@ -178,7 +184,7 @@ export default function DeadlineTypes() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTypes.map(type => (
+                paginatedTypes.map(type => (
                   <TableRow key={type.id}>
                     <TableCell className="font-medium">{type.name}</TableCell>
                     <TableCell>{getFacilityName(type.facility)}</TableCell>
@@ -206,6 +212,7 @@ export default function DeadlineTypes() {
               )}
             </TableBody>
           </Table>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
         </CardContent>
       </Card>
 

@@ -16,6 +16,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPeriodicity } from "@/lib/utils";
 import { useFacilities } from "@/hooks/useFacilities";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -46,6 +49,8 @@ export default function MedicalExaminationTypes() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { facilities, loading: facilitiesLoading } = useFacilities();
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTypes, totalItems } = usePagination(examinationTypes, preferences.itemsPerPage);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -345,7 +350,7 @@ export default function MedicalExaminationTypes() {
                   </TableCell>
                 </TableRow>
               ) : (
-                examinationTypes.map((type) => (
+                paginatedTypes.map((type) => (
                   <TableRow key={type.id}>
                     <TableCell className="text-sm">{getFacilityName(type.facility)}</TableCell>
                     <TableCell className="font-medium">{type.name}</TableCell>
@@ -367,8 +372,9 @@ export default function MedicalExaminationTypes() {
                 ))
               )}
             </TableBody>
-          </Table>
+        </Table>
         )}
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

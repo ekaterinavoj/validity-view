@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Shield, UserCog, Search, X, AlertTriangle, Download } from "lucide-react";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
@@ -215,6 +218,9 @@ export default function UserManagement() {
     return filtered;
   }, [users, searchQuery, roleFilter]);
 
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedUsers, totalItems } = usePagination(filteredUsers, preferences.itemsPerPage);
+
   const clearFilters = () => {
     setSearchQuery("");
     setRoleFilter("all");
@@ -375,6 +381,7 @@ export default function UserManagement() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -395,7 +402,7 @@ export default function UserManagement() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredUsers.map((user) => {
+                  paginatedUsers.map((user) => {
                     const currentRole = user.roles[0] || "user";
                     const isCurrentUser = user.id === profile?.id;
                     const isLastAdmin = currentRole === "admin" && adminCount <= 1;
@@ -436,6 +443,8 @@ export default function UserManagement() {
                 )}
               </TableBody>
             </Table>
+            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
+            </>
           )}
         </div>
       </Card>

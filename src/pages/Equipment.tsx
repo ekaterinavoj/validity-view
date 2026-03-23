@@ -65,6 +65,9 @@ import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColor
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 export default function Equipment() {
   const { toast } = useToast();
@@ -119,6 +122,8 @@ export default function Equipment() {
   }, [equipment, searchQuery, statusFilter]);
 
   const { sortedData: sortedEquipment, sortConfig, requestSort } = useSortable(filteredEquipment);
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedEquipment, totalItems } = usePagination(sortedEquipment, preferences.itemsPerPage);
 
   const openCreateDialog = () => {
     setEditingItem(null);
@@ -313,7 +318,7 @@ export default function Equipment() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedEquipment.map(eq => (
+                paginatedEquipment.map(eq => (
                   <TableRow key={eq.id}>
                     <TableCell className="font-mono text-sm">{eq.inventory_number}</TableCell>
                     <TableCell className="font-medium">{eq.name}</TableCell>
@@ -351,6 +356,7 @@ export default function Equipment() {
               )}
             </TableBody>
           </Table>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
         </CardContent>
       </Card>
 

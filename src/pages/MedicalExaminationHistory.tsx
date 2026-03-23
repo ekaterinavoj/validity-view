@@ -29,6 +29,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
 import { formatDisplayDate } from "@/lib/dateFormat";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
@@ -92,6 +95,9 @@ export default function MedicalExaminationHistory() {
       return matchesEmployeeStatus && matchesSearch;
     });
   }, [examinations, employeeStatusFilter, archiveFilter, searchQuery]);
+
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
 
   const selectableItems = useMemo(() =>
     filteredHistory.filter(t => t.isArchived),
@@ -348,7 +354,7 @@ export default function MedicalExaminationHistory() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map((exam) => {
+                paginatedHistory.map((exam) => {
                   const isExpanded = expandedRowId === exam.id;
                   return (
                     <>
@@ -473,6 +479,7 @@ export default function MedicalExaminationHistory() {
             </TableBody>
           </Table>
         </div>
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
 
       {/* Legend */}

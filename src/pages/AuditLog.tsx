@@ -11,6 +11,9 @@ import { Loader2, FileText, Search, Filter } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 interface AuditLog {
   id: string;
@@ -132,6 +135,9 @@ export default function AuditLog() {
 
     return matchesAction && matchesTable && matchesSearch;
   });
+
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedLogs, totalItems } = usePagination(filteredLogs, preferences.itemsPerPage);
 
   const formatChangedFields = (fields: string[]) => {
     if (!fields || fields.length === 0) return "-";
@@ -327,7 +333,7 @@ export default function AuditLog() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLogs.map((log) => (
+                  {paginatedLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="whitespace-nowrap">
                         {format(new Date(log.created_at), "d. M. yyyy HH:mm:ss", {
@@ -373,6 +379,7 @@ export default function AuditLog() {
               </Table>
             </div>
           )}
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
         </div>
       </Card>
 

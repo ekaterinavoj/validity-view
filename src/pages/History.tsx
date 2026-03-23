@@ -31,6 +31,9 @@ import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { formatDisplayDate } from "@/lib/dateFormat";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
@@ -163,6 +166,9 @@ export default function History() {
       );
     });
   }, [filters, trainings, employeeStatusFilter, archiveFilter]);
+
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
 
   // Get only archived items for selection
   const archivedItems = useMemo(() => 
@@ -468,7 +474,7 @@ export default function History() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map((training) => {
+                paginatedHistory.map((training) => {
                   const isExpanded = expandedRowId === training.id;
                   return (
                     <>
@@ -562,6 +568,7 @@ export default function History() {
             </TableBody>
           </Table>
         </div>
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
 
       {/* Legend */}

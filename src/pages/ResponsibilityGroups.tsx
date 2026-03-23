@@ -42,6 +42,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 interface ResponsibilityGroup {
   id: string;
@@ -98,6 +101,8 @@ export default function ResponsibilityGroups() {
   const [availableProfiles, setAvailableProfiles] = useState<Profile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedGroups, totalItems } = usePagination(groups, preferences.itemsPerPage);
 
   useEffect(() => {
     loadGroups();
@@ -392,7 +397,7 @@ export default function ResponsibilityGroups() {
                   </TableCell>
                 </TableRow>
               ) : (
-                groups.map((group) => (
+                paginatedGroups.map((group) => (
                   <TableRow key={group.id}>
                     <TableCell className="font-medium">{group.name}</TableCell>
                     <TableCell>
@@ -458,6 +463,7 @@ export default function ResponsibilityGroups() {
               )}
             </TableBody>
           </Table>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
         </CardContent>
       </Card>
 

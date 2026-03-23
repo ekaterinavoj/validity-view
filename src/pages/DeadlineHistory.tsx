@@ -37,6 +37,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 export default function DeadlineHistory() {
   const { history, loading: isLoading, error, refetch } = useDeadlineHistory(true);
@@ -116,6 +119,9 @@ export default function DeadlineHistory() {
       return true;
     });
   }, [history, filters, archiveFilter]);
+
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
 
   // Get only archived items for selection
   const archivedItems = useMemo(() => 
@@ -362,7 +368,7 @@ export default function DeadlineHistory() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map(deadline => {
+                paginatedHistory.map(deadline => {
                   const isExpanded = expandedRowId === deadline.id;
                   return (
                     <>
@@ -457,6 +463,7 @@ export default function DeadlineHistory() {
               )}
             </TableBody>
           </Table>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
         </CardContent>
       </Card>
 

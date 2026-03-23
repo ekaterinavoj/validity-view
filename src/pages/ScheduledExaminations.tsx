@@ -37,6 +37,9 @@ import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { HealthRisksSummary } from "@/components/HealthRisksSummary";
 import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
 import { EmployeeStatusBadge } from "@/components/EmployeeStatusBadge";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -112,6 +115,8 @@ export default function ScheduledExaminations() {
   }, [filters, examinations, facilityNameMap]);
 
   const { sortedData: sortedExaminations, sortConfig, requestSort } = useSortable(filteredExaminations);
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems, totalItems } = usePagination(sortedExaminations, preferences.itemsPerPage);
 
   const toggleSelectAll = () => {
     if (selectedExaminations.size === filteredExaminations.length) {
@@ -311,7 +316,7 @@ export default function ScheduledExaminations() {
                 </TableCell>
               </TableRow>
             ) : (
-              sortedExaminations.map((exam) => {
+              paginatedItems.map((exam) => {
                 const isExpanded = expandedRowId === exam.id;
                 return (
                   <>
@@ -388,6 +393,7 @@ export default function ScheduledExaminations() {
             )}
           </TableBody>
         </Table>
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
 
       <BulkEditExaminationsDialog

@@ -42,6 +42,9 @@ import { EmployeeStatusBadge, EmployeeStatus } from "@/components/EmployeeStatus
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),
@@ -131,6 +134,8 @@ export default function Employees() {
     filteredEmployees,
     { key: "employeeNumber", direction: "asc" }
   );
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedEmployees, totalItems } = usePagination(sortedEmployees, preferences.itemsPerPage);
 
   const hasActiveFilters =
     searchQuery !== "" || departmentFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all";
@@ -935,7 +940,7 @@ export default function Employees() {
                 </TableCell>
               </TableRow>
             ) : (
-              sortedEmployees.map((employee) => (
+              paginatedEmployees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.employeeNumber}</TableCell>
                 <TableCell>{employee.firstName} {employee.lastName}</TableCell>
@@ -981,6 +986,7 @@ export default function Employees() {
             )}
           </TableBody>
         </Table>
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
       )}
 

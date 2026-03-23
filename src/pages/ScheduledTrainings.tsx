@@ -32,6 +32,9 @@ import { formatPeriodicity } from "@/lib/utils";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { useTrainings } from "@/hooks/useTrainings";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { RefreshCw } from "lucide-react";
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
@@ -144,6 +147,8 @@ export default function ScheduledTrainings() {
   }, [filters, trainings]);
 
   const { sortedData: sortedTrainings, sortConfig, requestSort } = useSortable(filteredTrainings);
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems, totalItems } = usePagination(sortedTrainings, preferences.itemsPerPage);
 
   const toggleSelectAll = () => {
     if (selectedTrainings.size === filteredTrainings.length) {
@@ -469,7 +474,7 @@ export default function ScheduledTrainings() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedTrainings.map((training) => {
+                  paginatedItems.map((training) => {
                     const isExpanded = expandedRowId === training.id;
                     return (
                       <>
@@ -553,6 +558,7 @@ export default function ScheduledTrainings() {
               </TableBody>
             </Table>
           </div>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
         </Card>
 
       </div>
