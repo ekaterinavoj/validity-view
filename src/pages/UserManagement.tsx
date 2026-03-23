@@ -401,7 +401,7 @@ export default function UserManagement() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredUsers.map((user) => {
+                  paginatedUsers.map((user) => {
                     const currentRole = user.roles[0] || "user";
                     const isCurrentUser = user.id === profile?.id;
                     const isLastAdmin = currentRole === "admin" && adminCount <= 1;
