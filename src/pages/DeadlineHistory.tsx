@@ -37,6 +37,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 export default function DeadlineHistory() {
   const { history, loading: isLoading, error, refetch } = useDeadlineHistory(true);
