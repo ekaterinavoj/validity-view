@@ -51,6 +51,8 @@ export default function TrainingTypes() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { facilities, loading: facilitiesLoading } = useFacilities();
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTypes, totalItems } = usePagination(trainingTypes, preferences.itemsPerPage);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
