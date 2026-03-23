@@ -184,7 +184,7 @@ export default function DeadlineTypes() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTypes.map(type => (
+                paginatedTypes.map(type => (
                   <TableRow key={type.id}>
                     <TableCell className="font-medium">{type.name}</TableCell>
                     <TableCell>{getFacilityName(type.facility)}</TableCell>
