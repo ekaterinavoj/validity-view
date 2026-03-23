@@ -79,6 +79,9 @@ export default function DeadlineTypes() {
     );
   }, [deadlineTypes, searchQuery]);
 
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTypes, totalItems } = usePagination(filteredTypes, preferences.itemsPerPage);
+
   const openCreateDialog = () => {
     setEditingItem(null);
     setFormData({
