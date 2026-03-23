@@ -136,6 +136,9 @@ export default function AuditLog() {
     return matchesAction && matchesTable && matchesSearch;
   });
 
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedLogs, totalItems } = usePagination(filteredLogs, preferences.itemsPerPage);
+
   const formatChangedFields = (fields: string[]) => {
     if (!fields || fields.length === 0) return "-";
     
