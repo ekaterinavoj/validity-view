@@ -101,6 +101,8 @@ export default function ResponsibilityGroups() {
   const [availableProfiles, setAvailableProfiles] = useState<Profile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedGroups, totalItems } = usePagination(groups, preferences.itemsPerPage);
 
   useEffect(() => {
     loadGroups();
