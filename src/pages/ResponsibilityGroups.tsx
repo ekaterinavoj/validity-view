@@ -42,6 +42,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 interface ResponsibilityGroup {
   id: string;
