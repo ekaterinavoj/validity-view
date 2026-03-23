@@ -940,7 +940,7 @@ export default function Employees() {
                 </TableCell>
               </TableRow>
             ) : (
-              sortedEmployees.map((employee) => (
+              paginatedEmployees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.employeeNumber}</TableCell>
                 <TableCell>{employee.firstName} {employee.lastName}</TableCell>
