@@ -316,7 +316,7 @@ export default function ScheduledExaminations() {
                 </TableCell>
               </TableRow>
             ) : (
-              sortedExaminations.map((exam) => {
+              paginatedItems.map((exam) => {
                 const isExpanded = expandedRowId === exam.id;
                 return (
                   <>
