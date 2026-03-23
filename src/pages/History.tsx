@@ -474,7 +474,7 @@ export default function History() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map((training) => {
+                paginatedHistory.map((training) => {
                   const isExpanded = expandedRowId === training.id;
                   return (
                     <>
