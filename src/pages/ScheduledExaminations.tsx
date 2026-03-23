@@ -115,6 +115,8 @@ export default function ScheduledExaminations() {
   }, [filters, examinations, facilityNameMap]);
 
   const { sortedData: sortedExaminations, sortConfig, requestSort } = useSortable(filteredExaminations);
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems, totalItems } = usePagination(sortedExaminations, preferences.itemsPerPage);
 
   const toggleSelectAll = () => {
     if (selectedExaminations.size === filteredExaminations.length) {
