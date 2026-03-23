@@ -368,7 +368,7 @@ export default function DeadlineHistory() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map(deadline => {
+                paginatedHistory.map(deadline => {
                   const isExpanded = expandedRowId === deadline.id;
                   return (
                     <>
