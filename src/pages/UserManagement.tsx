@@ -381,6 +381,7 @@ export default function UserManagement() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -443,6 +444,7 @@ export default function UserManagement() {
               </TableBody>
             </Table>
             <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
+            </>
           )}
         </div>
       </Card>
