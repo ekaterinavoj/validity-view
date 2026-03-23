@@ -31,6 +31,9 @@ import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { formatDisplayDate } from "@/lib/dateFormat";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 const employeeStatusLabels: Record<string, string> = {
   employed: "Aktivní",
