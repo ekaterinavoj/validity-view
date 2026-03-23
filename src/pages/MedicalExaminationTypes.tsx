@@ -16,6 +16,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPeriodicity } from "@/lib/utils";
 import { useFacilities } from "@/hooks/useFacilities";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
