@@ -474,7 +474,7 @@ export default function ScheduledTrainings() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedTrainings.map((training) => {
+                  paginatedItems.map((training) => {
                     const isExpanded = expandedRowId === training.id;
                     return (
                       <>
