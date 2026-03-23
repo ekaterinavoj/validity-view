@@ -429,7 +429,7 @@ export default function TrainingTypes() {
                   </TableCell>
                 </TableRow>
               ) : (
-                trainingTypes.map((type) => {
+                paginatedTypes.map((type) => {
                   const displayPeriod = formatPeriodicity(type.period_days);
 
                     return (
