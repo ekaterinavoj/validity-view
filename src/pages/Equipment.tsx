@@ -65,6 +65,9 @@ import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColor
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 export default function Equipment() {
   const { toast } = useToast();
