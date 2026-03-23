@@ -96,6 +96,9 @@ export default function MedicalExaminationHistory() {
     });
   }, [examinations, employeeStatusFilter, archiveFilter, searchQuery]);
 
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
+
   const selectableItems = useMemo(() =>
     filteredHistory.filter(t => t.isArchived),
     [filteredHistory]
