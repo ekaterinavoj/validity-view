@@ -242,7 +242,7 @@ export default function Departments() {
                 </TableCell>
               </TableRow>
             ) : (
-              departments.map((dept) => (
+              paginatedDepartments.map((dept) => (
                 <TableRow key={dept.id}>
                   <TableCell className="font-medium">{dept.code}</TableCell>
                   <TableCell className="text-sm">{dept.name || "-"}</TableCell>
