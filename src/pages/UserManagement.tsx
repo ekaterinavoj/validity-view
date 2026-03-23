@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Shield, UserCog, Search, X, AlertTriangle, Download } from "lucide-react";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
