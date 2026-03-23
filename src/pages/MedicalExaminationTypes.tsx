@@ -372,8 +372,9 @@ export default function MedicalExaminationTypes() {
                 ))
               )}
             </TableBody>
-          </Table>
+        </Table>
         )}
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

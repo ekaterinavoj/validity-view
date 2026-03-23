@@ -479,6 +479,7 @@ export default function MedicalExaminationHistory() {
             </TableBody>
           </Table>
         </div>
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
 
       {/* Legend */}

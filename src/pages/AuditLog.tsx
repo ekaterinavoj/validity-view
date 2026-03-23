@@ -379,6 +379,7 @@ export default function AuditLog() {
               </Table>
             </div>
           )}
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
         </div>
       </Card>
 
