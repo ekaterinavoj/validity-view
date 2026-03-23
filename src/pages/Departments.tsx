@@ -23,6 +23,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useDepartments, Department, DepartmentDependencies } from "@/hooks/useDepartments";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 const formSchema = z.object({
   code: z.string().min(1, "Zadejte číslo střediska"),
