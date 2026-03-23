@@ -354,7 +354,7 @@ export default function MedicalExaminationHistory() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHistory.map((exam) => {
+                paginatedHistory.map((exam) => {
                   const isExpanded = expandedRowId === exam.id;
                   return (
                     <>
