@@ -122,6 +122,8 @@ export default function Equipment() {
   }, [equipment, searchQuery, statusFilter]);
 
   const { sortedData: sortedEquipment, sortConfig, requestSort } = useSortable(filteredEquipment);
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedEquipment, totalItems } = usePagination(sortedEquipment, preferences.itemsPerPage);
 
   const openCreateDialog = () => {
     setEditingItem(null);
