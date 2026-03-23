@@ -334,7 +334,7 @@ export default function ScheduledDeadlines() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedDeadlines.map(deadline => {
+                paginatedItems.map(deadline => {
                   const isExpanded = expandedRowId === deadline.id;
                   return (
                     <>
