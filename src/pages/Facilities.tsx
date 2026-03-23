@@ -57,6 +57,8 @@ export default function Facilities() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedFacilities, totalItems } = usePagination(facilities, preferences.itemsPerPage);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
