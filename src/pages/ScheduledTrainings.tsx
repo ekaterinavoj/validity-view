@@ -147,6 +147,8 @@ export default function ScheduledTrainings() {
   }, [filters, trainings]);
 
   const { sortedData: sortedTrainings, sortConfig, requestSort } = useSortable(filteredTrainings);
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems, totalItems } = usePagination(sortedTrainings, preferences.itemsPerPage);
 
   const toggleSelectAll = () => {
     if (selectedTrainings.size === filteredTrainings.length) {
