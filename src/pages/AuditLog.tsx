@@ -333,7 +333,7 @@ export default function AuditLog() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLogs.map((log) => (
+                  {paginatedLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="whitespace-nowrap">
                         {format(new Date(log.created_at), "d. M. yyyy HH:mm:ss", {
