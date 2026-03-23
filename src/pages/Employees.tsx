@@ -134,6 +134,8 @@ export default function Employees() {
     filteredEmployees,
     { key: "employeeNumber", direction: "asc" }
   );
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedEmployees, totalItems } = usePagination(sortedEmployees, preferences.itemsPerPage);
 
   const hasActiveFilters =
     searchQuery !== "" || departmentFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all";
