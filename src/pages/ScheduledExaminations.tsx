@@ -37,6 +37,9 @@ import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { HealthRisksSummary } from "@/components/HealthRisksSummary";
 import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
 import { EmployeeStatusBadge } from "@/components/EmployeeStatusBadge";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
