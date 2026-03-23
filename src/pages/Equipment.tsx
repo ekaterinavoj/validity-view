@@ -318,7 +318,7 @@ export default function Equipment() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedEquipment.map(eq => (
+                paginatedEquipment.map(eq => (
                   <TableRow key={eq.id}>
                     <TableCell className="font-mono text-sm">{eq.inventory_number}</TableCell>
                     <TableCell className="font-medium">{eq.name}</TableCell>
