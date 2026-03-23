@@ -45,6 +45,8 @@ export default function Departments() {
   const { toast } = useToast();
 
   const { departments, loading, error, createDepartment, updateDepartment, deleteDepartment, checkDependencies, refetch } = useDepartments();
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedDepartments, totalItems } = usePagination(departments, preferences.itemsPerPage);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
