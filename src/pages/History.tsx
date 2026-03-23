@@ -167,6 +167,9 @@ export default function History() {
     });
   }, [filters, trainings, employeeStatusFilter, archiveFilter]);
 
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
+
   // Get only archived items for selection
   const archivedItems = useMemo(() => 
     filteredHistory.filter(t => t.isArchived),
