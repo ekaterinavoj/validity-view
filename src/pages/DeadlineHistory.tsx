@@ -120,6 +120,9 @@ export default function DeadlineHistory() {
     });
   }, [history, filters, archiveFilter]);
 
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
+
   // Get only archived items for selection
   const archivedItems = useMemo(() => 
     filteredHistory.filter(d => d.deleted_at),
