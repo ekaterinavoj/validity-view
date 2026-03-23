@@ -393,6 +393,7 @@ export default function ScheduledExaminations() {
             )}
           </TableBody>
         </Table>
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
 
       <BulkEditExaminationsDialog

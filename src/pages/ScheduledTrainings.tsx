@@ -558,6 +558,7 @@ export default function ScheduledTrainings() {
               </TableBody>
             </Table>
           </div>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
         </Card>
 
       </div>
