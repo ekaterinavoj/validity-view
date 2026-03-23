@@ -218,6 +218,9 @@ export default function UserManagement() {
     return filtered;
   }, [users, searchQuery, roleFilter]);
 
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedUsers, totalItems } = usePagination(filteredUsers, preferences.itemsPerPage);
+
   const clearFilters = () => {
     setSearchQuery("");
     setRoleFilter("all");
