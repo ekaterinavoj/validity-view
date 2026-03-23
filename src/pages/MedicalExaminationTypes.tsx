@@ -350,7 +350,7 @@ export default function MedicalExaminationTypes() {
                   </TableCell>
                 </TableRow>
               ) : (
-                examinationTypes.map((type) => (
+                paginatedTypes.map((type) => (
                   <TableRow key={type.id}>
                     <TableCell className="text-sm">{getFacilityName(type.facility)}</TableCell>
                     <TableCell className="font-medium">{type.name}</TableCell>
