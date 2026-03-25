@@ -7,15 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-interface ReminderTemplate {
-  id: string;
-  name: string;
-  email_subject: string;
-  email_body: string;
-  is_active: boolean;
-  target_user_ids: string[] | null;
-}
-
 interface Training {
   id: string;
   next_training_date: string;
@@ -25,6 +16,14 @@ interface Training {
   repeat_days_after: number | null;
   training_types: Array<{ name: string }> | { name: string } | null;
   employees: Array<{ first_name: string; last_name: string; email: string }> | { first_name: string; last_name: string; email: string } | null;
+}
+
+interface ReminderTemplate {
+  id: string;
+  name: string;
+  email_subject: string;
+  email_body: string;
+  is_active: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -40,11 +39,11 @@ const handler = async (req: Request): Promise<Response> => {
   const isCronRequest = cronSecret && envCronSecret && cronSecret === envCronSecret;
   let isAuthorizedAdmin = false;
 
-  if (!isCronRequest && authHeader?.startsWith("Bearer ")) {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+  if (!isCronRequest && authHeader?.startsWith("Bearer ")) {
     const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -73,20 +72,22 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log("Starting training reminder check...");
 
-    // Get email provider settings
-    const { data: providerSettings } = await supabase
+    // Load all needed settings
+    const { data: settings } = await supabase
       .from("system_settings")
-      .select("value")
-      .eq("key", "email_provider")
-      .single();
+      .select("key, value")
+      .in("key", ["email_provider", "reminder_recipients", "training_manager_notifications"]);
 
-    const emailProvider = providerSettings?.value || {};
+    const settingsMap: Record<string, any> = {};
+    settings?.forEach(s => { settingsMap[s.key] = s.value; });
+
+    const emailProvider = settingsMap["email_provider"] || {};
+    const moduleRecipients = settingsMap["reminder_recipients"] || { user_ids: [], delivery_mode: "bcc" };
+    const managerNotifications = settingsMap["training_manager_notifications"] || { enabled: false };
 
     if (!emailProvider.smtp_host || !emailProvider.smtp_from_email) {
       console.warn("SMTP server is not configured");
@@ -102,7 +103,25 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Fetch all active templates and build a map by id
+    // Resolve module recipients from system_settings
+    let moduleRecipientEmails: string[] = [];
+    if (moduleRecipients.user_ids && moduleRecipients.user_ids.length > 0) {
+      const { data: recipientProfiles } = await supabase
+        .from("profiles")
+        .select("id, email")
+        .in("id", moduleRecipients.user_ids);
+      moduleRecipientEmails = [...new Set((recipientProfiles || []).map(p => p.email.toLowerCase()).filter(Boolean))];
+    }
+
+    if (moduleRecipientEmails.length === 0 && !managerNotifications.enabled) {
+      console.log("No module recipients configured and manager notifications disabled");
+      return new Response(
+        JSON.stringify({ message: "No recipients configured", total_emails_sent: 0, total_skipped: 0, results: [] }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Fetch all active templates (for email content only)
     const { data: templates, error: templatesError } = await supabase
       .from("reminder_templates")
       .select("*")
@@ -131,6 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log(`Found ${templateMap.size} active reminder templates`);
+    console.log(`Module recipients: ${moduleRecipientEmails.length}, Manager notifications: ${managerNotifications.enabled}`);
 
     // Fetch all active, non-deleted trainings
     const { data: allTrainings, error: trainingsError } = await supabase
@@ -168,6 +188,7 @@ const handler = async (req: Request): Promise<Response> => {
     const results: any[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const deliveryMode = moduleRecipients.delivery_mode || "bcc";
 
     for (const training of allTrainings as Training[]) {
       const nextDate = new Date(training.next_training_date);
@@ -178,7 +199,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Only process if within the reminder window (including past-due)
       if (daysUntil > remindDaysBefore) continue;
 
-      // Resolve template: use assigned one or fall back to default
+      // Resolve template for email content (not recipients!)
       const template = (training.reminder_template_id && templateMap.has(training.reminder_template_id))
         ? templateMap.get(training.reminder_template_id)!
         : defaultTemplate;
@@ -207,37 +228,6 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
-      // Resolve recipients from template
-      let recipients: string[] = [];
-
-      if (template.target_user_ids && template.target_user_ids.length > 0) {
-        const { data: users } = await supabase
-          .from("profiles")
-          .select("email")
-          .in("id", template.target_user_ids);
-        recipients = users?.map(u => u.email).filter(Boolean) || [];
-      } else {
-        const { data: userRoles } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .in("role", ["admin", "manager"]);
-
-        const userIds = [...new Set(userRoles?.map(r => r.user_id) || [])];
-        if (userIds.length > 0) {
-          const { data: users } = await supabase
-            .from("profiles")
-            .select("email")
-            .in("id", userIds);
-          recipients = users?.map(u => u.email).filter(Boolean) || [];
-        }
-      }
-
-      recipients = [...new Set(recipients.map(e => e.toLowerCase()))];
-      if (recipients.length === 0) {
-        console.log(`No recipients for training ${training.id}`);
-        continue;
-      }
-
       // Prepare email content
       const trainingType = Array.isArray(training.training_types)
         ? training.training_types[0]
@@ -261,67 +251,154 @@ const handler = async (req: Request): Promise<Response> => {
         .replace(/\{\{days_remaining\}\}/g, daysUntil.toString())
         .replace(/\{\{employee_name\}\}/g, employeeName);
 
-      try {
-        const htmlBody = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">Připomínka školení</h2>
-            <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              ${body.split('\n').map(line => `<p style="margin: 10px 0;">${line}</p>`).join('')}
-            </div>
-            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-            <p style="color: #666; font-size: 12px;">
-              Tento email byl odeslán automaticky systémem evidence školení.
-            </p>
+      const htmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Připomínka školení</h2>
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            ${body.split('\n').map(line => `<p style="margin: 10px 0;">${line}</p>`).join('')}
           </div>
-        `;
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+          <p style="color: #666; font-size: 12px;">
+            Tento email byl odeslán automaticky systémem evidence školení.
+          </p>
+        </div>
+      `;
 
-        const result = await sendViaSMTP(recipients, subject, htmlBody, "bcc", emailProvider);
+      // 1) Send to module-configured recipients
+      if (moduleRecipientEmails.length > 0) {
+        try {
+          const result = await sendViaSMTP(moduleRecipientEmails, subject, htmlBody, deliveryMode, emailProvider);
 
-        if (result.success) {
-          console.log(`Email sent for training ${training.id}`);
-          totalEmailsSent++;
+          if (result.success) {
+            console.log(`Email sent for training ${training.id} to module recipients`);
+            totalEmailsSent++;
+
+            await supabase.from("reminder_logs").insert({
+              training_id: training.id,
+              template_id: template.id,
+              template_name: template.name,
+              recipient_emails: moduleRecipientEmails,
+              email_subject: subject,
+              email_body: body,
+              status: "sent",
+              provider_used: "smtp",
+              delivery_mode: deliveryMode,
+            });
+
+            results.push({
+              training_id: training.id,
+              template: template.name,
+              recipients: moduleRecipientEmails.length,
+              type: "module_recipients",
+              status: "sent",
+            });
+          } else {
+            throw new Error(result.error);
+          }
+        } catch (emailError: any) {
+          console.error(`Failed to send email for training ${training.id}:`, emailError);
 
           await supabase.from("reminder_logs").insert({
             training_id: training.id,
             template_id: template.id,
             template_name: template.name,
-            recipient_emails: recipients,
+            recipient_emails: moduleRecipientEmails,
             email_subject: subject,
             email_body: body,
-            status: "sent",
+            status: "failed",
+            error_message: emailError.message,
             provider_used: "smtp",
+            delivery_mode: deliveryMode,
           });
 
           results.push({
             training_id: training.id,
             template: template.name,
-            recipients: recipients.length,
-            status: "sent",
+            type: "module_recipients",
+            status: "failed",
+            error: emailError.message,
           });
-        } else {
-          throw new Error(result.error);
         }
-      } catch (emailError: any) {
-        console.error(`Failed to send email for training ${training.id}:`, emailError);
+      }
 
-        await supabase.from("reminder_logs").insert({
-          training_id: training.id,
-          template_id: template.id,
-          template_name: template.name,
-          recipient_emails: recipients,
-          email_subject: subject,
-          email_body: body,
-          status: "failed",
-          error_message: emailError.message,
-          provider_used: "smtp",
-        });
+      // 2) Send to managers if enabled (filtered by subordinate hierarchy)
+      if (managerNotifications.enabled) {
+        // Get managers with linked employees
+        const { data: managerProfiles } = await supabase
+          .from("profiles")
+          .select("id, email, first_name, last_name, employee_id")
+          .not("employee_id", "is", null);
 
-        results.push({
-          training_id: training.id,
-          template: template.name,
-          status: "failed",
-          error: emailError.message,
-        });
+        if (managerProfiles && managerProfiles.length > 0) {
+          const { data: managerRoles } = await supabase
+            .from("user_roles")
+            .select("user_id")
+            .in("role", ["admin", "manager"])
+            .in("user_id", managerProfiles.map(p => p.id));
+
+          const managerUserIds = new Set(managerRoles?.map(r => r.user_id) || []);
+          const managers = managerProfiles.filter(p => managerUserIds.has(p.id) && p.employee_id);
+
+          for (const manager of managers) {
+            // Skip if manager already receives via module recipients
+            if (moduleRecipientEmails.includes(manager.email.toLowerCase())) continue;
+
+            // Check if this training's employee is subordinate to this manager
+            const { data: subordinates } = await supabase.rpc("get_subordinate_employee_ids", {
+              root_employee_id: manager.employee_id!,
+            });
+
+            if (!subordinates || subordinates.length <= 1) continue;
+
+            const subordinateIds = subordinates.map((s: any) => s.employee_id);
+            if (!subordinateIds.includes(training.employee_id)) continue;
+
+            // This manager is responsible for this employee - send notification
+            const mgrSubject = `Připomínka školení: ${employeeName} - ${trainingName}`;
+            const mgrBody = `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333;">Připomínka školení podřízeného</h2>
+                <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <p>Dobrý den, ${manager.first_name} ${manager.last_name},</p>
+                  <p>školení <strong>${trainingName}</strong> zaměstnance <strong>${employeeName}</strong> vyžaduje pozornost.</p>
+                  <p>Zbývá: <strong>${daysUntil < 0 ? `${Math.abs(daysUntil)} dnů po termínu` : `${daysUntil} dnů`}</strong></p>
+                </div>
+                <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                <p style="color: #666; font-size: 12px;">Tento email byl odeslán automaticky systémem evidence školení.</p>
+              </div>
+            `;
+
+            try {
+              const mgrResult = await sendViaSMTP([manager.email], mgrSubject, mgrBody, "to", emailProvider);
+
+              await supabase.from("reminder_logs").insert({
+                training_id: training.id,
+                template_id: template.id,
+                template_name: "Manager notification",
+                recipient_emails: [manager.email],
+                email_subject: mgrSubject,
+                email_body: mgrBody,
+                status: mgrResult.success ? "sent" : "failed",
+                error_message: mgrResult.error || null,
+                provider_used: "smtp",
+                delivery_mode: "to",
+              });
+
+              if (mgrResult.success) {
+                totalEmailsSent++;
+                console.log(`Sent manager notification to ${manager.email} for training ${training.id}`);
+                results.push({
+                  training_id: training.id,
+                  type: "manager_notification",
+                  manager_email: manager.email,
+                  status: "sent",
+                });
+              }
+            } catch (mgrError: any) {
+              console.error(`Failed to send manager notification to ${manager.email}:`, mgrError);
+            }
+          }
+        }
       }
     }
 
