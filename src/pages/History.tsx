@@ -486,9 +486,9 @@ export default function History() {
                           onToggle={() => setExpandedRowId(isExpanded ? null : training.id)}
                         />
                       </TableCell>
-                    {canBulkActions && archiveFilter !== "active" && (
+                    {canBulkActions && archiveFilter === "archived" && (
                       <TableCell>
-                        {training.isArchived && (
+                        {training.isArchived && !training.isVersion && (
                           <Checkbox
                             checked={selectedIds.includes(training.id)}
                             onCheckedChange={() => handleSelectItem(training.id)}

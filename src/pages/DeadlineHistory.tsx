@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { formatDisplayDate } from "@/lib/dateFormat";
-import { RefreshCw, Download, ArchiveRestore } from "lucide-react";
+import { RefreshCw, Download, ArchiveRestore, History as HistoryIcon, Archive } from "lucide-react";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { formatPeriodicity } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -98,9 +98,10 @@ export default function DeadlineHistory() {
 
   const filteredHistory = useMemo(() => {
     return history.filter(d => {
-      // Archive filter
-      if (archiveFilter === "active" && d.deleted_at) return false;
-      if (archiveFilter === "archived" && !d.deleted_at) return false;
+      // Archive/version filter
+      if (archiveFilter === "active" && (d.deleted_at || d.isVersion)) return false;
+      if (archiveFilter === "archived" && !d.isArchived) return false;
+      if (archiveFilter === "versions" && !d.isVersion) return false;
 
       if (filters.facilityFilter !== "all" && getFacilityName(d.facility) !== filters.facilityFilter) return false;
       if (filters.typeFilter !== "all" && d.deadline_type?.name !== filters.typeFilter) return false;
@@ -123,9 +124,9 @@ export default function DeadlineHistory() {
   const { preferences } = useUserPreferences();
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
 
-  // Get only archived items for selection
+  // Get only archived items for selection (not version snapshots)
   const archivedItems = useMemo(() => 
-    filteredHistory.filter(d => d.deleted_at),
+    filteredHistory.filter(d => d.isArchived && !d.isVersion),
     [filteredHistory]
   );
 
@@ -291,6 +292,7 @@ export default function DeadlineHistory() {
             <SelectContent>
               <SelectItem value="all">Vše</SelectItem>
               <SelectItem value="active">Aktivní</SelectItem>
+              <SelectItem value="versions">Předchozí verze</SelectItem>
               <SelectItem value="archived">Archivované</SelectItem>
             </SelectContent>
           </Select>
@@ -323,7 +325,7 @@ export default function DeadlineHistory() {
       />
 
       {/* Bulk Actions Bar - only for admins when viewing archived */}
-      {canBulkActions && archiveFilter !== "active" && archivedItems.length > 0 && (
+      {canBulkActions && archiveFilter === "archived" && archivedItems.length > 0 && (
         <BulkActionsBar
           selectedCount={selectedIds.length}
           onClearSelection={() => setSelectedIds([])}
@@ -339,7 +341,7 @@ export default function DeadlineHistory() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[40px]" />
-                {canBulkActions && archiveFilter !== "active" && (
+                {canBulkActions && archiveFilter === "archived" && (
                   <TableHead className="w-12">
                     <Checkbox
                       checked={archivedItems.length > 0 && selectedIds.length === archivedItems.length}
@@ -356,8 +358,8 @@ export default function DeadlineHistory() {
                 <TableHead>Příští kontrola</TableHead>
                 <TableHead>Provádějící</TableHead>
                 <TableHead>Poznámka</TableHead>
-                <TableHead>Stav</TableHead>
-                {canEdit && archiveFilter !== "active" && <TableHead className="w-12"></TableHead>}
+                <TableHead>Typ záznamu</TableHead>
+                {canEdit && archiveFilter === "archived" && <TableHead className="w-12"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
