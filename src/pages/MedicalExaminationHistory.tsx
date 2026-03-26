@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Download, Loader2, RefreshCw, ArchiveRestore, Archive, Trash2 } from "lucide-react";
+import { Download, Loader2, RefreshCw, ArchiveRestore, Archive, Trash2, History as HistoryIcon } from "lucide-react";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { formatPeriodicity } from "@/lib/utils";
 import { useMemo, useState } from "react";
@@ -65,8 +65,8 @@ export default function MedicalExaminationHistory() {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
-  const includeArchived = archiveFilter === "all" || archiveFilter === "archived";
-  const { examinations, loading, error, refetch } = useMedicalExaminationHistory(includeArchived);
+  // Always fetch all records including archived and versions
+  const { examinations, loading, error, refetch } = useMedicalExaminationHistory(true);
   const { facilities: facilitiesData } = useFacilities();
 
   const facilityNameMap = useMemo(() => {
@@ -77,8 +77,9 @@ export default function MedicalExaminationHistory() {
 
   const filteredHistory = useMemo(() => {
     return examinations.filter((exam) => {
-      if (archiveFilter === "active" && exam.isArchived) return false;
+      if (archiveFilter === "active" && (exam.isArchived || exam.isVersion)) return false;
       if (archiveFilter === "archived" && !exam.isArchived) return false;
+      if (archiveFilter === "versions" && !exam.isVersion) return false;
 
       const matchesEmployeeStatus =
         employeeStatusFilter === "all" || exam.employeeStatus === employeeStatusFilter;
@@ -100,7 +101,7 @@ export default function MedicalExaminationHistory() {
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
 
   const selectableItems = useMemo(() =>
-    filteredHistory.filter(t => t.isArchived),
+    filteredHistory.filter(t => t.isArchived && !t.isVersion),
     [filteredHistory]
   );
 
@@ -274,6 +275,7 @@ export default function MedicalExaminationHistory() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Aktivní prohlídky</SelectItem>
+                <SelectItem value="versions">Předchozí verze</SelectItem>
                 <SelectItem value="archived">Archivované</SelectItem>
                 <SelectItem value="all">Vše</SelectItem>
               </SelectContent>
@@ -304,7 +306,7 @@ export default function MedicalExaminationHistory() {
       </Card>
 
       {/* Bulk Actions */}
-      {canBulkActions && archiveFilter !== "active" && selectableItems.length > 0 && (
+      {canBulkActions && archiveFilter === "archived" && selectableItems.length > 0 && (
         <BulkActionsBar
           selectedCount={selectedIds.length}
           onClearSelection={() => setSelectedIds([])}
@@ -320,7 +322,7 @@ export default function MedicalExaminationHistory() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[40px]" />
-                {canBulkActions && archiveFilter !== "active" && (
+                {canBulkActions && archiveFilter === "archived" && (
                   <TableHead className="w-12">
                     <Checkbox
                       checked={selectableItems.length > 0 && selectedIds.length === selectableItems.length}
@@ -340,10 +342,10 @@ export default function MedicalExaminationHistory() {
                 <TableHead>Výsledek</TableHead>
                 <TableHead>Poznámka</TableHead>
                 <TableHead>Datum pozbytí ZD způsobilosti</TableHead>
-                {(archiveFilter === "all" || archiveFilter === "archived") && (
-                  <TableHead>Stav</TableHead>
+                {(archiveFilter === "all" || archiveFilter === "archived" || archiveFilter === "versions") && (
+                  <TableHead>Typ záznamu</TableHead>
                 )}
-                {canEdit && <TableHead>Akce</TableHead>}
+                {canEdit && archiveFilter !== "versions" && <TableHead>Akce</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -358,16 +360,16 @@ export default function MedicalExaminationHistory() {
                   const isExpanded = expandedRowId === exam.id;
                   return (
                     <>
-                    <TableRow key={exam.id} className={exam.isArchived ? "bg-muted/50" : ""}>
+                    <TableRow key={exam.id} className={exam.isVersion ? "bg-blue-50/50 dark:bg-blue-950/20" : exam.isArchived ? "bg-muted/50" : ""}>
                       <TableCell className="w-[40px] px-2">
                         <ExpandableToggle
                           isExpanded={isExpanded}
                           onToggle={() => setExpandedRowId(isExpanded ? null : exam.id)}
                         />
                       </TableCell>
-                    {canBulkActions && archiveFilter !== "active" && (
+                    {canBulkActions && archiveFilter === "archived" && (
                       <TableCell>
-                        {exam.isArchived && (
+                        {exam.isArchived && !exam.isVersion && (
                           <Checkbox
                             checked={selectedIds.includes(exam.id)}
                             onCheckedChange={() => handleSelectItem(exam.id)}
@@ -393,24 +395,29 @@ export default function MedicalExaminationHistory() {
                      <TableCell>
                        <NoteTooltipText note={exam.note} />
                      </TableCell>
-                    {(archiveFilter === "all" || archiveFilter === "archived") && (
+                    {(archiveFilter === "all" || archiveFilter === "archived" || archiveFilter === "versions") && (
                       <TableCell>
-                        {exam.isArchived ? (
-                          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                        {exam.isVersion ? (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            <HistoryIcon className="w-3 h-3 mr-1" />
+                            Předchozí verze
+                          </Badge>
+                        ) : exam.isArchived ? (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
                             <Archive className="w-3 h-3 mr-1" />
                             Archivováno
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                             Aktivní
                           </Badge>
                         )}
                       </TableCell>
                     )}
-                    {canEdit && (
+                    {canEdit && archiveFilter !== "versions" && (
                       <TableCell>
                         <div className="flex gap-1">
-                          {exam.isArchived ? (
+                          {!exam.isVersion && exam.isArchived ? (
                             <Button
                               variant="outline"
                               size="sm"
@@ -426,7 +433,7 @@ export default function MedicalExaminationHistory() {
                                 </>
                               )}
                             </Button>
-                          ) : (
+                          ) : !exam.isVersion && !exam.isArchived ? (
                             <Button
                               variant="outline"
                               size="sm"
@@ -442,8 +449,8 @@ export default function MedicalExaminationHistory() {
                                 </>
                               )}
                             </Button>
-                          )}
-                          {isAdmin && (
+                          ) : null}
+                          {isAdmin && !exam.isVersion && (
                             <Button
                               variant="outline"
                               size="sm"

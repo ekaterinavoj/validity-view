@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Loader2, RefreshCw, ArchiveRestore, Archive } from "lucide-react";
+import { Download, Loader2, RefreshCw, ArchiveRestore, Archive, History as HistoryIcon } from "lucide-react";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { formatPeriodicity } from "@/lib/utils";
 import { useMemo, useState } from "react";
@@ -63,9 +63,8 @@ export default function History() {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   
-  // Include archived trainings when filter is "all" or "archived"
-  const includeArchived = archiveFilter === "all" || archiveFilter === "archived";
-  const { trainings, loading, error, refetch } = useTrainingHistory(includeArchived);
+  // Always fetch all records including archived and versions
+  const { trainings, loading, error, refetch } = useTrainingHistory(true);
   const { facilities: facilitiesData } = useFacilities();
 
   // Create a map of facility code to name for display
@@ -120,9 +119,10 @@ export default function History() {
 
   const filteredHistory = useMemo(() => {
     return trainings.filter((training) => {
-      // Archive filter
-      if (archiveFilter === "active" && training.isArchived) return false;
+      // Archive/version filter
+      if (archiveFilter === "active" && (training.isArchived || training.isVersion)) return false;
       if (archiveFilter === "archived" && !training.isArchived) return false;
+      if (archiveFilter === "versions" && !training.isVersion) return false;
 
       // Employee status filter
       const matchesEmployeeStatus =
@@ -170,9 +170,9 @@ export default function History() {
   const { preferences } = useUserPreferences();
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
 
-  // Get only archived items for selection
+  // Get only archived items for selection (not version snapshots)
   const archivedItems = useMemo(() => 
-    filteredHistory.filter(t => t.isArchived),
+    filteredHistory.filter(t => t.isArchived && !t.isVersion),
     [filteredHistory]
   );
 
@@ -383,6 +383,7 @@ export default function History() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Aktivní školení</SelectItem>
+                <SelectItem value="versions">Předchozí verze</SelectItem>
                 <SelectItem value="archived">Archivovaná</SelectItem>
                 <SelectItem value="all">Vše</SelectItem>
               </SelectContent>
@@ -424,7 +425,7 @@ export default function History() {
       />
 
       {/* Bulk Actions Bar - only for admins when viewing archived */}
-      {canBulkActions && archiveFilter !== "active" && archivedItems.length > 0 && (
+      {canBulkActions && archiveFilter === "archived" && archivedItems.length > 0 && (
         <BulkActionsBar
           selectedCount={selectedIds.length}
           onClearSelection={() => setSelectedIds([])}
@@ -440,7 +441,7 @@ export default function History() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[40px]" />
-                {canBulkActions && archiveFilter !== "active" && (
+                {canBulkActions && archiveFilter === "archived" && (
                   <TableHead className="w-12">
                     <Checkbox
                       checked={archivedItems.length > 0 && selectedIds.length === archivedItems.length}
@@ -458,10 +459,10 @@ export default function History() {
                 <TableHead>Školitel</TableHead>
                 <TableHead>Firma</TableHead>
                 <TableHead>Poznámka</TableHead>
-                {(archiveFilter === "all" || archiveFilter === "archived") && (
-                  <TableHead>Stav</TableHead>
+                {(archiveFilter === "all" || archiveFilter === "archived" || archiveFilter === "versions") && (
+                  <TableHead>Typ záznamu</TableHead>
                 )}
-                {canEdit && archiveFilter !== "active" && (
+                {canEdit && archiveFilter !== "active" && archiveFilter !== "versions" && (
                   <TableHead>Akce</TableHead>
                 )}
               </TableRow>
@@ -478,16 +479,16 @@ export default function History() {
                   const isExpanded = expandedRowId === training.id;
                   return (
                     <>
-                    <TableRow key={training.id} className={training.isArchived ? "bg-muted/50" : ""}>
+                    <TableRow key={training.id} className={training.isVersion ? "bg-blue-50/50 dark:bg-blue-950/20" : training.isArchived ? "bg-muted/50" : ""}>
                       <TableCell className="w-[40px] px-2">
                         <ExpandableToggle
                           isExpanded={isExpanded}
                           onToggle={() => setExpandedRowId(isExpanded ? null : training.id)}
                         />
                       </TableCell>
-                    {canBulkActions && archiveFilter !== "active" && (
+                    {canBulkActions && archiveFilter === "archived" && (
                       <TableCell>
-                        {training.isArchived && (
+                        {training.isArchived && !training.isVersion && (
                           <Checkbox
                             checked={selectedIds.includes(training.id)}
                             onCheckedChange={() => handleSelectItem(training.id)}
@@ -515,23 +516,28 @@ export default function History() {
                     <TableCell>
                       <NoteTooltipText note={training.note} />
                     </TableCell>
-                    {(archiveFilter === "all" || archiveFilter === "archived") && (
+                    {(archiveFilter === "all" || archiveFilter === "archived" || archiveFilter === "versions") && (
                       <TableCell>
-                        {training.isArchived ? (
-                          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                        {training.isVersion ? (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            <HistoryIcon className="w-3 h-3 mr-1" />
+                            Předchozí verze
+                          </Badge>
+                        ) : training.isArchived ? (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
                             <Archive className="w-3 h-3 mr-1" />
                             Archivováno
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                             Aktivní
                           </Badge>
                         )}
                       </TableCell>
                     )}
-                    {canEdit && archiveFilter !== "active" && (
+                    {canEdit && archiveFilter !== "active" && archiveFilter !== "versions" && (
                       <TableCell>
-                        {training.isArchived && (
+                        {training.isArchived && !training.isVersion && (
                           <Button
                             variant="outline"
                             size="sm"

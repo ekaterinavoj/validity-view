@@ -22,6 +22,8 @@ export interface HistoryExamination {
   isArchived: boolean;
   longTermFitnessLossDate: string | null;
   period: number;
+  originalRecordId: string | null;
+  isVersion: boolean;
 }
 
 export function useMedicalExaminationHistory(includeArchived: boolean = false) {
@@ -69,7 +71,8 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
             name,
             period_days,
             facility
-          )
+          ),
+          original_record_id
         `)
         .order("last_examination_date", { ascending: false });
 
@@ -111,7 +114,9 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
         result: t.result || "",
         note: t.note || "",
         deletedAt: t.deleted_at,
-        isArchived: t.deleted_at !== null,
+        isArchived: t.deleted_at !== null && !t.original_record_id,
+        originalRecordId: t.original_record_id || null,
+        isVersion: !!t.original_record_id,
         longTermFitnessLossDate: t.long_term_fitness_loss_date || null,
         period: t.period_days_override ?? t.medical_examination_types?.period_days ?? 365,
       }));

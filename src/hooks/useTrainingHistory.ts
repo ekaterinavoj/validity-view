@@ -21,6 +21,8 @@ export interface HistoryTraining {
   note: string;
   deletedAt: string | null; // Soft-delete timestamp
   isArchived: boolean;
+  originalRecordId: string | null; // If set, this is a previous version snapshot
+  isVersion: boolean;
 }
 
 export function useTrainingHistory(includeArchived: boolean = false) {
@@ -68,7 +70,8 @@ export function useTrainingHistory(includeArchived: boolean = false) {
             name,
             period_days,
             facility
-          )
+          ),
+          original_record_id
         `)
         .order("last_training_date", { ascending: false });
       
@@ -117,7 +120,9 @@ export function useTrainingHistory(includeArchived: boolean = false) {
         period: t.period_days_override ?? t.training_types?.period_days ?? 365,
         note: t.note || "",
         deletedAt: t.deleted_at,
-        isArchived: t.deleted_at !== null,
+        isArchived: t.deleted_at !== null && !t.original_record_id,
+        originalRecordId: t.original_record_id || null,
+        isVersion: !!t.original_record_id,
       }));
 
       setTrainings(transformedData);

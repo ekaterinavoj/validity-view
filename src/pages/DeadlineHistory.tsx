@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { formatDisplayDate } from "@/lib/dateFormat";
-import { RefreshCw, Download, ArchiveRestore } from "lucide-react";
+import { RefreshCw, Download, ArchiveRestore, History as HistoryIcon, Archive } from "lucide-react";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { formatPeriodicity } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -98,9 +98,10 @@ export default function DeadlineHistory() {
 
   const filteredHistory = useMemo(() => {
     return history.filter(d => {
-      // Archive filter
-      if (archiveFilter === "active" && d.deleted_at) return false;
-      if (archiveFilter === "archived" && !d.deleted_at) return false;
+      // Archive/version filter
+      if (archiveFilter === "active" && (d.deleted_at || d.isVersion)) return false;
+      if (archiveFilter === "archived" && !d.isArchived) return false;
+      if (archiveFilter === "versions" && !d.isVersion) return false;
 
       if (filters.facilityFilter !== "all" && getFacilityName(d.facility) !== filters.facilityFilter) return false;
       if (filters.typeFilter !== "all" && d.deadline_type?.name !== filters.typeFilter) return false;
@@ -123,9 +124,9 @@ export default function DeadlineHistory() {
   const { preferences } = useUserPreferences();
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
 
-  // Get only archived items for selection
+  // Get only archived items for selection (not version snapshots)
   const archivedItems = useMemo(() => 
-    filteredHistory.filter(d => d.deleted_at),
+    filteredHistory.filter(d => d.isArchived && !d.isVersion),
     [filteredHistory]
   );
 
@@ -291,6 +292,7 @@ export default function DeadlineHistory() {
             <SelectContent>
               <SelectItem value="all">Vše</SelectItem>
               <SelectItem value="active">Aktivní</SelectItem>
+              <SelectItem value="versions">Předchozí verze</SelectItem>
               <SelectItem value="archived">Archivované</SelectItem>
             </SelectContent>
           </Select>
@@ -323,7 +325,7 @@ export default function DeadlineHistory() {
       />
 
       {/* Bulk Actions Bar - only for admins when viewing archived */}
-      {canBulkActions && archiveFilter !== "active" && archivedItems.length > 0 && (
+      {canBulkActions && archiveFilter === "archived" && archivedItems.length > 0 && (
         <BulkActionsBar
           selectedCount={selectedIds.length}
           onClearSelection={() => setSelectedIds([])}
@@ -339,7 +341,7 @@ export default function DeadlineHistory() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[40px]" />
-                {canBulkActions && archiveFilter !== "active" && (
+                {canBulkActions && archiveFilter === "archived" && (
                   <TableHead className="w-12">
                     <Checkbox
                       checked={archivedItems.length > 0 && selectedIds.length === archivedItems.length}
@@ -356,8 +358,8 @@ export default function DeadlineHistory() {
                 <TableHead>Příští kontrola</TableHead>
                 <TableHead>Provádějící</TableHead>
                 <TableHead>Poznámka</TableHead>
-                <TableHead>Stav</TableHead>
-                {canEdit && archiveFilter !== "active" && <TableHead className="w-12"></TableHead>}
+                <TableHead>Typ záznamu</TableHead>
+                {canEdit && archiveFilter === "archived" && <TableHead className="w-12"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -374,7 +376,10 @@ export default function DeadlineHistory() {
                     <>
                     <TableRow 
                       key={deadline.id}
-                      className={cn(deadline.deleted_at && "opacity-60")}
+                      className={cn(
+                        deadline.isVersion && "bg-blue-50/50 dark:bg-blue-950/20",
+                        deadline.isArchived && !deadline.isVersion && "opacity-60"
+                      )}
                     >
                       <TableCell className="w-[40px] px-2">
                         <ExpandableToggle
@@ -382,9 +387,9 @@ export default function DeadlineHistory() {
                           onToggle={() => setExpandedRowId(isExpanded ? null : deadline.id)}
                         />
                       </TableCell>
-                    {canBulkActions && archiveFilter !== "active" && (
+                    {canBulkActions && archiveFilter === "archived" && (
                       <TableCell>
-                        {deadline.deleted_at && (
+                        {deadline.isArchived && !deadline.isVersion && (
                           <Checkbox
                             checked={selectedIds.includes(deadline.id)}
                             onCheckedChange={() => handleSelectItem(deadline.id)}
@@ -413,25 +418,34 @@ export default function DeadlineHistory() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {deadline.deleted_at && (
-                          <Badge variant="outline" className="bg-muted">Archivováno</Badge>
+                        {deadline.isVersion ? (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            <HistoryIcon className="w-3 h-3 mr-1" />
+                            Předchozí verze
+                          </Badge>
+                        ) : deadline.isArchived ? (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                            <Archive className="w-3 h-3 mr-1" />
+                            Archivováno
+                          </Badge>
+                        ) : (
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              deadline.status === "valid" && "bg-green-500/20 text-green-700 dark:text-green-300",
+                              deadline.status === "warning" && "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
+                              deadline.status === "expired" && "bg-red-500/20 text-red-700 dark:text-red-300"
+                            )}
+                          >
+                            {deadline.status === "valid" ? "Platná" : 
+                             deadline.status === "warning" ? "Varování" : "Prošlá"}
+                          </Badge>
                         )}
-                        <Badge 
-                          variant="outline" 
-                          className={cn(
-                            deadline.status === "valid" && "bg-green-500/20 text-green-700 dark:text-green-300",
-                            deadline.status === "warning" && "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
-                            deadline.status === "expired" && "bg-red-500/20 text-red-700 dark:text-red-300"
-                          )}
-                        >
-                          {deadline.status === "valid" ? "Platná" : 
-                           deadline.status === "warning" ? "Varování" : "Prošlá"}
-                        </Badge>
                       </div>
                     </TableCell>
-                    {canEdit && archiveFilter !== "active" && (
+                    {canEdit && archiveFilter === "archived" && (
                       <TableCell>
-                        {deadline.deleted_at && (
+                        {deadline.isArchived && !deadline.isVersion && (
                           <Button
                             variant="ghost"
                             size="sm"
