@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Loader2, RefreshCw, ArchiveRestore, Archive } from "lucide-react";
+import { Download, Loader2, RefreshCw, ArchiveRestore, Archive, History as HistoryIcon } from "lucide-react";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { formatPeriodicity } from "@/lib/utils";
 import { useMemo, useState } from "react";
@@ -425,7 +425,7 @@ export default function History() {
       />
 
       {/* Bulk Actions Bar - only for admins when viewing archived */}
-      {canBulkActions && archiveFilter !== "active" && archivedItems.length > 0 && (
+      {canBulkActions && archiveFilter === "archived" && archivedItems.length > 0 && (
         <BulkActionsBar
           selectedCount={selectedIds.length}
           onClearSelection={() => setSelectedIds([])}
@@ -441,7 +441,7 @@ export default function History() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[40px]" />
-                {canBulkActions && archiveFilter !== "active" && (
+                {canBulkActions && archiveFilter === "archived" && (
                   <TableHead className="w-12">
                     <Checkbox
                       checked={archivedItems.length > 0 && selectedIds.length === archivedItems.length}
@@ -516,23 +516,28 @@ export default function History() {
                     <TableCell>
                       <NoteTooltipText note={training.note} />
                     </TableCell>
-                    {(archiveFilter === "all" || archiveFilter === "archived") && (
+                    {(archiveFilter === "all" || archiveFilter === "archived" || archiveFilter === "versions") && (
                       <TableCell>
-                        {training.isArchived ? (
-                          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                        {training.isVersion ? (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            <HistoryIcon className="w-3 h-3 mr-1" />
+                            Předchozí verze
+                          </Badge>
+                        ) : training.isArchived ? (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
                             <Archive className="w-3 h-3 mr-1" />
                             Archivováno
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                             Aktivní
                           </Badge>
                         )}
                       </TableCell>
                     )}
-                    {canEdit && archiveFilter !== "active" && (
+                    {canEdit && archiveFilter !== "active" && archiveFilter !== "versions" && (
                       <TableCell>
-                        {training.isArchived && (
+                        {training.isArchived && !training.isVersion && (
                           <Button
                             variant="outline"
                             size="sm"
