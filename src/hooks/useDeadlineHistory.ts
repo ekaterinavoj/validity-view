@@ -47,6 +47,8 @@ export interface HistoryDeadline {
   next_check_date: string;
   performer_raw: string | null;
   company_raw: string | null;
+  originalRecordId: string | null;
+  isVersion: boolean;
 }
 
 export function useDeadlineHistory(includeArchived: boolean = false) {
@@ -82,7 +84,8 @@ export function useDeadlineHistory(includeArchived: boolean = false) {
           ),
           deadline_types:deadline_type_id (
             id, name, facility, period_days
-          )
+          ),
+          original_record_id
         `)
         .order("last_check_date", { ascending: false });
 
@@ -130,7 +133,9 @@ export function useDeadlineHistory(includeArchived: boolean = false) {
           note: d.note || "",
           result: d.result || null,
           deletedAt: d.deleted_at,
-          isArchived: d.deleted_at !== null,
+          isArchived: d.deleted_at !== null && !d.original_record_id,
+          originalRecordId: d.original_record_id || null,
+          isVersion: !!d.original_record_id,
           equipment: eq || null,
           deadline_type: dt ? { id: dt.id, name: dt.name, facility: dt.facility, period_days: dt.period_days } : null,
           deleted_at: d.deleted_at,
