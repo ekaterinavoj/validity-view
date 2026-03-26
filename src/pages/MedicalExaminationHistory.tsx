@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Download, Loader2, RefreshCw, ArchiveRestore, Archive, Trash2 } from "lucide-react";
+import { Download, Loader2, RefreshCw, ArchiveRestore, Archive, Trash2, History as HistoryIcon } from "lucide-react";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { formatPeriodicity } from "@/lib/utils";
 import { useMemo, useState } from "react";
@@ -65,8 +65,8 @@ export default function MedicalExaminationHistory() {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
-  const includeArchived = archiveFilter === "all" || archiveFilter === "archived";
-  const { examinations, loading, error, refetch } = useMedicalExaminationHistory(includeArchived);
+  // Always fetch all records including archived and versions
+  const { examinations, loading, error, refetch } = useMedicalExaminationHistory(true);
   const { facilities: facilitiesData } = useFacilities();
 
   const facilityNameMap = useMemo(() => {
@@ -77,8 +77,9 @@ export default function MedicalExaminationHistory() {
 
   const filteredHistory = useMemo(() => {
     return examinations.filter((exam) => {
-      if (archiveFilter === "active" && exam.isArchived) return false;
+      if (archiveFilter === "active" && (exam.isArchived || exam.isVersion)) return false;
       if (archiveFilter === "archived" && !exam.isArchived) return false;
+      if (archiveFilter === "versions" && !exam.isVersion) return false;
 
       const matchesEmployeeStatus =
         employeeStatusFilter === "all" || exam.employeeStatus === employeeStatusFilter;
@@ -100,7 +101,7 @@ export default function MedicalExaminationHistory() {
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHistory, totalItems } = usePagination(filteredHistory, preferences.itemsPerPage);
 
   const selectableItems = useMemo(() =>
-    filteredHistory.filter(t => t.isArchived),
+    filteredHistory.filter(t => t.isArchived && !t.isVersion),
     [filteredHistory]
   );
 
@@ -274,6 +275,7 @@ export default function MedicalExaminationHistory() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Aktivní prohlídky</SelectItem>
+                <SelectItem value="versions">Předchozí verze</SelectItem>
                 <SelectItem value="archived">Archivované</SelectItem>
                 <SelectItem value="all">Vše</SelectItem>
               </SelectContent>
@@ -304,7 +306,7 @@ export default function MedicalExaminationHistory() {
       </Card>
 
       {/* Bulk Actions */}
-      {canBulkActions && archiveFilter !== "active" && selectableItems.length > 0 && (
+      {canBulkActions && archiveFilter === "archived" && selectableItems.length > 0 && (
         <BulkActionsBar
           selectedCount={selectedIds.length}
           onClearSelection={() => setSelectedIds([])}
@@ -320,7 +322,7 @@ export default function MedicalExaminationHistory() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[40px]" />
-                {canBulkActions && archiveFilter !== "active" && (
+                {canBulkActions && archiveFilter === "archived" && (
                   <TableHead className="w-12">
                     <Checkbox
                       checked={selectableItems.length > 0 && selectedIds.length === selectableItems.length}

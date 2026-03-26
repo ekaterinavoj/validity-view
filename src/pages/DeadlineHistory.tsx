@@ -376,7 +376,10 @@ export default function DeadlineHistory() {
                     <>
                     <TableRow 
                       key={deadline.id}
-                      className={cn(deadline.deleted_at && "opacity-60")}
+                      className={cn(
+                        deadline.isVersion && "bg-blue-50/50 dark:bg-blue-950/20",
+                        deadline.isArchived && !deadline.isVersion && "opacity-60"
+                      )}
                     >
                       <TableCell className="w-[40px] px-2">
                         <ExpandableToggle
@@ -384,9 +387,9 @@ export default function DeadlineHistory() {
                           onToggle={() => setExpandedRowId(isExpanded ? null : deadline.id)}
                         />
                       </TableCell>
-                    {canBulkActions && archiveFilter !== "active" && (
+                    {canBulkActions && archiveFilter === "archived" && (
                       <TableCell>
-                        {deadline.deleted_at && (
+                        {deadline.isArchived && !deadline.isVersion && (
                           <Checkbox
                             checked={selectedIds.includes(deadline.id)}
                             onCheckedChange={() => handleSelectItem(deadline.id)}
@@ -415,25 +418,34 @@ export default function DeadlineHistory() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {deadline.deleted_at && (
-                          <Badge variant="outline" className="bg-muted">Archivováno</Badge>
+                        {deadline.isVersion ? (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            <HistoryIcon className="w-3 h-3 mr-1" />
+                            Předchozí verze
+                          </Badge>
+                        ) : deadline.isArchived ? (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                            <Archive className="w-3 h-3 mr-1" />
+                            Archivováno
+                          </Badge>
+                        ) : (
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              deadline.status === "valid" && "bg-green-500/20 text-green-700 dark:text-green-300",
+                              deadline.status === "warning" && "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
+                              deadline.status === "expired" && "bg-red-500/20 text-red-700 dark:text-red-300"
+                            )}
+                          >
+                            {deadline.status === "valid" ? "Platná" : 
+                             deadline.status === "warning" ? "Varování" : "Prošlá"}
+                          </Badge>
                         )}
-                        <Badge 
-                          variant="outline" 
-                          className={cn(
-                            deadline.status === "valid" && "bg-green-500/20 text-green-700 dark:text-green-300",
-                            deadline.status === "warning" && "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
-                            deadline.status === "expired" && "bg-red-500/20 text-red-700 dark:text-red-300"
-                          )}
-                        >
-                          {deadline.status === "valid" ? "Platná" : 
-                           deadline.status === "warning" ? "Varování" : "Prošlá"}
-                        </Badge>
                       </div>
                     </TableCell>
-                    {canEdit && archiveFilter !== "active" && (
+                    {canEdit && archiveFilter === "archived" && (
                       <TableCell>
-                        {deadline.deleted_at && (
+                        {deadline.isArchived && !deadline.isVersion && (
                           <Button
                             variant="ghost"
                             size="sm"
