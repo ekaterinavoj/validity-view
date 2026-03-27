@@ -162,7 +162,12 @@ export function DeadlineDocumentsList({
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{document.file_name}</p>
+                  <p className="text-sm font-medium truncate">
+                    {(document as any).document_number && (
+                      <span className="text-xs font-mono text-muted-foreground mr-2">{(document as any).document_number}</span>
+                    )}
+                    {document.file_name}
+                  </p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="secondary" className="text-xs">
                       {DEADLINE_DOCUMENT_TYPE_LABELS[document.document_type as keyof typeof DEADLINE_DOCUMENT_TYPE_LABELS] || document.document_type}

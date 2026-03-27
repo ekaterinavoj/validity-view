@@ -60,6 +60,7 @@ export type Database = {
         Row: {
           deadline_id: string
           description: string | null
+          document_number: string | null
           document_type: string
           file_name: string
           file_path: string
@@ -72,6 +73,7 @@ export type Database = {
         Insert: {
           deadline_id: string
           description?: string | null
+          document_number?: string | null
           document_type: string
           file_name: string
           file_path: string
@@ -84,6 +86,7 @@ export type Database = {
         Update: {
           deadline_id?: string
           description?: string | null
+          document_number?: string | null
           document_type?: string
           file_name?: string
           file_path?: string
@@ -665,6 +668,7 @@ export type Database = {
       medical_examination_documents: {
         Row: {
           description: string | null
+          document_number: string | null
           document_type: string
           examination_id: string
           file_name: string
@@ -677,6 +681,7 @@ export type Database = {
         }
         Insert: {
           description?: string | null
+          document_number?: string | null
           document_type: string
           examination_id: string
           file_name: string
@@ -689,6 +694,7 @@ export type Database = {
         }
         Update: {
           description?: string | null
+          document_number?: string | null
           document_type?: string
           examination_id?: string
           file_name?: string
@@ -1369,6 +1375,7 @@ export type Database = {
       training_documents: {
         Row: {
           description: string | null
+          document_number: string | null
           document_type: string
           file_name: string
           file_path: string
@@ -1381,6 +1388,7 @@ export type Database = {
         }
         Insert: {
           description?: string | null
+          document_number?: string | null
           document_type: string
           file_name: string
           file_path: string
@@ -1393,6 +1401,7 @@ export type Database = {
         }
         Update: {
           description?: string | null
+          document_number?: string | null
           document_type?: string
           file_name?: string
           file_path?: string
