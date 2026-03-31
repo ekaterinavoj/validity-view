@@ -65,12 +65,6 @@ const DAYS_OF_WEEK = [
 ];
 
 
-const TIMEZONES = [
-  { value: "Europe/Prague", label: "Praha (CET/CEST)" },
-  { value: "Europe/London", label: "Londýn (GMT/BST)" },
-  { value: "Europe/Berlin", label: "Berlín (CET/CEST)" },
-  { value: "UTC", label: "UTC" },
-];
 
 const DELIVERY_MODES = [
   { value: "bcc", label: "BCC (skrytá kopie)" },
