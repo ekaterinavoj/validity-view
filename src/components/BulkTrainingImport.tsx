@@ -406,6 +406,16 @@ export const BulkTrainingImport = () => {
           continue;
         }
 
+        // Resolve facility code/name to actual code
+        const resolvedFacilityCode = resolveFacility(row.facility_code);
+        if (!resolvedFacilityCode) {
+          parsedRow.status = 'error';
+          parsedRow.error = `Provozovna "${row.facility_code}" neexistuje v systému`;
+          errorRows.push(parsedRow);
+          continue;
+        }
+        row.facility_code = resolvedFacilityCode;
+
         const dateStr = String(row.last_training_date || '').trim();
         if (!dateStr) {
           parsedRow.status = 'error';
