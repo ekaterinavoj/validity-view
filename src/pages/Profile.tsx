@@ -336,7 +336,7 @@ const Profile = () => {
     document.body.removeChild(link);
     toast({
       title: "Export úspěšný",
-      description: `Export ${filteredUsers.length} uživatelů byl dokončen.`
+      description: `Export ${allUsers.length} uživatelů byl dokončen.`
     });
   };
   const getUserStats = () => {

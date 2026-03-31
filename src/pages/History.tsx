@@ -319,7 +319,7 @@ export default function History() {
 
       toast({
         title: "Export úspěšný",
-        description: `Exportováno ${filteredHistory.length} záznamů.`,
+        description: `Exportováno ${trainings.length} záznamů.`,
       });
     } catch (err) {
       toast({

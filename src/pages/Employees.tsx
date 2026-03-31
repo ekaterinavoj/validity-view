@@ -179,7 +179,7 @@ export default function Employees() {
 
       toast({
         title: "Export úspěšný",
-        description: `Exportováno ${filteredEmployees.length} zaměstnanců.`,
+        description: `Exportováno ${employees.length} zaměstnanců.`,
       });
     } catch (error) {
       toast({
