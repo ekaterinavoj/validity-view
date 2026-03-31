@@ -176,7 +176,7 @@ serve(async (req) => {
   const { data: settings } = await supabase
       .from("system_settings")
       .select("key, value")
-      .in("key", ["medical_reminder_recipients", "email_provider", "medical_email_template", "reminder_frequency", "medical_manager_notifications"]);
+      .in("key", ["medical_reminder_recipients", "email_provider", "medical_email_template", "medical_manager_notifications"]);
 
     const settingsMap: Record<string, any> = {};
     settings?.forEach(s => { settingsMap[s.key] = s.value; });
