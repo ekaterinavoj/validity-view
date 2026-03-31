@@ -1341,10 +1341,6 @@ export default function AdminSettings() {
           <UserManagementPanel />
         </TabsContent>
 
-        {/* Templates Tab */}
-        <TabsContent value="templates" className="space-y-6">
-          <ReminderTemplates />
-        </TabsContent>
 
         {/* History Tab */}
         <TabsContent value="history" className="space-y-6">
