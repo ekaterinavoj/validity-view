@@ -27,6 +27,7 @@ import { EmailHistory } from "@/components/EmailHistory";
 import { EmailTemplatePreview } from "@/components/EmailTemplatePreview";
 import { DeadlineEmailTemplatePreview } from "@/components/DeadlineEmailTemplatePreview";
 import { NextSendPreview } from "@/components/NextSendPreview";
+import { IndividualEmailPreview } from "@/components/IndividualEmailPreview";
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { OnboardingSettings } from "@/components/OnboardingSettings";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
@@ -1225,6 +1226,7 @@ export default function AdminSettings() {
                     subject={emailTemplate.subject}
                     body={emailTemplate.body}
                   />
+                  <IndividualEmailPreview module="training" />
                 </TabsContent>
 
                 <TabsContent value="deadlines" className="space-y-4 pt-4">
@@ -1255,6 +1257,7 @@ export default function AdminSettings() {
                     subject={deadlineEmailTemplate.subject}
                     body={deadlineEmailTemplate.body}
                   />
+                  <IndividualEmailPreview module="deadline" />
                 </TabsContent>
 
                 <TabsContent value="medical" className="space-y-4 pt-4">
@@ -1332,6 +1335,7 @@ export default function AdminSettings() {
                       </div>
                     </div>
                   </div>
+                  <IndividualEmailPreview module="medical" />
                 </TabsContent>
               </Tabs>
             </CardContent>
