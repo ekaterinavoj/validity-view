@@ -263,17 +263,17 @@ export const BulkDeadlineImport = () => {
   const downloadEquipmentTemplateCSV = () => {
     const template = [
       {
-        inventory_number: "INV-001",
-        name: "Vysokozdvižný vozík",
-        equipment_type: "VZV",
-        facility_code: "qlar-jenec-dc3",
-        manufacturer: "Toyota",
-        model: "8FG25",
-        serial_number: "SN123456",
-        location: "Hala A",
-        responsible_person: "Jan Novák",
-        status: "active",
-        notes: "Poznámka k zařízení"
+        "Inventární č.": "INV-001",
+        "Název": "Vysokozdvižný vozík",
+        "Typ zařízení": "VZV",
+        "Provozovna": "qlar-jenec-dc3",
+        "Výrobce": "Toyota",
+        "Model": "8FG25",
+        "Sériové č.": "SN123456",
+        "Umístění": "Hala A",
+        "Odpovědná osoba": "jan.novak@firma.cz",
+        "Stav": "Aktivní",
+        "Poznámka": "Poznámka k zařízení"
       }
     ];
 
