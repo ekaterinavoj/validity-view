@@ -412,7 +412,7 @@ const handler = async (req: Request): Promise<Response> => {
   const { data: settings } = await supabase
     .from("system_settings")
     .select("key, value")
-    .in("key", ["reminder_frequency", "reminder_schedule", "deadline_reminder_recipients", "deadline_email_template", "email_provider", "deadline_responsible_notifications"]);
+    .in("key", ["deadline_reminder_frequency", "deadline_reminder_schedule", "deadline_reminder_recipients", "deadline_email_template", "email_provider", "deadline_responsible_notifications"]);
   
   let frequency: ReminderFrequency = { 
     type: "weekly", interval_days: 7, start_time: "08:00", 
@@ -426,10 +426,10 @@ const handler = async (req: Request): Promise<Response> => {
   
   if (settings) {
     for (const s of settings) {
-      if (s.key === "reminder_frequency" && s.value && typeof s.value === "object") {
+      if (s.key === "deadline_reminder_frequency" && s.value && typeof s.value === "object") {
         frequency = { ...frequency, ...(s.value as object) };
       }
-      if (s.key === "reminder_schedule" && s.value && typeof s.value === "object") {
+      if (s.key === "deadline_reminder_schedule" && s.value && typeof s.value === "object") {
         schedule = { ...schedule, ...(s.value as object) };
       }
       if (s.key === "deadline_reminder_recipients" && s.value && typeof s.value === "object") {
