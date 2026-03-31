@@ -1129,32 +1129,39 @@ export const BulkTrainingImport = () => {
                   </AlertDescription>
                 </Alert>
               )}
-              {/* Summary */}
-              <div className="grid grid-cols-6 gap-2">
-                <Card className="p-3">
-                  <div className="text-xl font-bold">{preview.totalRows}</div>
-                  <div className="text-xs text-muted-foreground">Celkem</div>
-                </Card>
-                <Card className="p-3 border-primary/50 bg-primary/10">
-                  <div className="text-xl font-bold text-primary">{preview.validRows.length}</div>
-                  <div className="text-xs text-muted-foreground">Přesná shoda</div>
-                </Card>
-                <Card className="p-3 border-primary/50 bg-primary/10">
-                  <div className="text-xl font-bold text-primary">{preview.autoMatchedRows.length}</div>
-                  <div className="text-xs text-muted-foreground">Auto-match</div>
-                </Card>
-                <Card className="p-3 border-secondary/50 bg-secondary/10">
-                  <div className="text-xl font-bold text-secondary-foreground">{preview.suggestionRows.length}</div>
-                  <div className="text-xs text-muted-foreground">Návrhy</div>
-                </Card>
-                <Card className="p-3 border-accent/50 bg-accent/10">
-                  <div className="text-xl font-bold text-accent-foreground">{preview.duplicateRows.length}</div>
-                  <div className="text-xs text-muted-foreground">Duplicity</div>
-                </Card>
-                <Card className="p-3 border-destructive/50 bg-destructive/10">
-                  <div className="text-xl font-bold text-destructive">{preview.errorRows.length}</div>
-                  <div className="text-xs text-muted-foreground">Chyby</div>
-                </Card>
+              {/* Summary bar - consistent style */}
+              <div className="flex flex-wrap items-center gap-4 p-4 bg-muted rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-muted-foreground">Celkem: {preview.totalRows}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  <span className="font-medium">{preview.validRows.length} přesná shoda</span>
+                </div>
+                {preview.autoMatchedRows.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                    <span className="font-medium">{preview.autoMatchedRows.length} auto-match</span>
+                  </div>
+                )}
+                {preview.suggestionRows.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                    <span className="font-medium">{preview.suggestionRows.length} návrhů</span>
+                  </div>
+                )}
+                {preview.duplicateRows.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600" />
+                    <span className="font-medium">{preview.duplicateRows.length} duplicitních</span>
+                  </div>
+                )}
+                {preview.errorRows.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-destructive" />
+                    <span className="font-medium">{preview.errorRows.length} s chybami</span>
+                  </div>
+                )}
               </div>
 
               {/* Auto-matched rows info */}
