@@ -554,12 +554,12 @@ export default function AdminSettings() {
             onDeadlineRecipientsChange={(r) => setDeadlineRecipients(r)}
           />
 
-          {/* Frequency Card */}
+          {/* Training Frequency Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Frekvence odesílání
+                <GraduationCap className="w-5 h-5" />
+                Frekvence odesílání – Školení
               </CardTitle>
               <CardDescription>
                 Nastavte, jak často se mají odesílat souhrnné emaily
