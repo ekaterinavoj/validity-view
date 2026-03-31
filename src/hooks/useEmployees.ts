@@ -150,7 +150,8 @@ export function useInactiveEmployees() {
         .from("employees")
         .select(EMPLOYEE_SELECT)
         .in("status", ["parental_leave", "sick_leave", "terminated"])
-        .order("last_name", { ascending: true });
+        .order("last_name", { ascending: true })
+        .limit(50000);
 
       if (fetchError) throw fetchError;
 
