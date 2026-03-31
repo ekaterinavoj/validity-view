@@ -344,6 +344,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
 
       if (error) {
         errorCount++;
+        errors.push(`Řádek ${item.rowNumber} (${item.data.inventoryNumber}): ${error.message || 'Neznámá chyba při aktualizaci'}`);
       } else {
         successCount++;
         // Reassign responsible persons for updated equipment
