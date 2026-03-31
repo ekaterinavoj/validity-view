@@ -64,7 +64,7 @@ export default function AdminSettings() {
   
   // Get initial tab from URL query param, default to "onboarding"
   const tabParam = searchParams.get("tab");
-  const validTabs = ["onboarding", "user-management", "reminders", "email", "templates", "history", "data"];
+  const validTabs = ["onboarding", "user-management", "reminders", "email", "history", "data"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
   const [activeTab, setActiveTab] = useState(initialTab);
   
