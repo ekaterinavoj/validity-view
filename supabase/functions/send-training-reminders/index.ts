@@ -385,16 +385,39 @@ const handler = async (req: Request): Promise<Response> => {
 
             // This manager is responsible for this employee - send notification
             const mgrSubject = `Připomínka školení: ${employeeName} - ${trainingName}`;
+            const mgrDaysLabel = daysUntil < 0 ? `${Math.abs(daysUntil)} ${Math.abs(daysUntil) === 1 ? "den" : Math.abs(daysUntil) >= 2 && Math.abs(daysUntil) <= 4 ? "dny" : "dnů"} po termínu` : `${daysUntil} ${daysUntil === 1 ? "den" : daysUntil >= 2 && daysUntil <= 4 ? "dny" : "dnů"}`;
+            const mgrStatusColor = daysUntil < 0 ? "#ef4444" : daysUntil <= 7 ? "#f59e0b" : "#22c55e";
+            const mgrNextDateFormatted = nextDate.toLocaleDateString("cs-CZ");
             const mgrBody = `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #333;">Připomínka školení podřízeného</h2>
-                <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; color: #333;">
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                   <p>Dobrý den, ${manager.first_name} ${manager.last_name},</p>
                   <p>školení <strong>${trainingName}</strong> zaměstnance <strong>${employeeName}</strong> vyžaduje pozornost.</p>
-                  <p>Zbývá: <strong>${daysUntil < 0 ? `${Math.abs(daysUntil)} dnů po termínu` : `${daysUntil} dnů`}</strong></p>
                 </div>
-                <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-                <p style="color: #666; font-size: 12px;">Tento email byl odeslán automaticky systémem evidence školení.</p>
+                <table style="border-collapse: collapse; width: 100%; margin-top: 20px;">
+                  <thead>
+                    <tr style="background-color: #f3f4f6;">
+                      <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Zaměstnanec</th>
+                      <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Školení</th>
+                      <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Vyprší</th>
+                      <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">Dnů</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style="border: 1px solid #e5e7eb; padding: 10px;">${employeeName}</td>
+                      <td style="border: 1px solid #e5e7eb; padding: 10px;">${trainingName}</td>
+                      <td style="border: 1px solid #e5e7eb; padding: 10px;">${mgrNextDateFormatted}</td>
+                      <td style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">
+                        <span style="background-color: ${mgrStatusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
+                          ${mgrDaysLabel}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+                <p style="color: #9ca3af; font-size: 12px;">Tento email byl odeslán automaticky systémem evidence školení.</p>
               </div>
             `;
 
