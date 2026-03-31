@@ -128,8 +128,7 @@ export default function DeadlineTypes() {
   };
 
   const parsePeriodDays = (raw: any): number | null => {
-    const val = parseInt(String(raw), 10);
-    return isNaN(val) || val <= 0 ? null : val;
+    return parsePeriodicityText(raw);
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
