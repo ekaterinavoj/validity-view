@@ -249,10 +249,12 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
     setIsImporting(true);
     setImportProgress({ current: 0, total: totalOps });
     setImportResult(null);
+    setImportErrors([]);
     abortRef.current = false;
 
     let successCount = 0;
     let errorCount = 0;
+    const errors: string[] = [];
 
     // Load existing for update matching
     const { data: existingEquipment } = await supabase
