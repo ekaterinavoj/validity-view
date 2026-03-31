@@ -1334,6 +1334,10 @@ export default function AdminSettings() {
               </Tabs>
             </CardContent>
           </Card>
+
+          {/* Šablony individuálních připomínek */}
+          <Separator />
+          <ReminderTemplates />
         </TabsContent>
 
         {/* User Management Tab */}
