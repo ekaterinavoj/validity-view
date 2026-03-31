@@ -292,7 +292,7 @@ export default function History() {
 
   const exportToCSV = () => {
     try {
-      const data = filteredHistory.map((training) => ({
+      const data = trainings.map((training) => ({
         "Datum": formatDisplayDate(training.date, ""),
         "Typ školení": training.type || "",
         "Osobní číslo": training.employeeNumber || "",

@@ -167,7 +167,7 @@ export default function ScheduledExaminations() {
   };
 
   const exportToCSV = () => {
-    const dataToExport = selectedExaminations.size > 0 ? filteredExaminations.filter((e) => selectedExaminations.has(e.id)) : filteredExaminations;
+    const dataToExport = selectedExaminations.size > 0 ? examinations.filter((e) => selectedExaminations.has(e.id)) : examinations;
 
     const data = dataToExport.map((e) => ({
       "Stav": e.status === "valid" ? "Platné" : e.status === "warning" ? "Blíží se" : "Expirované",

@@ -149,7 +149,7 @@ export default function Employees() {
 
   const exportToCSV = () => {
     try {
-      const data = filteredEmployees.map((employee) => ({
+      const data = employees.map((employee) => ({
         "Osobní číslo": employee.employeeNumber || "",
         "Jméno": employee.firstName || "",
         "Příjmení": employee.lastName || "",

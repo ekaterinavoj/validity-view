@@ -192,8 +192,8 @@ export default function ScheduledDeadlines() {
 
   const exportToCSV = () => {
     const dataToExport = selectedIds.length > 0
-      ? filteredDeadlines.filter(d => selectedIds.includes(d.id))
-      : filteredDeadlines;
+      ? deadlines.filter(d => selectedIds.includes(d.id))
+      : deadlines;
 
     const data = dataToExport.map(d => {
       const resps = responsiblesMap?.get(d.id) ?? [];
