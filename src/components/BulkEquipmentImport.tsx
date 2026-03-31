@@ -87,6 +87,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
     const responsibleEmails = rawResponsibles
       ? rawResponsibles.split(/[;,]/).map((e: string) => e.trim().toLowerCase()).filter(Boolean)
       : [];
+    const resolvedStatus = STATUS_MAP[rawStatus] || null;
     return {
       inventoryNumber: String(row['Inv. číslo'] || row['Inventární číslo'] || row['inventory_number'] || '').trim(),
       name: String(row['Název'] || row['name'] || '').trim(),
@@ -97,7 +98,9 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       serialNumber: String(row['Sériové číslo'] || row['Sériové č.'] || row['serial_number'] || '').trim() || null,
       location: String(row['Umístění'] || row['location'] || '').trim() || null,
       department: String(row['Středisko'] || row['department'] || '').trim() || null,
-      status: STATUS_MAP[rawStatus] || 'active',
+      status: resolvedStatus || 'active',
+      _statusUnknown: !resolvedStatus && rawStatus !== '' && rawStatus !== 'active',
+      _rawStatus: rawStatus,
       notes: String(row['Poznámka'] || row['notes'] || '').trim() || null,
       responsibleEmails,
     };
