@@ -214,21 +214,20 @@ export const BulkMedicalImport = () => {
       const errorRows: ParsedRow[] = [];
       const duplicateRows: ParsedRow[] = [];
 
-      const { data: employees } = await supabase
-        .from("employees")
-        .select("id, employee_number, email, first_name, last_name")
-        .limit(10000);
+      const [{ data: employees }, { data: types }, { data: existingExaminations }, { data: facilities }] = await Promise.all([
+        supabase.from("employees").select("id, employee_number, email, first_name, last_name").limit(10000),
+        supabase.from("medical_examination_types").select("id, name, facility, period_days").limit(10000),
+        supabase.from("medical_examinations").select("id, employee_id, examination_type_id, last_examination_date").is("deleted_at", null).limit(50000),
+        supabase.from("facilities").select("code, name").limit(10000),
+      ]);
 
-      const { data: types } = await supabase
-        .from("medical_examination_types")
-        .select("id, name, facility, period_days")
-        .limit(10000);
-
-      const { data: existingExaminations } = await supabase
-        .from("medical_examinations")
-        .select("id, employee_id, examination_type_id, last_examination_date")
-        .is("deleted_at", null)
-        .limit(50000);
+      // Build facility lookup maps (code and name → code)
+      const facilityByCode = new Map((facilities || []).map(f => [f.code.toLowerCase(), f.code]));
+      const facilityByName = new Map((facilities || []).map(f => [f.name.toLowerCase(), f.code]));
+      const resolveFacility = (val: string): string | null => {
+        const key = val.toLowerCase().trim();
+        return facilityByCode.get(key) || facilityByName.get(key) || null;
+      };
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
@@ -253,6 +252,16 @@ export const BulkMedicalImport = () => {
           errorRows.push(parsedRow);
           continue;
         }
+
+        // Resolve facility code/name to actual code
+        const resolvedFacilityCode = resolveFacility(row.facility_code);
+        if (!resolvedFacilityCode) {
+          parsedRow.status = 'error';
+          parsedRow.error = `Provozovna "${row.facility_code}" neexistuje v systému`;
+          errorRows.push(parsedRow);
+          continue;
+        }
+        row.facility_code = resolvedFacilityCode;
 
         const dateStr = String(row.last_examination_date || '').trim();
         if (!dateStr) {

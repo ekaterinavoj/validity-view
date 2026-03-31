@@ -270,6 +270,14 @@ export const BulkDeadlineImport = () => {
         .select("code, name")
         .limit(10000);
 
+      // Build facility lookup maps (code and name → code)
+      const facilityByCode = new Map((facilities || []).map(f => [f.code.toLowerCase(), f.code]));
+      const facilityByName = new Map((facilities || []).map(f => [f.name.toLowerCase(), f.code]));
+      const resolveFacility = (val: string): string | null => {
+        const key = val.toLowerCase().trim();
+        return facilityByCode.get(key) || facilityByName.get(key) || null;
+      };
+
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
         const rowNumber = i + 2;
@@ -309,14 +317,15 @@ export const BulkDeadlineImport = () => {
           continue;
         }
 
-        // Validate facility exists
-        const facilityExists = facilities?.some(f => f.code === row.facility_code.trim());
-        if (!facilityExists) {
+        // Validate facility exists (by code or name)
+        const resolvedFacilityCode = resolveFacility(row.facility_code);
+        if (!resolvedFacilityCode) {
           parsedRow.status = 'error';
-          parsedRow.error = `Provozovna "${row.facility_code}" neexistuje`;
+          parsedRow.error = `Provozovna "${row.facility_code}" neexistuje v systému`;
           errorRows.push(parsedRow);
           continue;
         }
+        row.facility_code = resolvedFacilityCode;
 
         // Check for duplicates (inventory_number + equipment_type + manufacturer + serial_number)
         const trimmedInv = row.inventory_number.trim();
@@ -577,24 +586,21 @@ export const BulkDeadlineImport = () => {
       const errorRows: ParsedDeadlineRow[] = [];
       const duplicateRows: ParsedDeadlineRow[] = [];
 
-      // Fetch equipment for matching (override default 1000 row limit)
-      const { data: equipment } = await supabase
-        .from("equipment")
-        .select("id, inventory_number, name, facility")
-        .limit(10000);
+      // Fetch all needed data in parallel
+      const [{ data: equipment }, { data: deadlineTypes }, { data: existingDeadlines }, { data: facilities }] = await Promise.all([
+        supabase.from("equipment").select("id, inventory_number, name, facility").limit(10000),
+        supabase.from("deadline_types").select("id, name, facility, period_days").limit(10000),
+        supabase.from("deadlines").select("id, equipment_id, deadline_type_id, last_check_date").is("deleted_at", null).limit(50000),
+        supabase.from("facilities").select("code, name").limit(10000),
+      ]);
 
-      // Fetch deadline types
-      const { data: deadlineTypes } = await supabase
-        .from("deadline_types")
-        .select("id, name, facility, period_days")
-        .limit(10000);
-
-      // Fetch existing deadlines for duplicate detection
-      const { data: existingDeadlines } = await supabase
-        .from("deadlines")
-        .select("id, equipment_id, deadline_type_id, last_check_date")
-        .is("deleted_at", null)
-        .limit(50000);
+      // Build facility lookup maps (code and name → code)
+      const facilityByCode = new Map((facilities || []).map(f => [f.code.toLowerCase(), f.code]));
+      const facilityByName = new Map((facilities || []).map(f => [f.name.toLowerCase(), f.code]));
+      const resolveFacility = (val: string): string | null => {
+        const key = val.toLowerCase().trim();
+        return facilityByCode.get(key) || facilityByName.get(key) || null;
+      };
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
@@ -627,6 +633,16 @@ export const BulkDeadlineImport = () => {
           errorRows.push(parsedRow);
           continue;
         }
+
+        // Resolve facility code/name to actual code
+        const resolvedFacilityCode = resolveFacility(row.facility_code);
+        if (!resolvedFacilityCode) {
+          parsedRow.status = 'error';
+          parsedRow.error = `Provozovna "${row.facility_code}" neexistuje v systému`;
+          errorRows.push(parsedRow);
+          continue;
+        }
+        row.facility_code = resolvedFacilityCode;
 
         const dateStr = String(row.last_check_date || '').trim();
         if (!dateStr) {
