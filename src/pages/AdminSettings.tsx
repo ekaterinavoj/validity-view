@@ -757,8 +757,8 @@ export default function AdminSettings() {
                <div className="space-y-2">
                  <Label className="text-sm font-medium">PLP (Lékařské prohlídky)</Label>
                  <SendTestMedicalEmail 
-                   hasRecipients={reminderRecipients.user_ids.length > 0}
-                   isEnabled={reminderFrequency.enabled}
+                   hasRecipients={medicalRecipients.user_ids.length > 0}
+                   isEnabled={medicalReminderFrequency.enabled}
                  />
                </div>
                <Separator />
