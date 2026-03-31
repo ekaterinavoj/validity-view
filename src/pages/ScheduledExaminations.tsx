@@ -190,6 +190,12 @@ export default function ScheduledExaminations() {
       "Zdravotnické zařízení": e.medicalFacility || "",
       "Zadavatel": e.requester || "",
       "Poznámka": e.note || "",
+      ...Object.fromEntries(
+        HEALTH_RISK_FIELDS.map(field => [
+          `Zdravotní riziko – ${field.label}`,
+          e.healthRisks[field.key] || "",
+        ])
+      ),
     }));
 
     const csv = Papa.unparse(data, { delimiter: ";" });

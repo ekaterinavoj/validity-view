@@ -90,6 +90,15 @@ const MEDICAL_COLUMN_MAP: Record<string, string> = {
   ),
 };
 
+const parseHealthRiskValue = (val: unknown): HealthRiskValue | null => {
+  if (val == null || val === "") return null;
+  const s = String(val).trim().toUpperCase();
+  // Normalize "2R" variants
+  const normalized = s === "2R" ? "2R" : s;
+  if ((HEALTH_RISK_VALUES as readonly string[]).includes(normalized)) return normalized as HealthRiskValue;
+  return null;
+};
+
 const mapMedicalRowColumns = (row: Record<string, any>): ImportRow => {
   const mapped: Record<string, any> = {};
   for (const [key, value] of Object.entries(row)) {
@@ -98,6 +107,17 @@ const mapMedicalRowColumns = (row: Record<string, any>): ImportRow => {
       mapped[mappedKey] = value;
     }
   }
+
+  // Extract health risks from mapped columns
+  const healthRisks = createEmptyHealthRisks();
+  for (const field of HEALTH_RISK_FIELDS) {
+    const hrKey = `_hr_${field.key}`;
+    if (mapped[hrKey] != null) {
+      healthRisks[field.key] = parseHealthRiskValue(mapped[hrKey]);
+    }
+  }
+  mapped._healthRisks = healthRisks;
+
   return mapped as ImportRow;
 };
 
