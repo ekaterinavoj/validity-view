@@ -88,7 +88,8 @@ export function useTrainings(activeOnly: boolean = true) {
           )
         `)
         .is("deleted_at", null) // Exclude archived trainings
-        .order("next_training_date", { ascending: true });
+        .order("next_training_date", { ascending: true })
+        .limit(50000);
 
       if (fetchError) throw fetchError;
 

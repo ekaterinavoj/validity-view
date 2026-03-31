@@ -48,7 +48,8 @@ export function useDeadlines() {
           )
         `)
         .is("deleted_at", null)
-        .order("next_check_date");
+        .order("next_check_date")
+        .limit(50000);
 
       if (error) throw error;
       

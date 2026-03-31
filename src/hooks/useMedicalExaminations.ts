@@ -95,7 +95,8 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           )
         `)
         .is("deleted_at", null)
-        .order("next_examination_date", { ascending: true });
+        .order("next_examination_date", { ascending: true })
+        .limit(50000);
 
       if (fetchError) throw fetchError;
 

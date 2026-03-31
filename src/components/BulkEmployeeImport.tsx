@@ -116,6 +116,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     const rawCategory = row['Kategorie práce'] || row['Kategorie'] || row['workCategory'] || row['work_category'];
     const workCategory = rawCategory ? String(rawCategory).trim().toUpperCase().replace(/^kategorie\s+/i, '') : undefined;
     const rawStatus = String(row['Stav'] || row['status'] || 'employed').toLowerCase().trim();
+    const resolvedStatus = EMPLOYEE_STATUS_MAP[rawStatus] || null;
 
     return {
       firstName: String(row['Jméno'] || row['firstName'] || '').trim(),
@@ -124,7 +125,9 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       employeeNumber: String(row['Osobní číslo'] || row['employeeNumber'] || row['employee_number'] || '').trim(),
       position: String(row['Pozice'] || row['position'] || '').trim(),
       department: parseDepartmentCode(String(row['Středisko'] || row['department'] || '').trim()),
-      status: EMPLOYEE_STATUS_MAP[rawStatus] || 'employed',
+      status: resolvedStatus || 'employed',
+      _statusUnknown: !resolvedStatus && rawStatus !== '' && rawStatus !== 'employed' && rawStatus !== 'aktivní',
+      _rawStatus: rawStatus,
       managerEmail: String(row['Email nadřízeného'] || row['managerEmail'] || row['Manager Email'] || row['manager_email'] || '').trim().toLowerCase(),
       workCategory: workCategory && ['1', '2', '2R', '3', '4'].includes(workCategory) ? workCategory : undefined,
       birthDate: parseBirthDate(row['Datum narození'] || row['birthDate'] || row['birth_date']),
@@ -164,6 +167,11 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     return rows.map((row, index) => {
       const employeeData = mapRowToEmployee(row);
       const errors: string[] = [];
+
+      // Unknown status warning
+      if (employeeData._statusUnknown) {
+        errors.push(`Neznámý stav "${employeeData._rawStatus}" – použit výchozí "employed"`);
+      }
 
       // Zod validation
       const validation = employeeSchema.safeParse(employeeData);
