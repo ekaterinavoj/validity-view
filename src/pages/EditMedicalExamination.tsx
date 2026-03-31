@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -304,14 +304,14 @@ export default function EditMedicalExamination() {
   if (loading || employeesLoading || typesLoading || facilitiesLoading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-foreground">Úprava lékařské prohlídky</h2>
+        <h1 className="text-2xl font-bold text-foreground">Úprava lékařské prohlídky</h1>
         <FormSkeleton />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       {!canEdit && (
         <div className="bg-muted/50 border border-border rounded-lg px-4 py-3 flex items-center gap-3">
           <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
@@ -331,12 +331,13 @@ export default function EditMedicalExamination() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Úprava lékařské prohlídky</h2>
-          <p className="text-muted-foreground mt-1">ID: {id}</p>
+          <h1 className="text-2xl font-bold text-foreground">Úprava lékařské prohlídky</h1>
+          <p className="text-muted-foreground">Upravte záznam o lékařské prohlídce</p>
         </div>
       </div>
 
-      <Card className="p-6">
+      <Card>
+        <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -666,6 +667,7 @@ export default function EditMedicalExamination() {
             </div>
           </form>
         </Form>
+        </CardContent>
       </Card>
     </div>
   );

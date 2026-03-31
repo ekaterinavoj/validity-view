@@ -811,6 +811,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "unify_bulk_import_ui_across_modules",
     sql: null, // Frontend-only: unified visual layout of all bulk import components (ImportDescription, summary bar, button toggles for duplicates, badge results)
   },
+  {
+    version: "20260331180000",
+    name: "unify_form_layouts_across_modules",
+    sql: null, // Frontend-only: unified New/Edit page layouts (max-w-2xl, h1 text-2xl, Card+CardContent) and bulk edit dialog sizing (max-w-lg, max-h-[90vh])
+  },
 ];
 
 /**

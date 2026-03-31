@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -259,7 +259,7 @@ export default function NewTraining() {
   if (employeesError || typesError || facilitiesError) {
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-foreground">Vytvoření nového školení</h2>
+        <h1 className="text-2xl font-bold text-foreground">Vytvoření nového školení</h1>
         <ErrorDisplay title="Nepodařilo se načíst data" message={employeesError || typesError || facilitiesError || "Zkuste to prosím znovu."} onRetry={refetch} />
       </div>
     );
@@ -268,17 +268,21 @@ export default function NewTraining() {
   if (employeesLoading || typesLoading || facilitiesLoading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-foreground">Vytvoření nového školení</h2>
+        <h1 className="text-2xl font-bold text-foreground">Vytvoření nového školení</h1>
         <FormSkeleton />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-foreground">Vytvoření nového školení</h2>
-      
-      <Card className="p-6">
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Nové školení</h1>
+        <p className="text-muted-foreground">Vytvořte nový záznam o školení</p>
+      </div>
+
+      <Card>
+        <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -527,6 +531,7 @@ export default function NewTraining() {
             </div>
           </form>
         </Form>
+        </CardContent>
       </Card>
     </div>
   );

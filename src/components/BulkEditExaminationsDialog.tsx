@@ -154,7 +154,7 @@ export function BulkEditExaminationsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Hromadná úprava prohlídek</DialogTitle>
           <DialogDescription>
