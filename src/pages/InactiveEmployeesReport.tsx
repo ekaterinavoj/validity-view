@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/table";
 import { Download, UserX, Calendar, Loader2, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import { formatDepartment } from "@/components/DepartmentCell";
