@@ -171,10 +171,11 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         seenInvNumbers.set(invKey, index + 2);
       }
 
-      // DB duplicate check - match inv number + type + manufacturer + serial
+      // DB duplicate check - inv number AND type must both match
       const isDuplicate = (existingEquipment || []).some(e => {
         if (e.inventory_number.toLowerCase() !== invKey) return false;
-        if (eqData.equipmentType && e.equipment_type?.toLowerCase() !== eqData.equipmentType.toLowerCase()) return false;
+        // Type must always match for duplicate detection
+        if ((e.equipment_type || '').toLowerCase() !== (eqData.equipmentType || '').toLowerCase()) return false;
         if (eqData.manufacturer && e.manufacturer?.toLowerCase() !== eqData.manufacturer.toLowerCase()) return false;
         if (eqData.serialNumber && e.serial_number?.toLowerCase() !== eqData.serialNumber.toLowerCase()) return false;
         return true;
