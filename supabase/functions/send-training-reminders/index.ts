@@ -251,14 +251,44 @@ const handler = async (req: Request): Promise<Response> => {
         .replace(/\{\{days_remaining\}\}/g, daysUntil.toString())
         .replace(/\{\{employee_name\}\}/g, employeeName);
 
+      const employeeEmail = employee?.email || "";
+      const nextDateFormatted = nextDate.toLocaleDateString("cs-CZ");
+      const statusColor = daysUntil < 0 ? "#ef4444" : daysUntil <= 7 ? "#f59e0b" : "#22c55e";
+      const absDays = Math.abs(daysUntil);
+      const daysUnit = absDays === 1 ? "den" : (absDays >= 2 && absDays <= 4) ? "dny" : "dnů";
+      const daysLabel = daysUntil < 0 ? `${absDays} ${daysUnit} po termínu` : `${daysUntil} ${daysUnit}`;
+
       const htmlBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Připomínka školení</h2>
-          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            ${body.split('\n').map(line => `<p style="margin: 10px 0;">${line}</p>`).join('')}
+        <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; color: #333;">
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            ${body.split('\n').map(line => `<p style="margin: 8px 0;">${line}</p>`).join('')}
           </div>
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">
+          <table style="border-collapse: collapse; width: 100%; margin-top: 20px;">
+            <thead>
+              <tr style="background-color: #f3f4f6;">
+                <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Zaměstnanec</th>
+                <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Email</th>
+                <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Školení</th>
+                <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Vyprší</th>
+                <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">Dnů</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border: 1px solid #e5e7eb; padding: 10px;">${employeeName}</td>
+                <td style="border: 1px solid #e5e7eb; padding: 10px;">${employeeEmail}</td>
+                <td style="border: 1px solid #e5e7eb; padding: 10px;">${trainingName}</td>
+                <td style="border: 1px solid #e5e7eb; padding: 10px;">${nextDateFormatted}</td>
+                <td style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">
+                  <span style="background-color: ${statusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
+                    ${daysLabel}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+          <p style="color: #9ca3af; font-size: 12px;">
             Tento email byl odeslán automaticky systémem evidence školení.
           </p>
         </div>
