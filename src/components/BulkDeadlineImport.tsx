@@ -132,6 +132,7 @@ export const BulkDeadlineImport = () => {
   const [equipmentDuplicateAction, setEquipmentDuplicateAction] = useState<DuplicateAction>('overwrite');
   const [equipmentProgress, setEquipmentProgress] = useState(0);
   const [equipmentResult, setEquipmentResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [equipmentErrors, setEquipmentErrors] = useState<string[]>([]);
 
   // Deadline import state
   const [importingDeadline, setImportingDeadline] = useState(false);
@@ -146,6 +147,7 @@ export const BulkDeadlineImport = () => {
   const [deadlineDuplicateAction, setDeadlineDuplicateAction] = useState<DuplicateAction>('overwrite');
   const [deadlineProgress, setDeadlineProgress] = useState(0);
   const [deadlineResult, setDeadlineResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [deadlineErrors, setDeadlineErrors] = useState<string[]>([]);
 
   const [settings, setSettings] = useState<ImportSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
