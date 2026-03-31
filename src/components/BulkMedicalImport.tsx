@@ -606,15 +606,12 @@ export const BulkMedicalImport = () => {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={downloadTemplateXLSX}>
             <Download className="w-4 h-4 mr-2" />
-            Stáhnout šablonu XLSX
+            Šablona XLSX
           </Button>
           <Button variant="outline" size="sm" onClick={downloadTemplateCSV}>
             <FileDown className="w-4 h-4 mr-2" />
-            Stáhnout šablonu CSV
+            Šablona CSV
           </Button>
-        </div>
-
-        <div className="border-2 border-dashed rounded-lg p-8 text-center">
           <input
             type="file"
             accept=".csv,.xlsx,.xls"
@@ -623,16 +620,19 @@ export const BulkMedicalImport = () => {
             id="medical-import-file"
             disabled={parsing}
           />
-          <label htmlFor="medical-import-file" className="cursor-pointer">
-            <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-sm text-muted-foreground">
-              {parsing ? "Zpracovávám..." : "Klikněte nebo přetáhněte soubor"}
-            </p>
-          </label>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => document.getElementById('medical-import-file')?.click()}
+            disabled={parsing}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            {parsing ? "Zpracovávám..." : "Vybrat soubor"}
+          </Button>
         </div>
 
         <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-6xl max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>Náhled importu prohlídek</DialogTitle>
               <DialogDescription>
@@ -651,29 +651,49 @@ export const BulkMedicalImport = () => {
                     </AlertDescription>
                   </Alert>
                 )}
-                <div className="flex gap-4">
-                  <Badge variant="secondary">Celkem: {preview.totalRows}</Badge>
-                  <Badge variant="default" className="bg-green-500">Validní: {preview.validRows.length}</Badge>
-                  <Badge variant="destructive">Chyby: {preview.errorRows.length}</Badge>
-                  <Badge variant="outline">Duplicity: {preview.duplicateRows.length}</Badge>
+
+                {/* Summary bar - consistent with Employee/Equipment */}
+                <div className="flex flex-wrap items-center gap-4 p-4 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    <span className="font-medium">{preview.validRows.length} nových</span>
+                  </div>
+                  {preview.duplicateRows.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-amber-600" />
+                      <span className="font-medium">{preview.duplicateRows.length} duplicitních</span>
+                    </div>
+                  )}
+                  {preview.errorRows.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-destructive" />
+                      <span className="font-medium">{preview.errorRows.length} s chybami</span>
+                    </div>
+                  )}
                 </div>
 
+                {/* Duplicate strategy - button toggle */}
                 {preview.duplicateRows.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Jak naložit s duplicitami?</Label>
-                    <RadioGroup value={duplicateAction} onValueChange={(v) => setDuplicateAction(v as DuplicateAction)}>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="overwrite" id="overwrite" />
-                        <Label htmlFor="overwrite">Přepsat existující záznamy</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="skip" id="skip" />
-                        <Label htmlFor="skip">Přeskočit duplicity</Label>
-                      </div>
-                    </RadioGroup>
+                  <div className="flex items-center gap-3 p-3 border rounded-lg">
+                    <span className="text-sm font-medium">Duplicitní záznamy:</span>
+                    <Button
+                      variant={duplicateAction === 'overwrite' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setDuplicateAction('overwrite')}
+                    >
+                      Přepsat ({preview.duplicateRows.length})
+                    </Button>
+                    <Button
+                      variant={duplicateAction === 'skip' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setDuplicateAction('skip')}
+                    >
+                      Přeskočit
+                    </Button>
                   </div>
                 )}
 
+                {/* Error rows info */}
                 {preview.errorRows.length > 0 && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -683,11 +703,14 @@ export const BulkMedicalImport = () => {
                   </Alert>
                 )}
 
+                {/* Import progress */}
                 {importing && (
                   <div className="space-y-2">
                     <Progress value={importProgress} />
                     <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">{importProgress}%</p>
+                      <p className="text-sm text-muted-foreground">
+                        Importuji... {importProgress}%
+                      </p>
                       <Button variant="destructive" size="sm" onClick={() => { abortRef.current = true; }}>
                         <StopCircle className="w-4 h-4 mr-1" />
                         Zastavit
@@ -696,11 +719,19 @@ export const BulkMedicalImport = () => {
                   </div>
                 )}
 
+                {/* Import result - badge style */}
                 {importResult && (
                   <Alert>
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>
-                      Import dokončen: {importResult.inserted} vloženo, {importResult.updated} aktualizováno, {importResult.skipped} přeskočeno, {importResult.failed} selhalo.
+                      <div className="flex flex-wrap gap-4">
+                        <Badge variant="default">Vloženo: {importResult.inserted}</Badge>
+                        <Badge variant="outline">Aktualizováno: {importResult.updated}</Badge>
+                        <Badge variant="secondary">Přeskočeno: {importResult.skipped}</Badge>
+                        {importResult.failed > 0 && (
+                          <Badge variant="destructive">Selhalo: {importResult.failed}</Badge>
+                        )}
+                      </div>
                       {importErrors.length > 0 && (
                         <div className="mt-3 space-y-1">
                           <p className="text-sm font-medium text-destructive">Detail chyb:</p>
@@ -715,55 +746,80 @@ export const BulkMedicalImport = () => {
                   </Alert>
                 )}
 
-                <div className="max-h-[300px] overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Řádek</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Zaměstnanec</TableHead>
-                        <TableHead>Typ prohlídky</TableHead>
-                        <TableHead>Datum</TableHead>
-                        <TableHead>Poznámka</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[...preview.validRows, ...preview.errorRows, ...preview.duplicateRows]
-                        .sort((a, b) => a.rowNumber - b.rowNumber)
-                        .slice(0, 50)
-                        .map((row) => (
-                          <TableRow key={row.rowNumber}>
-                            <TableCell>{row.rowNumber}</TableCell>
-                            <TableCell>
-                              {row.status === 'valid' && <Check className="w-4 h-4 text-green-500" />}
-                              {row.status === 'error' && <X className="w-4 h-4 text-red-500" />}
-                              {row.status === 'duplicate' && <AlertCircle className="w-4 h-4 text-yellow-500" />}
-                            </TableCell>
-                            <TableCell>{row.employeeName || row.data.employee_number || row.data.email}</TableCell>
-                            <TableCell>{row.examinationTypeName || row.data.examination_type_name}</TableCell>
-                            <TableCell>{row.data.last_examination_date}</TableCell>
-                            <TableCell className="max-w-[200px] truncate">
-                              {row.error || row.warning || (row.status === 'duplicate' ? 'Existující záznam' : '')}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
+                {/* Data table */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="max-h-[50vh] overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">Ř.</TableHead>
+                          <TableHead>Zaměstnanec</TableHead>
+                          <TableHead>Typ prohlídky</TableHead>
+                          <TableHead>Datum</TableHead>
+                          <TableHead>Lékař</TableHead>
+                          <TableHead className="w-24">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...preview.validRows, ...preview.errorRows, ...preview.duplicateRows]
+                          .sort((a, b) => a.rowNumber - b.rowNumber)
+                          .map((row) => (
+                            <TableRow
+                              key={row.rowNumber}
+                              className={
+                                row.status === 'error' ? "bg-destructive/5" :
+                                row.status === 'duplicate' ? "bg-amber-50 dark:bg-amber-950/20" : ""
+                              }
+                            >
+                              <TableCell className="font-mono text-xs">{row.rowNumber}</TableCell>
+                              <TableCell>{row.employeeName || row.data.employee_number || row.data.email}</TableCell>
+                              <TableCell>{row.examinationTypeName || row.data.examination_type_name}</TableCell>
+                              <TableCell>{row.data.last_examination_date}</TableCell>
+                              <TableCell className="text-sm">{row.data.doctor || '-'}</TableCell>
+                              <TableCell>
+                                {row.status === 'error' ? (
+                                  <Badge variant="destructive">
+                                    <X className="w-3 h-3 mr-1" />
+                                    Chyba
+                                  </Badge>
+                                ) : row.status === 'duplicate' ? (
+                                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200">
+                                    <AlertCircle className="w-3 h-3 mr-1" />
+                                    Duplikát
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200">
+                                    <Check className="w-3 h-3 mr-1" />
+                                    Nový
+                                  </Badge>
+                                )}
+                                {row.status === 'error' && row.error && (
+                                  <div className="text-xs text-destructive mt-1">
+                                    {row.error}
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               </div>
             )}
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowPreviewDialog(false)}>
-                Zrušit
+            <DialogFooter className="pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowPreviewDialog(false)} disabled={importing}>
+                {importResult ? "Zavřít" : "Zrušit"}
               </Button>
-              <Button 
-                onClick={executeImport} 
-                disabled={importing || !preview || (preview.validRows.length === 0 && (duplicateAction === 'skip' || preview.duplicateRows.length === 0))}
-              >
-                {importing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Importovat
-              </Button>
+              {!importResult && preview && (
+                <Button 
+                  onClick={executeImport} 
+                  disabled={importing || (preview.validRows.length === 0 && (duplicateAction === 'skip' || preview.duplicateRows.length === 0))}
+                >
+                  {importing ? "Importuji..." : `Importovat (${duplicateAction === 'overwrite' ? preview.validRows.length + preview.duplicateRows.length : preview.validRows.length})`}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
