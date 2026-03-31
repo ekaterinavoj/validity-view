@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { HEALTH_RISK_FIELDS, HEALTH_RISK_VALUES, type HealthRiskValue, toDbHealthRisks, createEmptyHealthRisks, type HealthRisks } from "@/lib/healthRisks";
+import { medicalExaminationResultOptions } from "@/lib/medicalExaminationResults";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
