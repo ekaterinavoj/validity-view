@@ -428,52 +428,14 @@ export default function Documents() {
                       <Badge variant="secondary">{section.docs.length}</Badge>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="space-y-4">
-                    <div className="grid gap-3 md:hidden">
-                      {section.docs.map((doc) => (
-                        <Card key={doc.id}>
-                          <CardContent className="p-4 space-y-3">
-                            <div>
-                              <p className="font-medium text-foreground">{doc.name}</p>
-                              <p className="text-sm text-muted-foreground truncate">{doc.file_name}</p>
-                            </div>
-                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                              <Badge variant="secondary">{section.groupName}</Badge>
-                              <span>{formatFileSize(doc.file_size)}</span>
-                              <span>{format(new Date(doc.uploaded_at), "d. M. yyyy", { locale: cs })}</span>
-                            </div>
-                            <div className="flex justify-end">{renderActions(doc)}</div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-
-                    <div className="hidden md:block overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Název</TableHead>
-                            <TableHead>Soubor</TableHead>
-                            <TableHead>Velikost</TableHead>
-                            <TableHead>Nahráno</TableHead>
-                            <TableHead className="text-right">Akce</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {section.docs.map((doc) => (
-                            <TableRow key={doc.id}>
-                              <TableCell className="font-medium">{doc.name}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground max-w-[240px] truncate">{doc.file_name}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground">{formatFileSize(doc.file_size)}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {format(new Date(doc.uploaded_at), "d. M. yyyy", { locale: cs })}
-                              </TableCell>
-                              <TableCell className="text-right">{renderActions(doc)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                  <AccordionContent>
+                    <PaginatedDocSection
+                      docs={section.docs}
+                      itemsPerPage={preferences.itemsPerPage}
+                      groupName={section.groupName}
+                      renderActions={renderActions}
+                      formatFileSize={formatFileSize}
+                    />
                   </AccordionContent>
                 </AccordionItem>
               ))}
