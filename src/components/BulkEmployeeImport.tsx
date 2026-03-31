@@ -46,6 +46,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
   const [duplicateStrategy, setDuplicateStrategy] = useState<DuplicateStrategy>('overwrite');
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [importErrorsList, setImportErrorsList] = useState<string[]>([]);
   const abortRef = useRef(false);
   const { toast } = useToast();
 
