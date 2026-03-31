@@ -146,7 +146,7 @@ export default function TrainingTypes() {
         const name = String(row['Název'] || row['name'] || '').trim();
         const rawFacility = String(row['Provozovna'] || row['facility'] || '').trim();
         const facilityCode = resolveFacility(rawFacility);
-        const periodDays = parseInt(String(row['Periodicita (dní)'] || row['period_days'] || ''), 10);
+        const periodDays = parsePeriodicityText(row['Periodicita'] || row['Periodicita (dní)'] || row['period_days']);
         const durationHours = parseFloat(String(row['Délka (hodiny)'] || row['duration_hours'] || '0'));
         const description = String(row['Popis'] || row['description'] || '').trim();
         const errors: string[] = [];
