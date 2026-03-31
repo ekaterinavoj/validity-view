@@ -813,10 +813,12 @@ export const BulkTrainingImport = () => {
       });
 
       setImportResult({ inserted, updated, skipped, failed });
+      setImportErrors(errors);
 
       toast({
-        title: "Import dokončen",
+        title: failed > 0 ? "Import dokončen s chybami" : "Import dokončen",
         description: `Vloženo: ${inserted}, Aktualizováno: ${updated}, Přeskočeno: ${skipped}, Selhalo: ${failed}`,
+        variant: failed > 0 ? "destructive" : "default",
       });
 
     } catch (error: any) {
