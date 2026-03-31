@@ -23,7 +23,8 @@ export function useEquipment() {
       const { data, error } = await supabase
         .from("equipment")
         .select("*")
-        .order("name");
+        .order("name")
+        .limit(50000);
 
       if (error) throw error;
       return data as Equipment[];
