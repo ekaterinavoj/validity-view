@@ -552,6 +552,18 @@ VALUES (
 )
 ON CONFLICT (key) DO NOTHING;`,
   },
+  {
+    version: "20260331090000",
+    name: "medical_reminder_frequency_setting",
+    sql: `-- Insert default medical_reminder_frequency setting
+INSERT INTO system_settings (key, value, description)
+VALUES (
+  'medical_reminder_frequency',
+  '{"enabled": true, "skip_weekends": true}'::jsonb,
+  'Zapnutí/vypnutí odesílání souhrnů PLP (lékařské prohlídky)'
+)
+ON CONFLICT (key) DO NOTHING;`,
+  },
 ];
 
 /**
