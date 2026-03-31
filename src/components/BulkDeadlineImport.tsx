@@ -774,6 +774,7 @@ export const BulkDeadlineImport = () => {
 
     setImportingDeadline(true);
     setDeadlineProgress(0);
+    setDeadlineErrors([]);
     abortDeadlineRef.current = false;
 
     const rowsToProcess = [
@@ -785,6 +786,7 @@ export const BulkDeadlineImport = () => {
     let updated = 0;
     let skipped = deadlineDuplicateAction === 'skip' ? deadlinePreview.duplicateRows.length : 0;
     let failed = 0;
+    const errors: string[] = [];
 
     // Separate inserts from updates
     const toInsert = rowsToProcess.filter(r => !(r.status === 'duplicate' && r.existingDeadlineId));
