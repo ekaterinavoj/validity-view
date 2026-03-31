@@ -586,24 +586,21 @@ export const BulkDeadlineImport = () => {
       const errorRows: ParsedDeadlineRow[] = [];
       const duplicateRows: ParsedDeadlineRow[] = [];
 
-      // Fetch equipment for matching (override default 1000 row limit)
-      const { data: equipment } = await supabase
-        .from("equipment")
-        .select("id, inventory_number, name, facility")
-        .limit(10000);
+      // Fetch all needed data in parallel
+      const [{ data: equipment }, { data: deadlineTypes }, { data: existingDeadlines }, { data: facilities }] = await Promise.all([
+        supabase.from("equipment").select("id, inventory_number, name, facility").limit(10000),
+        supabase.from("deadline_types").select("id, name, facility, period_days").limit(10000),
+        supabase.from("deadlines").select("id, equipment_id, deadline_type_id, last_check_date").is("deleted_at", null).limit(50000),
+        supabase.from("facilities").select("code, name").limit(10000),
+      ]);
 
-      // Fetch deadline types
-      const { data: deadlineTypes } = await supabase
-        .from("deadline_types")
-        .select("id, name, facility, period_days")
-        .limit(10000);
-
-      // Fetch existing deadlines for duplicate detection
-      const { data: existingDeadlines } = await supabase
-        .from("deadlines")
-        .select("id, equipment_id, deadline_type_id, last_check_date")
-        .is("deleted_at", null)
-        .limit(50000);
+      // Build facility lookup maps (code and name → code)
+      const facilityByCode = new Map((facilities || []).map(f => [f.code.toLowerCase(), f.code]));
+      const facilityByName = new Map((facilities || []).map(f => [f.name.toLowerCase(), f.code]));
+      const resolveFacility = (val: string): string | null => {
+        const key = val.toLowerCase().trim();
+        return facilityByCode.get(key) || facilityByName.get(key) || null;
+      };
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
