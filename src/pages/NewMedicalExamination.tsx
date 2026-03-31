@@ -530,6 +530,7 @@ export default function NewMedicalExamination() {
             </div>
           </form>
         </Form>
+        </CardContent>
       </Card>
     </div>
   );

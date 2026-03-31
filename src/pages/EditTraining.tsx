@@ -343,7 +343,8 @@ export default function EditTraining() {
         </div>
       </div>
 
-      <Card className="p-6">
+      <Card>
+        <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField

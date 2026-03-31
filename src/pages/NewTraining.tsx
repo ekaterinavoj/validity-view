@@ -531,6 +531,7 @@ export default function NewTraining() {
             </div>
           </form>
         </Form>
+        </CardContent>
       </Card>
     </div>
   );
