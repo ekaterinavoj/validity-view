@@ -841,6 +841,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "plp_export_import_health_risks_and_category",
     sql: null, // Frontend-only: PLP CSV export now includes 6 health risk columns and work category; import maps these columns back and saves zdravotni_rizika JSONB on insert/update
   },
+  {
+    version: "20260331230100",
+    name: "fix_plp_history_missing_column_cell",
+    sql: null, // Frontend-only: added missing data cell for "Datum pozbytí ZD způsobilosti" in MedicalExaminationHistory causing column misalignment in "Předchozí verze" view
+  },
 ];
 
 /**

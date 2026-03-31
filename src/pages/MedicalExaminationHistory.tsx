@@ -395,6 +395,9 @@ export default function MedicalExaminationHistory() {
                      <TableCell>
                        <NoteTooltipText note={exam.note} />
                      </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : "-"}
+                    </TableCell>
                     {(archiveFilter === "all" || archiveFilter === "archived" || archiveFilter === "versions") && (
                       <TableCell>
                         {exam.isVersion ? (
