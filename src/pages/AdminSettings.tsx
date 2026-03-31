@@ -1003,6 +1003,7 @@ export default function AdminSettings() {
                 </p>
               </div>
             </CardContent>
+          </Card>
 
           {/* Days before expiration Card */}
           <Card>
