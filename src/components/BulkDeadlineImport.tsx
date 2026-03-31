@@ -329,17 +329,16 @@ export const BulkDeadlineImport = () => {
         }
         row.facility_code = resolvedFacilityCode;
 
-        // Check for duplicates (inventory_number + equipment_type + manufacturer + serial_number)
+        // Check for duplicates (inventory_number + equipment_type are both required to match)
         const trimmedInv = row.inventory_number.trim();
         const trimmedType = row.equipment_type?.trim() || "";
         const trimmedManufacturer = (row as any).manufacturer?.trim() || "";
         const trimmedSerial = (row as any).serial_number?.trim() || "";
         
         const existingEq = existingEquipment?.find(e => {
-          // Primary match: inventory number
+          // Both inventory number AND equipment type must match
           if (e.inventory_number !== trimmedInv) return false;
-          // If type is provided in import, it must match
-          if (trimmedType && e.equipment_type !== trimmedType) return false;
+          if (e.equipment_type !== trimmedType) return false;
           // If manufacturer is provided in both, compare
           if (trimmedManufacturer && e.manufacturer && e.manufacturer !== trimmedManufacturer) return false;
           // If serial number is provided in both, compare
