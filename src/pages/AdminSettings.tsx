@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope, FileText } from "lucide-react";
+import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope } from "lucide-react";
 import { ReminderTemplates } from "@/components/ReminderTemplates";
 import { ReminderLogs } from "@/components/ReminderLogs";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
@@ -27,7 +27,7 @@ import { EmailHistory } from "@/components/EmailHistory";
 import { EmailTemplatePreview } from "@/components/EmailTemplatePreview";
 import { DeadlineEmailTemplatePreview } from "@/components/DeadlineEmailTemplatePreview";
 import { NextSendPreview } from "@/components/NextSendPreview";
-import { IndividualEmailPreview } from "@/components/IndividualEmailPreview";
+
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { OnboardingSettings } from "@/components/OnboardingSettings";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
@@ -64,7 +64,7 @@ export default function AdminSettings() {
   
   // Get initial tab from URL query param, default to "onboarding"
   const tabParam = searchParams.get("tab");
-  const validTabs = ["onboarding", "user-management", "reminders", "email", "templates", "history", "data"];
+  const validTabs = ["onboarding", "user-management", "reminders", "email", "history", "data"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
   const [activeTab, setActiveTab] = useState(initialTab);
   
@@ -469,7 +469,7 @@ export default function AdminSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
             Onboarding
@@ -484,11 +484,7 @@ export default function AdminSettings() {
           </TabsTrigger>
           <TabsTrigger value="email" className="flex items-center gap-2">
             <Mail className="w-4 h-4" />
-            Šablony emailů
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Šablony
+            Emaily & Šablony
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
             <History className="w-4 h-4" />
@@ -1176,9 +1172,9 @@ export default function AdminSettings() {
           {/* Email Templates with Tabs for both modules */}
           <Card>
             <CardHeader>
-              <CardTitle>Šablony emailů podle modulu</CardTitle>
+              <CardTitle>Souhrnné emaily podle modulu</CardTitle>
               <CardDescription>
-                Souhrnné emaily – upravte text periodických přehledů. Individuální emaily se řídí šablonami v záložce Šablony.
+                Upravte text a předmět periodických souhrnných přehledů. Individuální emaily (per-záznam) se řídí šablonami níže.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1226,7 +1222,6 @@ export default function AdminSettings() {
                     subject={emailTemplate.subject}
                     body={emailTemplate.body}
                   />
-                  <IndividualEmailPreview module="training" />
                 </TabsContent>
 
                 <TabsContent value="deadlines" className="space-y-4 pt-4">
@@ -1257,7 +1252,6 @@ export default function AdminSettings() {
                     subject={deadlineEmailTemplate.subject}
                     body={deadlineEmailTemplate.body}
                   />
-                  <IndividualEmailPreview module="deadline" />
                 </TabsContent>
 
                 <TabsContent value="medical" className="space-y-4 pt-4">
@@ -1335,11 +1329,15 @@ export default function AdminSettings() {
                       </div>
                     </div>
                   </div>
-                  <IndividualEmailPreview module="medical" />
+                  
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
+
+          {/* Šablony individuálních připomínek */}
+          <Separator />
+          <ReminderTemplates />
         </TabsContent>
 
         {/* User Management Tab */}
@@ -1347,10 +1345,6 @@ export default function AdminSettings() {
           <UserManagementPanel />
         </TabsContent>
 
-        {/* Templates Tab */}
-        <TabsContent value="templates" className="space-y-6">
-          <ReminderTemplates />
-        </TabsContent>
 
         {/* History Tab */}
         <TabsContent value="history" className="space-y-6">
