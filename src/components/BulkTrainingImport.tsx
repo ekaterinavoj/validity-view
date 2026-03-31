@@ -688,12 +688,14 @@ export const BulkTrainingImport = () => {
     setImporting(true);
     setImportProgress(0);
     setImportResult(null);
+    setImportErrors([]);
     abortRef.current = false;
 
     let inserted = 0;
     let updated = 0;
     let skipped = 0;
     let failed = 0;
+    const errors: string[] = [];
 
     // Include valid rows, auto-matched rows, and approved suggestions
     const rowsToProcess = [
