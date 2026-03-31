@@ -161,6 +161,12 @@ export default function AdminSettings() {
     time: "08:00",
     skip_weekends: true,
   });
+
+  // PLP-specific frequency (independent)
+  const [medicalReminderFrequency, setMedicalReminderFrequency] = useState({
+    enabled: true,
+    skip_weekends: true,
+  });
   
   const [newDayBefore, setNewDayBefore] = useState("");
   
