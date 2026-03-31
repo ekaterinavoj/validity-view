@@ -338,8 +338,8 @@ export default function EditTraining() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Úprava školení</h2>
-          <p className="text-muted-foreground mt-1">ID: {id}</p>
+          <h1 className="text-2xl font-bold text-foreground">Úprava školení</h1>
+          <p className="text-muted-foreground">Upravte záznam o školení</p>
         </div>
       </div>
 
