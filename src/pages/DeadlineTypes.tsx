@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import {
   Plus, RefreshCw, Edit, Trash2, Search, Clock, Download, Upload, Loader2, CheckCircle2, AlertCircle, AlertTriangle,
 } from "lucide-react";
-import { formatPeriodicity } from "@/lib/utils";
+import { formatPeriodicity, parsePeriodicityText } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -94,7 +94,7 @@ export default function DeadlineTypes() {
       const data = deadlineTypes.map(t => ({
         "Název": t.name,
         "Provozovna": getFacilityName(t.facility),
-        "Periodicita (dní)": t.period_days,
+        "Periodicita": formatPeriodicity(t.period_days),
         "Popis": t.description || "",
       }));
       const timestamp = new Date().toISOString().split('T')[0];
@@ -128,8 +128,7 @@ export default function DeadlineTypes() {
   };
 
   const parsePeriodDays = (raw: any): number | null => {
-    const val = parseInt(String(raw), 10);
-    return isNaN(val) || val <= 0 ? null : val;
+    return parsePeriodicityText(raw);
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,7 +140,7 @@ export default function DeadlineTypes() {
         const name = String(row['Název'] || row['name'] || '').trim();
         const rawFacility = String(row['Provozovna'] || row['facility'] || '').trim();
         const facilityCode = resolveFacility(rawFacility);
-        const periodDays = parsePeriodDays(row['Periodicita (dní)'] || row['period_days'] || row['Periodicita']);
+        const periodDays = parsePeriodDays(row['Periodicita'] || row['Periodicita (dní)'] || row['period_days']);
         const description = String(row['Popis'] || row['description'] || '').trim();
         const errors: string[] = [];
         if (!name) errors.push("Chybí název");

@@ -7,6 +7,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineCh
 import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo, useRef } from "react";
 import { exportToCSV } from "@/lib/csvExport";
+import { formatPeriodicity } from "@/lib/utils";
 import { EmailDeliveryStats } from "@/components/EmailDeliveryStats";
 import { useTrainings } from "@/hooks/useTrainings";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
@@ -399,7 +400,7 @@ export default function Statistics() {
         "Platné": d.platné,
         "Varování": d.varování,
         "Prošlé": d.prošlé,
-        "Periodicita (dní)": d.periodicita
+        "Periodicita": formatPeriodicity(d.periodicita)
       }));
 
       // Trainer data

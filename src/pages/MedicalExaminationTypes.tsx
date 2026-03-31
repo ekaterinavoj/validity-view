@@ -15,7 +15,7 @@ import { z } from "zod";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { formatPeriodicity } from "@/lib/utils";
+import { formatPeriodicity, parsePeriodicityText } from "@/lib/utils";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
@@ -108,7 +108,7 @@ export default function MedicalExaminationTypes() {
       const data = examinationTypes.map(t => ({
         "Název": t.name,
         "Provozovna": getFacilityName(t.facility),
-        "Periodicita (dní)": t.period_days,
+        "Periodicita": formatPeriodicity(t.period_days),
         "Popis": t.description || "",
       }));
       const timestamp = new Date().toISOString().split('T')[0];
@@ -144,12 +144,12 @@ export default function MedicalExaminationTypes() {
         const name = String(row['Název'] || row['name'] || '').trim();
         const rawFacility = String(row['Provozovna'] || row['facility'] || '').trim();
         const facilityCode = resolveFacility(rawFacility);
-        const periodDays = parseInt(String(row['Periodicita (dní)'] || row['period_days'] || ''), 10);
+        const periodDays = parsePeriodicityText(row['Periodicita'] || row['Periodicita (dní)'] || row['period_days']);
         const description = String(row['Popis'] || row['description'] || '').trim();
         const errors: string[] = [];
         if (!name) errors.push("Chybí název");
         if (!facilityCode) errors.push(`Provozovna "${rawFacility}" neexistuje`);
-        if (isNaN(periodDays) || periodDays <= 0) errors.push("Neplatná periodicita");
+        if (!periodDays || periodDays <= 0) errors.push("Neplatná periodicita");
         const isDuplicate = examinationTypes.some(t => t.name.toLowerCase() === name.toLowerCase() && t.facility === facilityCode);
         return { name, facilityCode, facilityRaw: rawFacility, periodDays, description, errors, rowNumber: i + 2, isDuplicate, isValid: errors.length === 0 };
       });

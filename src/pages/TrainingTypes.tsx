@@ -15,7 +15,7 @@ import { z } from "zod";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { formatPeriodicity } from "@/lib/utils";
+import { formatPeriodicity, parsePeriodicityText } from "@/lib/utils";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
@@ -109,7 +109,7 @@ export default function TrainingTypes() {
       const data = trainingTypes.map(t => ({
         "Název": t.name,
         "Provozovna": getFacilityName(t.facility),
-        "Periodicita (dní)": t.period_days,
+        "Periodicita": formatPeriodicity(t.period_days),
         "Délka (hodiny)": t.duration_hours || "",
         "Popis": t.description || "",
       }));
@@ -146,13 +146,13 @@ export default function TrainingTypes() {
         const name = String(row['Název'] || row['name'] || '').trim();
         const rawFacility = String(row['Provozovna'] || row['facility'] || '').trim();
         const facilityCode = resolveFacility(rawFacility);
-        const periodDays = parseInt(String(row['Periodicita (dní)'] || row['period_days'] || ''), 10);
+        const periodDays = parsePeriodicityText(row['Periodicita'] || row['Periodicita (dní)'] || row['period_days']);
         const durationHours = parseFloat(String(row['Délka (hodiny)'] || row['duration_hours'] || '0'));
         const description = String(row['Popis'] || row['description'] || '').trim();
         const errors: string[] = [];
         if (!name) errors.push("Chybí název");
         if (!facilityCode) errors.push(`Provozovna "${rawFacility}" neexistuje`);
-        if (isNaN(periodDays) || periodDays <= 0) errors.push("Neplatná periodicita");
+        if (!periodDays || periodDays <= 0) errors.push("Neplatná periodicita");
         const isDuplicate = trainingTypes.some(t => t.name.toLowerCase() === name.toLowerCase() && t.facility === facilityCode);
         return { name, facilityCode, facilityRaw: rawFacility, periodDays, durationHours: isNaN(durationHours) ? null : durationHours, description, errors, rowNumber: i + 2, isDuplicate, isValid: errors.length === 0 };
       });
