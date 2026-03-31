@@ -447,9 +447,10 @@ export const BulkDeadlineImport = () => {
         const { error } = await supabase.from("equipment").insert(insertRows);
         if (error) throw error;
         inserted += batch.length;
-      } catch (err) {
+      } catch (err: any) {
         console.error("Batch equipment insert error:", err);
         failed += batch.length;
+        errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${err?.message || 'Neznámá chyba při vkládání'}`);
       }
       setEquipmentProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
     }
