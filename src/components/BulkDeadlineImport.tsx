@@ -487,11 +487,13 @@ export const BulkDeadlineImport = () => {
     }
 
     setEquipmentResult({ inserted, updated, skipped, failed });
+    setEquipmentErrors(errors);
     setImportingEquipment(false);
 
     toast({
-      title: "Import zařízení dokončen",
+      title: failed > 0 ? "Import zařízení dokončen s chybami" : "Import zařízení dokončen",
       description: `Vloženo: ${inserted}, Aktualizováno: ${updated}, Přeskočeno: ${skipped}, Chyby: ${failed}`,
+      variant: failed > 0 ? "destructive" : "default",
     });
   };
 
