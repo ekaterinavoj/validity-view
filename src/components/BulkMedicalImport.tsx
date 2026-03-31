@@ -507,8 +507,13 @@ export const BulkMedicalImport = () => {
         const today = new Date();
         const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         let status = "valid";
-        if (daysUntil < 0) status = "expired";
-        else if (daysUntil <= 30) status = "warning";
+        if (row.data.result === "failed" || row.data.result === "lost_long_term") {
+          status = "expired";
+        } else if (daysUntil < 0) {
+          status = "expired";
+        } else if (daysUntil <= 30) {
+          status = "warning";
+        }
 
         return {
           facility: row.data.facility_code,
@@ -520,6 +525,8 @@ export const BulkMedicalImport = () => {
           medical_facility: row.data.medical_facility || null,
           result: row.data.result || null,
           note: row.data.note || null,
+          requester: row.data.requester || null,
+          long_term_fitness_loss_date: row.data.long_term_fitness_loss_date || null,
           zdravotni_rizika: row.data._healthRisks ? toDbHealthRisks(row.data._healthRisks) : undefined,
           status,
           is_active: true,
