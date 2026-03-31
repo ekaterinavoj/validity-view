@@ -37,6 +37,7 @@ import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { HealthRisksSummary } from "@/components/HealthRisksSummary";
 import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
 import { EmployeeStatusBadge } from "@/components/EmployeeStatusBadge";
+import { HEALTH_RISK_FIELDS } from "@/lib/healthRisks";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
@@ -189,6 +190,12 @@ export default function ScheduledExaminations() {
       "Zdravotnické zařízení": e.medicalFacility || "",
       "Zadavatel": e.requester || "",
       "Poznámka": e.note || "",
+      ...Object.fromEntries(
+        HEALTH_RISK_FIELDS.map(field => [
+          `Zdravotní riziko – ${field.label}`,
+          e.healthRisks[field.key] || "",
+        ])
+      ),
     }));
 
     const csv = Papa.unparse(data, { delimiter: ";" });

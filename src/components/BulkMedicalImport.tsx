@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
+import { HEALTH_RISK_FIELDS, HEALTH_RISK_VALUES, type HealthRiskValue, toDbHealthRisks, createEmptyHealthRisks, type HealthRisks } from "@/lib/healthRisks";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -27,6 +28,7 @@ interface ImportRow {
   medical_facility?: string;
   result?: string;
   note?: string;
+  _healthRisks?: HealthRisks;
 }
 
 interface ParsedRow {
@@ -74,6 +76,27 @@ const MEDICAL_COLUMN_MAP: Record<string, string> = {
   "Poznámka": "note",
   "Zadavatel": "requester",
   "Jméno": "_employee_name",
+  "Kategorie": "_kategorie",
+  "Stav": "_stav_export",
+  "Platnost do": "_platnost_do",
+  "Stav zaměstnance": "_stav_zamestnance",
+  "Datum narození": "_datum_narozeni",
+  "Věk": "_vek",
+  "Středisko": "_stredisko",
+  "Periodicita": "_periodicita",
+  "Datum pozbytí dlouhodobé způsobilosti": "_ztrata_zpusobilosti",
+  ...Object.fromEntries(
+    HEALTH_RISK_FIELDS.map(field => [`Zdravotní riziko – ${field.label}`, `_hr_${field.key}`])
+  ),
+};
+
+const parseHealthRiskValue = (val: unknown): HealthRiskValue | null => {
+  if (val == null || val === "") return null;
+  const s = String(val).trim().toUpperCase();
+  // Normalize "2R" variants
+  const normalized = s === "2R" ? "2R" : s;
+  if ((HEALTH_RISK_VALUES as readonly string[]).includes(normalized)) return normalized as HealthRiskValue;
+  return null;
 };
 
 const mapMedicalRowColumns = (row: Record<string, any>): ImportRow => {
@@ -84,6 +107,17 @@ const mapMedicalRowColumns = (row: Record<string, any>): ImportRow => {
       mapped[mappedKey] = value;
     }
   }
+
+  // Extract health risks from mapped columns
+  const healthRisks = createEmptyHealthRisks();
+  for (const field of HEALTH_RISK_FIELDS) {
+    const hrKey = `_hr_${field.key}`;
+    if (mapped[hrKey] != null) {
+      healthRisks[field.key] = parseHealthRiskValue(mapped[hrKey]);
+    }
+  }
+  mapped._healthRisks = healthRisks;
+
   return mapped as ImportRow;
 };
 
@@ -462,6 +496,7 @@ export const BulkMedicalImport = () => {
           medical_facility: row.data.medical_facility || null,
           result: row.data.result || null,
           note: row.data.note || null,
+          zdravotni_rizika: row.data._healthRisks ? toDbHealthRisks(row.data._healthRisks) : undefined,
           status,
           is_active: true,
           created_by: user.id,
@@ -495,6 +530,7 @@ export const BulkMedicalImport = () => {
             medical_facility: row.data.medical_facility || null,
             result: row.data.result || null,
             note: row.data.note || null,
+            zdravotni_rizika: row.data._healthRisks ? toDbHealthRisks(row.data._healthRisks) : undefined,
             status,
             is_active: true,
             created_by: user.id,
@@ -525,9 +561,7 @@ export const BulkMedicalImport = () => {
         if (daysUntil < 0) status = "expired";
         else if (daysUntil <= 30) status = "warning";
 
-        const { error } = await supabase
-          .from("medical_examinations")
-          .update({
+        const updateData: Record<string, any> = {
             last_examination_date: row.data.last_examination_date,
             next_examination_date: nextDate.toISOString().split("T")[0],
             doctor: row.data.doctor || null,
@@ -536,7 +570,14 @@ export const BulkMedicalImport = () => {
             note: row.data.note || null,
             status,
             updated_at: new Date().toISOString(),
-          })
+        };
+        if (row.data._healthRisks) {
+            updateData.zdravotni_rizika = toDbHealthRisks(row.data._healthRisks);
+        }
+
+        const { error } = await supabase
+          .from("medical_examinations")
+          .update(updateData)
           .eq("id", row.existingExaminationId!);
 
         if (error) throw error;
