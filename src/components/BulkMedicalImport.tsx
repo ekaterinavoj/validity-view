@@ -144,26 +144,26 @@ export const BulkMedicalImport = () => {
   const downloadTemplateCSV = () => {
     const template = [
       {
-        employee_number: "EMP001",
-        email: "jan.novak@example.com",
-        examination_type_name: "Vstupní prohlídka",
-        facility_code: "qlar-jenec-dc3",
-        last_examination_date: "2024-01-15",
-        doctor: "MUDr. Jan Novák",
-        medical_facility: "Poliklinika Praha",
-        result: "Způsobilý bez omezení",
-        note: "Poznámka"
+        "Os. číslo": "EMP001",
+        "Email": "jan.novak@example.com",
+        "Typ prohlídky": "Vstupní prohlídka",
+        "Provozovna": "qlar-jenec-dc3",
+        "Datum prohlídky": "15.01.2024",
+        "Lékař": "MUDr. Jan Novák",
+        "Zdravotnické zařízení": "Poliklinika Praha",
+        "Výsledek": "Způsobilý bez omezení",
+        "Poznámka": "Poznámka"
       },
       {
-        employee_number: "EMP002",
-        email: "petr.svoboda@example.com",
-        examination_type_name: "Periodická prohlídka",
-        facility_code: "qlar-jenec-dc3",
-        last_examination_date: "2024-02-20",
-        doctor: "",
-        medical_facility: "",
-        result: "Způsobilý",
-        note: ""
+        "Os. číslo": "EMP002",
+        "Email": "petr.svoboda@example.com",
+        "Typ prohlídky": "Periodická prohlídka",
+        "Provozovna": "qlar-jenec-dc3",
+        "Datum prohlídky": "20.02.2024",
+        "Lékař": "",
+        "Zdravotnické zařízení": "",
+        "Výsledek": "Způsobilý",
+        "Poznámka": ""
       }
     ];
 

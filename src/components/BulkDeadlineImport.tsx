@@ -609,13 +609,13 @@ export const BulkDeadlineImport = () => {
   const downloadDeadlineTemplateCSV = () => {
     const template = [
       {
-        inventory_number: "INV-001",
-        deadline_type_name: "Revize VZV",
-        facility_code: "qlar-jenec-dc3",
-        last_check_date: "2024-01-15",
-        performer: "BOZP Servis s.r.o.",
-        company: "Revizní firma",
-        note: "Poznámka k lhůtě"
+        "Inventární č.": "INV-001",
+        "Typ události": "Revize VZV",
+        "Provozovna": "qlar-jenec-dc3",
+        "Poslední kontrola": "15.01.2024",
+        "Provádějící": "BOZP Servis s.r.o.",
+        "Firma": "Revizní firma",
+        "Poznámka": "Poznámka k lhůtě"
       }
     ];
 
