@@ -846,6 +846,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "fix_plp_history_missing_column_cell",
     sql: null, // Frontend-only: added missing data cell for "Datum pozbytí ZD způsobilosti" in MedicalExaminationHistory causing column misalignment in "Předchozí verze" view
   },
+  {
+    version: "20260331230200",
+    name: "plp_import_result_labels_and_all_fields",
+    sql: null, // Frontend-only: PLP import now maps Czech result labels back to DB values (passed/passed_with_reservations/failed/lost_long_term), imports requester and long_term_fitness_loss_date, and overrides status to "expired" for failed/lost_long_term results
+  },
 ];
 
 /**
