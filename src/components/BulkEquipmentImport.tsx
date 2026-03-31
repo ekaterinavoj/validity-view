@@ -496,6 +496,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                 { name: "Umístění", description: "fyzické umístění" },
                 { name: "Středisko", description: "kód nebo název střediska" },
                 { name: "Stav", description: "aktivní / neaktivní / vyřazeno" },
+                { name: "Odpovědná osoba", description: "email uživatele (více emailů oddělte středníkem)" },
                 { name: "Poznámka", description: "volitelná poznámka" },
               ]}
               duplicateInfo="Podle inv. čísla + typu + výrobce + sériového čísla (pokud jsou vyplněny)"
