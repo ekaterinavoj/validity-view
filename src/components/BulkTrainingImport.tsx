@@ -347,14 +347,15 @@ export const BulkTrainingImport = () => {
 
   const parseFile = async (file: File): Promise<ImportRow[]> => {
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    let rawData: Record<string, any>[];
 
     if (fileExtension === "csv") {
-      return new Promise((resolve, reject) => {
+      rawData = await new Promise((resolve, reject) => {
         Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
           delimiter: "", // Auto-detect delimiter
-          complete: (results) => resolve(results.data as ImportRow[]),
+          complete: (results) => resolve(results.data as Record<string, any>[]),
           error: (error) => reject(error),
         });
       });
@@ -363,15 +364,18 @@ export const BulkTrainingImport = () => {
       const workbook = XLSX.read(data, { cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as ImportRow[];
-      // Normalize date fields that may come as Date objects from Excel
-      for (const row of jsonData) {
-        row.last_training_date = normalizeDate(row.last_training_date);
-      }
-      return jsonData;
+      rawData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as Record<string, any>[];
     } else {
       throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
     }
+
+    // Map Czech column names from exports to English import names
+    const mapped = rawData.map(row => mapTrainingRowColumns(row));
+    // Normalize date fields that may come as Date objects from Excel
+    for (const row of mapped) {
+      row.last_training_date = normalizeDate(row.last_training_date);
+    }
+    return mapped;
   };
 
   const validateAndPreview = async (data: ImportRow[]) => {
