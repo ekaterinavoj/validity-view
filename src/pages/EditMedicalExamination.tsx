@@ -331,8 +331,8 @@ export default function EditMedicalExamination() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Úprava lékařské prohlídky</h2>
-          <p className="text-muted-foreground mt-1">ID: {id}</p>
+          <h1 className="text-2xl font-bold text-foreground">Úprava lékařské prohlídky</h1>
+          <p className="text-muted-foreground">Upravte záznam o lékařské prohlídce</p>
         </div>
       </div>
 
