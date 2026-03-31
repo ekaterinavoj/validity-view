@@ -616,6 +616,64 @@ BEGIN
 END;
 $function$;`,
   },
+  {
+    version: "20260331110000",
+    name: "update_sick_leave_return_notification",
+    sql: `-- Update notification for return from sick leave: add 8-week condition and updated text
+CREATE OR REPLACE FUNCTION public.notify_extraordinary_medical_exam()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  admin_record RECORD;
+  emp_name TEXT;
+  sick_start DATE;
+  sick_duration INT;
+BEGIN
+  -- Only when status changes from sick_leave to employed
+  IF TG_OP = 'UPDATE'
+     AND OLD.status = 'sick_leave'
+     AND NEW.status = 'employed'
+  THEN
+    -- Determine how long the sick leave lasted
+    sick_start := OLD.status_start_date;
+    IF sick_start IS NOT NULL THEN
+      sick_duration := CURRENT_DATE - sick_start;
+    ELSE
+      sick_duration := 0;
+    END IF;
+
+    -- Only notify if sick leave was longer than 8 weeks (56 days)
+    IF sick_duration < 56 THEN
+      RETURN NEW;
+    END IF;
+
+    emp_name := NEW.first_name || ' ' || NEW.last_name;
+
+    FOR admin_record IN
+      SELECT ur.user_id
+      FROM public.user_roles ur
+      WHERE ur.role = 'admin'
+    LOOP
+      INSERT INTO public.notifications (
+        user_id, title, message, type, related_entity_type, related_entity_id
+      ) VALUES (
+        admin_record.user_id,
+        'Mimořádná pracovně-lékařská prohlídka',
+        'Zaměstnanec ' || emp_name || ' se vrátil z nemocenské (délka ' || sick_duration || ' dní). Naplánujte mimořádnou pracovně-lékařskou prohlídku.',
+        'warning',
+        'employee',
+        NEW.id
+      );
+    END LOOP;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;`,
+  },
 ];
 
 /**
