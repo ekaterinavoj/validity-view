@@ -1047,37 +1047,20 @@ export const BulkTrainingImport = () => {
             </CollapsibleContent>
           </Collapsible>
 
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <div className="space-y-2">
-                <p className="font-semibold">Povinné sloupce:</p>
-                <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                  <li><strong>Osobní číslo</strong> nebo <strong>Email</strong> – identifikace zaměstnance (alespoň jedno povinné)</li>
-                  <li><strong>Typ školení</strong> – název typu školení (musí existovat v systému)</li>
-                  <li><strong>Provozovna</strong> – kód provozovny (musí existovat v systému)</li>
-                  <li><strong>Datum školení</strong> – datum posledního školení (DD.MM.YYYY nebo YYYY-MM-DD)</li>
-                </ul>
-                <p className="font-semibold mt-3">Nepovinné sloupce:</p>
-                <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                  <li><strong>Školitel</strong> – jméno školitele</li>
-                  <li><strong>Firma</strong> – školící firma</li>
-                  <li><strong>Poznámka</strong> – poznámka</li>
-                </ul>
-                <p className="text-sm mt-3">
-                  <strong>Párování zaměstnanců:</strong> Primárně podle osobního čísla, pokud nenalezeno, fallback na email.
-                </p>
-                <p className="text-sm mt-2">
-                  <strong>Duplicita:</strong> Stejný zaměstnanec + typ školení = aktualizuje se existující záznam (overwrite).
-                </p>
-                <p className="text-sm mt-2">
-                  <strong>Fuzzy matching:</strong> Normalizace názvů (bez diakritiky, roku, běžných slov). 
-                  ≥{settings.autoMatchThreshold}% = auto-match, {settings.minSimilarityThreshold}-{settings.autoMatchThreshold - 1}% = návrh k potvrzení, &lt;{settings.minSimilarityThreshold}% = chyba.
-                </p>
-                <p className="text-sm mt-2 text-muted-foreground">
-                  <strong>CSV formát:</strong> Delimiter: středník (;), kódování: UTF-8 s BOM
-                </p>
-              </div>
+          <ImportDescription
+            requiredColumns={[
+              { name: "Osobní číslo nebo Email", description: "identifikace zaměstnance (alespoň jedno povinné)" },
+              { name: "Typ školení", description: "název typu školení (musí existovat v systému)" },
+              { name: "Provozovna", description: "kód provozovny (musí existovat v systému)" },
+              { name: "Datum školení", description: "datum posledního školení (DD.MM.YYYY nebo YYYY-MM-DD)" },
+            ]}
+            optionalColumns={[
+              { name: "Školitel", description: "jméno školitele" },
+              { name: "Firma", description: "školící firma" },
+              { name: "Poznámka", description: "poznámka" },
+            ]}
+            duplicateInfo={`Stejný zaměstnanec + typ školení = aktualizuje se existující záznam. Fuzzy matching: ≥${settings.autoMatchThreshold}% = auto, ${settings.minSimilarityThreshold}-${settings.autoMatchThreshold - 1}% = návrh, <${settings.minSimilarityThreshold}% = chyba.`}
+          />
             </AlertDescription>
           </Alert>
 
