@@ -441,9 +441,10 @@ export const BulkMedicalImport = () => {
         const { error } = await supabase.from("medical_examinations").insert(insertRows);
         if (error) throw error;
         inserted += batch.length;
-      } catch (error) {
+      } catch (error: any) {
         console.error("Batch insert error:", error);
         failed += batch.length;
+        errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${error?.message || 'Neznámá chyba při vkládání'}`);
       }
       setImportProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
     }
