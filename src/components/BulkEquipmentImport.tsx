@@ -77,6 +77,11 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
 
   const mapRowToEquipment = (row: any) => {
     const rawStatus = String(row['Stav'] || row['status'] || 'active').toLowerCase().trim();
+    const rawResponsibles = String(row['Odpovědná osoba'] || row['Odpovědné osoby'] || row['responsible'] || '').trim();
+    // Support multiple emails separated by ; or ,
+    const responsibleEmails = rawResponsibles
+      ? rawResponsibles.split(/[;,]/).map((e: string) => e.trim().toLowerCase()).filter(Boolean)
+      : [];
     return {
       inventoryNumber: String(row['Inv. číslo'] || row['Inventární číslo'] || row['inventory_number'] || '').trim(),
       name: String(row['Název'] || row['name'] || '').trim(),
@@ -89,29 +94,28 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       department: String(row['Středisko'] || row['department'] || '').trim() || null,
       status: STATUS_MAP[rawStatus] || 'active',
       notes: String(row['Poznámka'] || row['notes'] || '').trim() || null,
+      responsibleEmails,
     };
   };
 
   const validateAndMarkDuplicates = async (rows: any[]): Promise<ImportedEquipment[]> => {
-    const { data: existingEquipment } = await supabase
-      .from("equipment")
-      .select("id, inventory_number, equipment_type, manufacturer, serial_number")
-      .limit(50000);
-
-    const { data: facilities } = await supabase
-      .from("facilities")
-      .select("id, code, name")
-      .limit(10000);
-
-    const { data: departments } = await supabase
-      .from("departments")
-      .select("id, code, name")
-      .limit(10000);
+    const [
+      { data: existingEquipment },
+      { data: facilities },
+      { data: departments },
+      { data: profiles },
+    ] = await Promise.all([
+      supabase.from("equipment").select("id, inventory_number, equipment_type, manufacturer, serial_number").limit(50000),
+      supabase.from("facilities").select("id, code, name").limit(10000),
+      supabase.from("departments").select("id, code, name").limit(10000),
+      supabase.from("profiles").select("id, email").limit(50000),
+    ]);
 
     const facilityByCode = new Map((facilities || []).map(f => [f.code.toLowerCase(), f]));
     const facilityByName = new Map((facilities || []).map(f => [f.name.toLowerCase(), f]));
     const deptByCode = new Map((departments || []).map(d => [d.code.toLowerCase(), d]));
     const deptByName = new Map((departments || []).map(d => [d.name.toLowerCase(), d]));
+    const profileByEmail = new Map((profiles || []).map(p => [p.email.toLowerCase(), p.id]));
 
     const seenInvNumbers = new Map<string, number>();
 
@@ -143,6 +147,21 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         }
       }
 
+      // Responsible persons validation
+      const resolvedProfileIds: string[] = [];
+      const unresolvedEmails: string[] = [];
+      for (const email of eqData.responsibleEmails) {
+        const profileId = profileByEmail.get(email);
+        if (profileId) {
+          resolvedProfileIds.push(profileId);
+        } else {
+          unresolvedEmails.push(email);
+        }
+      }
+      if (unresolvedEmails.length > 0) {
+        errors.push(`Odpovědné osoby nenalezeny: ${unresolvedEmails.join(', ')}`);
+      }
+
       // In-file duplicate check
       const invKey = eqData.inventoryNumber.toLowerCase();
       if (seenInvNumbers.has(invKey)) {
@@ -165,6 +184,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
           ...eqData,
           _facilityCode: fac?.code || null,
           _departmentId: departmentId,
+          _responsibleProfileIds: resolvedProfileIds,
         },
         isValid: errors.length === 0,
         errors,
@@ -239,7 +259,11 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       .select("id, inventory_number, equipment_type, manufacturer, serial_number")
       .limit(50000);
 
-    // Batch INSERT
+    // Get current user for created_by
+    const { data: currentUser } = await supabase.auth.getUser();
+    const currentUserId = currentUser.user?.id || null;
+
+    // Batch INSERT - use .select() to get back IDs for responsible assignment
     const BATCH_SIZE = 50;
     for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
       if (abortRef.current) break;
@@ -258,11 +282,25 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         notes: item.data.notes || null,
       }));
 
-      const { error } = await supabase.from("equipment").insert(insertRows);
+      const { data: inserted, error } = await supabase.from("equipment").insert(insertRows).select("id, inventory_number");
       if (error) {
         errorCount += batch.length;
       } else {
         successCount += batch.length;
+        // Assign responsible persons for newly inserted equipment
+        if (inserted) {
+          for (let j = 0; j < batch.length; j++) {
+            const profileIds: string[] = batch[j].data._responsibleProfileIds || [];
+            if (profileIds.length > 0 && inserted[j]) {
+              const responsiblesData = profileIds.map(profileId => ({
+                equipment_id: inserted[j].id,
+                profile_id: profileId,
+                created_by: currentUserId,
+              }));
+              await supabase.from("equipment_responsibles").insert(responsiblesData);
+            }
+          }
+        }
       }
       setImportProgress({ current: Math.min(i + BATCH_SIZE, toInsert.length), total: totalOps });
     }
@@ -303,6 +341,18 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         errorCount++;
       } else {
         successCount++;
+        // Reassign responsible persons for updated equipment
+        const profileIds: string[] = item.data._responsibleProfileIds || [];
+        if (profileIds.length > 0) {
+          // Delete existing responsibles and insert new ones
+          await supabase.from("equipment_responsibles").delete().eq("equipment_id", existing.id);
+          const responsiblesData = profileIds.map(profileId => ({
+            equipment_id: existing.id,
+            profile_id: profileId,
+            created_by: currentUserId,
+          }));
+          await supabase.from("equipment_responsibles").insert(responsiblesData);
+        }
       }
       setImportProgress({ current: toInsert.length + i + 1, total: totalOps });
     }
@@ -380,6 +430,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         "Umístění": "Hala A",
         "Středisko": "VYR",
         "Stav": "aktivní",
+        "Odpovědná osoba": "jan.novak@firma.cz",
         "Poznámka": "",
       },
       {
@@ -393,6 +444,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         "Umístění": "Strojovna",
         "Středisko": "UD",
         "Stav": "aktivní",
+        "Odpovědná osoba": "karel.dvorak@firma.cz; marie.nova@firma.cz",
         "Poznámka": "Pravidelný servis",
       },
     ]);
@@ -444,6 +496,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                 { name: "Umístění", description: "fyzické umístění" },
                 { name: "Středisko", description: "kód nebo název střediska" },
                 { name: "Stav", description: "aktivní / neaktivní / vyřazeno" },
+                { name: "Odpovědná osoba", description: "email uživatele (více emailů oddělte středníkem)" },
                 { name: "Poznámka", description: "volitelná poznámka" },
               ]}
               duplicateInfo="Podle inv. čísla + typu + výrobce + sériového čísla (pokud jsou vyplněny)"
@@ -564,8 +617,9 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                       <TableHead>Typ</TableHead>
                       <TableHead>Provozovna</TableHead>
                       <TableHead>Výrobce</TableHead>
-                      <TableHead>Sériové č.</TableHead>
+                       <TableHead>Sériové č.</TableHead>
                       <TableHead>Umístění</TableHead>
+                      <TableHead>Odp. osoba</TableHead>
                       <TableHead className="w-24">Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -586,6 +640,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                         <TableCell className="text-sm">{item.data.manufacturer || '-'}</TableCell>
                         <TableCell className="text-sm">{item.data.serialNumber || '-'}</TableCell>
                         <TableCell className="text-sm">{item.data.location || '-'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{item.data.responsibleEmails?.join(', ') || '-'}</TableCell>
                         <TableCell>
                           {!item.isValid ? (
                             <Badge variant="destructive">
