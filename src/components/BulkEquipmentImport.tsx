@@ -609,6 +609,16 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                       <Badge variant="destructive">Selhalo: {importResult.failed}</Badge>
                     )}
                   </div>
+                  {importErrors.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      <p className="text-sm font-medium text-destructive">Detail chyb:</p>
+                      <ul className="text-sm text-destructive list-disc list-inside max-h-[150px] overflow-y-auto">
+                        {importErrors.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
