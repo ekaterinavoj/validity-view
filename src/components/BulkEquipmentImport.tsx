@@ -325,6 +325,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
 
       if (!existing) {
         errorCount++;
+        errors.push(`Řádek ${item.rowNumber} (${item.data.inventoryNumber}): Nelze najít existující záznam pro aktualizaci`);
         continue;
       }
 
