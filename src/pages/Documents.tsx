@@ -12,6 +12,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useToast } from "@/hooks/use-toast";
 import { uploadGeneralDocument, getGeneralDocuments, deleteGeneralDocument, getGeneralDocumentUrl } from "@/lib/generalDocuments";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
+import { TablePagination } from "@/components/TablePagination";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
 import { PlusCircle, Search, Trash2, Download, FileText, Upload, FolderOpen } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
