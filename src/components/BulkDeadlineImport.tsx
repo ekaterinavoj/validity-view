@@ -261,7 +261,7 @@ export const BulkDeadlineImport = () => {
       // Fetch existing equipment for duplicate detection (override default 1000 row limit)
       const { data: existingEquipment } = await supabase
         .from("equipment")
-        .select("id, inventory_number, facility")
+        .select("id, inventory_number, facility, equipment_type, manufacturer, serial_number")
         .limit(10000);
 
       // Fetch facilities for validation
@@ -318,15 +318,34 @@ export const BulkDeadlineImport = () => {
           continue;
         }
 
-        // Check for duplicates (same inventory_number)
-        const existingEq = existingEquipment?.find(
-          e => e.inventory_number === row.inventory_number.trim()
-        );
+        // Check for duplicates (inventory_number + equipment_type + manufacturer + serial_number)
+        const trimmedInv = row.inventory_number.trim();
+        const trimmedType = row.equipment_type?.trim() || "";
+        const trimmedManufacturer = (row as any).manufacturer?.trim() || "";
+        const trimmedSerial = (row as any).serial_number?.trim() || "";
+        
+        const existingEq = existingEquipment?.find(e => {
+          // Primary match: inventory number
+          if (e.inventory_number !== trimmedInv) return false;
+          // If type is provided in import, it must match
+          if (trimmedType && e.equipment_type !== trimmedType) return false;
+          // If manufacturer is provided in both, compare
+          if (trimmedManufacturer && e.manufacturer && e.manufacturer !== trimmedManufacturer) return false;
+          // If serial number is provided in both, compare
+          if (trimmedSerial && e.serial_number && e.serial_number !== trimmedSerial) return false;
+          return true;
+        });
 
         if (existingEq) {
           parsedRow.status = 'duplicate';
           parsedRow.existingId = existingEq.id;
-          parsedRow.warning = `Zařízení s inv. číslem "${row.inventory_number}" již existuje`;
+          const details = [
+            `inv. č. "${trimmedInv}"`,
+            trimmedType ? `typ "${trimmedType}"` : null,
+            trimmedManufacturer ? `výrobce "${trimmedManufacturer}"` : null,
+            trimmedSerial ? `s/n "${trimmedSerial}"` : null,
+          ].filter(Boolean).join(", ");
+          parsedRow.warning = `Zařízení (${details}) již existuje`;
           duplicateRows.push(parsedRow);
           continue;
         }
