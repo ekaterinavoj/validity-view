@@ -40,6 +40,7 @@ import { EmployeeStatusBadge } from "@/components/EmployeeStatusBadge";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { BulkMedicalImport } from "@/components/BulkMedicalImport";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
