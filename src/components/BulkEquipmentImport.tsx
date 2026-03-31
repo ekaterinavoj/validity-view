@@ -288,6 +288,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       const { data: inserted, error } = await supabase.from("equipment").insert(insertRows).select("id, inventory_number");
       if (error) {
         errorCount += batch.length;
+        errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${error.message || 'Neznámá chyba při vkládání'}`);
       } else {
         successCount += batch.length;
         // Assign responsible persons for newly inserted equipment
