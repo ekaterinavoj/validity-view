@@ -289,6 +289,9 @@ export const BulkMedicalImport = () => {
     const mapped = rawData.map(row => mapMedicalRowColumns(row));
     for (const row of mapped) {
       row.last_examination_date = normalizeDate(row.last_examination_date);
+      if (row.long_term_fitness_loss_date) {
+        row.long_term_fitness_loss_date = normalizeDate(row.long_term_fitness_loss_date);
+      }
     }
     return mapped;
   };
