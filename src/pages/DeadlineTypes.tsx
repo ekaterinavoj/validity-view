@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import {
   Plus, RefreshCw, Edit, Trash2, Search, Clock, Download, Upload, Loader2, CheckCircle2, AlertCircle, AlertTriangle,
 } from "lucide-react";
-import { formatPeriodicity } from "@/lib/utils";
+import { formatPeriodicity, parsePeriodicityText } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
