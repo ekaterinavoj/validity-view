@@ -816,6 +816,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "unify_form_layouts_across_modules",
     sql: null, // Frontend-only: unified New/Edit page layouts (max-w-2xl, h1 text-2xl, Card+CardContent) and bulk edit dialog sizing (max-w-lg, max-h-[90vh])
   },
+  {
+    version: "20260331190000",
+    name: "add_import_export_to_config_pages",
+    sql: null, // Frontend-only: added CSV export/import with bidirectional compatibility to Departments, Facilities, DeadlineTypes, TrainingTypes, MedicalExaminationTypes pages
+  },
 ];
 
 /**
