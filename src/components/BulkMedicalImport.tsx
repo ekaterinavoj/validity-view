@@ -638,6 +638,16 @@ export const BulkMedicalImport = () => {
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>
                       Import dokončen: {importResult.inserted} vloženo, {importResult.updated} aktualizováno, {importResult.skipped} přeskočeno, {importResult.failed} selhalo.
+                      {importErrors.length > 0 && (
+                        <div className="mt-3 space-y-1">
+                          <p className="text-sm font-medium text-destructive">Detail chyb:</p>
+                          <ul className="text-sm text-destructive list-disc list-inside max-h-[150px] overflow-y-auto">
+                            {importErrors.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </AlertDescription>
                   </Alert>
                 )}
