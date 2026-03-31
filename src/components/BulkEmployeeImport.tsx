@@ -124,7 +124,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       employeeNumber: String(row['Osobní číslo'] || row['employeeNumber'] || row['employee_number'] || '').trim(),
       position: String(row['Pozice'] || row['position'] || '').trim(),
       department: parseDepartmentCode(String(row['Středisko'] || row['department'] || '').trim()),
-      status: EMPLOYEE_STATUS_MAP[rawStatus] || rawStatus,
+      status: EMPLOYEE_STATUS_MAP[rawStatus] || 'employed',
       managerEmail: String(row['Email nadřízeného'] || row['managerEmail'] || row['Manager Email'] || row['manager_email'] || '').trim().toLowerCase(),
       workCategory: workCategory && ['1', '2', '2R', '3', '4'].includes(workCategory) ? workCategory : undefined,
       birthDate: parseBirthDate(row['Datum narození'] || row['birthDate'] || row['birth_date']),

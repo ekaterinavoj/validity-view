@@ -80,6 +80,26 @@ const DEFAULT_SETTINGS: ImportSettings = {
   minSimilarityThreshold: 70,
 };
 
+// Equipment status mapping: Czech/English → DB values
+const EQUIPMENT_STATUS_MAP: Record<string, string> = {
+  'aktivní': 'active',
+  'aktivni': 'active',
+  'active': 'active',
+  'neaktivní': 'inactive',
+  'neaktivni': 'inactive',
+  'inactive': 'inactive',
+  'vyřazeno': 'decommissioned',
+  'vyrazeno': 'decommissioned',
+  'vyřazené': 'decommissioned',
+  'vyrazene': 'decommissioned',
+  'decommissioned': 'decommissioned',
+};
+
+const resolveEquipmentStatus = (raw: any): string => {
+  const val = String(raw || '').toLowerCase().trim();
+  return EQUIPMENT_STATUS_MAP[val] || 'active';
+};
+
 // Column name mapping: Czech export names → English import names
 const EQUIPMENT_COLUMN_MAP: Record<string, string> = {
   "Inventární č.": "inventory_number",
@@ -505,7 +525,7 @@ export const BulkDeadlineImport = () => {
         serial_number: row.data.serial_number?.trim() || null,
         location: row.data.location?.trim() || null,
         responsible_person: row.data.responsible_person?.trim() || null,
-        status: row.data.status?.trim() || 'active',
+        status: resolveEquipmentStatus(row.data.status),
         notes: row.data.notes?.trim() || null,
       }));
 
@@ -547,7 +567,7 @@ export const BulkDeadlineImport = () => {
             serial_number: row.data.serial_number?.trim() || null,
             location: row.data.location?.trim() || null,
             responsible_person: row.data.responsible_person?.trim() || null,
-            status: row.data.status?.trim() || 'active',
+            status: resolveEquipmentStatus(row.data.status),
             notes: row.data.notes?.trim() || null,
           })
           .eq("id", row.existingId!);
@@ -999,20 +1019,20 @@ export const BulkDeadlineImport = () => {
                 <div className="space-y-2">
                   <p className="font-semibold">Povinné sloupce:</p>
                   <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                    <li><strong>inventory_number</strong> – unikátní inventární číslo zařízení</li>
-                    <li><strong>name</strong> – název zařízení</li>
-                    <li><strong>equipment_type</strong> – typ zařízení (např. VZV, Zakladač)</li>
-                    <li><strong>facility_code</strong> – kód provozovny (musí existovat v systému)</li>
+                    <li><strong>Inventární č.</strong> – unikátní inventární číslo zařízení</li>
+                    <li><strong>Název</strong> – název zařízení</li>
+                    <li><strong>Typ zařízení</strong> – typ zařízení (např. VZV, Zakladač)</li>
+                    <li><strong>Provozovna</strong> – kód provozovny (musí existovat v systému)</li>
                   </ul>
                   <p className="font-semibold mt-3">Nepovinné sloupce:</p>
                   <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                    <li><strong>manufacturer</strong> – výrobce</li>
-                    <li><strong>model</strong> – model</li>
-                    <li><strong>serial_number</strong> – sériové číslo</li>
-                    <li><strong>location</strong> – umístění</li>
-                    <li><strong>responsible_person</strong> – odpovědná osoba</li>
-                    <li><strong>status</strong> – stav (active/inactive/decommissioned), výchozí: active</li>
-                    <li><strong>notes</strong> – poznámky</li>
+                    <li><strong>Výrobce</strong> – výrobce zařízení</li>
+                    <li><strong>Model</strong> – model zařízení</li>
+                    <li><strong>Sériové č.</strong> – sériové číslo</li>
+                    <li><strong>Umístění</strong> – fyzické umístění</li>
+                    <li><strong>Odpovědná osoba</strong> – email odpovědné osoby</li>
+                    <li><strong>Stav</strong> – aktivní / neaktivní / vyřazeno (výchozí: aktivní)</li>
+                    <li><strong>Poznámka</strong> – poznámky</li>
                   </ul>
                   <p className="text-sm mt-3">
                     <strong>Duplicita:</strong> Zařízení se stejným inventárním číslem = aktualizuje se existující záznam.
@@ -1071,16 +1091,16 @@ export const BulkDeadlineImport = () => {
                 <div className="space-y-2">
                   <p className="font-semibold">Povinné sloupce:</p>
                   <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                    <li><strong>inventory_number</strong> – inventární číslo zařízení (musí existovat v systému)</li>
-                    <li><strong>deadline_type_name</strong> – název typu lhůty (musí existovat v systému)</li>
-                    <li><strong>facility_code</strong> – kód provozovny (musí existovat v systému)</li>
-                    <li><strong>last_check_date</strong> – datum poslední kontroly ve formátu YYYY-MM-DD</li>
+                    <li><strong>Inventární č.</strong> – inventární číslo zařízení (musí existovat v systému)</li>
+                    <li><strong>Typ události</strong> – název typu lhůty (musí existovat v systému)</li>
+                    <li><strong>Provozovna</strong> – kód provozovny (musí existovat v systému)</li>
+                    <li><strong>Poslední kontrola</strong> – datum poslední kontroly (DD.MM.YYYY nebo YYYY-MM-DD)</li>
                   </ul>
                   <p className="font-semibold mt-3">Nepovinné sloupce:</p>
                   <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                    <li><strong>performer</strong> – provádějící osoba/technik</li>
-                    <li><strong>company</strong> – servisní/revizní firma</li>
-                    <li><strong>note</strong> – poznámka</li>
+                    <li><strong>Realizátor</strong> – provádějící osoba/technik</li>
+                    <li><strong>Firma</strong> – servisní/revizní firma</li>
+                    <li><strong>Poznámka</strong> – poznámka</li>
                   </ul>
                   <p className="text-sm mt-3">
                     <strong>Důležité:</strong> Před importem lhůt se ujistěte, že zařízení a typy lhůt již existují v systému.
