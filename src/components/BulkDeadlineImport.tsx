@@ -405,6 +405,7 @@ export const BulkDeadlineImport = () => {
 
     setImportingEquipment(true);
     setEquipmentProgress(0);
+    setEquipmentErrors([]);
     abortEquipmentRef.current = false;
 
     const rowsToProcess = [
@@ -416,6 +417,7 @@ export const BulkDeadlineImport = () => {
     let updated = 0;
     let skipped = equipmentDuplicateAction === 'skip' ? equipmentPreview.duplicateRows.length : 0;
     let failed = 0;
+    const errors: string[] = [];
 
     // Separate inserts from updates
     const toInsert = rowsToProcess.filter(r => !(r.status === 'duplicate' && r.existingId));
