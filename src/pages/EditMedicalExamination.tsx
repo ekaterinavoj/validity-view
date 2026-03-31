@@ -311,7 +311,7 @@ export default function EditMedicalExamination() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       {!canEdit && (
         <div className="bg-muted/50 border border-border rounded-lg px-4 py-3 flex items-center gap-3">
           <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
