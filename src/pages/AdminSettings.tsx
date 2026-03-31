@@ -1335,6 +1335,7 @@ export default function AdminSettings() {
                       </div>
                     </div>
                   </div>
+                  <IndividualEmailPreview module="medical" />
                 </TabsContent>
               </Tabs>
             </CardContent>
