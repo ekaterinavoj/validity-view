@@ -1314,6 +1314,16 @@ export const BulkDeadlineImport = () => {
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>
                       Import dokončen: {deadlineResult.inserted} vloženo, {deadlineResult.updated} aktualizováno, {deadlineResult.skipped} přeskočeno, {deadlineResult.failed} chyb
+                      {deadlineErrors.length > 0 && (
+                        <div className="mt-3 space-y-1">
+                          <p className="text-sm font-medium text-destructive">Detail chyb:</p>
+                          <ul className="text-sm text-destructive list-disc list-inside max-h-[150px] overflow-y-auto">
+                            {deadlineErrors.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </AlertDescription>
                   </Alert>
                 )}
