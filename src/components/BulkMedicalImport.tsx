@@ -60,6 +60,33 @@ interface ImportPreview {
 
 type DuplicateAction = 'skip' | 'overwrite';
 
+// Column name mapping: Czech export names → English import names
+const MEDICAL_COLUMN_MAP: Record<string, string> = {
+  "Osobní číslo": "employee_number",
+  "Os. číslo": "employee_number",
+  "Email": "email",
+  "Typ prohlídky": "examination_type_name",
+  "Provozovna": "facility_code",
+  "Datum prohlídky": "last_examination_date",
+  "Lékař": "doctor",
+  "Zdravotnické zařízení": "medical_facility",
+  "Výsledek": "result",
+  "Poznámka": "note",
+  "Zadavatel": "requester",
+  "Jméno": "_employee_name",
+};
+
+const mapMedicalRowColumns = (row: Record<string, any>): ImportRow => {
+  const mapped: Record<string, any> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const mappedKey = MEDICAL_COLUMN_MAP[key] || key;
+    if (!(mappedKey in mapped) || !mapped[mappedKey]) {
+      mapped[mappedKey] = value;
+    }
+  }
+  return mapped as ImportRow;
+};
+
 const REQUIRED_COLUMNS = ['examination_type_name', 'facility_code', 'last_examination_date'];
 
 export const BulkMedicalImport = () => {

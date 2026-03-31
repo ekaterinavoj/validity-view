@@ -80,6 +80,58 @@ const DEFAULT_SETTINGS: ImportSettings = {
   minSimilarityThreshold: 70,
 };
 
+// Column name mapping: Czech export names → English import names
+const EQUIPMENT_COLUMN_MAP: Record<string, string> = {
+  "Inventární č.": "inventory_number",
+  "Inventární číslo": "inventory_number",
+  "Inv. číslo": "inventory_number",
+  "Zařízení": "name",
+  "Název": "name",
+  "Typ zařízení": "equipment_type",
+  "Typ": "equipment_type",
+  "Provozovna": "facility_code",
+  "Výrobce": "manufacturer",
+  "Model": "model",
+  "Sériové číslo": "serial_number",
+  "Sériové č.": "serial_number",
+  "Umístění": "location",
+  "Odpovědná osoba": "responsible_person",
+  "Stav": "status",
+  "Poznámka": "notes",
+  "Poznámky": "notes",
+};
+
+const DEADLINE_COLUMN_MAP: Record<string, string> = {
+  "Inventární č.": "inventory_number",
+  "Inventární číslo": "inventory_number",
+  "Inv. číslo": "inventory_number",
+  "Typ události": "deadline_type_name",
+  "Typ lhůty": "deadline_type_name",
+  "Provozovna": "facility_code",
+  "Poslední kontrola": "last_check_date",
+  "Datum kontroly": "last_check_date",
+  "Provádějící": "performer",
+  "Firma": "company",
+  "Poznámka": "note",
+  "Zadavatel": "requester",
+};
+
+/**
+ * Map Czech column names from exports to English import column names.
+ * If a column already has the English name, it passes through unchanged.
+ */
+const mapRowColumns = <T>(row: Record<string, any>, columnMap: Record<string, string>): T => {
+  const mapped: Record<string, any> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const mappedKey = columnMap[key] || key;
+    // Don't overwrite if the mapped key already has a value
+    if (!(mappedKey in mapped) || !mapped[mappedKey]) {
+      mapped[mappedKey] = value;
+    }
+  }
+  return mapped as T;
+};
+
 // Remove diacritics from string
 const removeDiacritics = (str: string): string => {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");

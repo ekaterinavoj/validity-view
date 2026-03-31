@@ -64,6 +64,32 @@ interface FuzzyMatch {
   isCrossFacility: boolean;
 }
 
+// Column name mapping: Czech export names → English import names
+const TRAINING_COLUMN_MAP: Record<string, string> = {
+  "Osobní číslo": "employee_number",
+  "Os. číslo": "employee_number",
+  "Email": "email",
+  "Typ školení": "training_type_name",
+  "Provozovna": "facility_code",
+  "Datum školení": "last_training_date",
+  "Školitel": "trainer",
+  "Firma": "company",
+  "Zadavatel": "requester",
+  "Poznámka": "note",
+  "Jméno": "_employee_name", // ignored but mapped to avoid collision
+};
+
+const mapTrainingRowColumns = (row: Record<string, any>): ImportRow => {
+  const mapped: Record<string, any> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const mappedKey = TRAINING_COLUMN_MAP[key] || key;
+    if (!(mappedKey in mapped) || !mapped[mappedKey]) {
+      mapped[mappedKey] = value;
+    }
+  }
+  return mapped as ImportRow;
+};
+
 // Remove diacritics from string
 const removeDiacritics = (str: string): string => {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
