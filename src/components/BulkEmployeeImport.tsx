@@ -235,6 +235,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     setIsImporting(true);
     setImportProgress({ current: 0, total: totalOps });
     setImportResult(null);
+    setImportErrorsList([]);
     abortRef.current = false;
 
     let successCount = 0;
