@@ -238,7 +238,8 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     setImportErrorsList([]);
     abortRef.current = false;
 
-    let successCount = 0;
+    let insertedCount = 0;
+    let updatedCount = 0;
     let errorCount = 0;
     const importErrors: string[] = [];
 
@@ -271,12 +272,32 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
 
       const { error } = await supabase.from("employees").insert(insertRows);
       if (error) {
-        errorCount += batch.length;
-        importErrors.push(`Batch insert (řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}): ${error.message}`);
+        for (const item of batch) {
+          if (abortRef.current) break;
+          const singleRow = {
+            first_name: item.data.firstName,
+            last_name: item.data.lastName,
+            email: item.data.email,
+            employee_number: item.data.employeeNumber,
+            position: item.data.position,
+            department_id: item.data._departmentId || null,
+            status: item.data.status,
+            work_category: item.data.workCategory || null,
+            birth_date: item.data.birthDate || null,
+          };
+
+          const { error: rowError } = await supabase.from("employees").insert([singleRow]);
+          if (rowError) {
+            errorCount++;
+            importErrors.push(`Řádek ${item.rowNumber} (${item.data.employeeNumber || item.data.email}): ${rowError.message || 'Neznámá chyba při vkládání'}`);
+          } else {
+            insertedCount++;
+          }
+        }
       } else {
-        successCount += batch.length;
+        insertedCount += batch.length;
       }
-      setImportProgress({ current: Math.min(i + BATCH_SIZE, toInsert.length) + toUpdate.filter((_, idx) => false).length, total: totalOps });
+      setImportProgress({ current: Math.min(i + BATCH_SIZE, toInsert.length), total: totalOps });
     }
 
     // UPDATE duplicates one by one (need individual IDs)
@@ -305,7 +326,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         errorCount++;
         importErrors.push(`Řádek ${item.rowNumber}: ${error.message}`);
       } else {
-        successCount++;
+        updatedCount++;
       }
       setImportProgress({ current: toInsert.length + i + 1, total: totalOps });
     }
@@ -344,19 +365,19 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     setIsImporting(false);
 
     const skippedCount = duplicateStrategy === 'skip' ? validData.filter(d => d.isDuplicate).length : 0;
-    setImportResult({ inserted: successCount, updated: toUpdate.length > 0 ? successCount - (toInsert.length - errorCount) : 0, skipped: skippedCount, failed: errorCount });
+    setImportResult({ inserted: insertedCount, updated: updatedCount, skipped: skippedCount, failed: errorCount });
     setImportErrorsList(importErrors);
 
     if (errorCount > 0) {
       toast({
         title: "Import dokončen s chybami",
-        description: `Úspěšně: ${successCount}, chyby: ${errorCount}`,
+        description: `Úspěšně: ${insertedCount + updatedCount}, chyby: ${errorCount}`,
         variant: "destructive",
       });
     } else {
       toast({
         title: "Import dokončen",
-        description: `Úspěšně importováno ${successCount} zaměstnanců.`,
+        description: `Úspěšně importováno ${insertedCount + updatedCount} zaměstnanců.`,
       });
     }
 
