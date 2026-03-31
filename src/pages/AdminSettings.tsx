@@ -189,6 +189,22 @@ export default function AdminSettings() {
     user_ids: [] as string[],
     delivery_mode: "bcc" as string,
   });
+
+  // Deadline-specific frequency (independent from training)
+  const [deadlineReminderFrequency, setDeadlineReminderFrequency] = useState({
+    type: "weekly" as string,
+    interval_days: 7,
+    start_time: "08:00",
+    timezone: "Europe/Prague",
+    enabled: true,
+  });
+
+  const [deadlineReminderSchedule, setDeadlineReminderSchedule] = useState({
+    enabled: true,
+    day_of_week: 1,
+    time: "08:00",
+    skip_weekends: true,
+  });
   
   const [newDayBefore, setNewDayBefore] = useState("");
   
