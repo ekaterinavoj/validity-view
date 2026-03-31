@@ -295,6 +295,16 @@ export default function AdminSettings() {
               setMedicalRecipients(prev => ({ ...prev, ...(setting.value as object) }));
             }
             break;
+          case "deadline_reminder_frequency":
+            if (setting.value && typeof setting.value === 'object') {
+              setDeadlineReminderFrequency(prev => ({ ...prev, ...(setting.value as object) }));
+            }
+            break;
+          case "deadline_reminder_schedule":
+            if (setting.value && typeof setting.value === 'object') {
+              setDeadlineReminderSchedule(prev => ({ ...prev, ...(setting.value as object) }));
+            }
+            break;
         }
       });
     } catch (error: any) {
