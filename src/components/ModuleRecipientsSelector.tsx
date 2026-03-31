@@ -500,7 +500,7 @@ export function ModuleRecipientsSelector({
               Příjemci připomínek podle modulu
             </CardTitle>
             <CardDescription>
-              Nastavte příjemce souhrnných emailů zvlášť pro Školení, Technické lhůty a PLP
+              Nastavte příjemce emailových upozornění (souhrnných i individuálních) zvlášť pro každý modul
             </CardDescription>
           </div>
           <Button onClick={handleSave} disabled={saving}>

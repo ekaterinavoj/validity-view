@@ -484,7 +484,7 @@ export default function AdminSettings() {
           </TabsTrigger>
           <TabsTrigger value="email" className="flex items-center gap-2">
             <Mail className="w-4 h-4" />
-            Emaily
+            Šablony emailů
           </TabsTrigger>
           <TabsTrigger value="templates" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
@@ -1176,9 +1176,9 @@ export default function AdminSettings() {
           {/* Email Templates with Tabs for both modules */}
           <Card>
             <CardHeader>
-              <CardTitle>Šablony souhrnných emailů</CardTitle>
+              <CardTitle>Šablony emailů podle modulu</CardTitle>
               <CardDescription>
-                Upravte text souhrnných emailů odesílaných vybraným příjemcům pro všechny moduly
+                Souhrnné emaily – upravte text periodických přehledů. Individuální emaily se řídí šablonami v záložce Šablony.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
