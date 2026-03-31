@@ -821,6 +821,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "add_import_export_to_config_pages",
     sql: null, // Frontend-only: added CSV export/import with bidirectional compatibility to Departments, Facilities, DeadlineTypes, TrainingTypes, MedicalExaminationTypes pages
   },
+  {
+    version: "20260331200000",
+    name: "periodicity_text_import_export",
+    sql: null, // Frontend-only: exports now use Czech text ("každé 4 roky") instead of raw days; imports accept both text and numbers via parsePeriodicityText
+  },
 ];
 
 /**
