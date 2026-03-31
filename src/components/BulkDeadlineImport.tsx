@@ -120,17 +120,28 @@ const DEADLINE_COLUMN_MAP: Record<string, string> = {
  * Map Czech column names from exports to English import column names.
  * If a column already has the English name, it passes through unchanged.
  */
-const mapRowColumns = <T>(row: Record<string, any>, columnMap: Record<string, string>): T => {
+const mapEquipmentRowColumns = (row: Record<string, any>): EquipmentImportRow => {
   const mapped: Record<string, any> = {};
   for (const [key, value] of Object.entries(row)) {
-    const mappedKey = columnMap[key] || key;
-    // Don't overwrite if the mapped key already has a value
+    const mappedKey = EQUIPMENT_COLUMN_MAP[key] || key;
     if (!(mappedKey in mapped) || !mapped[mappedKey]) {
       mapped[mappedKey] = value;
     }
   }
-  return mapped as T;
+  return mapped as EquipmentImportRow;
 };
+
+const mapDeadlineRowColumns = (row: Record<string, any>): DeadlineImportRow => {
+  const mapped: Record<string, any> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const mappedKey = DEADLINE_COLUMN_MAP[key] || key;
+    if (!(mappedKey in mapped) || !mapped[mappedKey]) {
+      mapped[mappedKey] = value;
+    }
+  }
+  return mapped as DeadlineImportRow;
+};
+
 
 // Remove diacritics from string
 const removeDiacritics = (str: string): string => {
