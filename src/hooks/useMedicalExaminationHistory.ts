@@ -74,7 +74,8 @@ export function useMedicalExaminationHistory(includeArchived: boolean = false) {
           ),
           original_record_id
         `)
-        .order("last_examination_date", { ascending: false });
+        .order("last_examination_date", { ascending: false })
+        .limit(50000);
 
       if (!includeArchived) {
         query = query.is("deleted_at", null);

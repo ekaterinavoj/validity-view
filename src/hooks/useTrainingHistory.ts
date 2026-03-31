@@ -73,7 +73,8 @@ export function useTrainingHistory(includeArchived: boolean = false) {
           ),
           original_record_id
         `)
-        .order("last_training_date", { ascending: false });
+        .order("last_training_date", { ascending: false })
+        .limit(50000);
       
       // If not including archived, filter them out
       if (!includeArchived) {
