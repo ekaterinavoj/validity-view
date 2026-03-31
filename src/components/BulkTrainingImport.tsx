@@ -751,8 +751,35 @@ export const BulkTrainingImport = () => {
           inserted += batch.length;
         } catch (error: any) {
           console.error(`Batch insert error:`, error);
-          failed += batch.length;
-          errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${error.message || 'Neznámá chyba při vkládání'}`);
+          for (const row of batch) {
+            if (abortRef.current) break;
+
+            const lastDate = new Date(row.data.last_training_date);
+            const nextDate = new Date(lastDate);
+            nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
+
+            const singleRow = {
+              employee_id: row.employeeId!,
+              training_type_id: row.trainingTypeId!,
+              facility: row.data.facility_code,
+              last_training_date: row.data.last_training_date,
+              next_training_date: nextDate.toISOString().split('T')[0],
+              trainer: row.data.trainer || null,
+              company: row.data.company || null,
+              note: row.data.note || null,
+              created_by: user.id,
+              status: 'valid',
+              is_active: true,
+            };
+
+            const { error: rowError } = await supabase.from("trainings").insert([singleRow]);
+            if (rowError) {
+              failed++;
+              errors.push(`Řádek ${row.rowNumber} (${row.employeeName || row.data.employee_number || row.data.email || '?'}): ${rowError.message || 'Neznámá chyba při vkládání'}`);
+            } else {
+              inserted++;
+            }
+          }
         }
 
         setImportProgress(Math.round(((Math.min(i + BATCH_SIZE, toInsert.length) + toUpdate.length * 0) / totalRows) * 100));
