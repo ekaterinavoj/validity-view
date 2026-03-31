@@ -781,6 +781,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "bulk_import_batch_fallback",
     sql: null, // Frontend-only change: row-by-row fallback for deadline/equipment batch imports
   },
+  {
+    version: "20260331121000",
+    name: "fix_equipment_duplicate_detection_logic",
+    sql: null, // Frontend-only change: duplicate detection now requires both inventory_number AND equipment_type to match
+  },
 ];
 
 /**
