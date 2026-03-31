@@ -54,30 +54,6 @@ interface UserWithRole {
   is_active: boolean;
 }
 
-const DAYS_OF_WEEK = [
-  { value: 0, label: "Neděle" },
-  { value: 1, label: "Pondělí" },
-  { value: 2, label: "Úterý" },
-  { value: 3, label: "Středa" },
-  { value: 4, label: "Čtvrtek" },
-  { value: 5, label: "Pátek" },
-  { value: 6, label: "Sobota" },
-];
-
-
-
-const DELIVERY_MODES = [
-  { value: "bcc", label: "BCC (skrytá kopie)" },
-  { value: "to", label: "To (příjemci viditelní)" },
-  { value: "cc", label: "CC (kopie)" },
-];
-
-const TEMPLATE_VARIABLES = [
-  { var: "{totalCount}", desc: "Celkový počet školení" },
-  { var: "{expiringCount}", desc: "Počet brzy vypršujících" },
-  { var: "{expiredCount}", desc: "Počet prošlých" },
-  { var: "{reportDate}", desc: "Datum reportu" },
-];
 
 export default function AdminSettings() {
   const navigate = useNavigate();
