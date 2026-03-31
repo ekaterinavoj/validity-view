@@ -487,10 +487,6 @@ export default function AdminSettings() {
             <History className="w-4 h-4" />
             Historie
           </TabsTrigger>
-          <TabsTrigger value="data" className="flex items-center gap-2">
-            <Database className="w-4 h-4" />
-            Data
-          </TabsTrigger>
         </TabsList>
 
         {/* Onboarding Tab */}
