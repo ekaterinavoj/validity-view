@@ -168,6 +168,11 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       const employeeData = mapRowToEmployee(row);
       const errors: string[] = [];
 
+      // Unknown status warning
+      if (employeeData._statusUnknown) {
+        errors.push(`Neznámý stav "${employeeData._rawStatus}" – použit výchozí "employed"`);
+      }
+
       // Zod validation
       const validation = employeeSchema.safeParse(employeeData);
       if (!validation.success) {
