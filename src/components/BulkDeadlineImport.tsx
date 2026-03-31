@@ -80,6 +80,26 @@ const DEFAULT_SETTINGS: ImportSettings = {
   minSimilarityThreshold: 70,
 };
 
+// Equipment status mapping: Czech/English → DB values
+const EQUIPMENT_STATUS_MAP: Record<string, string> = {
+  'aktivní': 'active',
+  'aktivni': 'active',
+  'active': 'active',
+  'neaktivní': 'inactive',
+  'neaktivni': 'inactive',
+  'inactive': 'inactive',
+  'vyřazeno': 'decommissioned',
+  'vyrazeno': 'decommissioned',
+  'vyřazené': 'decommissioned',
+  'vyrazene': 'decommissioned',
+  'decommissioned': 'decommissioned',
+};
+
+const resolveEquipmentStatus = (raw: any): string => {
+  const val = String(raw || '').toLowerCase().trim();
+  return EQUIPMENT_STATUS_MAP[val] || 'active';
+};
+
 // Column name mapping: Czech export names → English import names
 const EQUIPMENT_COLUMN_MAP: Record<string, string> = {
   "Inventární č.": "inventory_number",
