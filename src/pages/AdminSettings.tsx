@@ -267,6 +267,11 @@ export default function AdminSettings() {
               setDeadlineReminderSchedule(prev => ({ ...prev, ...(setting.value as object) }));
             }
             break;
+          case "medical_reminder_frequency":
+            if (setting.value && typeof setting.value === 'object') {
+              setMedicalReminderFrequency(prev => ({ ...prev, ...(setting.value as object) }));
+            }
+            break;
         }
       });
     } catch (error: any) {
