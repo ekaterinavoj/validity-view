@@ -270,6 +270,14 @@ export const BulkDeadlineImport = () => {
         .select("code, name")
         .limit(10000);
 
+      // Build facility lookup maps (code and name → code)
+      const facilityByCode = new Map((facilities || []).map(f => [f.code.toLowerCase(), f.code]));
+      const facilityByName = new Map((facilities || []).map(f => [f.name.toLowerCase(), f.code]));
+      const resolveFacility = (val: string): string | null => {
+        const key = val.toLowerCase().trim();
+        return facilityByCode.get(key) || facilityByName.get(key) || null;
+      };
+
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
         const rowNumber = i + 2;
