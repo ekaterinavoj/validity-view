@@ -58,6 +58,7 @@ export default function ScheduledTrainings() {
   const [loading, setLoading] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
