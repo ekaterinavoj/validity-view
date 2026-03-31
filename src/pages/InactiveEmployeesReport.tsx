@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/table";
 import { Download, UserX, Calendar, Loader2, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import { formatDepartment } from "@/components/DepartmentCell";
@@ -57,6 +60,9 @@ export default function InactiveEmployeesReport() {
     }
     return inactiveEmployees.filter((emp) => emp.status === statusFilter);
   }, [statusFilter, inactiveEmployees]);
+
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedEmployees, totalItems } = usePagination(filteredEmployees, preferences.itemsPerPage);
 
   const toggleEmployee = (employeeId: string) => {
     const newExpanded = new Set(expandedEmployees);
@@ -257,7 +263,7 @@ export default function InactiveEmployeesReport() {
               Žádní neaktivní zaměstnanci nenalezeni
             </p>
           ) : (
-            filteredEmployees.map((employee) => {
+            paginatedEmployees.map((employee) => {
               const trainings = getTrainingsForEmployee(employee.id);
               const isExpanded = expandedEmployees.has(employee.id);
 
@@ -351,6 +357,7 @@ export default function InactiveEmployeesReport() {
             })
           )}
         </div>
+        <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
       </Card>
 
       {/* Legenda */}
