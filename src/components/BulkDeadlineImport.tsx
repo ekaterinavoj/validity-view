@@ -567,7 +567,7 @@ export const BulkDeadlineImport = () => {
             serial_number: row.data.serial_number?.trim() || null,
             location: row.data.location?.trim() || null,
             responsible_person: row.data.responsible_person?.trim() || null,
-            status: row.data.status?.trim() || 'active',
+            status: resolveEquipmentStatus(row.data.status),
             notes: row.data.notes?.trim() || null,
           })
           .eq("id", row.existingId!);
