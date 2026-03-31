@@ -667,6 +667,7 @@ export default function EditMedicalExamination() {
             </div>
           </form>
         </Form>
+        </CardContent>
       </Card>
     </div>
   );

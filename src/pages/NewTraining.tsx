@@ -259,7 +259,7 @@ export default function NewTraining() {
   if (employeesError || typesError || facilitiesError) {
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-foreground">Vytvoření nového školení</h2>
+        <h1 className="text-2xl font-bold text-foreground">Vytvoření nového školení</h1>
         <ErrorDisplay title="Nepodařilo se načíst data" message={employeesError || typesError || facilitiesError || "Zkuste to prosím znovu."} onRetry={refetch} />
       </div>
     );

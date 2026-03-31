@@ -261,7 +261,7 @@ export default function NewMedicalExamination() {
   if (employeesError || typesError || facilitiesError) {
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-foreground">Nová lékařská prohlídka</h2>
+        <h1 className="text-2xl font-bold text-foreground">Nová lékařská prohlídka</h1>
         <ErrorDisplay title="Nepodařilo se načíst data" message={employeesError || typesError || facilitiesError || "Zkuste to prosím znovu."} onRetry={refetch} />
       </div>
     );

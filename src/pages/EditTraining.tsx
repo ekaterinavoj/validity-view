@@ -691,6 +691,7 @@ export default function EditTraining() {
             </div>
           </form>
         </Form>
+        </CardContent>
       </Card>
     </div>
   );
