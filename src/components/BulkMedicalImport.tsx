@@ -87,7 +87,7 @@ const MEDICAL_COLUMN_MAP: Record<string, string> = {
   "Věk": "_vek",
   "Středisko": "_stredisko",
   "Periodicita": "_periodicita",
-  "Datum pozbytí dlouhodobé způsobilosti": "_ztrata_zpusobilosti",
+  "Datum pozbytí dlouhodobé způsobilosti": "long_term_fitness_loss_date",
   ...Object.fromEntries(
     HEALTH_RISK_FIELDS.map(field => [`Zdravotní riziko – ${field.label}`, `_hr_${field.key}`])
   ),
