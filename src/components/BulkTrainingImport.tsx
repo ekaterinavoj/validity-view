@@ -1053,16 +1053,16 @@ export const BulkTrainingImport = () => {
               <div className="space-y-2">
                 <p className="font-semibold">Povinné sloupce:</p>
                 <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                  <li><strong>employee_number</strong> nebo <strong>email</strong> – identifikace zaměstnance (alespoň jedno povinné)</li>
-                  <li><strong>training_type_name</strong> – název typu školení (musí existovat v systému)</li>
-                  <li><strong>facility_code</strong> – kód provozovny (např. qlar-jenec-dc3)</li>
-                  <li><strong>last_training_date</strong> – datum posledního školení ve formátu YYYY-MM-DD</li>
+                  <li><strong>Osobní číslo</strong> nebo <strong>Email</strong> – identifikace zaměstnance (alespoň jedno povinné)</li>
+                  <li><strong>Typ školení</strong> – název typu školení (musí existovat v systému)</li>
+                  <li><strong>Provozovna</strong> – kód provozovny (musí existovat v systému)</li>
+                  <li><strong>Datum školení</strong> – datum posledního školení (DD.MM.YYYY nebo YYYY-MM-DD)</li>
                 </ul>
                 <p className="font-semibold mt-3">Nepovinné sloupce:</p>
                 <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                  <li><strong>trainer</strong> – jméno školitele</li>
-                  <li><strong>company</strong> – školící firma</li>
-                  <li><strong>note</strong> – poznámka</li>
+                  <li><strong>Školitel</strong> – jméno školitele</li>
+                  <li><strong>Firma</strong> – školící firma</li>
+                  <li><strong>Poznámka</strong> – poznámka</li>
                 </ul>
                 <p className="text-sm mt-3">
                   <strong>Párování zaměstnanců:</strong> Primárně podle osobního čísla, pokud nenalezeno, fallback na email.
