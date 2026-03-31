@@ -861,11 +861,13 @@ export const BulkDeadlineImport = () => {
     }
 
     setDeadlineResult({ inserted, updated, skipped, failed });
+    setDeadlineErrors(errors);
     setImportingDeadline(false);
 
     toast({
-      title: "Import lhůt dokončen",
+      title: failed > 0 ? "Import lhůt dokončen s chybami" : "Import lhůt dokončen",
       description: `Vloženo: ${inserted}, Aktualizováno: ${updated}, Přeskočeno: ${skipped}, Chyby: ${failed}`,
+      variant: failed > 0 ? "destructive" : "default",
     });
   };
 
