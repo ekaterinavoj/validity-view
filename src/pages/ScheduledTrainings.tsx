@@ -389,6 +389,10 @@ export default function ScheduledTrainings() {
           </div>
         </div>
 
+        {showImport && canEdit && (
+          <BulkTrainingImport />
+        )}
+
         {canEdit && (
           <BulkActionsBar
             selectedCount={selectedTrainings.size}

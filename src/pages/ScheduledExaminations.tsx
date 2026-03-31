@@ -257,6 +257,10 @@ export default function ScheduledExaminations() {
         </div>
       </div>
 
+      {showImport && canEdit && (
+        <BulkMedicalImport />
+      )}
+
       <div className="flex items-center justify-between">
         <StatusLegend variant="training" />
         <p className="text-sm text-muted-foreground">
