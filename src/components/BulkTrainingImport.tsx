@@ -785,6 +785,7 @@ export const BulkTrainingImport = () => {
         } catch (error: any) {
           console.error(`Error updating row ${row.rowNumber}:`, error);
           failed++;
+          errors.push(`Řádek ${row.rowNumber} (${row.employeeName || '?'}): ${error.message || 'Neznámá chyba při aktualizaci'}`);
         }
 
         setImportProgress(Math.round(((toInsert.length + i + 1) / totalRows) * 100));
