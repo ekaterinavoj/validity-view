@@ -136,6 +136,9 @@ const mapMedicalRowColumns = (row: Record<string, any>): ImportRow => {
   }
   mapped._healthRisks = healthRisks;
 
+  // Resolve result label → DB value
+  mapped.result = resolveResultValue(mapped.result);
+
   return mapped as ImportRow;
 };
 
