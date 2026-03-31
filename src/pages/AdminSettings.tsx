@@ -30,10 +30,7 @@ import { NextSendPreview } from "@/components/NextSendPreview";
 
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { OnboardingSettings } from "@/components/OnboardingSettings";
-import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
-import { BulkDeadlineImport } from "@/components/BulkDeadlineImport";
-import { BulkMedicalImport } from "@/components/BulkMedicalImport";
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { ModuleRecipientsSelector } from "@/components/ModuleRecipientsSelector";
 
