@@ -317,14 +317,15 @@ export const BulkDeadlineImport = () => {
           continue;
         }
 
-        // Validate facility exists
-        const facilityExists = facilities?.some(f => f.code === row.facility_code.trim());
-        if (!facilityExists) {
+        // Validate facility exists (by code or name)
+        const resolvedFacilityCode = resolveFacility(row.facility_code);
+        if (!resolvedFacilityCode) {
           parsedRow.status = 'error';
-          parsedRow.error = `Provozovna "${row.facility_code}" neexistuje`;
+          parsedRow.error = `Provozovna "${row.facility_code}" neexistuje v systému`;
           errorRows.push(parsedRow);
           continue;
         }
+        row.facility_code = resolvedFacilityCode;
 
         // Check for duplicates (inventory_number + equipment_type + manufacturer + serial_number)
         const trimmedInv = row.inventory_number.trim();
