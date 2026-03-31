@@ -37,11 +37,15 @@ interface BulkEquipmentImportProps {
 
 const STATUS_MAP: Record<string, string> = {
   'aktivní': 'active',
+  'aktivni': 'active',
   'active': 'active',
   'neaktivní': 'inactive',
+  'neaktivni': 'inactive',
   'inactive': 'inactive',
   'vyřazeno': 'decommissioned',
+  'vyrazeno': 'decommissioned',
   'vyřazené': 'decommissioned',
+  'vyrazene': 'decommissioned',
   'decommissioned': 'decommissioned',
 };
 

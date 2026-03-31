@@ -1091,16 +1091,16 @@ export const BulkDeadlineImport = () => {
                 <div className="space-y-2">
                   <p className="font-semibold">Povinné sloupce:</p>
                   <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                    <li><strong>inventory_number</strong> – inventární číslo zařízení (musí existovat v systému)</li>
-                    <li><strong>deadline_type_name</strong> – název typu lhůty (musí existovat v systému)</li>
-                    <li><strong>facility_code</strong> – kód provozovny (musí existovat v systému)</li>
-                    <li><strong>last_check_date</strong> – datum poslední kontroly ve formátu YYYY-MM-DD</li>
+                    <li><strong>Inventární č.</strong> – inventární číslo zařízení (musí existovat v systému)</li>
+                    <li><strong>Typ události</strong> – název typu lhůty (musí existovat v systému)</li>
+                    <li><strong>Provozovna</strong> – kód provozovny (musí existovat v systému)</li>
+                    <li><strong>Poslední kontrola</strong> – datum poslední kontroly (DD.MM.YYYY nebo YYYY-MM-DD)</li>
                   </ul>
                   <p className="font-semibold mt-3">Nepovinné sloupce:</p>
                   <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                    <li><strong>performer</strong> – provádějící osoba/technik</li>
-                    <li><strong>company</strong> – servisní/revizní firma</li>
-                    <li><strong>note</strong> – poznámka</li>
+                    <li><strong>Realizátor</strong> – provádějící osoba/technik</li>
+                    <li><strong>Firma</strong> – servisní/revizní firma</li>
+                    <li><strong>Poznámka</strong> – poznámka</li>
                   </ul>
                   <p className="text-sm mt-3">
                     <strong>Důležité:</strong> Před importem lhůt se ujistěte, že zařízení a typy lhůt již existují v systému.

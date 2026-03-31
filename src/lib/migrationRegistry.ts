@@ -801,6 +801,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "unify_import_export_templates_and_compatibility",
     sql: null, // Frontend-only: templates now use Czech headers matching exports, employee import handles Czech status labels and formatted department codes
   },
+  {
+    version: "20260331160000",
+    name: "fix_import_status_mapping_and_czech_descriptions",
+    sql: null, // Frontend-only: added equipment status mapping in BulkDeadlineImport, fixed employee status fallback, updated all import descriptions to Czech column names
+  },
 ];
 
 /**
