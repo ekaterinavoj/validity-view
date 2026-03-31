@@ -484,7 +484,7 @@ export default function AdminSettings() {
           </TabsTrigger>
           <TabsTrigger value="email" className="flex items-center gap-2">
             <Mail className="w-4 h-4" />
-            Emaily
+            Šablony emailů
           </TabsTrigger>
           <TabsTrigger value="templates" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
