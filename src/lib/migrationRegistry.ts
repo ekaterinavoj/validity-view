@@ -826,6 +826,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "periodicity_text_import_export",
     sql: null, // Frontend-only: exports now use Czech text ("každé 4 roky") instead of raw days; imports accept both text and numbers via parsePeriodicityText
   },
+  {
+    version: "20260331210000",
+    name: "remove_query_limits_and_status_warnings",
+    sql: null, // Frontend-only: raised Supabase query limits from default 1000 to 50000 on all data hooks; added warnings for unknown status values in employee and equipment imports
+  },
 ];
 
 /**
