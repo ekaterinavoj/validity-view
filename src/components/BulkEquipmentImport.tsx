@@ -53,6 +53,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
   const [duplicateStrategy, setDuplicateStrategy] = useState<DuplicateStrategy>('overwrite');
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
   const abortRef = useRef(false);
   const { toast } = useToast();
 
@@ -248,10 +249,12 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
     setIsImporting(true);
     setImportProgress({ current: 0, total: totalOps });
     setImportResult(null);
+    setImportErrors([]);
     abortRef.current = false;
 
     let successCount = 0;
     let errorCount = 0;
+    const errors: string[] = [];
 
     // Load existing for update matching
     const { data: existingEquipment } = await supabase
@@ -285,6 +288,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       const { data: inserted, error } = await supabase.from("equipment").insert(insertRows).select("id, inventory_number");
       if (error) {
         errorCount += batch.length;
+        errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${error.message || 'Neznámá chyba při vkládání'}`);
       } else {
         successCount += batch.length;
         // Assign responsible persons for newly inserted equipment
@@ -321,6 +325,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
 
       if (!existing) {
         errorCount++;
+        errors.push(`Řádek ${item.rowNumber} (${item.data.inventoryNumber}): Nelze najít existující záznam pro aktualizaci`);
         continue;
       }
 
@@ -339,6 +344,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
 
       if (error) {
         errorCount++;
+        errors.push(`Řádek ${item.rowNumber} (${item.data.inventoryNumber}): ${error.message || 'Neznámá chyba při aktualizaci'}`);
       } else {
         successCount++;
         // Reassign responsible persons for updated equipment
@@ -361,6 +367,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
     const skippedCount = duplicateStrategy === 'skip' ? validData.filter(d => d.isDuplicate).length : 0;
     const updatedCount = toUpdate.length > 0 ? Math.max(0, successCount - toInsert.length + errorCount) : 0;
     setImportResult({ inserted: successCount - updatedCount, updated: updatedCount, skipped: skippedCount, failed: errorCount });
+    setImportErrors(errors);
 
     toast({
       title: errorCount > 0 ? "Import dokončen s chybami" : "Import dokončen",
@@ -602,6 +609,16 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                       <Badge variant="destructive">Selhalo: {importResult.failed}</Badge>
                     )}
                   </div>
+                  {importErrors.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      <p className="text-sm font-medium text-destructive">Detail chyb:</p>
+                      <ul className="text-sm text-destructive list-disc list-inside max-h-[150px] overflow-y-auto">
+                        {importErrors.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </AlertDescription>
               </Alert>
             )}

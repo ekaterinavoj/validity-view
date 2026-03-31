@@ -73,6 +73,7 @@ export const BulkMedicalImport = () => {
   const [duplicateAction, setDuplicateAction] = useState<DuplicateAction>('overwrite');
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
 
   const canImport = isAdmin || isManager;
 
@@ -386,12 +387,14 @@ export const BulkMedicalImport = () => {
 
     setImporting(true);
     setImportProgress(0);
+    setImportErrors([]);
     abortRef.current = false;
 
     let inserted = 0;
     let updated = 0;
     let skipped = 0;
     let failed = 0;
+    const errors: string[] = [];
 
     const rowsToProcess = [
       ...preview.validRows,
@@ -438,9 +441,10 @@ export const BulkMedicalImport = () => {
         const { error } = await supabase.from("medical_examinations").insert(insertRows);
         if (error) throw error;
         inserted += batch.length;
-      } catch (error) {
+      } catch (error: any) {
         console.error("Batch insert error:", error);
         failed += batch.length;
+        errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${error?.message || 'Neznámá chyba při vkládání'}`);
       }
       setImportProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
     }
@@ -474,9 +478,10 @@ export const BulkMedicalImport = () => {
 
         if (error) throw error;
         updated++;
-      } catch (error) {
+      } catch (error: any) {
         console.error("Import error:", error);
         failed++;
+        errors.push(`Řádek ${row.rowNumber} (${row.employeeName || '?'}): ${error?.message || 'Neznámá chyba při aktualizaci'}`);
       }
       setImportProgress(Math.round(((toInsert.length + i + 1) / total) * 100));
     }
@@ -486,11 +491,13 @@ export const BulkMedicalImport = () => {
     }
 
     setImportResult({ inserted, updated, skipped, failed });
+    setImportErrors(errors);
     setImporting(false);
     
     toast({
-      title: "Import dokončen",
+      title: failed > 0 ? "Import dokončen s chybami" : "Import dokončen",
       description: `Vloženo: ${inserted}, Aktualizováno: ${updated}, Přeskočeno: ${skipped}, Selhalo: ${failed}`,
+      variant: failed > 0 ? "destructive" : "default",
     });
   };
 
@@ -631,6 +638,16 @@ export const BulkMedicalImport = () => {
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>
                       Import dokončen: {importResult.inserted} vloženo, {importResult.updated} aktualizováno, {importResult.skipped} přeskočeno, {importResult.failed} selhalo.
+                      {importErrors.length > 0 && (
+                        <div className="mt-3 space-y-1">
+                          <p className="text-sm font-medium text-destructive">Detail chyb:</p>
+                          <ul className="text-sm text-destructive list-disc list-inside max-h-[150px] overflow-y-auto">
+                            {importErrors.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </AlertDescription>
                   </Alert>
                 )}

@@ -132,6 +132,7 @@ export const BulkDeadlineImport = () => {
   const [equipmentDuplicateAction, setEquipmentDuplicateAction] = useState<DuplicateAction>('overwrite');
   const [equipmentProgress, setEquipmentProgress] = useState(0);
   const [equipmentResult, setEquipmentResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [equipmentErrors, setEquipmentErrors] = useState<string[]>([]);
 
   // Deadline import state
   const [importingDeadline, setImportingDeadline] = useState(false);
@@ -146,6 +147,7 @@ export const BulkDeadlineImport = () => {
   const [deadlineDuplicateAction, setDeadlineDuplicateAction] = useState<DuplicateAction>('overwrite');
   const [deadlineProgress, setDeadlineProgress] = useState(0);
   const [deadlineResult, setDeadlineResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [deadlineErrors, setDeadlineErrors] = useState<string[]>([]);
 
   const [settings, setSettings] = useState<ImportSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
@@ -403,6 +405,7 @@ export const BulkDeadlineImport = () => {
 
     setImportingEquipment(true);
     setEquipmentProgress(0);
+    setEquipmentErrors([]);
     abortEquipmentRef.current = false;
 
     const rowsToProcess = [
@@ -414,6 +417,7 @@ export const BulkDeadlineImport = () => {
     let updated = 0;
     let skipped = equipmentDuplicateAction === 'skip' ? equipmentPreview.duplicateRows.length : 0;
     let failed = 0;
+    const errors: string[] = [];
 
     // Separate inserts from updates
     const toInsert = rowsToProcess.filter(r => !(r.status === 'duplicate' && r.existingId));
@@ -443,9 +447,10 @@ export const BulkDeadlineImport = () => {
         const { error } = await supabase.from("equipment").insert(insertRows);
         if (error) throw error;
         inserted += batch.length;
-      } catch (err) {
+      } catch (err: any) {
         console.error("Batch equipment insert error:", err);
         failed += batch.length;
+        errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${err?.message || 'Neznámá chyba při vkládání'}`);
       }
       setEquipmentProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
     }
@@ -473,19 +478,22 @@ export const BulkDeadlineImport = () => {
           .eq("id", row.existingId!);
         if (error) throw error;
         updated++;
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error updating equipment:", err);
         failed++;
+        errors.push(`Řádek ${row.rowNumber} (${row.data.inventory_number}): ${err?.message || 'Neznámá chyba při aktualizaci'}`);
       }
       setEquipmentProgress(Math.round(((toInsert.length + i + 1) / total) * 100));
     }
 
     setEquipmentResult({ inserted, updated, skipped, failed });
+    setEquipmentErrors(errors);
     setImportingEquipment(false);
 
     toast({
-      title: "Import zařízení dokončen",
+      title: failed > 0 ? "Import zařízení dokončen s chybami" : "Import zařízení dokončen",
       description: `Vloženo: ${inserted}, Aktualizováno: ${updated}, Přeskočeno: ${skipped}, Chyby: ${failed}`,
+      variant: failed > 0 ? "destructive" : "default",
     });
   };
 
@@ -766,6 +774,7 @@ export const BulkDeadlineImport = () => {
 
     setImportingDeadline(true);
     setDeadlineProgress(0);
+    setDeadlineErrors([]);
     abortDeadlineRef.current = false;
 
     const rowsToProcess = [
@@ -777,6 +786,7 @@ export const BulkDeadlineImport = () => {
     let updated = 0;
     let skipped = deadlineDuplicateAction === 'skip' ? deadlinePreview.duplicateRows.length : 0;
     let failed = 0;
+    const errors: string[] = [];
 
     // Separate inserts from updates
     const toInsert = rowsToProcess.filter(r => !(r.status === 'duplicate' && r.existingDeadlineId));
@@ -811,9 +821,10 @@ export const BulkDeadlineImport = () => {
         const { error } = await supabase.from("deadlines").insert(insertRows);
         if (error) throw error;
         inserted += batch.length;
-      } catch (err) {
+      } catch (err: any) {
         console.error("Batch deadline insert error:", err);
         failed += batch.length;
+        errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${err?.message || 'Neznámá chyba při vkládání'}`);
       }
       setDeadlineProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
     }
@@ -841,19 +852,22 @@ export const BulkDeadlineImport = () => {
           .eq("id", row.existingDeadlineId!);
         if (error) throw error;
         updated++;
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error updating deadline:", err);
         failed++;
+        errors.push(`Řádek ${row.rowNumber} (${row.data.inventory_number}): ${err?.message || 'Neznámá chyba při aktualizaci'}`);
       }
       setDeadlineProgress(Math.round(((toInsert.length + i + 1) / total) * 100));
     }
 
     setDeadlineResult({ inserted, updated, skipped, failed });
+    setDeadlineErrors(errors);
     setImportingDeadline(false);
 
     toast({
-      title: "Import lhůt dokončen",
+      title: failed > 0 ? "Import lhůt dokončen s chybami" : "Import lhůt dokončen",
       description: `Vloženo: ${inserted}, Aktualizováno: ${updated}, Přeskočeno: ${skipped}, Chyby: ${failed}`,
+      variant: failed > 0 ? "destructive" : "default",
     });
   };
 
@@ -1143,6 +1157,16 @@ export const BulkDeadlineImport = () => {
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>
                       Import dokončen: {equipmentResult.inserted} vloženo, {equipmentResult.updated} aktualizováno, {equipmentResult.skipped} přeskočeno, {equipmentResult.failed} chyb
+                      {equipmentErrors.length > 0 && (
+                        <div className="mt-3 space-y-1">
+                          <p className="text-sm font-medium text-destructive">Detail chyb:</p>
+                          <ul className="text-sm text-destructive list-disc list-inside max-h-[150px] overflow-y-auto">
+                            {equipmentErrors.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </AlertDescription>
                   </Alert>
                 )}
@@ -1290,6 +1314,16 @@ export const BulkDeadlineImport = () => {
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>
                       Import dokončen: {deadlineResult.inserted} vloženo, {deadlineResult.updated} aktualizováno, {deadlineResult.skipped} přeskočeno, {deadlineResult.failed} chyb
+                      {deadlineErrors.length > 0 && (
+                        <div className="mt-3 space-y-1">
+                          <p className="text-sm font-medium text-destructive">Detail chyb:</p>
+                          <ul className="text-sm text-destructive list-disc list-inside max-h-[150px] overflow-y-auto">
+                            {deadlineErrors.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </AlertDescription>
                   </Alert>
                 )}

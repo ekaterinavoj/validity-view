@@ -211,6 +211,7 @@ export const BulkTrainingImport = () => {
   const [duplicateAction, setDuplicateAction] = useState<DuplicateAction>('overwrite');
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
   const [settings, setSettings] = useState<ImportSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
@@ -687,12 +688,14 @@ export const BulkTrainingImport = () => {
     setImporting(true);
     setImportProgress(0);
     setImportResult(null);
+    setImportErrors([]);
     abortRef.current = false;
 
     let inserted = 0;
     let updated = 0;
     let skipped = 0;
     let failed = 0;
+    const errors: string[] = [];
 
     // Include valid rows, auto-matched rows, and approved suggestions
     const rowsToProcess = [
@@ -749,6 +752,7 @@ export const BulkTrainingImport = () => {
         } catch (error: any) {
           console.error(`Batch insert error:`, error);
           failed += batch.length;
+          errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${error.message || 'Neznámá chyba při vkládání'}`);
         }
 
         setImportProgress(Math.round(((Math.min(i + BATCH_SIZE, toInsert.length) + toUpdate.length * 0) / totalRows) * 100));
@@ -781,6 +785,7 @@ export const BulkTrainingImport = () => {
         } catch (error: any) {
           console.error(`Error updating row ${row.rowNumber}:`, error);
           failed++;
+          errors.push(`Řádek ${row.rowNumber} (${row.employeeName || '?'}): ${error.message || 'Neznámá chyba při aktualizaci'}`);
         }
 
         setImportProgress(Math.round(((toInsert.length + i + 1) / totalRows) * 100));
@@ -808,10 +813,12 @@ export const BulkTrainingImport = () => {
       });
 
       setImportResult({ inserted, updated, skipped, failed });
+      setImportErrors(errors);
 
       toast({
-        title: "Import dokončen",
+        title: failed > 0 ? "Import dokončen s chybami" : "Import dokončen",
         description: `Vloženo: ${inserted}, Aktualizováno: ${updated}, Přeskočeno: ${skipped}, Selhalo: ${failed}`,
+        variant: failed > 0 ? "destructive" : "default",
       });
 
     } catch (error: any) {
@@ -874,6 +881,7 @@ export const BulkTrainingImport = () => {
     setShowPreviewDialog(false);
     setPreview(null);
     setImportResult(null);
+    setImportErrors([]);
     setImportProgress(0);
   };
 
@@ -1344,6 +1352,16 @@ export const BulkTrainingImport = () => {
                         </Badge>
                       )}
                     </div>
+                    {importErrors.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        <p className="text-sm font-medium text-destructive">Detail chyb:</p>
+                        <ul className="text-sm text-destructive list-disc list-inside max-h-[150px] overflow-y-auto">
+                          {importErrors.map((err, i) => (
+                            <li key={i}>{err}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}

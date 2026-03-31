@@ -46,6 +46,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
   const [duplicateStrategy, setDuplicateStrategy] = useState<DuplicateStrategy>('overwrite');
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [importErrorsList, setImportErrorsList] = useState<string[]>([]);
   const abortRef = useRef(false);
   const { toast } = useToast();
 
@@ -234,6 +235,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     setIsImporting(true);
     setImportProgress({ current: 0, total: totalOps });
     setImportResult(null);
+    setImportErrorsList([]);
     abortRef.current = false;
 
     let successCount = 0;
@@ -343,6 +345,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
 
     const skippedCount = duplicateStrategy === 'skip' ? validData.filter(d => d.isDuplicate).length : 0;
     setImportResult({ inserted: successCount, updated: toUpdate.length > 0 ? successCount - (toInsert.length - errorCount) : 0, skipped: skippedCount, failed: errorCount });
+    setImportErrorsList(importErrors);
 
     if (errorCount > 0) {
       toast({
@@ -601,6 +604,16 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
                       <Badge variant="destructive">Selhalo: {importResult.failed}</Badge>
                     )}
                   </div>
+                  {importErrorsList.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      <p className="text-sm font-medium text-destructive">Detail chyb:</p>
+                      <ul className="text-sm text-destructive list-disc list-inside max-h-[150px] overflow-y-auto">
+                        {importErrorsList.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
