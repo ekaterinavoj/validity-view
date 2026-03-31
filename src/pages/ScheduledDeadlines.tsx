@@ -268,6 +268,10 @@ export default function ScheduledDeadlines() {
         </div>
       </div>
 
+      {showImport && canEdit && (
+        <BulkDeadlineImport />
+      )}
+
       <AdvancedFilters
         filters={filters}
         onFilterChange={updateFilter}
