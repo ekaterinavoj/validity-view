@@ -757,8 +757,8 @@ BEGIN
         user_id, title, message, type, related_entity_type, related_entity_id
       ) VALUES (
         admin_record.user_id,
-        'Nevyhovující školení',
-        'Zaměstnanec ' || COALESCE(emp_name, '?') || ' nevyhověl u školení ' || COALESCE(tr_type_name, '?') || '. Zkontrolujte nápravu.',
+        'Nesplněné školení',
+        'Zaměstnanec ' || COALESCE(emp_name, '?') || ' nesplnil školení ' || COALESCE(tr_type_name, '?') || '. Zkontrolujte nápravu.',
         'warning',
         'training',
         NEW.id
