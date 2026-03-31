@@ -60,6 +60,33 @@ interface ImportPreview {
 
 type DuplicateAction = 'skip' | 'overwrite';
 
+// Column name mapping: Czech export names → English import names
+const MEDICAL_COLUMN_MAP: Record<string, string> = {
+  "Osobní číslo": "employee_number",
+  "Os. číslo": "employee_number",
+  "Email": "email",
+  "Typ prohlídky": "examination_type_name",
+  "Provozovna": "facility_code",
+  "Datum prohlídky": "last_examination_date",
+  "Lékař": "doctor",
+  "Zdravotnické zařízení": "medical_facility",
+  "Výsledek": "result",
+  "Poznámka": "note",
+  "Zadavatel": "requester",
+  "Jméno": "_employee_name",
+};
+
+const mapMedicalRowColumns = (row: Record<string, any>): ImportRow => {
+  const mapped: Record<string, any> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const mappedKey = MEDICAL_COLUMN_MAP[key] || key;
+    if (!(mappedKey in mapped) || !mapped[mappedKey]) {
+      mapped[mappedKey] = value;
+    }
+  }
+  return mapped as ImportRow;
+};
+
 const REQUIRED_COLUMNS = ['examination_type_name', 'facility_code', 'last_examination_date'];
 
 export const BulkMedicalImport = () => {
@@ -181,14 +208,15 @@ export const BulkMedicalImport = () => {
 
   const parseFile = async (file: File): Promise<ImportRow[]> => {
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    let rawData: Record<string, any>[];
 
     if (fileExtension === "csv") {
-      return new Promise((resolve, reject) => {
+      rawData = await new Promise((resolve, reject) => {
         Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
           delimiter: "",
-          complete: (results) => resolve(results.data as ImportRow[]),
+          complete: (results) => resolve(results.data as Record<string, any>[]),
           error: (error) => reject(error),
         });
       });
@@ -197,14 +225,17 @@ export const BulkMedicalImport = () => {
       const workbook = XLSX.read(data, { cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as ImportRow[];
-      for (const row of jsonData) {
-        row.last_examination_date = normalizeDate(row.last_examination_date);
-      }
-      return jsonData;
+      rawData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as Record<string, any>[];
     } else {
       throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
     }
+
+    // Map Czech column names from exports to English import names
+    const mapped = rawData.map(row => mapMedicalRowColumns(row));
+    for (const row of mapped) {
+      row.last_examination_date = normalizeDate(row.last_examination_date);
+    }
+    return mapped;
   };
 
   const validateAndPreview = async (data: ImportRow[]) => {

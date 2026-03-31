@@ -9,6 +9,7 @@ import {
   PlusCircle,
   Edit,
   Eye,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +40,7 @@ import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRo
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkEditDeadlinesDialog } from "@/components/BulkEditDeadlinesDialog";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
+import { BulkDeadlineImport } from "@/components/BulkDeadlineImport";
 import { cn, formatPeriodicity } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,6 +62,7 @@ export default function ScheduledDeadlines() {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const filteredDeadlineIds = useMemo(() => {
     return deadlines.filter(d => d.is_active).map(d => d.id);
@@ -249,6 +252,12 @@ export default function ScheduledDeadlines() {
             Export CSV
           </Button>
           {canEdit && (
+            <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </Button>
+          )}
+          {canEdit && (
             <Link to="/deadlines/new">
               <Button size="sm">
                 <PlusCircle className="w-4 h-4 mr-2" />
@@ -258,6 +267,10 @@ export default function ScheduledDeadlines() {
           )}
         </div>
       </div>
+
+      {showImport && canEdit && (
+        <BulkDeadlineImport />
+      )}
 
       <AdvancedFilters
         filters={filters}

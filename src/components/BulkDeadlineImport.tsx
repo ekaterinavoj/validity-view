@@ -80,6 +80,69 @@ const DEFAULT_SETTINGS: ImportSettings = {
   minSimilarityThreshold: 70,
 };
 
+// Column name mapping: Czech export names → English import names
+const EQUIPMENT_COLUMN_MAP: Record<string, string> = {
+  "Inventární č.": "inventory_number",
+  "Inventární číslo": "inventory_number",
+  "Inv. číslo": "inventory_number",
+  "Zařízení": "name",
+  "Název": "name",
+  "Typ zařízení": "equipment_type",
+  "Typ": "equipment_type",
+  "Provozovna": "facility_code",
+  "Výrobce": "manufacturer",
+  "Model": "model",
+  "Sériové číslo": "serial_number",
+  "Sériové č.": "serial_number",
+  "Umístění": "location",
+  "Odpovědná osoba": "responsible_person",
+  "Stav": "status",
+  "Poznámka": "notes",
+  "Poznámky": "notes",
+};
+
+const DEADLINE_COLUMN_MAP: Record<string, string> = {
+  "Inventární č.": "inventory_number",
+  "Inventární číslo": "inventory_number",
+  "Inv. číslo": "inventory_number",
+  "Typ události": "deadline_type_name",
+  "Typ lhůty": "deadline_type_name",
+  "Provozovna": "facility_code",
+  "Poslední kontrola": "last_check_date",
+  "Datum kontroly": "last_check_date",
+  "Provádějící": "performer",
+  "Firma": "company",
+  "Poznámka": "note",
+  "Zadavatel": "requester",
+};
+
+/**
+ * Map Czech column names from exports to English import column names.
+ * If a column already has the English name, it passes through unchanged.
+ */
+const mapEquipmentRowColumns = (row: Record<string, any>): EquipmentImportRow => {
+  const mapped: Record<string, any> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const mappedKey = EQUIPMENT_COLUMN_MAP[key] || key;
+    if (!(mappedKey in mapped) || !mapped[mappedKey]) {
+      mapped[mappedKey] = value;
+    }
+  }
+  return mapped as EquipmentImportRow;
+};
+
+const mapDeadlineRowColumns = (row: Record<string, any>): DeadlineImportRow => {
+  const mapped: Record<string, any> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const mappedKey = DEADLINE_COLUMN_MAP[key] || key;
+    if (!(mappedKey in mapped) || !mapped[mappedKey]) {
+      mapped[mappedKey] = value;
+    }
+  }
+  return mapped as DeadlineImportRow;
+};
+
+
 // Remove diacritics from string
 const removeDiacritics = (str: string): string => {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -230,14 +293,15 @@ export const BulkDeadlineImport = () => {
 
   const parseEquipmentFile = async (file: File): Promise<EquipmentImportRow[]> => {
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    let rawData: Record<string, any>[];
 
     if (fileExtension === "csv") {
-      return new Promise((resolve, reject) => {
+      rawData = await new Promise((resolve, reject) => {
         Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
           delimiter: "",
-          complete: (results) => resolve(results.data as EquipmentImportRow[]),
+          complete: (results) => resolve(results.data as Record<string, any>[]),
           error: (error) => reject(error),
         });
       });
@@ -246,10 +310,13 @@ export const BulkDeadlineImport = () => {
       const workbook = XLSX.read(data, { cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      return XLSX.utils.sheet_to_json(worksheet) as EquipmentImportRow[];
+      rawData = XLSX.utils.sheet_to_json(worksheet) as Record<string, any>[];
     } else {
       throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
     }
+
+    // Map Czech column names from exports to English import names
+    return rawData.map(row => mapEquipmentRowColumns(row));
   };
 
   const validateEquipment = async (data: EquipmentImportRow[]) => {
@@ -568,14 +635,15 @@ export const BulkDeadlineImport = () => {
 
   const parseDeadlineFile = async (file: File): Promise<DeadlineImportRow[]> => {
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    let rawData: Record<string, any>[];
 
     if (fileExtension === "csv") {
-      return new Promise((resolve, reject) => {
+      rawData = await new Promise((resolve, reject) => {
         Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
           delimiter: "",
-          complete: (results) => resolve(results.data as DeadlineImportRow[]),
+          complete: (results) => resolve(results.data as Record<string, any>[]),
           error: (error) => reject(error),
         });
       });
@@ -584,14 +652,17 @@ export const BulkDeadlineImport = () => {
       const workbook = XLSX.read(data, { cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as DeadlineImportRow[];
-      for (const row of jsonData) {
-        row.last_check_date = normalizeDate(row.last_check_date);
-      }
-      return jsonData;
+      rawData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as Record<string, any>[];
     } else {
       throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
     }
+
+    // Map Czech column names from exports to English import names
+    const mapped = rawData.map(row => mapDeadlineRowColumns(row));
+    for (const row of mapped) {
+      row.last_check_date = normalizeDate(row.last_check_date);
+    }
+    return mapped;
   };
 
   const validateDeadlines = async (data: DeadlineImportRow[]) => {

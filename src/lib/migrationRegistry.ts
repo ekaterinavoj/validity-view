@@ -786,6 +786,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "fix_equipment_duplicate_detection_logic",
     sql: null, // Frontend-only change: duplicate detection now requires both inventory_number AND equipment_type to match
   },
+  {
+    version: "20260331130000",
+    name: "import_export_column_mapping_compatibility",
+    sql: null, // Frontend-only: imports now accept Czech column names from exports across all modules (deadlines, trainings, medical)
+  },
 ];
 
 /**
