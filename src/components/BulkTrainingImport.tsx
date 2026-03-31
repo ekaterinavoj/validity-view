@@ -881,6 +881,7 @@ export const BulkTrainingImport = () => {
     setShowPreviewDialog(false);
     setPreview(null);
     setImportResult(null);
+    setImportErrors([]);
     setImportProgress(0);
   };
 
