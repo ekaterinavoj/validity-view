@@ -852,9 +852,10 @@ export const BulkDeadlineImport = () => {
           .eq("id", row.existingDeadlineId!);
         if (error) throw error;
         updated++;
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error updating deadline:", err);
         failed++;
+        errors.push(`Řádek ${row.rowNumber} (${row.data.inventory_number}): ${err?.message || 'Neznámá chyba při aktualizaci'}`);
       }
       setDeadlineProgress(Math.round(((toInsert.length + i + 1) / total) * 100));
     }
