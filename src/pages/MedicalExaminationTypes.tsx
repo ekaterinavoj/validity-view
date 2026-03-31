@@ -108,7 +108,7 @@ export default function MedicalExaminationTypes() {
       const data = examinationTypes.map(t => ({
         "Název": t.name,
         "Provozovna": getFacilityName(t.facility),
-        "Periodicita (dní)": t.period_days,
+        "Periodicita": formatPeriodicity(t.period_days),
         "Popis": t.description || "",
       }));
       const timestamp = new Date().toISOString().split('T')[0];
