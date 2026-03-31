@@ -189,6 +189,22 @@ export default function AdminSettings() {
     user_ids: [] as string[],
     delivery_mode: "bcc" as string,
   });
+
+  // Deadline-specific frequency (independent from training)
+  const [deadlineReminderFrequency, setDeadlineReminderFrequency] = useState({
+    type: "weekly" as string,
+    interval_days: 7,
+    start_time: "08:00",
+    timezone: "Europe/Prague",
+    enabled: true,
+  });
+
+  const [deadlineReminderSchedule, setDeadlineReminderSchedule] = useState({
+    enabled: true,
+    day_of_week: 1,
+    time: "08:00",
+    skip_weekends: true,
+  });
   
   const [newDayBefore, setNewDayBefore] = useState("");
   
@@ -279,6 +295,16 @@ export default function AdminSettings() {
               setMedicalRecipients(prev => ({ ...prev, ...(setting.value as object) }));
             }
             break;
+          case "deadline_reminder_frequency":
+            if (setting.value && typeof setting.value === 'object') {
+              setDeadlineReminderFrequency(prev => ({ ...prev, ...(setting.value as object) }));
+            }
+            break;
+          case "deadline_reminder_schedule":
+            if (setting.value && typeof setting.value === 'object') {
+              setDeadlineReminderSchedule(prev => ({ ...prev, ...(setting.value as object) }));
+            }
+            break;
         }
       });
     } catch (error: any) {
@@ -362,6 +388,8 @@ export default function AdminSettings() {
         saveSetting("reminder_frequency", reminderFrequency),
         saveSetting("reminder_recipients", reminderRecipients),
         saveSetting("deadline_reminder_recipients", deadlineRecipients),
+        saveSetting("deadline_reminder_frequency", deadlineReminderFrequency),
+        saveSetting("deadline_reminder_schedule", deadlineReminderSchedule),
         saveSetting("medical_reminder_recipients", medicalRecipients),
         saveSetting("email_provider", emailProvider),
         saveSetting("email_template", emailTemplate),
@@ -526,12 +554,12 @@ export default function AdminSettings() {
             onDeadlineRecipientsChange={(r) => setDeadlineRecipients(r)}
           />
 
-          {/* Frequency Card */}
+          {/* Training Frequency Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Frekvence odesílání
+                <GraduationCap className="w-5 h-5" />
+                Frekvence odesílání – Školení
               </CardTitle>
               <CardDescription>
                 Nastavte, jak často se mají odesílat souhrnné emaily
@@ -823,6 +851,160 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
+          {/* Deadline Frequency Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wrench className="w-5 h-5" />
+                Frekvence odesílání – Technické lhůty
+              </CardTitle>
+              <CardDescription>
+                Nastavte, jak často se mají odesílat souhrnné emaily pro technické lhůty (nezávislé na školení)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Povolit odesílání připomínek</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Dočasně pozastavit odesílání souhrnů technických lhůt
+                  </p>
+                </div>
+                <Switch
+                  checked={deadlineReminderFrequency.enabled}
+                  onCheckedChange={(checked) => 
+                    setDeadlineReminderFrequency({ ...deadlineReminderFrequency, enabled: checked })
+                  }
+                />
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Frekvence</Label>
+                  <Select
+                    value={deadlineReminderFrequency.type}
+                    onValueChange={(value) => {
+                      const preset = FREQUENCY_PRESETS.find(p => p.value === value);
+                      setDeadlineReminderFrequency(prev => ({
+                        ...prev,
+                        type: value,
+                        interval_days: preset?.days ?? prev.interval_days,
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FREQUENCY_PRESETS.map((preset) => (
+                        <SelectItem key={preset.value} value={preset.value}>
+                          {preset.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {deadlineReminderFrequency.type === "custom" ? (
+                  <div className="space-y-2">
+                    <Label>Interval (dny)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={deadlineReminderFrequency.interval_days}
+                      onChange={(e) => 
+                        setDeadlineReminderFrequency({ 
+                          ...deadlineReminderFrequency, 
+                          interval_days: parseInt(e.target.value) || 7 
+                        })
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Den v týdnu</Label>
+                    <Select
+                      value={String(deadlineReminderSchedule.day_of_week)}
+                      onValueChange={(value) => 
+                        setDeadlineReminderSchedule({ ...deadlineReminderSchedule, day_of_week: parseInt(value) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DAYS_OF_WEEK.map((day) => (
+                          <SelectItem key={day.value} value={String(day.value)}>
+                            {day.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Čas odeslání</Label>
+                  <Input
+                    type="time"
+                    value={deadlineReminderFrequency.start_time}
+                    onChange={(e) => 
+                      setDeadlineReminderFrequency({ ...deadlineReminderFrequency, start_time: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Časové pásmo</Label>
+                  <Select
+                    value={deadlineReminderFrequency.timezone}
+                    onValueChange={(value) => 
+                      setDeadlineReminderFrequency({ ...deadlineReminderFrequency, timezone: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIMEZONES.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Přeskočit víkendy</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Neodesílat emaily o víkendech
+                  </p>
+                </div>
+                <Switch
+                  checked={deadlineReminderSchedule.skip_weekends}
+                  onCheckedChange={(checked) => 
+                    setDeadlineReminderSchedule({ ...deadlineReminderSchedule, skip_weekends: checked })
+                  }
+                />
+              </div>
+
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Tip:</strong> Pro on-prem instalace použijte externí cron job, který spustí endpoint 
+                  <code className="mx-1 px-1 bg-background rounded">/functions/v1/run-deadline-reminders</code>
+                  s hlavičkou <code className="mx-1 px-1 bg-background rounded">X-CRON-SECRET</code>.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Days before expiration Card */}
           <Card>
             <CardHeader>
@@ -890,7 +1072,7 @@ export default function AdminSettings() {
                  <Label className="text-sm font-medium">Technické lhůty</Label>
                  <SendTestDeadlineEmail 
                    hasRecipients={deadlineRecipients.user_ids.length > 0}
-                   isEnabled={reminderFrequency.enabled}
+                   isEnabled={deadlineReminderFrequency.enabled}
                  />
                </div>
                <Separator />
