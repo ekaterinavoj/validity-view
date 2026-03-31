@@ -1252,7 +1252,6 @@ export default function AdminSettings() {
                     subject={deadlineEmailTemplate.subject}
                     body={deadlineEmailTemplate.body}
                   />
-                  <IndividualEmailPreview module="deadline" />
                 </TabsContent>
 
                 <TabsContent value="medical" className="space-y-4 pt-4">
