@@ -341,6 +341,18 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         errorCount++;
       } else {
         successCount++;
+        // Reassign responsible persons for updated equipment
+        const profileIds: string[] = item.data._responsibleProfileIds || [];
+        if (profileIds.length > 0) {
+          // Delete existing responsibles and insert new ones
+          await supabase.from("equipment_responsibles").delete().eq("equipment_id", existing.id);
+          const responsiblesData = profileIds.map(profileId => ({
+            equipment_id: existing.id,
+            profile_id: profileId,
+            created_by: currentUserId,
+          }));
+          await supabase.from("equipment_responsibles").insert(responsiblesData);
+        }
       }
       setImportProgress({ current: toInsert.length + i + 1, total: totalOps });
     }
