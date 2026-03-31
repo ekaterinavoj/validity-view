@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Plus, Download, RefreshCw, Eye } from "lucide-react";
+import { Edit, Plus, Download, RefreshCw, Eye, Upload } from "lucide-react";
 import { ResultBadge } from "@/components/ResultBadge";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
@@ -40,6 +40,7 @@ import { EmployeeStatusBadge } from "@/components/EmployeeStatusBadge";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { BulkMedicalImport } from "@/components/BulkMedicalImport";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -54,6 +55,7 @@ export default function ScheduledExaminations() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -241,6 +243,12 @@ export default function ScheduledExaminations() {
             Export CSV
           </Button>
           {canEdit && (
+            <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </Button>
+          )}
+          {canEdit && (
             <Button onClick={() => navigate("/plp/new")}>
               <Plus className="w-4 h-4 mr-2" />
               Nová prohlídka
@@ -248,6 +256,10 @@ export default function ScheduledExaminations() {
           )}
         </div>
       </div>
+
+      {showImport && canEdit && (
+        <BulkMedicalImport />
+      )}
 
       <div className="flex items-center justify-between">
         <StatusLegend variant="training" />

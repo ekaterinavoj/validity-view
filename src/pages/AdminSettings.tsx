@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Settings, Mail, Clock, Users, Database, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope } from "lucide-react";
+import { Loader2, Settings, Mail, Clock, Users, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope } from "lucide-react";
 import { ReminderTemplates } from "@/components/ReminderTemplates";
 import { ReminderLogs } from "@/components/ReminderLogs";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
@@ -30,10 +30,7 @@ import { NextSendPreview } from "@/components/NextSendPreview";
 
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { OnboardingSettings } from "@/components/OnboardingSettings";
-import { BulkTrainingImport } from "@/components/BulkTrainingImport";
-import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
-import { BulkDeadlineImport } from "@/components/BulkDeadlineImport";
-import { BulkMedicalImport } from "@/components/BulkMedicalImport";
+
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { ModuleRecipientsSelector } from "@/components/ModuleRecipientsSelector";
 
@@ -64,7 +61,7 @@ export default function AdminSettings() {
   
   // Get initial tab from URL query param, default to "onboarding"
   const tabParam = searchParams.get("tab");
-  const validTabs = ["onboarding", "user-management", "reminders", "email", "history", "data"];
+  const validTabs = ["onboarding", "user-management", "reminders", "email", "history"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
   const [activeTab, setActiveTab] = useState(initialTab);
   
@@ -469,7 +466,7 @@ export default function AdminSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
             Onboarding
@@ -489,10 +486,6 @@ export default function AdminSettings() {
           <TabsTrigger value="history" className="flex items-center gap-2">
             <History className="w-4 h-4" />
             Historie
-          </TabsTrigger>
-          <TabsTrigger value="data" className="flex items-center gap-2">
-            <Database className="w-4 h-4" />
-            Data
           </TabsTrigger>
         </TabsList>
 
@@ -1351,16 +1344,6 @@ export default function AdminSettings() {
           <ReminderLogs />
         </TabsContent>
 
-        {/* Data Tab */}
-        <TabsContent value="data" className="space-y-6">
-          <BulkTrainingImport />
-          
-          <BulkEmployeeImport />
-          
-          <BulkDeadlineImport />
-
-          <BulkMedicalImport />
-        </TabsContent>
       </Tabs>
     </div>
   );

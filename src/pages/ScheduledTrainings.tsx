@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Plus, CalendarClock, Eye, Download } from "lucide-react";
+import { Edit, Plus, CalendarClock, Eye, Download, Upload } from "lucide-react";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { useFacilities } from "@/hooks/useFacilities";
@@ -43,6 +43,7 @@ import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { BulkEditTrainingsDialog } from "@/components/BulkEditTrainingsDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
+import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
@@ -57,6 +58,7 @@ export default function ScheduledTrainings() {
   const [loading, setLoading] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -373,6 +375,12 @@ export default function ScheduledTrainings() {
               }
             </Button>
             {canEdit && (
+              <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import
+              </Button>
+            )}
+            {canEdit && (
               <Button onClick={() => navigate("/new-training")}>
                 <Plus className="w-4 h-4 mr-2" />
                 Nové školení
@@ -380,6 +388,10 @@ export default function ScheduledTrainings() {
             )}
           </div>
         </div>
+
+        {showImport && canEdit && (
+          <BulkTrainingImport />
+        )}
 
         {canEdit && (
           <BulkActionsBar
