@@ -61,6 +61,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EquipmentResponsiblesManager } from "@/components/EquipmentResponsiblesManager";
 import { EquipmentResponsiblesBadges } from "@/components/EquipmentResponsiblesBadges";
 import { ResponsiblePersonsPicker } from "@/components/ResponsiblePersonsPicker";
+import { BulkEquipmentImport } from "@/components/BulkEquipmentImport";
 import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColors } from "@/types/equipment";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
