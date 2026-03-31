@@ -258,6 +258,7 @@ export default function Equipment() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
+          <BulkEquipmentImport onImportComplete={() => refetch()} />
           <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
             Export CSV
