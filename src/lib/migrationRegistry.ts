@@ -674,6 +674,108 @@ BEGIN
 END;
 $function$;`,
   },
+  {
+    version: "20260331120000",
+    name: "notify_failed_deadline_result",
+    sql: `-- Notify admins when a deadline result is set to 'failed'
+CREATE OR REPLACE FUNCTION public.notify_failed_deadline()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  admin_record RECORD;
+  eq_name TEXT;
+  dl_type_name TEXT;
+BEGIN
+  -- Only on INSERT or when result changes to 'failed'
+  IF (TG_OP = 'INSERT' AND NEW.result = 'failed')
+     OR (TG_OP = 'UPDATE' AND NEW.result = 'failed' AND OLD.result IS DISTINCT FROM 'failed')
+  THEN
+    -- Skip archived records
+    IF NEW.original_record_id IS NOT NULL THEN RETURN NEW; END IF;
+
+    SELECT e.name INTO eq_name FROM public.equipment e WHERE e.id = NEW.equipment_id;
+    SELECT dt.name INTO dl_type_name FROM public.deadline_types dt WHERE dt.id = NEW.deadline_type_id;
+
+    FOR admin_record IN
+      SELECT ur.user_id FROM public.user_roles ur WHERE ur.role = 'admin'
+    LOOP
+      INSERT INTO public.notifications (
+        user_id, title, message, type, related_entity_type, related_entity_id
+      ) VALUES (
+        admin_record.user_id,
+        'Nevyhovující technická kontrola',
+        'Zařízení ' || COALESCE(eq_name, '?') || ' (' || COALESCE(dl_type_name, '?') || ') bylo vyhodnoceno jako nevyhovující. Zkontrolujte opravu.',
+        'warning',
+        'deadline',
+        NEW.id
+      );
+    END LOOP;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_notify_failed_deadline ON public.deadlines;
+CREATE TRIGGER trg_notify_failed_deadline
+  AFTER INSERT OR UPDATE ON public.deadlines
+  FOR EACH ROW
+  EXECUTE FUNCTION public.notify_failed_deadline();`,
+  },
+  {
+    version: "20260331120100",
+    name: "notify_failed_training_result",
+    sql: `-- Notify admins when a training result is set to 'failed'
+CREATE OR REPLACE FUNCTION public.notify_failed_training()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  admin_record RECORD;
+  emp_name TEXT;
+  tr_type_name TEXT;
+BEGIN
+  -- Only on INSERT or when result changes to 'failed'
+  IF (TG_OP = 'INSERT' AND NEW.result = 'failed')
+     OR (TG_OP = 'UPDATE' AND NEW.result = 'failed' AND OLD.result IS DISTINCT FROM 'failed')
+  THEN
+    -- Skip archived records
+    IF NEW.original_record_id IS NOT NULL THEN RETURN NEW; END IF;
+
+    SELECT e.first_name || ' ' || e.last_name INTO emp_name FROM public.employees e WHERE e.id = NEW.employee_id;
+    SELECT tt.name INTO tr_type_name FROM public.training_types tt WHERE tt.id = NEW.training_type_id;
+
+    FOR admin_record IN
+      SELECT ur.user_id FROM public.user_roles ur WHERE ur.role = 'admin'
+    LOOP
+      INSERT INTO public.notifications (
+        user_id, title, message, type, related_entity_type, related_entity_id
+      ) VALUES (
+        admin_record.user_id,
+        'Nevyhovující školení',
+        'Zaměstnanec ' || COALESCE(emp_name, '?') || ' nevyhověl u školení ' || COALESCE(tr_type_name, '?') || '. Zkontrolujte nápravu.',
+        'warning',
+        'training',
+        NEW.id
+      );
+    END LOOP;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_notify_failed_training ON public.trainings;
+CREATE TRIGGER trg_notify_failed_training
+  AFTER INSERT OR UPDATE ON public.trainings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.notify_failed_training();`,
+  },
 ];
 
 /**
