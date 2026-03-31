@@ -293,14 +293,15 @@ export const BulkDeadlineImport = () => {
 
   const parseEquipmentFile = async (file: File): Promise<EquipmentImportRow[]> => {
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    let rawData: Record<string, any>[];
 
     if (fileExtension === "csv") {
-      return new Promise((resolve, reject) => {
+      rawData = await new Promise((resolve, reject) => {
         Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
           delimiter: "",
-          complete: (results) => resolve(results.data as EquipmentImportRow[]),
+          complete: (results) => resolve(results.data as Record<string, any>[]),
           error: (error) => reject(error),
         });
       });
@@ -309,10 +310,13 @@ export const BulkDeadlineImport = () => {
       const workbook = XLSX.read(data, { cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      return XLSX.utils.sheet_to_json(worksheet) as EquipmentImportRow[];
+      rawData = XLSX.utils.sheet_to_json(worksheet) as Record<string, any>[];
     } else {
       throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
     }
+
+    // Map Czech column names from exports to English import names
+    return rawData.map(row => mapEquipmentRowColumns(row));
   };
 
   const validateEquipment = async (data: EquipmentImportRow[]) => {
