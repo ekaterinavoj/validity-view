@@ -251,6 +251,12 @@ export default function ScheduledDeadlines() {
             Export CSV
           </Button>
           {canEdit && (
+            <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </Button>
+          )}
+          {canEdit && (
             <Link to="/deadlines/new">
               <Button size="sm">
                 <PlusCircle className="w-4 h-4 mr-2" />
