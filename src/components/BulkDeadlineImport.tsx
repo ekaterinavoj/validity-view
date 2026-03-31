@@ -478,9 +478,10 @@ export const BulkDeadlineImport = () => {
           .eq("id", row.existingId!);
         if (error) throw error;
         updated++;
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error updating equipment:", err);
         failed++;
+        errors.push(`Řádek ${row.rowNumber} (${row.data.inventory_number}): ${err?.message || 'Neznámá chyba při aktualizaci'}`);
       }
       setEquipmentProgress(Math.round(((toInsert.length + i + 1) / total) * 100));
     }
