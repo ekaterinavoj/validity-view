@@ -210,7 +210,7 @@ export default function Equipment() {
   };
 
   const exportToCSV = () => {
-    const data = filteredEquipment.map(eq => ({
+    const data = equipment.map(eq => ({
       "Inv. číslo": eq.inventory_number || "",
       "Název": eq.name || "",
       "Typ": eq.equipment_type || "",

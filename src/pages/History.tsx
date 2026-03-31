@@ -292,7 +292,7 @@ export default function History() {
 
   const exportToCSV = () => {
     try {
-      const data = filteredHistory.map((training) => ({
+      const data = trainings.map((training) => ({
         "Datum": formatDisplayDate(training.date, ""),
         "Typ školení": training.type || "",
         "Osobní číslo": training.employeeNumber || "",
@@ -319,7 +319,7 @@ export default function History() {
 
       toast({
         title: "Export úspěšný",
-        description: `Exportováno ${filteredHistory.length} záznamů.`,
+        description: `Exportováno ${trainings.length} záznamů.`,
       });
     } catch (err) {
       toast({

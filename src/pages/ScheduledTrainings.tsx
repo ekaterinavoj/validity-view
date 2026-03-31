@@ -258,8 +258,8 @@ export default function ScheduledTrainings() {
   const exportToCSV = () => {
     try {
       const trainingsToExport = selectedTrainings.size > 0
-        ? filteredTrainings.filter(t => selectedTrainings.has(t.id))
-        : filteredTrainings;
+        ? trainings.filter(t => selectedTrainings.has(t.id))
+        : trainings;
 
       if (trainingsToExport.length === 0) {
         toast({

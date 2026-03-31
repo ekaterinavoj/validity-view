@@ -84,7 +84,7 @@ export default function InactiveEmployeesReport() {
   const exportToCSV = () => {
     try {
       const data: Record<string, string>[] = [];
-      filteredEmployees.forEach((employee) => {
+      inactiveEmployees.forEach((employee) => {
         const trainings = getTrainingsForEmployee(employee.id);
         if (trainings.length === 0) {
           data.push({

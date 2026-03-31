@@ -831,6 +831,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "remove_query_limits_and_status_warnings",
     sql: null, // Frontend-only: raised Supabase query limits from default 1000 to 50000 on all data hooks; added warnings for unknown status values in employee and equipment imports
   },
+  {
+    version: "20260331220000",
+    name: "export_all_data_not_filtered",
+    sql: null, // Frontend-only: all CSV exports now export ALL data by default (not just filtered/paginated view); when items are selected via checkboxes, only selected items are exported
+  },
 ];
 
 /**

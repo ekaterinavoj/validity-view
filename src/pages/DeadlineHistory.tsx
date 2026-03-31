@@ -245,7 +245,7 @@ export default function DeadlineHistory() {
   };
 
   const exportToCSV = () => {
-    const data = filteredHistory.map(d => ({
+    const data = history.map(d => ({
       "Inventární č.": d.equipment?.inventory_number || "",
       "Zařízení": d.equipment?.name || "",
       "Typ události": d.deadline_type?.name || "",

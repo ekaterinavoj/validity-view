@@ -313,7 +313,7 @@ const Profile = () => {
     }));
   };
   const handleExportUsers = () => {
-    const exportData = filteredUsers.map(user => ({
+    const exportData = allUsers.map(user => ({
       "Jméno": user.first_name,
       "Příjmení": user.last_name,
       "Email": user.email,
@@ -336,7 +336,7 @@ const Profile = () => {
     document.body.removeChild(link);
     toast({
       title: "Export úspěšný",
-      description: `Export ${filteredUsers.length} uživatelů byl dokončen.`
+      description: `Export ${allUsers.length} uživatelů byl dokončen.`
     });
   };
   const getUserStats = () => {
