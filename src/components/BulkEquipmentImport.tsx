@@ -430,6 +430,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         "Umístění": "Hala A",
         "Středisko": "VYR",
         "Stav": "aktivní",
+        "Odpovědná osoba": "jan.novak@firma.cz",
         "Poznámka": "",
       },
       {
@@ -443,6 +444,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         "Umístění": "Strojovna",
         "Středisko": "UD",
         "Stav": "aktivní",
+        "Odpovědná osoba": "karel.dvorak@firma.cz; marie.nova@firma.cz",
         "Poznámka": "Pravidelný servis",
       },
     ]);
