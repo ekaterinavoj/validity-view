@@ -752,6 +752,7 @@ export const BulkTrainingImport = () => {
         } catch (error: any) {
           console.error(`Batch insert error:`, error);
           failed += batch.length;
+          errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${error.message || 'Neznámá chyba při vkládání'}`);
         }
 
         setImportProgress(Math.round(((Math.min(i + BATCH_SIZE, toInsert.length) + toUpdate.length * 0) / totalRows) * 100));
