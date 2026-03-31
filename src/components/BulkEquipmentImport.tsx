@@ -617,8 +617,9 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                       <TableHead>Typ</TableHead>
                       <TableHead>Provozovna</TableHead>
                       <TableHead>Výrobce</TableHead>
-                      <TableHead>Sériové č.</TableHead>
+                       <TableHead>Sériové č.</TableHead>
                       <TableHead>Umístění</TableHead>
+                      <TableHead>Odp. osoba</TableHead>
                       <TableHead className="w-24">Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -639,6 +640,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                         <TableCell className="text-sm">{item.data.manufacturer || '-'}</TableCell>
                         <TableCell className="text-sm">{item.data.serialNumber || '-'}</TableCell>
                         <TableCell className="text-sm">{item.data.location || '-'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{item.data.responsibleEmails?.join(', ') || '-'}</TableCell>
                         <TableCell>
                           {!item.isValid ? (
                             <Badge variant="destructive">
