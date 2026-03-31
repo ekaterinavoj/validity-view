@@ -415,16 +415,6 @@ export default function AdminSettings() {
     });
   };
 
-  const handleFrequencyPresetChange = (preset: string) => {
-    const selectedPreset = FREQUENCY_PRESETS.find(p => p.value === preset);
-    if (selectedPreset) {
-      setReminderFrequency(prev => ({
-        ...prev,
-        type: preset,
-        interval_days: selectedPreset.days ?? prev.interval_days,
-      }));
-    }
-  };
 
   const handleRecipientToggle = (userId: string, checked: boolean) => {
     setReminderRecipients(prev => ({
