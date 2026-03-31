@@ -144,7 +144,7 @@ export default function MedicalExaminationTypes() {
         const name = String(row['Název'] || row['name'] || '').trim();
         const rawFacility = String(row['Provozovna'] || row['facility'] || '').trim();
         const facilityCode = resolveFacility(rawFacility);
-        const periodDays = parseInt(String(row['Periodicita (dní)'] || row['period_days'] || ''), 10);
+        const periodDays = parsePeriodicityText(row['Periodicita'] || row['Periodicita (dní)'] || row['period_days']);
         const description = String(row['Popis'] || row['description'] || '').trim();
         const errors: string[] = [];
         if (!name) errors.push("Chybí název");
