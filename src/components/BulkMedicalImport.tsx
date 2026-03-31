@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { HEALTH_RISK_FIELDS, HEALTH_RISK_VALUES, type HealthRiskValue, toDbHealthRisks, createEmptyHealthRisks, type HealthRisks } from "@/lib/healthRisks";
+import { medicalExaminationResultOptions } from "@/lib/medicalExaminationResults";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -28,6 +29,8 @@ interface ImportRow {
   medical_facility?: string;
   result?: string;
   note?: string;
+  requester?: string;
+  long_term_fitness_loss_date?: string;
   _healthRisks?: HealthRisks;
 }
 
@@ -84,16 +87,31 @@ const MEDICAL_COLUMN_MAP: Record<string, string> = {
   "Věk": "_vek",
   "Středisko": "_stredisko",
   "Periodicita": "_periodicita",
-  "Datum pozbytí dlouhodobé způsobilosti": "_ztrata_zpusobilosti",
+  "Datum pozbytí dlouhodobé způsobilosti": "long_term_fitness_loss_date",
   ...Object.fromEntries(
     HEALTH_RISK_FIELDS.map(field => [`Zdravotní riziko – ${field.label}`, `_hr_${field.key}`])
   ),
 };
 
+// Build reverse map: Czech label → DB value for results
+const RESULT_LABEL_TO_VALUE: Record<string, string> = {};
+for (const opt of medicalExaminationResultOptions) {
+  RESULT_LABEL_TO_VALUE[opt.label.toLowerCase()] = opt.value;
+}
+
+const resolveResultValue = (raw: string | undefined): string | null => {
+  if (!raw || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  // Already a DB value?
+  if (medicalExaminationResultOptions.some(o => o.value === trimmed)) return trimmed;
+  // Try Czech label match
+  const matched = RESULT_LABEL_TO_VALUE[trimmed.toLowerCase()];
+  return matched || trimmed; // pass through if unknown
+};
+
 const parseHealthRiskValue = (val: unknown): HealthRiskValue | null => {
   if (val == null || val === "") return null;
   const s = String(val).trim().toUpperCase();
-  // Normalize "2R" variants
   const normalized = s === "2R" ? "2R" : s;
   if ((HEALTH_RISK_VALUES as readonly string[]).includes(normalized)) return normalized as HealthRiskValue;
   return null;
@@ -117,6 +135,9 @@ const mapMedicalRowColumns = (row: Record<string, any>): ImportRow => {
     }
   }
   mapped._healthRisks = healthRisks;
+
+  // Resolve result label → DB value
+  mapped.result = resolveResultValue(mapped.result);
 
   return mapped as ImportRow;
 };
@@ -268,6 +289,9 @@ export const BulkMedicalImport = () => {
     const mapped = rawData.map(row => mapMedicalRowColumns(row));
     for (const row of mapped) {
       row.last_examination_date = normalizeDate(row.last_examination_date);
+      if (row.long_term_fitness_loss_date) {
+        row.long_term_fitness_loss_date = normalizeDate(row.long_term_fitness_loss_date);
+      }
     }
     return mapped;
   };
@@ -483,8 +507,13 @@ export const BulkMedicalImport = () => {
         const today = new Date();
         const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         let status = "valid";
-        if (daysUntil < 0) status = "expired";
-        else if (daysUntil <= 30) status = "warning";
+        if (row.data.result === "failed" || row.data.result === "lost_long_term") {
+          status = "expired";
+        } else if (daysUntil < 0) {
+          status = "expired";
+        } else if (daysUntil <= 30) {
+          status = "warning";
+        }
 
         return {
           facility: row.data.facility_code,
@@ -496,6 +525,8 @@ export const BulkMedicalImport = () => {
           medical_facility: row.data.medical_facility || null,
           result: row.data.result || null,
           note: row.data.note || null,
+          requester: row.data.requester || null,
+          long_term_fitness_loss_date: row.data.long_term_fitness_loss_date || null,
           zdravotni_rizika: row.data._healthRisks ? toDbHealthRisks(row.data._healthRisks) : undefined,
           status,
           is_active: true,
@@ -517,8 +548,13 @@ export const BulkMedicalImport = () => {
           const today = new Date();
           const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           let status = "valid";
-          if (daysUntil < 0) status = "expired";
-          else if (daysUntil <= 30) status = "warning";
+          if (row.data.result === "failed" || row.data.result === "lost_long_term") {
+            status = "expired";
+          } else if (daysUntil < 0) {
+            status = "expired";
+          } else if (daysUntil <= 30) {
+            status = "warning";
+          }
 
           const singleRow = {
             facility: row.data.facility_code,
@@ -530,6 +566,8 @@ export const BulkMedicalImport = () => {
             medical_facility: row.data.medical_facility || null,
             result: row.data.result || null,
             note: row.data.note || null,
+            requester: row.data.requester || null,
+            long_term_fitness_loss_date: row.data.long_term_fitness_loss_date || null,
             zdravotni_rizika: row.data._healthRisks ? toDbHealthRisks(row.data._healthRisks) : undefined,
             status,
             is_active: true,
@@ -558,8 +596,13 @@ export const BulkMedicalImport = () => {
         const today = new Date();
         const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         let status = "valid";
-        if (daysUntil < 0) status = "expired";
-        else if (daysUntil <= 30) status = "warning";
+        if (row.data.result === "failed" || row.data.result === "lost_long_term") {
+          status = "expired";
+        } else if (daysUntil < 0) {
+          status = "expired";
+        } else if (daysUntil <= 30) {
+          status = "warning";
+        }
 
         const updateData: Record<string, any> = {
             last_examination_date: row.data.last_examination_date,
@@ -568,6 +611,8 @@ export const BulkMedicalImport = () => {
             medical_facility: row.data.medical_facility || null,
             result: row.data.result || null,
             note: row.data.note || null,
+            requester: row.data.requester || null,
+            long_term_fitness_loss_date: row.data.long_term_fitness_loss_date || null,
             status,
             updated_at: new Date().toISOString(),
         };
