@@ -1285,30 +1285,23 @@ export const BulkTrainingImport = () => {
 
               {/* Duplicate handling */}
               {preview.duplicateRows.length > 0 && (
-                <div className="space-y-3">
-                  <Label className="font-semibold">Jak naložit s duplicitami?</Label>
-                  <RadioGroup value={duplicateAction} onValueChange={(value: DuplicateAction) => setDuplicateAction(value)}>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3 p-2 border rounded-lg hover:bg-muted/50">
-                        <RadioGroupItem value="overwrite" id="overwrite" />
-                        <Label htmlFor="overwrite" className="cursor-pointer flex-1">
-                          <span className="font-medium">Přepsat (výchozí)</span>
-                          <span className="text-sm text-muted-foreground ml-2">
-                            – aktualizovat existující záznamy
-                          </span>
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-3 p-2 border rounded-lg hover:bg-muted/50">
-                        <RadioGroupItem value="skip" id="skip" />
-                        <Label htmlFor="skip" className="cursor-pointer flex-1">
-                          <span className="font-medium">Přeskočit</span>
-                          <span className="text-sm text-muted-foreground ml-2">
-                            – duplicity nebudou importovány
-                          </span>
-                        </Label>
-                      </div>
-                    </div>
-                  </RadioGroup>
+              {preview.duplicateRows.length > 0 && (
+                <div className="flex items-center gap-3 p-3 border rounded-lg">
+                  <span className="text-sm font-medium">Duplicitní záznamy:</span>
+                  <Button
+                    variant={duplicateAction === 'overwrite' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDuplicateAction('overwrite')}
+                  >
+                    Přepsat ({preview.duplicateRows.length})
+                  </Button>
+                  <Button
+                    variant={duplicateAction === 'skip' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDuplicateAction('skip')}
+                  >
+                    Přeskočit
+                  </Button>
                 </div>
               )}
 
