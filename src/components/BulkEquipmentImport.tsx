@@ -147,6 +147,21 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         }
       }
 
+      // Responsible persons validation
+      const resolvedProfileIds: string[] = [];
+      const unresolvedEmails: string[] = [];
+      for (const email of eqData.responsibleEmails) {
+        const profileId = profileByEmail.get(email);
+        if (profileId) {
+          resolvedProfileIds.push(profileId);
+        } else {
+          unresolvedEmails.push(email);
+        }
+      }
+      if (unresolvedEmails.length > 0) {
+        errors.push(`Odpovědné osoby nenalezeny: ${unresolvedEmails.join(', ')}`);
+      }
+
       // In-file duplicate check
       const invKey = eqData.inventoryNumber.toLowerCase();
       if (seenInvNumbers.has(invKey)) {
@@ -169,6 +184,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
           ...eqData,
           _facilityCode: fac?.code || null,
           _departmentId: departmentId,
+          _responsibleProfileIds: resolvedProfileIds,
         },
         isValid: errors.length === 0,
         errors,
