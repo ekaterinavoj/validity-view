@@ -791,6 +791,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "import_export_column_mapping_compatibility",
     sql: null, // Frontend-only: imports now accept Czech column names from exports across all modules (deadlines, trainings, medical)
   },
+  {
+    version: "20260331140000",
+    name: "move_imports_to_module_pages",
+    sql: null, // Frontend-only: import buttons moved from Admin Data tab to individual module pages (Trainings, Medical); Data tab removed from admin
+  },
 ];
 
 /**

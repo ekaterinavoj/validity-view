@@ -1344,16 +1344,6 @@ export default function AdminSettings() {
           <ReminderLogs />
         </TabsContent>
 
-        {/* Data Tab */}
-        <TabsContent value="data" className="space-y-6">
-          <BulkTrainingImport />
-          
-          <BulkEmployeeImport />
-          
-          <BulkDeadlineImport />
-
-          <BulkMedicalImport />
-        </TabsContent>
       </Tabs>
     </div>
   );
