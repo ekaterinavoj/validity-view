@@ -387,12 +387,14 @@ export const BulkMedicalImport = () => {
 
     setImporting(true);
     setImportProgress(0);
+    setImportErrors([]);
     abortRef.current = false;
 
     let inserted = 0;
     let updated = 0;
     let skipped = 0;
     let failed = 0;
+    const errors: string[] = [];
 
     const rowsToProcess = [
       ...preview.validRows,
