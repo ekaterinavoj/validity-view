@@ -184,10 +184,37 @@ serve(async (req) => {
     const recipients = settingsMap["medical_reminder_recipients"] || { user_ids: [], delivery_mode: "bcc" };
     const emailProvider = settingsMap["email_provider"] || {};
     const managerNotifications = settingsMap["medical_manager_notifications"] || { enabled: false };
+    const medicalFrequency = settingsMap["medical_reminder_frequency"] || { enabled: true, skip_weekends: true };
     const emailTemplate = settingsMap["medical_email_template"] || {
       subject: "Souhrn lékařských prohlídek - {reportDate}",
       body: "Dobrý den,\n\nzasíláme přehled lékařských prohlídek vyžadujících pozornost.\n\nCelkem: {totalCount}\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}",
     };
+
+    // Check if summary sending is enabled
+    if (!medicalFrequency.enabled) {
+      console.log("Medical summary sending is disabled");
+      return new Response(JSON.stringify({ 
+        success: true, 
+        info: "Medical summary sending is disabled in settings" 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check skip weekends
+    if (medicalFrequency.skip_weekends) {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        console.log("Skipping medical summary - weekend");
+        return new Response(JSON.stringify({ 
+          success: true, 
+          info: "Skipped - weekend" 
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     if (!recipients.user_ids || recipients.user_ids.length === 0) {
       console.log("No medical reminder recipients configured");
