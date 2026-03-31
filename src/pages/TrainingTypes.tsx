@@ -152,7 +152,7 @@ export default function TrainingTypes() {
         const errors: string[] = [];
         if (!name) errors.push("Chybí název");
         if (!facilityCode) errors.push(`Provozovna "${rawFacility}" neexistuje`);
-        if (isNaN(periodDays) || periodDays <= 0) errors.push("Neplatná periodicita");
+        if (!periodDays || periodDays <= 0) errors.push("Neplatná periodicita");
         const isDuplicate = trainingTypes.some(t => t.name.toLowerCase() === name.toLowerCase() && t.facility === facilityCode);
         return { name, facilityCode, facilityRaw: rawFacility, periodDays, durationHours: isNaN(durationHours) ? null : durationHours, description, errors, rowNumber: i + 2, isDuplicate, isValid: errors.length === 0 };
       });

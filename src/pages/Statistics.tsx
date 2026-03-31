@@ -399,7 +399,7 @@ export default function Statistics() {
         "Platné": d.platné,
         "Varování": d.varování,
         "Prošlé": d.prošlé,
-        "Periodicita (dní)": d.periodicita
+        "Periodicita": formatPeriodicity(d.periodicita)
       }));
 
       // Trainer data

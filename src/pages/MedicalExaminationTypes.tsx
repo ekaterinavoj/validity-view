@@ -149,7 +149,7 @@ export default function MedicalExaminationTypes() {
         const errors: string[] = [];
         if (!name) errors.push("Chybí název");
         if (!facilityCode) errors.push(`Provozovna "${rawFacility}" neexistuje`);
-        if (isNaN(periodDays) || periodDays <= 0) errors.push("Neplatná periodicita");
+        if (!periodDays || periodDays <= 0) errors.push("Neplatná periodicita");
         const isDuplicate = examinationTypes.some(t => t.name.toLowerCase() === name.toLowerCase() && t.facility === facilityCode);
         return { name, facilityCode, facilityRaw: rawFacility, periodDays, description, errors, rowNumber: i + 2, isDuplicate, isValid: errors.length === 0 };
       });
