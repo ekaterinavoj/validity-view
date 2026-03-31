@@ -61,6 +61,9 @@ export default function InactiveEmployeesReport() {
     return inactiveEmployees.filter((emp) => emp.status === statusFilter);
   }, [statusFilter, inactiveEmployees]);
 
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedEmployees, totalItems } = usePagination(filteredEmployees, preferences.itemsPerPage);
+
   const toggleEmployee = (employeeId: string) => {
     const newExpanded = new Set(expandedEmployees);
     if (newExpanded.has(employeeId)) {
