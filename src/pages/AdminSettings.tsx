@@ -113,13 +113,6 @@ export default function AdminSettings() {
     start_time: "08:00",
     timezone: "Europe/Prague",
     enabled: true,
-    // Duální frekvence - oddělené nastavení pro prošlé a blížící se expirace
-    dual_mode: false,
-    expired_frequency: "daily" as string, // Pro prošlá školení
-    expired_start_time: "08:00",
-    warning_frequency: "weekly" as string, // Pro blížící se expirace
-    warning_start_time: "08:00",
-    warning_day_of_week: 1,
   });
   
   const [reminderRecipients, setReminderRecipients] = useState({
