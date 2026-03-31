@@ -277,10 +277,14 @@ export default function NewMedicalExamination() {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-foreground">Nová lékařská prohlídka</h2>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Nová lékařská prohlídka</h1>
+        <p className="text-muted-foreground">Vytvořte nový záznam o lékařské prohlídce</p>
+      </div>
 
-      <Card className="p-6">
+      <Card>
+        <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
