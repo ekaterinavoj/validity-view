@@ -64,13 +64,6 @@ const DAYS_OF_WEEK = [
   { value: 6, label: "Sobota" },
 ];
 
-const FREQUENCY_PRESETS = [
-  { value: "daily", label: "Denně", days: 1 },
-  { value: "weekly", label: "Týdně", days: 7 },
-  { value: "biweekly", label: "Každé 2 týdny", days: 14 },
-  { value: "monthly", label: "Měsíčně", days: 30 },
-  { value: "custom", label: "Vlastní interval", days: null },
-];
 
 const TIMEZONES = [
   { value: "Europe/Prague", label: "Praha (CET/CEST)" },
