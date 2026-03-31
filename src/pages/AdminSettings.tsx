@@ -1226,6 +1226,7 @@ export default function AdminSettings() {
                     subject={emailTemplate.subject}
                     body={emailTemplate.body}
                   />
+                  <IndividualEmailPreview module="training" />
                 </TabsContent>
 
                 <TabsContent value="deadlines" className="space-y-4 pt-4">
