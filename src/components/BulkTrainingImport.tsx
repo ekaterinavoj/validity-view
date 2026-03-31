@@ -1285,7 +1285,6 @@ export const BulkTrainingImport = () => {
 
               {/* Duplicate handling */}
               {preview.duplicateRows.length > 0 && (
-              {preview.duplicateRows.length > 0 && (
                 <div className="flex items-center gap-3 p-3 border rounded-lg">
                   <span className="text-sm font-medium">Duplicitní záznamy:</span>
                   <Button
