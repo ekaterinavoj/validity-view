@@ -131,6 +131,11 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       const eqData = mapRowToEquipment(row);
       const errors: string[] = [];
 
+      // Unknown status warning
+      if (eqData._statusUnknown) {
+        errors.push(`Neznámý stav "${eqData._rawStatus}" – použit výchozí "active"`);
+      }
+
       const validation = equipmentSchema.safeParse(eqData);
       if (!validation.success) {
         errors.push(...validation.error.errors.map(e => e.message));
