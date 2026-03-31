@@ -99,25 +99,23 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
   };
 
   const validateAndMarkDuplicates = async (rows: any[]): Promise<ImportedEquipment[]> => {
-    const { data: existingEquipment } = await supabase
-      .from("equipment")
-      .select("id, inventory_number, equipment_type, manufacturer, serial_number")
-      .limit(50000);
-
-    const { data: facilities } = await supabase
-      .from("facilities")
-      .select("id, code, name")
-      .limit(10000);
-
-    const { data: departments } = await supabase
-      .from("departments")
-      .select("id, code, name")
-      .limit(10000);
+    const [
+      { data: existingEquipment },
+      { data: facilities },
+      { data: departments },
+      { data: profiles },
+    ] = await Promise.all([
+      supabase.from("equipment").select("id, inventory_number, equipment_type, manufacturer, serial_number").limit(50000),
+      supabase.from("facilities").select("id, code, name").limit(10000),
+      supabase.from("departments").select("id, code, name").limit(10000),
+      supabase.from("profiles").select("id, email").limit(50000),
+    ]);
 
     const facilityByCode = new Map((facilities || []).map(f => [f.code.toLowerCase(), f]));
     const facilityByName = new Map((facilities || []).map(f => [f.name.toLowerCase(), f]));
     const deptByCode = new Map((departments || []).map(d => [d.code.toLowerCase(), d]));
     const deptByName = new Map((departments || []).map(d => [d.name.toLowerCase(), d]));
+    const profileByEmail = new Map((profiles || []).map(p => [p.email.toLowerCase(), p.id]));
 
     const seenInvNumbers = new Map<string, number>();
 
