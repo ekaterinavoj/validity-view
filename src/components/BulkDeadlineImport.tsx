@@ -1013,36 +1013,24 @@ export const BulkDeadlineImport = () => {
           </TabsList>
 
           <TabsContent value="equipment" className="space-y-4">
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <div className="space-y-2">
-                  <p className="font-semibold">Povinné sloupce:</p>
-                  <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                    <li><strong>Inventární č.</strong> – unikátní inventární číslo zařízení</li>
-                    <li><strong>Název</strong> – název zařízení</li>
-                    <li><strong>Typ zařízení</strong> – typ zařízení (např. VZV, Zakladač)</li>
-                    <li><strong>Provozovna</strong> – kód provozovny (musí existovat v systému)</li>
-                  </ul>
-                  <p className="font-semibold mt-3">Nepovinné sloupce:</p>
-                  <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                    <li><strong>Výrobce</strong> – výrobce zařízení</li>
-                    <li><strong>Model</strong> – model zařízení</li>
-                    <li><strong>Sériové č.</strong> – sériové číslo</li>
-                    <li><strong>Umístění</strong> – fyzické umístění</li>
-                    <li><strong>Odpovědná osoba</strong> – email odpovědné osoby</li>
-                    <li><strong>Stav</strong> – aktivní / neaktivní / vyřazeno (výchozí: aktivní)</li>
-                    <li><strong>Poznámka</strong> – poznámky</li>
-                  </ul>
-                  <p className="text-sm mt-3">
-                    <strong>Duplicita:</strong> Zařízení se stejným inventárním číslem = aktualizuje se existující záznam.
-                  </p>
-                  <p className="text-sm mt-2 text-muted-foreground">
-                    <strong>CSV formát:</strong> Delimiter: středník (;), kódování: UTF-8 s BOM
-                  </p>
-                </div>
-              </AlertDescription>
-            </Alert>
+            <ImportDescription
+              requiredColumns={[
+                { name: "Inventární č.", description: "unikátní inventární číslo zařízení" },
+                { name: "Název", description: "název zařízení" },
+                { name: "Typ zařízení", description: "typ zařízení (např. VZV, Zakladač)" },
+                { name: "Provozovna", description: "kód provozovny (musí existovat v systému)" },
+              ]}
+              optionalColumns={[
+                { name: "Výrobce", description: "výrobce zařízení" },
+                { name: "Model", description: "model zařízení" },
+                { name: "Sériové č.", description: "sériové číslo" },
+                { name: "Umístění", description: "fyzické umístění" },
+                { name: "Odpovědná osoba", description: "email odpovědné osoby" },
+                { name: "Stav", description: "aktivní / neaktivní / vyřazeno (výchozí: aktivní)" },
+                { name: "Poznámka", description: "poznámky" },
+              ]}
+              duplicateInfo="Zařízení se stejným inventárním číslem = aktualizuje se existující záznam."
+            />
 
             <div className="flex flex-wrap gap-4">
               <div className="flex gap-2">
