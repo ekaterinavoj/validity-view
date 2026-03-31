@@ -61,6 +61,7 @@ export default function ScheduledDeadlines() {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const filteredDeadlineIds = useMemo(() => {
     return deadlines.filter(d => d.is_active).map(d => d.id);
