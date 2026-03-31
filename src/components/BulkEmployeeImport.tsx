@@ -345,6 +345,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
 
     const skippedCount = duplicateStrategy === 'skip' ? validData.filter(d => d.isDuplicate).length : 0;
     setImportResult({ inserted: successCount, updated: toUpdate.length > 0 ? successCount - (toInsert.length - errorCount) : 0, skipped: skippedCount, failed: errorCount });
+    setImportErrorsList(importErrors);
 
     if (errorCount > 0) {
       toast({
