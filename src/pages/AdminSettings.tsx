@@ -626,6 +626,63 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
+          {/* PLP Frequency Card – simplified */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Stethoscope className="w-5 h-5" />
+                Souhrnné emaily – PLP
+              </CardTitle>
+              <CardDescription>
+                Zapnutí/vypnutí odesílání souhrnných emailů pro modul Pracovně lékařské prohlídky
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Povolit odesílání souhrnů</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Dočasně pozastavit odesílání souhrnů lékařských prohlídek
+                  </p>
+                </div>
+                <Switch
+                  checked={medicalReminderFrequency.enabled}
+                  onCheckedChange={(checked) => 
+                    setMedicalReminderFrequency({ ...medicalReminderFrequency, enabled: checked })
+                  }
+                />
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Přeskočit víkendy</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Neodesílat souhrnné emaily o víkendech
+                  </p>
+                </div>
+                <Switch
+                  checked={medicalReminderFrequency.skip_weekends}
+                  onCheckedChange={(checked) => 
+                    setMedicalReminderFrequency({ ...medicalReminderFrequency, skip_weekends: checked })
+                  }
+                />
+              </div>
+
+              <div className="p-3 bg-muted/50 rounded-lg space-y-1">
+                <p className="text-sm font-medium text-foreground">ℹ️ Jak to funguje</p>
+                <p className="text-sm text-muted-foreground">
+                  Frekvence odesílání je řízena externím cron jobem.
+                  Toto nastavení pouze zapíná/vypíná odesílání – nepřepisuje cron rozvrh.
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Endpoint: <code className="px-1 bg-background rounded">/functions/v1/run-medical-reminders</code>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Days before expiration Card */}
           <Card>
             <CardHeader>
