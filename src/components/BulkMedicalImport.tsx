@@ -29,6 +29,8 @@ interface ImportRow {
   medical_facility?: string;
   result?: string;
   note?: string;
+  requester?: string;
+  long_term_fitness_loss_date?: string;
   _healthRisks?: HealthRisks;
 }
 
