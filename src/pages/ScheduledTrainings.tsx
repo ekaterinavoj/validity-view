@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Plus, CalendarClock, Eye, Download } from "lucide-react";
+import { Edit, Plus, CalendarClock, Eye, Download, Upload } from "lucide-react";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { useFacilities } from "@/hooks/useFacilities";
