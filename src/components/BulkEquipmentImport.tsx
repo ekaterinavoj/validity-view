@@ -367,6 +367,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
     const skippedCount = duplicateStrategy === 'skip' ? validData.filter(d => d.isDuplicate).length : 0;
     const updatedCount = toUpdate.length > 0 ? Math.max(0, successCount - toInsert.length + errorCount) : 0;
     setImportResult({ inserted: successCount - updatedCount, updated: updatedCount, skipped: skippedCount, failed: errorCount });
+    setImportErrors(errors);
 
     toast({
       title: errorCount > 0 ? "Import dokončen s chybami" : "Import dokončen",
