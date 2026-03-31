@@ -496,6 +496,7 @@ export const BulkMedicalImport = () => {
           medical_facility: row.data.medical_facility || null,
           result: row.data.result || null,
           note: row.data.note || null,
+          zdravotni_rizika: row.data._healthRisks ? toDbHealthRisks(row.data._healthRisks) : undefined,
           status,
           is_active: true,
           created_by: user.id,
