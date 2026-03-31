@@ -796,6 +796,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "move_imports_to_module_pages",
     sql: null, // Frontend-only: import buttons moved from Admin Data tab to individual module pages (Trainings, Medical); Data tab removed from admin
   },
+  {
+    version: "20260331150000",
+    name: "unify_import_export_templates_and_compatibility",
+    sql: null, // Frontend-only: templates now use Czech headers matching exports, employee import handles Czech status labels and formatted department codes
+  },
 ];
 
 /**
