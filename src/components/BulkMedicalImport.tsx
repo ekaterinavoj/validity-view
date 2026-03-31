@@ -93,10 +93,25 @@ const MEDICAL_COLUMN_MAP: Record<string, string> = {
   ),
 };
 
+// Build reverse map: Czech label → DB value for results
+const RESULT_LABEL_TO_VALUE: Record<string, string> = {};
+for (const opt of medicalExaminationResultOptions) {
+  RESULT_LABEL_TO_VALUE[opt.label.toLowerCase()] = opt.value;
+}
+
+const resolveResultValue = (raw: string | undefined): string | null => {
+  if (!raw || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  // Already a DB value?
+  if (medicalExaminationResultOptions.some(o => o.value === trimmed)) return trimmed;
+  // Try Czech label match
+  const matched = RESULT_LABEL_TO_VALUE[trimmed.toLowerCase()];
+  return matched || trimmed; // pass through if unknown
+};
+
 const parseHealthRiskValue = (val: unknown): HealthRiskValue | null => {
   if (val == null || val === "") return null;
   const s = String(val).trim().toUpperCase();
-  // Normalize "2R" variants
   const normalized = s === "2R" ? "2R" : s;
   if ((HEALTH_RISK_VALUES as readonly string[]).includes(normalized)) return normalized as HealthRiskValue;
   return null;
