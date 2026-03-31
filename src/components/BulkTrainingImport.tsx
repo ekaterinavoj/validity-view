@@ -1047,39 +1047,20 @@ export const BulkTrainingImport = () => {
             </CollapsibleContent>
           </Collapsible>
 
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <div className="space-y-2">
-                <p className="font-semibold">Povinné sloupce:</p>
-                <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                  <li><strong>Osobní číslo</strong> nebo <strong>Email</strong> – identifikace zaměstnance (alespoň jedno povinné)</li>
-                  <li><strong>Typ školení</strong> – název typu školení (musí existovat v systému)</li>
-                  <li><strong>Provozovna</strong> – kód provozovny (musí existovat v systému)</li>
-                  <li><strong>Datum školení</strong> – datum posledního školení (DD.MM.YYYY nebo YYYY-MM-DD)</li>
-                </ul>
-                <p className="font-semibold mt-3">Nepovinné sloupce:</p>
-                <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                  <li><strong>Školitel</strong> – jméno školitele</li>
-                  <li><strong>Firma</strong> – školící firma</li>
-                  <li><strong>Poznámka</strong> – poznámka</li>
-                </ul>
-                <p className="text-sm mt-3">
-                  <strong>Párování zaměstnanců:</strong> Primárně podle osobního čísla, pokud nenalezeno, fallback na email.
-                </p>
-                <p className="text-sm mt-2">
-                  <strong>Duplicita:</strong> Stejný zaměstnanec + typ školení = aktualizuje se existující záznam (overwrite).
-                </p>
-                <p className="text-sm mt-2">
-                  <strong>Fuzzy matching:</strong> Normalizace názvů (bez diakritiky, roku, běžných slov). 
-                  ≥{settings.autoMatchThreshold}% = auto-match, {settings.minSimilarityThreshold}-{settings.autoMatchThreshold - 1}% = návrh k potvrzení, &lt;{settings.minSimilarityThreshold}% = chyba.
-                </p>
-                <p className="text-sm mt-2 text-muted-foreground">
-                  <strong>CSV formát:</strong> Delimiter: středník (;), kódování: UTF-8 s BOM
-                </p>
-              </div>
-            </AlertDescription>
-          </Alert>
+          <ImportDescription
+            requiredColumns={[
+              { name: "Osobní číslo nebo Email", description: "identifikace zaměstnance (alespoň jedno povinné)" },
+              { name: "Typ školení", description: "název typu školení (musí existovat v systému)" },
+              { name: "Provozovna", description: "kód provozovny (musí existovat v systému)" },
+              { name: "Datum školení", description: "datum posledního školení (DD.MM.YYYY nebo YYYY-MM-DD)" },
+            ]}
+            optionalColumns={[
+              { name: "Školitel", description: "jméno školitele" },
+              { name: "Firma", description: "školící firma" },
+              { name: "Poznámka", description: "poznámka" },
+            ]}
+            duplicateInfo={`Stejný zaměstnanec + typ školení = aktualizuje se existující záznam. Fuzzy matching: ≥${settings.autoMatchThreshold}% = auto, ${settings.minSimilarityThreshold}-${settings.autoMatchThreshold - 1}% = návrh, <${settings.minSimilarityThreshold}% = chyba.`}
+          />
 
           <div className="flex flex-wrap gap-4">
             <div className="flex gap-2">
@@ -1146,32 +1127,39 @@ export const BulkTrainingImport = () => {
                   </AlertDescription>
                 </Alert>
               )}
-              {/* Summary */}
-              <div className="grid grid-cols-6 gap-2">
-                <Card className="p-3">
-                  <div className="text-xl font-bold">{preview.totalRows}</div>
-                  <div className="text-xs text-muted-foreground">Celkem</div>
-                </Card>
-                <Card className="p-3 border-primary/50 bg-primary/10">
-                  <div className="text-xl font-bold text-primary">{preview.validRows.length}</div>
-                  <div className="text-xs text-muted-foreground">Přesná shoda</div>
-                </Card>
-                <Card className="p-3 border-primary/50 bg-primary/10">
-                  <div className="text-xl font-bold text-primary">{preview.autoMatchedRows.length}</div>
-                  <div className="text-xs text-muted-foreground">Auto-match</div>
-                </Card>
-                <Card className="p-3 border-secondary/50 bg-secondary/10">
-                  <div className="text-xl font-bold text-secondary-foreground">{preview.suggestionRows.length}</div>
-                  <div className="text-xs text-muted-foreground">Návrhy</div>
-                </Card>
-                <Card className="p-3 border-accent/50 bg-accent/10">
-                  <div className="text-xl font-bold text-accent-foreground">{preview.duplicateRows.length}</div>
-                  <div className="text-xs text-muted-foreground">Duplicity</div>
-                </Card>
-                <Card className="p-3 border-destructive/50 bg-destructive/10">
-                  <div className="text-xl font-bold text-destructive">{preview.errorRows.length}</div>
-                  <div className="text-xs text-muted-foreground">Chyby</div>
-                </Card>
+              {/* Summary bar - consistent style */}
+              <div className="flex flex-wrap items-center gap-4 p-4 bg-muted rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-muted-foreground">Celkem: {preview.totalRows}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  <span className="font-medium">{preview.validRows.length} přesná shoda</span>
+                </div>
+                {preview.autoMatchedRows.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                    <span className="font-medium">{preview.autoMatchedRows.length} auto-match</span>
+                  </div>
+                )}
+                {preview.suggestionRows.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                    <span className="font-medium">{preview.suggestionRows.length} návrhů</span>
+                  </div>
+                )}
+                {preview.duplicateRows.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600" />
+                    <span className="font-medium">{preview.duplicateRows.length} duplicitních</span>
+                  </div>
+                )}
+                {preview.errorRows.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-destructive" />
+                    <span className="font-medium">{preview.errorRows.length} s chybami</span>
+                  </div>
+                )}
               </div>
 
               {/* Auto-matched rows info */}
@@ -1297,30 +1285,22 @@ export const BulkTrainingImport = () => {
 
               {/* Duplicate handling */}
               {preview.duplicateRows.length > 0 && (
-                <div className="space-y-3">
-                  <Label className="font-semibold">Jak naložit s duplicitami?</Label>
-                  <RadioGroup value={duplicateAction} onValueChange={(value: DuplicateAction) => setDuplicateAction(value)}>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3 p-2 border rounded-lg hover:bg-muted/50">
-                        <RadioGroupItem value="overwrite" id="overwrite" />
-                        <Label htmlFor="overwrite" className="cursor-pointer flex-1">
-                          <span className="font-medium">Přepsat (výchozí)</span>
-                          <span className="text-sm text-muted-foreground ml-2">
-                            – aktualizovat existující záznamy
-                          </span>
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-3 p-2 border rounded-lg hover:bg-muted/50">
-                        <RadioGroupItem value="skip" id="skip" />
-                        <Label htmlFor="skip" className="cursor-pointer flex-1">
-                          <span className="font-medium">Přeskočit</span>
-                          <span className="text-sm text-muted-foreground ml-2">
-                            – duplicity nebudou importovány
-                          </span>
-                        </Label>
-                      </div>
-                    </div>
-                  </RadioGroup>
+                <div className="flex items-center gap-3 p-3 border rounded-lg">
+                  <span className="text-sm font-medium">Duplicitní záznamy:</span>
+                  <Button
+                    variant={duplicateAction === 'overwrite' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDuplicateAction('overwrite')}
+                  >
+                    Přepsat ({preview.duplicateRows.length})
+                  </Button>
+                  <Button
+                    variant={duplicateAction === 'skip' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDuplicateAction('skip')}
+                  >
+                    Přeskočit
+                  </Button>
                 </div>
               )}
 

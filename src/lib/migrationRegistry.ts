@@ -806,6 +806,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "fix_import_status_mapping_and_czech_descriptions",
     sql: null, // Frontend-only: added equipment status mapping in BulkDeadlineImport, fixed employee status fallback, updated all import descriptions to Czech column names
   },
+  {
+    version: "20260331170000",
+    name: "unify_bulk_import_ui_across_modules",
+    sql: null, // Frontend-only: unified visual layout of all bulk import components (ImportDescription, summary bar, button toggles for duplicates, badge results)
+  },
 ];
 
 /**
