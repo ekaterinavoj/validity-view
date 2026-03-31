@@ -55,6 +55,7 @@ export default function ScheduledExaminations() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
