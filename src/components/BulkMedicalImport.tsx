@@ -561,9 +561,7 @@ export const BulkMedicalImport = () => {
         if (daysUntil < 0) status = "expired";
         else if (daysUntil <= 30) status = "warning";
 
-        const { error } = await supabase
-          .from("medical_examinations")
-          .update({
+        const updateData: Record<string, any> = {
             last_examination_date: row.data.last_examination_date,
             next_examination_date: nextDate.toISOString().split("T")[0],
             doctor: row.data.doctor || null,
@@ -572,7 +570,14 @@ export const BulkMedicalImport = () => {
             note: row.data.note || null,
             status,
             updated_at: new Date().toISOString(),
-          })
+        };
+        if (row.data._healthRisks) {
+            updateData.zdravotni_rizika = toDbHealthRisks(row.data._healthRisks);
+        }
+
+        const { error } = await supabase
+          .from("medical_examinations")
+          .update(updateData)
           .eq("id", row.existingExaminationId!);
 
         if (error) throw error;

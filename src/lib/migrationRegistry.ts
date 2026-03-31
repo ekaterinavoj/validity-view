@@ -836,6 +836,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "export_all_data_not_filtered",
     sql: null, // Frontend-only: all CSV exports now export ALL data by default (not just filtered/paginated view); when items are selected via checkboxes, only selected items are exported
   },
+  {
+    version: "20260331230000",
+    name: "plp_export_import_health_risks_and_category",
+    sql: null, // Frontend-only: PLP CSV export now includes 6 health risk columns and work category; import maps these columns back and saves zdravotni_rizika JSONB on insert/update
+  },
 ];
 
 /**
