@@ -1061,8 +1061,6 @@ export const BulkTrainingImport = () => {
             ]}
             duplicateInfo={`Stejný zaměstnanec + typ školení = aktualizuje se existující záznam. Fuzzy matching: ≥${settings.autoMatchThreshold}% = auto, ${settings.minSimilarityThreshold}-${settings.autoMatchThreshold - 1}% = návrh, <${settings.minSimilarityThreshold}% = chyba.`}
           />
-            </AlertDescription>
-          </Alert>
 
           <div className="flex flex-wrap gap-4">
             <div className="flex gap-2">
