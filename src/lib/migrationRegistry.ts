@@ -776,6 +776,11 @@ CREATE TRIGGER trg_notify_failed_training
   FOR EACH ROW
   EXECUTE FUNCTION public.notify_failed_training();`,
   },
+  {
+    version: "20260331120000",
+    name: "bulk_import_batch_fallback",
+    sql: null, // Frontend-only change: row-by-row fallback for deadline/equipment batch imports
+  },
 ];
 
 /**
