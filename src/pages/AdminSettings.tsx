@@ -1176,9 +1176,9 @@ export default function AdminSettings() {
           {/* Email Templates with Tabs for both modules */}
           <Card>
             <CardHeader>
-              <CardTitle>Šablony souhrnných emailů</CardTitle>
+              <CardTitle>Šablony emailů podle modulu</CardTitle>
               <CardDescription>
-                Upravte text souhrnných emailů odesílaných vybraným příjemcům pro všechny moduly
+                Souhrnné emaily – upravte text periodických přehledů. Individuální emaily se řídí šablonami v záložce Šablony.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
