@@ -211,6 +211,7 @@ export const BulkTrainingImport = () => {
   const [duplicateAction, setDuplicateAction] = useState<DuplicateAction>('overwrite');
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
   const [settings, setSettings] = useState<ImportSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
