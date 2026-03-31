@@ -478,9 +478,10 @@ export const BulkMedicalImport = () => {
 
         if (error) throw error;
         updated++;
-      } catch (error) {
+      } catch (error: any) {
         console.error("Import error:", error);
         failed++;
+        errors.push(`Řádek ${row.rowNumber} (${row.employeeName || '?'}): ${error?.message || 'Neznámá chyba při aktualizaci'}`);
       }
       setImportProgress(Math.round(((toInsert.length + i + 1) / total) * 100));
     }
