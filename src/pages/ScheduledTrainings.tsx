@@ -375,6 +375,12 @@ export default function ScheduledTrainings() {
               }
             </Button>
             {canEdit && (
+              <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import
+              </Button>
+            )}
+            {canEdit && (
               <Button onClick={() => navigate("/new-training")}>
                 <Plus className="w-4 h-4 mr-2" />
                 Nové školení
