@@ -358,6 +358,7 @@ export default function AdminSettings() {
         saveSetting("deadline_reminder_frequency", deadlineReminderFrequency),
         saveSetting("deadline_reminder_schedule", deadlineReminderSchedule),
         saveSetting("medical_reminder_recipients", medicalRecipients),
+        saveSetting("medical_reminder_frequency", medicalReminderFrequency),
         saveSetting("email_provider", emailProvider),
         saveSetting("email_template", emailTemplate),
         saveSetting("deadline_email_template", deadlineEmailTemplate),
