@@ -1072,7 +1072,7 @@ export default function AdminSettings() {
                  <Label className="text-sm font-medium">Technické lhůty</Label>
                  <SendTestDeadlineEmail 
                    hasRecipients={deadlineRecipients.user_ids.length > 0}
-                   isEnabled={reminderFrequency.enabled}
+                   isEnabled={deadlineReminderFrequency.enabled}
                  />
                </div>
                <Separator />
