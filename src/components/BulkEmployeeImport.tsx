@@ -604,6 +604,16 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
                       <Badge variant="destructive">Selhalo: {importResult.failed}</Badge>
                     )}
                   </div>
+                  {importErrorsList.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      <p className="text-sm font-medium text-destructive">Detail chyb:</p>
+                      <ul className="text-sm text-destructive list-disc list-inside max-h-[150px] overflow-y-auto">
+                        {importErrorsList.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
