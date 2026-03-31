@@ -249,24 +249,24 @@ export const BulkTrainingImport = () => {
   const downloadTemplateXLSX = () => {
     const template = [
       {
-        employee_number: "EMP001",
-        email: "jan.novak@example.com",
-        training_type_name: "BOZP",
-        facility_code: "qlar-jenec-dc3",
-        last_training_date: "2024-01-15",
-        trainer: "Jan Novák",
-        company: "Bezpečnostní akademie",
-        note: "Poznámka k školení"
+        "Osobní číslo": "EMP001",
+        "Email": "jan.novak@example.com",
+        "Typ školení": "BOZP",
+        "Provozovna": "qlar-jenec-dc3",
+        "Datum školení": "15.01.2024",
+        "Školitel": "Jan Novák",
+        "Firma": "Bezpečnostní akademie",
+        "Poznámka": "Poznámka k školení"
       },
       {
-        employee_number: "EMP002",
-        email: "petr.svoboda@example.com",
-        training_type_name: "ATEX",
-        facility_code: "qlar-jenec-dc3",
-        last_training_date: "2024-02-20",
-        trainer: "",
-        company: "",
-        note: ""
+        "Osobní číslo": "EMP002",
+        "Email": "petr.svoboda@example.com",
+        "Typ školení": "ATEX",
+        "Provozovna": "qlar-jenec-dc3",
+        "Datum školení": "20.02.2024",
+        "Školitel": "",
+        "Firma": "",
+        "Poznámka": ""
       }
     ];
 
@@ -284,24 +284,24 @@ export const BulkTrainingImport = () => {
   const downloadTemplateCSV = () => {
     const template = [
       {
-        employee_number: "EMP001",
-        email: "jan.novak@example.com",
-        training_type_name: "BOZP",
-        facility_code: "qlar-jenec-dc3",
-        last_training_date: "2024-01-15",
-        trainer: "Jan Novák",
-        company: "Bezpečnostní akademie",
-        note: "Poznámka k školení"
+        "Osobní číslo": "EMP001",
+        "Email": "jan.novak@example.com",
+        "Typ školení": "BOZP",
+        "Provozovna": "qlar-jenec-dc3",
+        "Datum školení": "15.01.2024",
+        "Školitel": "Jan Novák",
+        "Firma": "Bezpečnostní akademie",
+        "Poznámka": "Poznámka k školení"
       },
       {
-        employee_number: "EMP002",
-        email: "petr.svoboda@example.com",
-        training_type_name: "ATEX",
-        facility_code: "qlar-jenec-dc3",
-        last_training_date: "2024-02-20",
-        trainer: "",
-        company: "",
-        note: ""
+        "Osobní číslo": "EMP002",
+        "Email": "petr.svoboda@example.com",
+        "Typ školení": "ATEX",
+        "Provozovna": "qlar-jenec-dc3",
+        "Datum školení": "20.02.2024",
+        "Školitel": "",
+        "Firma": "",
+        "Poznámka": ""
       }
     ];
 

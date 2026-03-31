@@ -89,9 +89,33 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     return null;
   };
 
+  const EMPLOYEE_STATUS_MAP: Record<string, string> = {
+    'aktivní': 'employed',
+    'employed': 'employed',
+    'mateřská/rodičovská': 'parental_leave',
+    'mateřská': 'parental_leave',
+    'rodičovská': 'parental_leave',
+    'parental_leave': 'parental_leave',
+    'nemocenská': 'sick_leave',
+    'dpn': 'sick_leave',
+    'sick_leave': 'sick_leave',
+    'ukončený': 'terminated',
+    'ukončen': 'terminated',
+    'terminated': 'terminated',
+    'neaktivní': 'terminated',
+  };
+
+  const parseDepartmentCode = (raw: string): string => {
+    // Handle "Kód - Název" format from export (e.g., "IT - IT oddělení" → "IT")
+    const dashMatch = raw.match(/^([^\s-]+)\s*-\s*.+$/);
+    if (dashMatch) return dashMatch[1].trim();
+    return raw;
+  };
+
   const mapRowToEmployee = (row: any) => {
-    const rawCategory = row['Kategorie práce'] || row['workCategory'] || row['work_category'];
-    const workCategory = rawCategory ? String(rawCategory).trim().toUpperCase() : undefined;
+    const rawCategory = row['Kategorie práce'] || row['Kategorie'] || row['workCategory'] || row['work_category'];
+    const workCategory = rawCategory ? String(rawCategory).trim().toUpperCase().replace(/^kategorie\s+/i, '') : undefined;
+    const rawStatus = String(row['Stav'] || row['status'] || 'employed').toLowerCase().trim();
 
     return {
       firstName: String(row['Jméno'] || row['firstName'] || '').trim(),
@@ -99,8 +123,8 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       email: String(row['Email'] || row['email'] || '').trim().toLowerCase(),
       employeeNumber: String(row['Osobní číslo'] || row['employeeNumber'] || row['employee_number'] || '').trim(),
       position: String(row['Pozice'] || row['position'] || '').trim(),
-      department: String(row['Středisko'] || row['department'] || '').trim(),
-      status: String(row['Stav'] || row['status'] || 'employed').toLowerCase().trim(),
+      department: parseDepartmentCode(String(row['Středisko'] || row['department'] || '').trim()),
+      status: EMPLOYEE_STATUS_MAP[rawStatus] || rawStatus,
       managerEmail: String(row['Email nadřízeného'] || row['managerEmail'] || row['Manager Email'] || row['manager_email'] || '').trim().toLowerCase(),
       workCategory: workCategory && ['1', '2', '2R', '3', '4'].includes(workCategory) ? workCategory : undefined,
       birthDate: parseBirthDate(row['Datum narození'] || row['birthDate'] || row['birth_date']),

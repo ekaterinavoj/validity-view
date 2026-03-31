@@ -222,30 +222,30 @@ export const BulkDeadlineImport = () => {
   const downloadEquipmentTemplateXLSX = () => {
     const template = [
       {
-        inventory_number: "INV-001",
-        name: "Vysokozdvižný vozík",
-        equipment_type: "VZV",
-        facility_code: "qlar-jenec-dc3",
-        manufacturer: "Toyota",
-        model: "8FG25",
-        serial_number: "SN123456",
-        location: "Hala A",
-        responsible_person: "Jan Novák",
-        status: "active",
-        notes: "Poznámka k zařízení"
+        "Inventární č.": "INV-001",
+        "Název": "Vysokozdvižný vozík",
+        "Typ zařízení": "VZV",
+        "Provozovna": "qlar-jenec-dc3",
+        "Výrobce": "Toyota",
+        "Model": "8FG25",
+        "Sériové č.": "SN123456",
+        "Umístění": "Hala A",
+        "Odpovědná osoba": "jan.novak@firma.cz",
+        "Stav": "Aktivní",
+        "Poznámka": "Poznámka k zařízení"
       },
       {
-        inventory_number: "INV-002",
-        name: "Regálový zakladač",
-        equipment_type: "Zakladač",
-        facility_code: "qlar-jenec-dc3",
-        manufacturer: "Jungheinrich",
-        model: "EKX 515",
-        serial_number: "SN789012",
-        location: "Hala B",
-        responsible_person: "",
-        status: "active",
-        notes: ""
+        "Inventární č.": "INV-002",
+        "Název": "Regálový zakladač",
+        "Typ zařízení": "Zakladač",
+        "Provozovna": "qlar-jenec-dc3",
+        "Výrobce": "Jungheinrich",
+        "Model": "EKX 515",
+        "Sériové č.": "SN789012",
+        "Umístění": "Hala B",
+        "Odpovědná osoba": "",
+        "Stav": "Aktivní",
+        "Poznámka": ""
       }
     ];
 
@@ -263,17 +263,17 @@ export const BulkDeadlineImport = () => {
   const downloadEquipmentTemplateCSV = () => {
     const template = [
       {
-        inventory_number: "INV-001",
-        name: "Vysokozdvižný vozík",
-        equipment_type: "VZV",
-        facility_code: "qlar-jenec-dc3",
-        manufacturer: "Toyota",
-        model: "8FG25",
-        serial_number: "SN123456",
-        location: "Hala A",
-        responsible_person: "Jan Novák",
-        status: "active",
-        notes: "Poznámka k zařízení"
+        "Inventární č.": "INV-001",
+        "Název": "Vysokozdvižný vozík",
+        "Typ zařízení": "VZV",
+        "Provozovna": "qlar-jenec-dc3",
+        "Výrobce": "Toyota",
+        "Model": "8FG25",
+        "Sériové č.": "SN123456",
+        "Umístění": "Hala A",
+        "Odpovědná osoba": "jan.novak@firma.cz",
+        "Stav": "Aktivní",
+        "Poznámka": "Poznámka k zařízení"
       }
     ];
 
@@ -576,22 +576,22 @@ export const BulkDeadlineImport = () => {
   const downloadDeadlineTemplateXLSX = () => {
     const template = [
       {
-        inventory_number: "INV-001",
-        deadline_type_name: "Revize VZV",
-        facility_code: "qlar-jenec-dc3",
-        last_check_date: "2024-01-15",
-        performer: "BOZP Servis s.r.o.",
-        company: "Revizní firma",
-        note: "Poznámka k lhůtě"
+        "Inventární č.": "INV-001",
+        "Typ události": "Revize VZV",
+        "Provozovna": "qlar-jenec-dc3",
+        "Poslední kontrola": "15.01.2024",
+        "Provádějící": "BOZP Servis s.r.o.",
+        "Firma": "Revizní firma",
+        "Poznámka": "Poznámka k lhůtě"
       },
       {
-        inventory_number: "INV-002",
-        deadline_type_name: "Kalibrace",
-        facility_code: "qlar-jenec-dc3",
-        last_check_date: "2024-02-20",
-        performer: "",
-        company: "",
-        note: ""
+        "Inventární č.": "INV-002",
+        "Typ události": "Kalibrace",
+        "Provozovna": "qlar-jenec-dc3",
+        "Poslední kontrola": "20.02.2024",
+        "Provádějící": "",
+        "Firma": "",
+        "Poznámka": ""
       }
     ];
 
@@ -609,13 +609,13 @@ export const BulkDeadlineImport = () => {
   const downloadDeadlineTemplateCSV = () => {
     const template = [
       {
-        inventory_number: "INV-001",
-        deadline_type_name: "Revize VZV",
-        facility_code: "qlar-jenec-dc3",
-        last_check_date: "2024-01-15",
-        performer: "BOZP Servis s.r.o.",
-        company: "Revizní firma",
-        note: "Poznámka k lhůtě"
+        "Inventární č.": "INV-001",
+        "Typ události": "Revize VZV",
+        "Provozovna": "qlar-jenec-dc3",
+        "Poslední kontrola": "15.01.2024",
+        "Provádějící": "BOZP Servis s.r.o.",
+        "Firma": "Revizní firma",
+        "Poznámka": "Poznámka k lhůtě"
       }
     ];
 
