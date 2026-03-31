@@ -76,6 +76,18 @@ const MEDICAL_COLUMN_MAP: Record<string, string> = {
   "Poznámka": "note",
   "Zadavatel": "requester",
   "Jméno": "_employee_name",
+  "Kategorie": "_kategorie",
+  "Stav": "_stav_export",
+  "Platnost do": "_platnost_do",
+  "Stav zaměstnance": "_stav_zamestnance",
+  "Datum narození": "_datum_narozeni",
+  "Věk": "_vek",
+  "Středisko": "_stredisko",
+  "Periodicita": "_periodicita",
+  "Datum pozbytí dlouhodobé způsobilosti": "_ztrata_zpusobilosti",
+  ...Object.fromEntries(
+    HEALTH_RISK_FIELDS.map(field => [`Zdravotní riziko – ${field.label}`, `_hr_${field.key}`])
+  ),
 };
 
 const mapMedicalRowColumns = (row: Record<string, any>): ImportRow => {
