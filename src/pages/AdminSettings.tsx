@@ -466,7 +466,7 @@ export default function AdminSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
             Onboarding
