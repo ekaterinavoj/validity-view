@@ -447,10 +447,19 @@ export const BulkDeadlineImport = () => {
         const { error } = await supabase.from("equipment").insert(insertRows);
         if (error) throw error;
         inserted += batch.length;
-      } catch (err: any) {
-        console.error("Batch equipment insert error:", err);
-        failed += batch.length;
-        errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${err?.message || 'Neznámá chyba při vkládání'}`);
+      } catch (batchErr: any) {
+        console.warn("Batch equipment insert failed, falling back to row-by-row:", batchErr);
+        for (let j = 0; j < batch.length; j++) {
+          const row = batch[j];
+          try {
+            const { error: rowError } = await supabase.from("equipment").insert([insertRows[j]]);
+            if (rowError) throw rowError;
+            inserted++;
+          } catch (rowErr: any) {
+            failed++;
+            errors.push(`Řádek ${row.rowNumber} (${row.data.inventory_number}): ${rowErr?.message || 'Neznámá chyba při vkládání'}`);
+          }
+        }
       }
       setEquipmentProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
     }
@@ -821,10 +830,19 @@ export const BulkDeadlineImport = () => {
         const { error } = await supabase.from("deadlines").insert(insertRows);
         if (error) throw error;
         inserted += batch.length;
-      } catch (err: any) {
-        console.error("Batch deadline insert error:", err);
-        failed += batch.length;
-        errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${err?.message || 'Neznámá chyba při vkládání'}`);
+      } catch (batchErr: any) {
+        console.warn("Batch deadline insert failed, falling back to row-by-row:", batchErr);
+        for (let j = 0; j < batch.length; j++) {
+          const row = batch[j];
+          try {
+            const { error: rowError } = await supabase.from("deadlines").insert([insertRows[j]]);
+            if (rowError) throw rowError;
+            inserted++;
+          } catch (rowErr: any) {
+            failed++;
+            errors.push(`Řádek ${row.rowNumber} (${row.data.inventory_number}): ${rowErr?.message || 'Neznámá chyba při vkládání'}`);
+          }
+        }
       }
       setDeadlineProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
     }
