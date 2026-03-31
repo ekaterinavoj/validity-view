@@ -109,7 +109,7 @@ export default function TrainingTypes() {
       const data = trainingTypes.map(t => ({
         "Název": t.name,
         "Provozovna": getFacilityName(t.facility),
-        "Periodicita (dní)": t.period_days,
+        "Periodicita": formatPeriodicity(t.period_days),
         "Délka (hodiny)": t.duration_hours || "",
         "Popis": t.description || "",
       }));
