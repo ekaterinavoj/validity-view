@@ -311,7 +311,7 @@ export default function EditTraining() {
   if (loading || employeesLoading || typesLoading || facilitiesLoading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-foreground">Úprava školení</h2>
+        <h1 className="text-2xl font-bold text-foreground">Úprava školení</h1>
         <FormSkeleton />
       </div>
     );
