@@ -358,18 +358,21 @@ export const BulkTrainingImport = () => {
       const suggestionRows: ParsedRow[] = [];
 
       // Fetch all employees for matching (override default 1000 row limit)
-      const { data: employees } = await supabase
-        .from("employees")
-        .select("id, employee_number, email, first_name, last_name")
-        .limit(10000);
-
-      // Fetch all training types
-      const { data: types } = await supabase
-        .from("training_types")
-        .select("id, name, facility, period_days")
-        .limit(10000);
+      const [{ data: employees }, { data: types }, { data: facilities }] = await Promise.all([
+        supabase.from("employees").select("id, employee_number, email, first_name, last_name").limit(10000),
+        supabase.from("training_types").select("id, name, facility, period_days").limit(10000),
+        supabase.from("facilities").select("code, name").limit(10000),
+      ]);
 
       setTrainingTypes(types || []);
+
+      // Build facility lookup maps (code and name → code)
+      const facilityByCode = new Map((facilities || []).map(f => [f.code.toLowerCase(), f.code]));
+      const facilityByName = new Map((facilities || []).map(f => [f.name.toLowerCase(), f.code]));
+      const resolveFacility = (val: string): string | null => {
+        const key = val.toLowerCase().trim();
+        return facilityByCode.get(key) || facilityByName.get(key) || null;
+      };
 
       // Fetch existing trainings for duplicate detection
       const { data: existingTrainings } = await supabase
