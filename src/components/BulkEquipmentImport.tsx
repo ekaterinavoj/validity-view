@@ -259,7 +259,11 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       .select("id, inventory_number, equipment_type, manufacturer, serial_number")
       .limit(50000);
 
-    // Batch INSERT
+    // Get current user for created_by
+    const { data: currentUser } = await supabase.auth.getUser();
+    const currentUserId = currentUser.user?.id || null;
+
+    // Batch INSERT - use .select() to get back IDs for responsible assignment
     const BATCH_SIZE = 50;
     for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
       if (abortRef.current) break;
@@ -278,11 +282,25 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         notes: item.data.notes || null,
       }));
 
-      const { error } = await supabase.from("equipment").insert(insertRows);
+      const { data: inserted, error } = await supabase.from("equipment").insert(insertRows).select("id, inventory_number");
       if (error) {
         errorCount += batch.length;
       } else {
         successCount += batch.length;
+        // Assign responsible persons for newly inserted equipment
+        if (inserted) {
+          for (let j = 0; j < batch.length; j++) {
+            const profileIds: string[] = batch[j].data._responsibleProfileIds || [];
+            if (profileIds.length > 0 && inserted[j]) {
+              const responsiblesData = profileIds.map(profileId => ({
+                equipment_id: inserted[j].id,
+                profile_id: profileId,
+                created_by: currentUserId,
+              }));
+              await supabase.from("equipment_responsibles").insert(responsiblesData);
+            }
+          }
+        }
       }
       setImportProgress({ current: Math.min(i + BATCH_SIZE, toInsert.length), total: totalOps });
     }
