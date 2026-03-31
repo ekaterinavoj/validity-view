@@ -73,6 +73,7 @@ export const BulkMedicalImport = () => {
   const [duplicateAction, setDuplicateAction] = useState<DuplicateAction>('overwrite');
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
 
   const canImport = isAdmin || isManager;
 
