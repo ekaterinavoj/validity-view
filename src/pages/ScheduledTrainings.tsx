@@ -43,6 +43,7 @@ import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { BulkEditTrainingsDialog } from "@/components/BulkEditTrainingsDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
+import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
