@@ -263,7 +263,7 @@ export default function InactiveEmployeesReport() {
               Žádní neaktivní zaměstnanci nenalezeni
             </p>
           ) : (
-            filteredEmployees.map((employee) => {
+            paginatedEmployees.map((employee) => {
               const trainings = getTrainingsForEmployee(employee.id);
               const isExpanded = expandedEmployees.has(employee.id);
 
