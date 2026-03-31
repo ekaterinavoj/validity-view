@@ -268,7 +268,7 @@ export default function NewTraining() {
   if (employeesLoading || typesLoading || facilitiesLoading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-foreground">Vytvoření nového školení</h2>
+        <h1 className="text-2xl font-bold text-foreground">Vytvoření nového školení</h1>
         <FormSkeleton />
       </div>
     );
