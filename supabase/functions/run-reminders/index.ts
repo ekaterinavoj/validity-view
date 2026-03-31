@@ -869,7 +869,19 @@ const handler = async (req: Request): Promise<Response> => {
         ? `<div style="background-color: ${category === "expired" ? "#fee2e2" : "#fef9c3"}; border: 1px solid ${category === "expired" ? "#ef4444" : "#eab308"}; padding: 10px; margin-bottom: 20px; border-radius: 4px;"><strong>${categoryLabel}</strong></div>`
         : "";
       
-      const fullBody = `${testNotice}${categoryNotice}${bodyText.replace(/\n/g, "<br>")}<br><br>${trainingsTable}`;
+      const fullBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; color: #333;">
+          ${testNotice}${categoryNotice}
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            ${bodyText.replace(/\n/g, "<br>")}
+          </div>
+          ${trainingsTable}
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+          <p style="color: #9ca3af; font-size: 12px;">
+            Tento email byl odeslán automaticky systémem evidence školení.
+          </p>
+        </div>
+      `;
       
       const result = await sendEmail(
         actualRecipients,
