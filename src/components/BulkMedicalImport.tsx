@@ -443,8 +443,40 @@ export const BulkMedicalImport = () => {
         inserted += batch.length;
       } catch (error: any) {
         console.error("Batch insert error:", error);
-        failed += batch.length;
-        errors.push(`Řádky ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}: ${error?.message || 'Neznámá chyba při vkládání'}`);
+        for (const row of batch) {
+          if (abortRef.current) break;
+
+          const nextDate = new Date(row.data.last_examination_date);
+          nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
+          const today = new Date();
+          const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          let status = "valid";
+          if (daysUntil < 0) status = "expired";
+          else if (daysUntil <= 30) status = "warning";
+
+          const singleRow = {
+            facility: row.data.facility_code,
+            employee_id: row.employeeId!,
+            examination_type_id: row.examinationTypeId!,
+            last_examination_date: row.data.last_examination_date,
+            next_examination_date: nextDate.toISOString().split("T")[0],
+            doctor: row.data.doctor || null,
+            medical_facility: row.data.medical_facility || null,
+            result: row.data.result || null,
+            note: row.data.note || null,
+            status,
+            is_active: true,
+            created_by: user.id,
+          };
+
+          const { error: rowError } = await supabase.from("medical_examinations").insert([singleRow]);
+          if (rowError) {
+            failed++;
+            errors.push(`Řádek ${row.rowNumber} (${row.employeeName || '?'}): ${rowError?.message || 'Neznámá chyba při vkládání'}`);
+          } else {
+            inserted++;
+          }
+        }
       }
       setImportProgress(Math.round((Math.min(i + BATCH_SIZE, toInsert.length) / total) * 100));
     }
