@@ -350,7 +350,7 @@ export const BulkDeadlineImport = () => {
       // Fetch existing equipment for duplicate detection (override default 1000 row limit)
       const { data: existingEquipment } = await supabase
         .from("equipment")
-        .select("id, inventory_number, facility, equipment_type, manufacturer, serial_number")
+        .select("id, inventory_number, name, facility, equipment_type, manufacturer, serial_number")
         .limit(10000);
 
       // Fetch facilities for validation
