@@ -190,15 +190,15 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         seenInvNumbers.set(compositeKey, index + 2);
       }
 
-      // DB duplicate check — all fields must match including name
-      const invKey = eqData.inventoryNumber.toLowerCase();
+      // DB duplicate check — only exact match on ALL key fields is a duplicate
       const isDuplicate = (existingEquipment || []).some(e => {
-        if (e.inventory_number.toLowerCase() !== invKey) return false;
-        if ((e.name || '').toLowerCase() !== (eqData.name || '').toLowerCase()) return false;
-        if ((e.equipment_type || '').toLowerCase() !== (eqData.equipmentType || '').toLowerCase()) return false;
-        if (eqData.manufacturer && e.manufacturer?.toLowerCase() !== eqData.manufacturer.toLowerCase()) return false;
-        if (eqData.serialNumber && e.serial_number?.toLowerCase() !== eqData.serialNumber.toLowerCase()) return false;
-        return true;
+        return (
+          e.inventory_number.toLowerCase() === (eqData.inventoryNumber || '').toLowerCase() &&
+          (e.name || '').toLowerCase() === (eqData.name || '').toLowerCase() &&
+          (e.equipment_type || '').toLowerCase() === (eqData.equipmentType || '').toLowerCase() &&
+          (e.manufacturer || '').toLowerCase() === (eqData.manufacturer || '').toLowerCase() &&
+          (e.serial_number || '').toLowerCase() === (eqData.serialNumber || '').toLowerCase()
+        );
       });
 
       return {
