@@ -276,7 +276,10 @@ export default function MedicalExaminationTypes() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-foreground">Typy lékařských prohlídek</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Typy lékařských prohlídek</h2>
+          <p className="text-muted-foreground">Celkem {filteredTypes.length} typů</p>
+        </div>
 
         <div className="flex gap-2">
           <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} />
@@ -331,6 +334,24 @@ export default function MedicalExaminationTypes() {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Hledat typy prohlídek..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={facilityFilter} onValueChange={setFacilityFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Provozovna" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Všechny provozovny</SelectItem>
+            {facilities.map(f => (
+              <SelectItem key={f.id} value={f.code}>{f.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Card>
