@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,6 +37,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEquipment } from "@/hooks/useEquipment";
 import { useDeadlineTypes } from "@/hooks/useDeadlineTypes";
+import { useEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,6 +126,25 @@ export default function EditDeadline() {
   const selectedTypeId = form.watch("deadline_type_id");
   const selectedType = deadlineTypes.find((type) => type.id === selectedTypeId);
   const lastCheckDate = form.watch("last_check_date");
+
+  // Auto-populate responsibles when equipment changes (not on initial load)
+  const watchedEquipmentId = form.watch("equipment_id");
+  const { responsibles: equipmentResponsibles } = useEquipmentResponsibles(watchedEquipmentId);
+  const initialEquipmentIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!watchedEquipmentId) return;
+    // Track the initial equipment ID from loaded deadline
+    if (initialEquipmentIdRef.current === null) {
+      initialEquipmentIdRef.current = watchedEquipmentId;
+      return;
+    }
+    // Only auto-populate when equipment was changed by the user
+    if (watchedEquipmentId !== initialEquipmentIdRef.current && equipmentResponsibles && equipmentResponsibles.length > 0) {
+      const profileIdsFromEquipment = equipmentResponsibles.map(r => r.profile_id);
+      setResponsibles({ profileIds: profileIdsFromEquipment, groupIds: [] });
+    }
+  }, [equipmentResponsibles, watchedEquipmentId]);
   const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, periodUnit) : null;
   const typePeriodHint = selectedType
     ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(

@@ -40,6 +40,7 @@ import { useFacilities } from "@/hooks/useFacilities";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
@@ -130,6 +131,22 @@ export default function NewDeadline() {
   const lastCheckDate = form.watch("last_check_date");
   const periodValue = form.watch("period_value");
   const periodUnit = form.watch("period_unit");
+
+  // Watch equipment selection to auto-populate responsibles from equipment
+  const watchedEquipmentId = form.watch("equipment_id");
+  const { responsibles: equipmentResponsibles } = useEquipmentResponsibles(watchedEquipmentId);
+
+  useEffect(() => {
+    if (equipmentResponsibles && equipmentResponsibles.length > 0 && watchedEquipmentId) {
+      const profileIdsFromEquipment = equipmentResponsibles.map(r => r.profile_id);
+      setResponsibles(prev => {
+        if (prev.profileIds.length === 0 && prev.groupIds.length === 0) {
+          return { profileIds: profileIdsFromEquipment, groupIds: [] };
+        }
+        return prev;
+      });
+    }
+  }, [equipmentResponsibles, watchedEquipmentId]);
 
   const typePeriodHint = selectedType
     ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
