@@ -16,7 +16,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Edit, Plus, Trash2, Loader2, RefreshCw, AlertTriangle, Download, Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import { Edit, Plus, Trash2, Loader2, RefreshCw, AlertTriangle, Download, Upload, CheckCircle2, AlertCircle, Search } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
