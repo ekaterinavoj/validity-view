@@ -851,6 +851,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "plp_import_result_labels_and_all_fields",
     sql: null, // Frontend-only: PLP import now maps Czech result labels back to DB values (passed/passed_with_reservations/failed/lost_long_term), imports requester and long_term_fitness_loss_date, and overrides status to "expired" for failed/lost_long_term results
   },
+  {
+    version: "20260401000000",
+    name: "auto_populate_deadline_responsibles_from_equipment",
+    sql: null, // Frontend-only: NewDeadline auto-populates responsibles from equipment_responsibles when selecting equipment; EditDeadline does the same when equipment is changed by the user
+  },
 ];
 
 /**
