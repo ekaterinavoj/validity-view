@@ -48,8 +48,22 @@ export default function MedicalExaminationTypes() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { facilities, loading: facilitiesLoading } = useFacilities();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [facilityFilter, setFacilityFilter] = useState<string>("all");
   const { preferences } = useUserPreferences();
-  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTypes, totalItems } = usePagination(examinationTypes, preferences.itemsPerPage);
+
+  const filteredTypes = useMemo(() => {
+    return examinationTypes.filter(t => {
+      if (facilityFilter !== "all" && t.facility !== facilityFilter) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return t.name.toLowerCase().includes(query) || (t.description || "").toLowerCase().includes(query);
+      }
+      return true;
+    });
+  }, [examinationTypes, searchQuery, facilityFilter]);
+
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTypes, totalItems } = usePagination(filteredTypes, preferences.itemsPerPage);
 
   // Import state
   const [importDialogOpen, setImportDialogOpen] = useState(false);
