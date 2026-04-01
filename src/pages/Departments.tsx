@@ -59,8 +59,16 @@ export default function Departments() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { departments, loading, error, createDepartment, updateDepartment, deleteDepartment, checkDependencies, refetch } = useDepartments();
+  const [searchQuery, setSearchQuery] = useState("");
   const { preferences } = useUserPreferences();
-  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedDepartments, totalItems } = usePagination(departments, preferences.itemsPerPage);
+
+  const filteredDepartments = useMemo(() => {
+    if (!searchQuery) return departments;
+    const query = searchQuery.toLowerCase();
+    return departments.filter(d => d.code.toLowerCase().includes(query) || (d.name || "").toLowerCase().includes(query));
+  }, [departments, searchQuery]);
+
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedDepartments, totalItems } = usePagination(filteredDepartments, preferences.itemsPerPage);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
