@@ -44,6 +44,7 @@ export default function DeadlineTypes() {
     return f ? f.name : code;
   };
   const [searchQuery, setSearchQuery] = useState("");
+  const [facilityFilter, setFacilityFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<DeadlineType | null>(null);
   const [formData, setFormData] = useState({
@@ -60,10 +61,15 @@ export default function DeadlineTypes() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredTypes = useMemo(() => {
-    if (!searchQuery) return deadlineTypes;
-    const query = searchQuery.toLowerCase();
-    return deadlineTypes.filter(t => t.name.toLowerCase().includes(query) || t.facility.toLowerCase().includes(query));
-  }, [deadlineTypes, searchQuery]);
+    return deadlineTypes.filter(t => {
+      if (facilityFilter !== "all" && t.facility !== facilityFilter) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return t.name.toLowerCase().includes(query) || t.facility.toLowerCase().includes(query) || (t.description || "").toLowerCase().includes(query);
+      }
+      return true;
+    });
+  }, [deadlineTypes, searchQuery, facilityFilter]);
 
   const { preferences } = useUserPreferences();
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTypes, totalItems } = usePagination(filteredTypes, preferences.itemsPerPage);
@@ -228,9 +234,22 @@ export default function DeadlineTypes() {
         </div>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Hledat typy událostí..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Hledat typy událostí..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={facilityFilter} onValueChange={setFacilityFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Provozovna" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Všechny provozovny</SelectItem>
+            {facilities.map(f => (
+              <SelectItem key={f.id} value={f.code}>{f.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Card>

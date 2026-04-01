@@ -16,11 +16,11 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Edit, Plus, Trash2, Loader2, RefreshCw, AlertTriangle, Download, Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import { Edit, Plus, Trash2, Loader2, RefreshCw, AlertTriangle, Download, Upload, CheckCircle2, AlertCircle, Search } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useDepartments, Department, DepartmentDependencies } from "@/hooks/useDepartments";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
@@ -59,8 +59,16 @@ export default function Departments() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { departments, loading, error, createDepartment, updateDepartment, deleteDepartment, checkDependencies, refetch } = useDepartments();
+  const [searchQuery, setSearchQuery] = useState("");
   const { preferences } = useUserPreferences();
-  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedDepartments, totalItems } = usePagination(departments, preferences.itemsPerPage);
+
+  const filteredDepartments = useMemo(() => {
+    if (!searchQuery) return departments;
+    const query = searchQuery.toLowerCase();
+    return departments.filter(d => d.code.toLowerCase().includes(query) || (d.name || "").toLowerCase().includes(query));
+  }, [departments, searchQuery]);
+
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedDepartments, totalItems } = usePagination(filteredDepartments, preferences.itemsPerPage);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -248,7 +256,10 @@ export default function Departments() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-foreground">Editovat střediska</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Editovat střediska</h2>
+          <p className="text-muted-foreground">Celkem {filteredDepartments.length} středisek</p>
+        </div>
         
         <div className="flex gap-2">
           <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} />
@@ -300,6 +311,11 @@ export default function Departments() {
           </Dialog>
         </div>
       </div>
+
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input placeholder="Hledat střediska..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+      </div>
       
       <Card>
         <Table>
@@ -311,7 +327,7 @@ export default function Departments() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {departments.length === 0 ? (
+            {filteredDepartments.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
                   Žádná střediska nenalezena

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -12,7 +13,8 @@ import { Edit, Plus, Trash2, Loader2, Building2, Download, Upload, CheckCircle2,
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -57,8 +59,23 @@ export default function Facilities() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string>("all");
   const { preferences } = useUserPreferences();
-  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedFacilities, totalItems } = usePagination(facilities, preferences.itemsPerPage);
+
+  const filteredFacilities = useMemo(() => {
+    return facilities.filter(f => {
+      if (activeFilter === "active" && !f.is_active) return false;
+      if (activeFilter === "inactive" && f.is_active) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return f.name.toLowerCase().includes(query) || f.code.toLowerCase().includes(query) || (f.description || "").toLowerCase().includes(query);
+      }
+      return true;
+    });
+  }, [facilities, searchQuery, activeFilter]);
+
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedFacilities, totalItems } = usePagination(filteredFacilities, preferences.itemsPerPage);
 
   // Import state
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -242,7 +259,10 @@ export default function Facilities() {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Building2 className="h-8 w-8 text-primary" />
-          <h2 className="text-3xl font-bold text-foreground">Provozovny</h2>
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Provozovny</h2>
+            <p className="text-muted-foreground">Celkem {filteredFacilities.length} provozoven</p>
+          </div>
         </div>
         
         <div className="flex gap-2">
@@ -288,6 +308,23 @@ export default function Facilities() {
           </Dialog>
         </div>
       </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Hledat provozovny..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={activeFilter} onValueChange={setActiveFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Všechny stavy</SelectItem>
+            <SelectItem value="active">Aktivní</SelectItem>
+            <SelectItem value="inactive">Neaktivní</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       
       <Card>
         {isLoading ? (
@@ -303,7 +340,7 @@ export default function Facilities() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {facilities.length === 0 ? (
+              {filteredFacilities.length === 0 ? (
                 <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Žádné provozovny nenalezeny.</TableCell></TableRow>
               ) : (
                 paginatedFacilities.map((facility) => (

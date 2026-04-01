@@ -12,7 +12,8 @@ import { Edit, Plus, Trash2, Loader2, Download, Upload, CheckCircle2, AlertCircl
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useEffect, useRef } from "react";
+import { Search } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPeriodicity, parsePeriodicityText } from "@/lib/utils";
@@ -47,8 +48,22 @@ export default function MedicalExaminationTypes() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { facilities, loading: facilitiesLoading } = useFacilities();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [facilityFilter, setFacilityFilter] = useState<string>("all");
   const { preferences } = useUserPreferences();
-  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTypes, totalItems } = usePagination(examinationTypes, preferences.itemsPerPage);
+
+  const filteredTypes = useMemo(() => {
+    return examinationTypes.filter(t => {
+      if (facilityFilter !== "all" && t.facility !== facilityFilter) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return t.name.toLowerCase().includes(query) || (t.description || "").toLowerCase().includes(query);
+      }
+      return true;
+    });
+  }, [examinationTypes, searchQuery, facilityFilter]);
+
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTypes, totalItems } = usePagination(filteredTypes, preferences.itemsPerPage);
 
   // Import state
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -261,7 +276,10 @@ export default function MedicalExaminationTypes() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-foreground">Typy lékařských prohlídek</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Typy lékařských prohlídek</h2>
+          <p className="text-muted-foreground">Celkem {filteredTypes.length} typů</p>
+        </div>
 
         <div className="flex gap-2">
           <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} />
@@ -318,6 +336,24 @@ export default function MedicalExaminationTypes() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Hledat typy prohlídek..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={facilityFilter} onValueChange={setFacilityFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Provozovna" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Všechny provozovny</SelectItem>
+            {facilities.map(f => (
+              <SelectItem key={f.id} value={f.code}>{f.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <Card>
         {isLoading ? (
           <div className="flex justify-center items-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
@@ -329,7 +365,7 @@ export default function MedicalExaminationTypes() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {examinationTypes.length === 0 ? (
+              {filteredTypes.length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Žádné typy prohlídek nenalezeny.</TableCell></TableRow>
               ) : (
                 paginatedTypes.map(type => (
