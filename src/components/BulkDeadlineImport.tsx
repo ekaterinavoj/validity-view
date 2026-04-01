@@ -350,7 +350,7 @@ export const BulkDeadlineImport = () => {
       // Fetch existing equipment for duplicate detection (override default 1000 row limit)
       const { data: existingEquipment } = await supabase
         .from("equipment")
-        .select("id, inventory_number, facility, equipment_type, manufacturer, serial_number")
+        .select("id, inventory_number, name, facility, equipment_type, manufacturer, serial_number")
         .limit(10000);
 
       // Fetch facilities for validation
@@ -416,21 +416,21 @@ export const BulkDeadlineImport = () => {
         }
         row.facility_code = resolvedFacilityCode;
 
-        // Check for duplicates (inventory_number + equipment_type are both required to match)
+        // Check for duplicates — exact match on ALL key fields
         const trimmedInv = row.inventory_number.trim();
+        const trimmedName = row.name?.trim() || "";
         const trimmedType = row.equipment_type?.trim() || "";
         const trimmedManufacturer = (row as any).manufacturer?.trim() || "";
         const trimmedSerial = (row as any).serial_number?.trim() || "";
         
         const existingEq = existingEquipment?.find(e => {
-          // Both inventory number AND equipment type must match
-          if (e.inventory_number !== trimmedInv) return false;
-          if (e.equipment_type !== trimmedType) return false;
-          // If manufacturer is provided in both, compare
-          if (trimmedManufacturer && e.manufacturer && e.manufacturer !== trimmedManufacturer) return false;
-          // If serial number is provided in both, compare
-          if (trimmedSerial && e.serial_number && e.serial_number !== trimmedSerial) return false;
-          return true;
+          return (
+            e.inventory_number === trimmedInv &&
+            (e.name || '') === trimmedName &&
+            (e.equipment_type || '') === trimmedType &&
+            (e.manufacturer || '') === trimmedManufacturer &&
+            (e.serial_number || '') === trimmedSerial
+          );
         });
 
         if (existingEq) {
