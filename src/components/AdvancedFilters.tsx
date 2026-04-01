@@ -49,8 +49,8 @@ interface AdvancedFiltersProps {
   responsiblePersons?: ResponsiblePerson[];
   resultCount?: number;
   totalCount?: number;
-  /** Label for trainers/doctors filter - defaults to "školitelé" */
-  trainerLabel?: "trainers" | "doctors";
+  /** Label for trainers/doctors/performers filter - defaults to "školitelé" */
+  trainerLabel?: "trainers" | "doctors" | "performers";
 }
 
 export function AdvancedFilters({
@@ -202,10 +202,10 @@ export function AdvancedFilters({
             onValueChange={(value) => onFilterChange("trainerFilter", value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder={trainerLabel === "doctors" ? "Lékař" : "Školitel"} />
+              <SelectValue placeholder={trainerLabel === "doctors" ? "Lékař" : trainerLabel === "performers" ? "Kontrolor" : "Školitel"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{trainerLabel === "doctors" ? "Všichni lékaři" : "Všichni školitelé"}</SelectItem>
+              <SelectItem value="all">{trainerLabel === "doctors" ? "Všichni lékaři" : trainerLabel === "performers" ? "Všichni kontroloři" : "Všichni školitelé"}</SelectItem>
               {trainers.map((trainer) => (
                 <SelectItem key={trainer} value={trainer}>
                   {trainer}

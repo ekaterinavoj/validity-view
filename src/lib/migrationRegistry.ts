@@ -887,6 +887,11 @@ FOR EACH ROW
 EXECUTE FUNCTION public.recalculate_medical_dates_on_type_change();
     `.trim(),
   },
+  {
+    version: "20260401004000",
+    name: "deadline_filter_label_performers",
+    sql: null, // Frontend-only: renamed trainer filter label in deadline modules from "Všichni školitelé" to "Všichni kontroloři" (performers)
+  },
 ];
 
 /**

@@ -285,6 +285,7 @@ export default function ScheduledDeadlines() {
         facilities={facilityList}
         trainingTypes={deadlineTypeList}
         trainers={performerList}
+        trainerLabel="performers"
         responsiblePersons={uniqueProfiles.map(p => ({
           id: p.id,
           name: `${p.first_name} ${p.last_name}`,
