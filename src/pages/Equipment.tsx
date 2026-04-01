@@ -110,20 +110,30 @@ export default function Equipment() {
     notes: "",
   });
 
+  const uniqueTypes = useMemo(() => {
+    const types = new Set(equipment.map(eq => eq.equipment_type));
+    return Array.from(types).sort();
+  }, [equipment]);
+
   const filteredEquipment = useMemo(() => {
     return equipment.filter(eq => {
       if (statusFilter !== "all" && eq.status !== statusFilter) return false;
+      if (facilityFilter !== "all" && eq.facility !== facilityFilter) return false;
+      if (departmentFilter !== "all" && eq.department_id !== departmentFilter) return false;
+      if (typeFilter !== "all" && eq.equipment_type !== typeFilter) return false;
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
           eq.name.toLowerCase().includes(query) ||
           eq.inventory_number.toLowerCase().includes(query) ||
-          eq.equipment_type.toLowerCase().includes(query)
+          eq.equipment_type.toLowerCase().includes(query) ||
+          (eq.manufacturer || "").toLowerCase().includes(query) ||
+          (eq.serial_number || "").toLowerCase().includes(query)
         );
       }
       return true;
     });
-  }, [equipment, searchQuery, statusFilter]);
+  }, [equipment, searchQuery, statusFilter, facilityFilter, departmentFilter, typeFilter]);
 
   const { sortedData: sortedEquipment, sortConfig, requestSort } = useSortable(filteredEquipment);
   const { preferences } = useUserPreferences();
