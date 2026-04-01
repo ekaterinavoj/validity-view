@@ -61,10 +61,15 @@ export default function DeadlineTypes() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredTypes = useMemo(() => {
-    if (!searchQuery) return deadlineTypes;
-    const query = searchQuery.toLowerCase();
-    return deadlineTypes.filter(t => t.name.toLowerCase().includes(query) || t.facility.toLowerCase().includes(query));
-  }, [deadlineTypes, searchQuery]);
+    return deadlineTypes.filter(t => {
+      if (facilityFilter !== "all" && t.facility !== facilityFilter) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return t.name.toLowerCase().includes(query) || t.facility.toLowerCase().includes(query) || (t.description || "").toLowerCase().includes(query);
+      }
+      return true;
+    });
+  }, [deadlineTypes, searchQuery, facilityFilter]);
 
   const { preferences } = useUserPreferences();
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTypes, totalItems } = usePagination(filteredTypes, preferences.itemsPerPage);
