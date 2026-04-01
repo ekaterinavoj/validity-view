@@ -113,7 +113,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       { data: departments },
       { data: profiles },
     ] = await Promise.all([
-      supabase.from("equipment").select("id, inventory_number, equipment_type, manufacturer, serial_number").limit(50000),
+      supabase.from("equipment").select("id, inventory_number, name, equipment_type, manufacturer, serial_number").limit(50000),
       supabase.from("facilities").select("id, code, name").limit(10000),
       supabase.from("departments").select("id, code, name").limit(10000),
       supabase.from("profiles").select("id, email").limit(50000),
