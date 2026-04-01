@@ -20,7 +20,7 @@ import { Edit, Plus, Trash2, Loader2, RefreshCw, AlertTriangle, Download, Upload
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useDepartments, Department, DepartmentDependencies } from "@/hooks/useDepartments";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
