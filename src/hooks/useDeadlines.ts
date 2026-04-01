@@ -72,13 +72,22 @@ export function useDeadlines() {
         return "valid";
       };
 
+      const statusOrder = { expired: 0, warning: 1, valid: 2 };
+
       // Transform data to match Deadline type
       return (data as DeadlineRow[]).map((item): Deadline => ({
         ...item,
         status: computeStatus(item.next_check_date, item.result),
         result: (item.result as Deadline["result"]) ?? undefined,
         deadline_type: item.deadline_types,
-      }));
+      })).sort((a, b) => {
+        const sa = statusOrder[a.status] ?? 2;
+        const sb = statusOrder[b.status] ?? 2;
+        if (sa !== sb) return sa - sb;
+        const da = a.next_check_date ? new Date(a.next_check_date).getTime() : 0;
+        const db = b.next_check_date ? new Date(b.next_check_date).getTime() : 0;
+        return da - db;
+      });
     },
   });
 
