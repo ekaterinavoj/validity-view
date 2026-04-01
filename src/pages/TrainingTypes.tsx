@@ -12,7 +12,8 @@ import { Edit, Plus, Trash2, Loader2, Download, Upload, CheckCircle2, AlertCircl
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useEffect, useRef } from "react";
+import { Search } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPeriodicity, parsePeriodicityText } from "@/lib/utils";
