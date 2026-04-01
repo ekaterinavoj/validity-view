@@ -58,8 +58,23 @@ export default function Facilities() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string>("all");
   const { preferences } = useUserPreferences();
-  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedFacilities, totalItems } = usePagination(facilities, preferences.itemsPerPage);
+
+  const filteredFacilities = useMemo(() => {
+    return facilities.filter(f => {
+      if (activeFilter === "active" && !f.is_active) return false;
+      if (activeFilter === "inactive" && f.is_active) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return f.name.toLowerCase().includes(query) || f.code.toLowerCase().includes(query) || (f.description || "").toLowerCase().includes(query);
+      }
+      return true;
+    });
+  }, [facilities, searchQuery, activeFilter]);
+
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedFacilities, totalItems } = usePagination(filteredFacilities, preferences.itemsPerPage);
 
   // Import state
   const [importDialogOpen, setImportDialogOpen] = useState(false);
