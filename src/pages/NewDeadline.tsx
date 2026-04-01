@@ -40,6 +40,7 @@ import { useFacilities } from "@/hooks/useFacilities";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
