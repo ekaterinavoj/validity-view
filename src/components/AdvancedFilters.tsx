@@ -49,8 +49,8 @@ interface AdvancedFiltersProps {
   responsiblePersons?: ResponsiblePerson[];
   resultCount?: number;
   totalCount?: number;
-  /** Label for trainers/doctors filter - defaults to "školitelé" */
-  trainerLabel?: "trainers" | "doctors";
+  /** Label for trainers/doctors/performers filter - defaults to "školitelé" */
+  trainerLabel?: "trainers" | "doctors" | "performers";
 }
 
 export function AdvancedFilters({
