@@ -856,6 +856,11 @@ CREATE TRIGGER trg_notify_failed_training
     name: "auto_populate_deadline_responsibles_from_equipment",
     sql: null, // Frontend-only: NewDeadline auto-populates responsibles from equipment_responsibles when selecting equipment; EditDeadline does the same when equipment is changed by the user
   },
+  {
+    version: "20260401001000",
+    name: "equipment_duplicate_detection_includes_name",
+    sql: null, // Frontend-only: equipment import duplicate detection now includes name in composite key (inv.číslo + název + typ + výrobce + sér.číslo), allowing multiple equipment with same inv.číslo but different names
+  },
 ];
 
 /**

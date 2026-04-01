@@ -564,7 +564,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                 { name: "Odpovědná osoba", description: "email uživatele (více emailů oddělte středníkem)" },
                 { name: "Poznámka", description: "volitelná poznámka" },
               ]}
-              duplicateInfo="Podle inv. čísla + typu + výrobce + sériového čísla (pokud jsou vyplněny)"
+              duplicateInfo="Podle inv. čísla + názvu + typu + výrobce + sériového čísla (pokud jsou vyplněny)"
             />
 
             {importedData.length >= 1000 && (
