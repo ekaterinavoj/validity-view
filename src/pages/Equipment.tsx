@@ -283,8 +283,8 @@ export default function Equipment() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Hledat zařízení..."
@@ -302,6 +302,39 @@ export default function Equipment() {
             <SelectItem value="active">Aktivní</SelectItem>
             <SelectItem value="inactive">Neaktivní</SelectItem>
             <SelectItem value="decommissioned">Vyřazené</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={facilityFilter} onValueChange={setFacilityFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Provozovna" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Všechny provozovny</SelectItem>
+            {facilities.map(f => (
+              <SelectItem key={f.id} value={f.code}>{f.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Středisko" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Všechna střediska</SelectItem>
+            {departments.map(d => (
+              <SelectItem key={d.id} value={d.id}>{d.code} - {d.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Typ zařízení" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Všechny typy</SelectItem>
+            {uniqueTypes.map(t => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

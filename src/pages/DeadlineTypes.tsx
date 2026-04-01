@@ -234,9 +234,22 @@ export default function DeadlineTypes() {
         </div>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Hledat typy událostí..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Hledat typy událostí..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={facilityFilter} onValueChange={setFacilityFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Provozovna" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Všechny provozovny</SelectItem>
+            {facilities.map(f => (
+              <SelectItem key={f.id} value={f.code}>{f.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Card>

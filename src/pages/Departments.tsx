@@ -327,7 +327,7 @@ export default function Departments() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {departments.length === 0 ? (
+            {filteredDepartments.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
                   Žádná střediska nenalezena

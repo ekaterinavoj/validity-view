@@ -339,7 +339,7 @@ export default function Facilities() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {facilities.length === 0 ? (
+              {filteredFacilities.length === 0 ? (
                 <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Žádné provozovny nenalezeny.</TableCell></TableRow>
               ) : (
                 paginatedFacilities.map((facility) => (

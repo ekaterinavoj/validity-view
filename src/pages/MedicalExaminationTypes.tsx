@@ -365,7 +365,7 @@ export default function MedicalExaminationTypes() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {examinationTypes.length === 0 ? (
+              {filteredTypes.length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Žádné typy prohlídek nenalezeny.</TableCell></TableRow>
               ) : (
                 paginatedTypes.map(type => (

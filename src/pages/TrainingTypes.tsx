@@ -372,7 +372,7 @@ export default function TrainingTypes() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {trainingTypes.length === 0 ? (
+              {filteredTypes.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Žádné typy školení nenalezeny.</TableCell></TableRow>
               ) : (
                 paginatedTypes.map(type => (
