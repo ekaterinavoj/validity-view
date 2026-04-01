@@ -37,6 +37,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEquipment } from "@/hooks/useEquipment";
 import { useDeadlineTypes } from "@/hooks/useDeadlineTypes";
+import { useEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
