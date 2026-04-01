@@ -99,24 +99,6 @@ export default function NewDeadline() {
   const { addResponsibles } = useDeadlineResponsibles();
   const activeEquipment = equipment.filter(e => e.status === "active");
 
-  // Watch equipment selection to auto-populate responsibles
-  const selectedEquipmentId = form.watch("equipment_id");
-  const { responsibles: equipmentResponsibles } = useEquipmentResponsibles(selectedEquipmentId);
-
-  // Auto-populate responsibles from equipment when equipment changes
-  useEffect(() => {
-    if (equipmentResponsibles && equipmentResponsibles.length > 0 && selectedEquipmentId) {
-      const profileIdsFromEquipment = equipmentResponsibles.map(r => r.profile_id);
-      setResponsibles(prev => {
-        // Only auto-fill if currently empty (don't overwrite manual selections)
-        if (prev.profileIds.length === 0 && prev.groupIds.length === 0) {
-          return { profileIds: profileIdsFromEquipment, groupIds: [] };
-        }
-        return prev;
-      });
-    }
-  }, [equipmentResponsibles, selectedEquipmentId]);
-
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
