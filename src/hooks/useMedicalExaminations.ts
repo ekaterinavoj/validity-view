@@ -158,6 +158,16 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           longTermFitnessLossDate: e.long_term_fitness_loss_date || null,
         }));
 
+      const statusOrder = { expired: 0, warning: 1, valid: 2 };
+      transformedData.sort((a, b) => {
+        const sa = statusOrder[a.status] ?? 2;
+        const sb = statusOrder[b.status] ?? 2;
+        if (sa !== sb) return sa - sb;
+        const da = a.nextExaminationDate ? new Date(a.nextExaminationDate).getTime() : 0;
+        const db = b.nextExaminationDate ? new Date(b.nextExaminationDate).getTime() : 0;
+        return da - db;
+      });
+
       setExaminations(transformedData);
     } catch (err: any) {
       console.error("Error fetching medical examinations:", err);

@@ -156,6 +156,16 @@ export function useTrainings(activeOnly: boolean = true) {
           };
         });
 
+      const statusOrder = { expired: 0, warning: 1, valid: 2 };
+      transformedData.sort((a, b) => {
+        const sa = statusOrder[a.status] ?? 2;
+        const sb = statusOrder[b.status] ?? 2;
+        if (sa !== sb) return sa - sb;
+        const da = a.date ? new Date(a.date).getTime() : 0;
+        const db = b.date ? new Date(b.date).getTime() : 0;
+        return da - db;
+      });
+
       setTrainings(transformedData);
     } catch (err: any) {
       console.error("Error fetching trainings:", err);
