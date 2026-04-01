@@ -44,6 +44,7 @@ export default function DeadlineTypes() {
     return f ? f.name : code;
   };
   const [searchQuery, setSearchQuery] = useState("");
+  const [facilityFilter, setFacilityFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<DeadlineType | null>(null);
   const [formData, setFormData] = useState({
