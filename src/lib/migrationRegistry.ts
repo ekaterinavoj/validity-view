@@ -858,8 +858,8 @@ CREATE TRIGGER trg_notify_failed_training
   },
   {
     version: "20260401001000",
-    name: "equipment_duplicate_detection_includes_name",
-    sql: null, // Frontend-only: equipment import duplicate detection now includes name in composite key (inv.číslo + název + typ + výrobce + sér.číslo), allowing multiple equipment with same inv.číslo but different names
+    name: "equipment_duplicate_detection_exact_match_all_fields",
+    sql: null, // Frontend-only: equipment import duplicate detection requires exact match on ALL key fields (inv.číslo + název + typ + výrobce + sér.číslo). Same inv.číslo with any different parameter is NOT a duplicate.
   },
 ];
 
