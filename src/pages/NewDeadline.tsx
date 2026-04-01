@@ -132,6 +132,22 @@ export default function NewDeadline() {
   const periodValue = form.watch("period_value");
   const periodUnit = form.watch("period_unit");
 
+  // Watch equipment selection to auto-populate responsibles from equipment
+  const watchedEquipmentId = form.watch("equipment_id");
+  const { responsibles: equipmentResponsibles } = useEquipmentResponsibles(watchedEquipmentId);
+
+  useEffect(() => {
+    if (equipmentResponsibles && equipmentResponsibles.length > 0 && watchedEquipmentId) {
+      const profileIdsFromEquipment = equipmentResponsibles.map(r => r.profile_id);
+      setResponsibles(prev => {
+        if (prev.profileIds.length === 0 && prev.groupIds.length === 0) {
+          return { profileIds: profileIdsFromEquipment, groupIds: [] };
+        }
+        return prev;
+      });
+    }
+  }, [equipmentResponsibles, watchedEquipmentId]);
+
   const typePeriodHint = selectedType
     ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
         daysToPeriodicityUnit(selectedType.period_days).value,
