@@ -258,7 +258,10 @@ export default function Facilities() {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Building2 className="h-8 w-8 text-primary" />
-          <h2 className="text-3xl font-bold text-foreground">Provozovny</h2>
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Provozovny</h2>
+            <p className="text-muted-foreground">Celkem {filteredFacilities.length} provozoven</p>
+          </div>
         </div>
         
         <div className="flex gap-2">
@@ -303,6 +306,23 @@ export default function Facilities() {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Hledat provozovny..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={activeFilter} onValueChange={setActiveFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Všechny stavy</SelectItem>
+            <SelectItem value="active">Aktivní</SelectItem>
+            <SelectItem value="inactive">Neaktivní</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       
       <Card>
