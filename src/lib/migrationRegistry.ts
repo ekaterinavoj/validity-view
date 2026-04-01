@@ -892,6 +892,11 @@ EXECUTE FUNCTION public.recalculate_medical_dates_on_type_change();
     name: "deadline_filter_label_performers",
     sql: null, // Frontend-only: renamed trainer filter label in deadline modules from "Všichni školitelé" to "Všichni kontroloři" (performers)
   },
+  {
+    version: "20260401005000",
+    name: "add_filters_to_listing_pages",
+    sql: null, // Frontend-only: added search and filter controls to Equipment, DeadlineTypes, TrainingTypes, MedicalExaminationTypes, Departments, and Facilities pages
+  },
 ];
 
 /**
