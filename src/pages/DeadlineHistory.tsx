@@ -320,6 +320,7 @@ export default function DeadlineHistory() {
         facilities={facilityList}
         trainingTypes={deadlineTypeList}
         trainers={performerList}
+        trainerLabel="performers"
         resultCount={filteredHistory.length}
         totalCount={history.length}
       />
