@@ -859,7 +859,7 @@ CREATE TRIGGER trg_notify_failed_training
   {
     version: "20260401001000",
     name: "equipment_duplicate_detection_exact_match_all_fields",
-    sql: null, // Frontend-only: equipment import duplicate detection requires exact match on ALL key fields (inv.číslo + název + typ + výrobce + sér.číslo). Same inv.číslo with any different parameter is NOT a duplicate.
+    sql: null, // Frontend-only: equipment import duplicate detection requires exact match on ALL key fields (inv.číslo + název + typ + výrobce + sér.číslo). Same inv.číslo with any different parameter is NOT a duplicate. Applied to both BulkEquipmentImport and BulkDeadlineImport.
   },
 ];
 
