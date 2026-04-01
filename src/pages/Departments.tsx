@@ -256,7 +256,10 @@ export default function Departments() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-foreground">Editovat střediska</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Editovat střediska</h2>
+          <p className="text-muted-foreground">Celkem {filteredDepartments.length} středisek</p>
+        </div>
         
         <div className="flex gap-2">
           <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} />
@@ -307,6 +310,11 @@ export default function Departments() {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input placeholder="Hledat střediska..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
       </div>
       
       <Card>
