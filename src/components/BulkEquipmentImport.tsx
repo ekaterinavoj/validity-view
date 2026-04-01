@@ -113,7 +113,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       { data: departments },
       { data: profiles },
     ] = await Promise.all([
-      supabase.from("equipment").select("id, inventory_number, equipment_type, manufacturer, serial_number").limit(50000),
+      supabase.from("equipment").select("id, inventory_number, name, equipment_type, manufacturer, serial_number").limit(50000),
       supabase.from("facilities").select("id, code, name").limit(10000),
       supabase.from("departments").select("id, code, name").limit(10000),
       supabase.from("profiles").select("id, email").limit(50000),
@@ -175,18 +175,26 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         errors.push(`Odpovědné osoby nenalezeny: ${unresolvedEmails.join(', ')}`);
       }
 
-      // In-file duplicate check
-      const invKey = eqData.inventoryNumber.toLowerCase();
-      if (seenInvNumbers.has(invKey)) {
-        errors.push(`Duplicitní inv. číslo v souboru (řádek ${seenInvNumbers.get(invKey)})`);
-      } else if (invKey) {
-        seenInvNumbers.set(invKey, index + 2);
+      // In-file duplicate check — composite key: inv.číslo + název + typ + výrobce + sér. číslo
+      const compositeKey = [
+        eqData.inventoryNumber,
+        eqData.name,
+        eqData.equipmentType,
+        eqData.manufacturer || '',
+        eqData.serialNumber || '',
+      ].map(v => v.toLowerCase()).join('|||');
+
+      if (seenInvNumbers.has(compositeKey)) {
+        errors.push(`Duplicitní záznam v souboru (řádek ${seenInvNumbers.get(compositeKey)})`);
+      } else if (compositeKey) {
+        seenInvNumbers.set(compositeKey, index + 2);
       }
 
-      // DB duplicate check - inv number AND type must both match
+      // DB duplicate check — all fields must match including name
+      const invKey = eqData.inventoryNumber.toLowerCase();
       const isDuplicate = (existingEquipment || []).some(e => {
         if (e.inventory_number.toLowerCase() !== invKey) return false;
-        // Type must always match for duplicate detection
+        if ((e.name || '').toLowerCase() !== (eqData.name || '').toLowerCase()) return false;
         if ((e.equipment_type || '').toLowerCase() !== (eqData.equipmentType || '').toLowerCase()) return false;
         if (eqData.manufacturer && e.manufacturer?.toLowerCase() !== eqData.manufacturer.toLowerCase()) return false;
         if (eqData.serialNumber && e.serial_number?.toLowerCase() !== eqData.serialNumber.toLowerCase()) return false;
@@ -556,7 +564,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                 { name: "Odpovědná osoba", description: "email uživatele (více emailů oddělte středníkem)" },
                 { name: "Poznámka", description: "volitelná poznámka" },
               ]}
-              duplicateInfo="Podle inv. čísla + typu + výrobce + sériového čísla (pokud jsou vyplněny)"
+              duplicateInfo="Podle inv. čísla + názvu + typu + výrobce + sériového čísla (pokud jsou vyplněny)"
             />
 
             {importedData.length >= 1000 && (
