@@ -866,6 +866,27 @@ CREATE TRIGGER trg_notify_failed_training
     name: "status_priority_sorting_all_modules",
     sql: null, // Frontend-only: all modules (deadlines, trainings, medical examinations) now sort by status priority first (expired → warning → valid), then by date ascending within each group.
   },
+  {
+    version: "20260401003000",
+    name: "attach_recalculate_triggers_to_type_tables",
+    sql: `
+-- Attach recalculate triggers to type tables (functions already exist)
+CREATE TRIGGER IF NOT EXISTS recalculate_training_dates_on_type_change
+AFTER UPDATE ON public.training_types
+FOR EACH ROW
+EXECUTE FUNCTION public.recalculate_training_dates_on_type_change();
+
+CREATE TRIGGER IF NOT EXISTS recalculate_deadline_dates_on_type_change
+AFTER UPDATE ON public.deadline_types
+FOR EACH ROW
+EXECUTE FUNCTION public.recalculate_deadline_dates_on_type_change();
+
+CREATE TRIGGER IF NOT EXISTS recalculate_medical_dates_on_type_change
+AFTER UPDATE ON public.medical_examination_types
+FOR EACH ROW
+EXECUTE FUNCTION public.recalculate_medical_dates_on_type_change();
+    `.trim(),
+  },
 ];
 
 /**
