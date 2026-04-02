@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { HEALTH_RISK_FIELDS, HEALTH_RISK_VALUES, type HealthRiskValue, toDbHealthRisks, createEmptyHealthRisks, type HealthRisks } from "@/lib/healthRisks";
+import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import { medicalExaminationResultOptions } from "@/lib/medicalExaminationResults";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -502,8 +503,7 @@ export const BulkMedicalImport = () => {
       if (abortRef.current) break;
       const batch = toInsert.slice(i, i + BATCH_SIZE);
       const insertRows = batch.map(row => {
-        const nextDate = new Date(row.data.last_examination_date);
-        nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
+        const nextDate = calculateNextDateFromPeriodDays(new Date(row.data.last_examination_date), null, row.periodDays || 365);
         const today = new Date();
         const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         let status = "valid";
@@ -543,8 +543,7 @@ export const BulkMedicalImport = () => {
         for (const row of batch) {
           if (abortRef.current) break;
 
-          const nextDate = new Date(row.data.last_examination_date);
-          nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
+          const nextDate = calculateNextDateFromPeriodDays(new Date(row.data.last_examination_date), null, row.periodDays || 365);
           const today = new Date();
           const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           let status = "valid";
@@ -591,8 +590,7 @@ export const BulkMedicalImport = () => {
       if (abortRef.current) break;
       const row = toUpdate[i];
       try {
-        const nextDate = new Date(row.data.last_examination_date);
-        nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
+        const nextDate = calculateNextDateFromPeriodDays(new Date(row.data.last_examination_date), null, row.periodDays || 365);
         const today = new Date();
         const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         let status = "valid";
