@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -64,7 +65,9 @@ const ProtectedLayout = ({
   requiredModule?: "trainings" | "deadlines" | "plp";
 }) => (
   <ProtectedRoute requiredRoles={requiredRoles} requiredModule={requiredModule}>
-    <Layout>{children}</Layout>
+    <Layout>
+      <ErrorBoundary>{children}</ErrorBoundary>
+    </Layout>
   </ProtectedRoute>
 );
 
