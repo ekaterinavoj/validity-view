@@ -900,6 +900,57 @@ EXECUTE FUNCTION public.recalculate_medical_dates_on_type_change();
     name: "add_filters_to_listing_pages",
     sql: null, // Frontend-only: added search and filter controls to Equipment, DeadlineTypes, TrainingTypes, MedicalExaminationTypes, Departments, and Facilities pages
   },
+  {
+    version: "20260401006000",
+    name: "manager_visibility_deadlines",
+    sql: `
+-- Allow managers to see deadlines for equipment they are responsible for
+DROP POLICY IF EXISTS "Role-based deadlines visibility" ON public.deadlines;
+CREATE POLICY "Role-based deadlines visibility"
+ON public.deadlines
+FOR SELECT
+USING (
+  (auth.uid() IS NOT NULL)
+  AND is_user_approved(auth.uid())
+  AND has_module_access(auth.uid(), 'deadlines'::text)
+  AND (
+    has_role(auth.uid(), 'admin'::app_role)
+    OR (created_by = auth.uid())
+    OR is_deadline_responsible(auth.uid(), id)
+    OR (
+      has_role(auth.uid(), 'manager'::app_role)
+      AND EXISTS (
+        SELECT 1 FROM public.equipment_responsibles er
+        WHERE er.equipment_id = deadlines.equipment_id
+          AND er.profile_id = auth.uid()
+      )
+    )
+  )
+);
+
+-- Also allow managers who are equipment responsibles to update those deadlines
+DROP POLICY IF EXISTS "Users can update deadlines" ON public.deadlines;
+CREATE POLICY "Users can update deadlines"
+ON public.deadlines
+FOR UPDATE
+USING (
+  (auth.uid() IS NOT NULL)
+  AND is_user_approved(auth.uid())
+  AND has_module_access(auth.uid(), 'deadlines'::text)
+  AND (
+    has_role(auth.uid(), 'admin'::app_role)
+    OR (has_role(auth.uid(), 'manager'::app_role) AND (created_by = auth.uid()))
+    OR (has_role(auth.uid(), 'manager'::app_role) AND EXISTS (
+      SELECT 1 FROM public.equipment_responsibles er
+      WHERE er.equipment_id = deadlines.equipment_id
+        AND er.profile_id = auth.uid()
+    ))
+    OR (created_by = auth.uid())
+    OR is_deadline_responsible(auth.uid(), id)
+  )
+);
+    `.trim(),
+  },
 ];
 
 /**
