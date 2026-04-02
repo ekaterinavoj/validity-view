@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useFacilities } from "@/hooks/useFacilities";
+import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 
 interface BulkEditDeadlinesDialogProps {
   open: boolean;
@@ -97,8 +98,7 @@ export function BulkEditDeadlinesDialog({
           if (fetchError) throw fetchError;
 
           const periodDays = (deadline as any).deadline_types?.period_days || 365;
-          const nextDate = new Date(formData.lastCheckDate);
-          nextDate.setDate(nextDate.getDate() + periodDays);
+          const nextDate = calculateNextDateFromPeriodDays(formData.lastCheckDate, null, periodDays);
 
           const individualUpdates = {
             ...updates,
