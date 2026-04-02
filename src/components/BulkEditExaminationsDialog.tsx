@@ -26,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import { useFacilities } from "@/hooks/useFacilities";
 
 interface BulkEditExaminationsDialogProps {
@@ -101,8 +102,7 @@ export function BulkEditExaminationsDialog({
           if (fetchError) throw fetchError;
 
           const periodDays = (examination as any).medical_examination_types?.period_days || 365;
-          const nextDate = new Date(formData.lastExaminationDate);
-          nextDate.setDate(nextDate.getDate() + periodDays);
+          const nextDate = calculateNextDateFromPeriodDays(formData.lastExaminationDate, null, periodDays);
 
           const individualUpdates = {
             ...updates,

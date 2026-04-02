@@ -19,6 +19,7 @@ import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 
 // ============ EQUIPMENT IMPORT ============
 interface EquipmentImportRow {
@@ -898,9 +899,7 @@ export const BulkDeadlineImport = () => {
       if (abortDeadlineRef.current) break;
       const batch = toInsert.slice(i, i + BATCH_SIZE);
       const insertRows = batch.map(row => {
-        const lastCheckDate = new Date(row.data.last_check_date);
-        const nextCheckDate = new Date(lastCheckDate);
-        nextCheckDate.setDate(nextCheckDate.getDate() + (row.periodDays || 365));
+        const nextCheckDate = calculateNextDateFromPeriodDays(new Date(row.data.last_check_date), null, row.periodDays || 365);
         return {
           equipment_id: row.equipmentId!,
           deadline_type_id: row.deadlineTypeId!,
@@ -942,9 +941,7 @@ export const BulkDeadlineImport = () => {
       if (abortDeadlineRef.current) break;
       const row = toUpdate[i];
       try {
-        const lastCheckDate = new Date(row.data.last_check_date);
-        const nextCheckDate = new Date(lastCheckDate);
-        nextCheckDate.setDate(nextCheckDate.getDate() + (row.periodDays || 365));
+          const nextCheckDate = calculateNextDateFromPeriodDays(new Date(row.data.last_check_date), null, row.periodDays || 365);
 
         const { error } = await supabase
           .from("deadlines")

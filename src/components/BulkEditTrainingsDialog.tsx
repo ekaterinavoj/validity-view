@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import { supabase } from "@/integrations/supabase/client";
 import { useFacilities } from "@/hooks/useFacilities";
 
@@ -208,8 +209,7 @@ export function BulkEditTrainingsDialog({
           if (fetchError) throw fetchError;
 
           const periodDays = (training as { training_types?: { period_days?: number } })?.training_types?.period_days || 365;
-          const nextDate = new Date(formData.lastTrainingDate);
-          nextDate.setDate(nextDate.getDate() + periodDays);
+          const nextDate = calculateNextDateFromPeriodDays(formData.lastTrainingDate, null, periodDays);
 
           const individualUpdates = {
             ...updates,
