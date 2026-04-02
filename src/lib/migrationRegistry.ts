@@ -951,6 +951,11 @@ USING (
 );
     `.trim(),
   },
+  {
+    version: "20260401007000",
+    name: "event_types_overview_page",
+    sql: null, // Frontend-only: added read-only event types overview page for managers at /event-types
+  },
 ];
 
 /**

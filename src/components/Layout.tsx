@@ -351,7 +351,7 @@ export const Layout = ({
               {/* Global "Systém" section - visible to admin/manager, independent of mode */}
               {(isAdmin || isManager) && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/audit-log" || location.pathname.startsWith("/admin") || location.pathname === "/facilities") && "text-foreground bg-card border-b-2 border-primary")}>
+                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/audit-log" || location.pathname.startsWith("/admin") || location.pathname === "/facilities" || location.pathname === "/event-types") && "text-foreground bg-card border-b-2 border-primary")}>
                       <Settings className="w-4 h-4" />
                       Systém
                       <ChevronDown className="w-4 h-4" />
@@ -371,6 +371,12 @@ export const Layout = ({
                       <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
                         <Building2 className="w-4 h-4" />
                         Provozovny
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/event-types" className="flex items-center gap-2 cursor-pointer">
+                        <BookOpen className="w-4 h-4" />
+                        Přehled typů událostí
                       </Link>
                     </DropdownMenuItem>
                     {isAdmin && <DropdownMenuItem asChild>
@@ -540,6 +546,12 @@ export const Layout = ({
                 <Building2 className="w-4 h-4" />
                 Provozovny
               </Link>
+              {(isAdmin || isManager) && (
+                <Link to="/event-types" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/event-types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <BookOpen className="w-4 h-4" />
+                  Přehled typů událostí
+                </Link>
+              )}
             </div>
 
             {/* Global System section - independent of mode */}
