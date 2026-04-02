@@ -1082,6 +1082,153 @@ WHERE me.is_active = true
   AND me.period_days_override IS NOT NULL;
     `.trim(),
   },
+  {
+    version: "20260402002000",
+    name: "force_reapply_calendar_period_triggers_for_selfhost",
+    sql: `
+-- Recreate helper with calendar-aware arithmetic used by the frontend
+CREATE OR REPLACE FUNCTION public.period_days_to_interval(p_days integer)
+RETURNS interval
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = public
+AS $$
+BEGIN
+  IF p_days IS NULL THEN
+    RETURN NULL;
+  ELSIF p_days >= 365 AND p_days % 365 = 0 THEN
+    RETURN make_interval(years => p_days / 365);
+  ELSIF p_days >= 30 AND p_days % 30 = 0 THEN
+    RETURN make_interval(months => p_days / 30);
+  ELSE
+    RETURN make_interval(days => p_days);
+  END IF;
+END;
+$$;
+
+-- Replace trigger functions so type period changes use calendar arithmetic
+CREATE OR REPLACE FUNCTION public.recalculate_training_dates_on_type_change()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
+    UPDATE public.trainings
+    SET next_training_date = last_training_date + public.period_days_to_interval(NEW.period_days),
+        updated_at = now()
+    WHERE training_type_id = NEW.id
+      AND is_active = true
+      AND deleted_at IS NULL
+      AND period_days_override IS NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.recalculate_deadline_dates_on_type_change()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
+    UPDATE public.deadlines
+    SET next_check_date = last_check_date + public.period_days_to_interval(NEW.period_days),
+        updated_at = now()
+    WHERE deadline_type_id = NEW.id
+      AND is_active = true
+      AND deleted_at IS NULL
+      AND period_days_override IS NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.recalculate_medical_dates_on_type_change()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
+    UPDATE public.medical_examinations
+    SET next_examination_date = last_examination_date + public.period_days_to_interval(NEW.period_days),
+        updated_at = now()
+    WHERE examination_type_id = NEW.id
+      AND is_active = true
+      AND deleted_at IS NULL
+      AND period_days_override IS NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Ensure each table has exactly one recalculation trigger attached
+DROP TRIGGER IF EXISTS trg_recalc_training_dates_on_type_change ON public.training_types;
+DROP TRIGGER IF EXISTS recalculate_training_dates_on_type_change ON public.training_types;
+CREATE TRIGGER trg_recalc_training_dates_on_type_change
+  AFTER UPDATE OF period_days ON public.training_types
+  FOR EACH ROW
+  EXECUTE FUNCTION public.recalculate_training_dates_on_type_change();
+
+DROP TRIGGER IF EXISTS trg_recalc_deadline_dates_on_type_change ON public.deadline_types;
+DROP TRIGGER IF EXISTS recalculate_deadline_dates_on_type_change ON public.deadline_types;
+CREATE TRIGGER trg_recalc_deadline_dates_on_type_change
+  AFTER UPDATE OF period_days ON public.deadline_types
+  FOR EACH ROW
+  EXECUTE FUNCTION public.recalculate_deadline_dates_on_type_change();
+
+DROP TRIGGER IF EXISTS trg_recalc_medical_dates_on_type_change ON public.medical_examination_types;
+DROP TRIGGER IF EXISTS recalculate_medical_dates_on_type_change ON public.medical_examination_types;
+CREATE TRIGGER trg_recalc_medical_dates_on_type_change
+  AFTER UPDATE OF period_days ON public.medical_examination_types
+  FOR EACH ROW
+  EXECUTE FUNCTION public.recalculate_medical_dates_on_type_change();
+
+-- Recalculate all current records so self-hosted instances fix already-saved dates
+UPDATE public.trainings t
+SET next_training_date = t.last_training_date + public.period_days_to_interval(tt.period_days),
+    updated_at = now()
+FROM public.training_types tt
+WHERE t.training_type_id = tt.id
+  AND t.is_active = true
+  AND t.deleted_at IS NULL
+  AND t.period_days_override IS NULL;
+
+UPDATE public.trainings t
+SET next_training_date = t.last_training_date + public.period_days_to_interval(t.period_days_override),
+    updated_at = now()
+WHERE t.is_active = true
+  AND t.deleted_at IS NULL
+  AND t.period_days_override IS NOT NULL;
+
+UPDATE public.deadlines d
+SET next_check_date = d.last_check_date + public.period_days_to_interval(dt.period_days),
+    updated_at = now()
+FROM public.deadline_types dt
+WHERE d.deadline_type_id = dt.id
+  AND d.is_active = true
+  AND d.deleted_at IS NULL
+  AND d.period_days_override IS NULL;
+
+UPDATE public.deadlines d
+SET next_check_date = d.last_check_date + public.period_days_to_interval(d.period_days_override),
+    updated_at = now()
+WHERE d.is_active = true
+  AND d.deleted_at IS NULL
+  AND d.period_days_override IS NOT NULL;
+
+UPDATE public.medical_examinations me
+SET next_examination_date = me.last_examination_date + public.period_days_to_interval(met.period_days),
+    updated_at = now()
+FROM public.medical_examination_types met
+WHERE me.examination_type_id = met.id
+  AND me.is_active = true
+  AND me.deleted_at IS NULL
+  AND me.period_days_override IS NULL;
+
+UPDATE public.medical_examinations me
+SET next_examination_date = me.last_examination_date + public.period_days_to_interval(me.period_days_override),
+    updated_at = now()
+WHERE me.is_active = true
+  AND me.deleted_at IS NULL
+  AND me.period_days_override IS NOT NULL;
+
+SELECT public.recalculate_all_statuses();
+    `.trim(),
+  },
 ];
 
 /**

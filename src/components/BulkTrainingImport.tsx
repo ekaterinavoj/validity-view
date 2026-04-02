@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
+import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -757,9 +758,7 @@ export const BulkTrainingImport = () => {
         if (abortRef.current) break;
         const batch = toInsert.slice(i, i + BATCH_SIZE);
         const insertRows = batch.map(row => {
-          const lastDate = new Date(row.data.last_training_date);
-          const nextDate = new Date(lastDate);
-          nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
+          const nextDate = calculateNextDateFromPeriodDays(new Date(row.data.last_training_date), null, row.periodDays || 365);
           return {
             employee_id: row.employeeId!,
             training_type_id: row.trainingTypeId!,
@@ -784,9 +783,7 @@ export const BulkTrainingImport = () => {
           for (const row of batch) {
             if (abortRef.current) break;
 
-            const lastDate = new Date(row.data.last_training_date);
-            const nextDate = new Date(lastDate);
-            nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
+            const nextDate = calculateNextDateFromPeriodDays(new Date(row.data.last_training_date), null, row.periodDays || 365);
 
             const singleRow = {
               employee_id: row.employeeId!,
@@ -820,9 +817,7 @@ export const BulkTrainingImport = () => {
         if (abortRef.current) break;
         const row = toUpdate[i];
         try {
-          const lastDate = new Date(row.data.last_training_date);
-          const nextDate = new Date(lastDate);
-          nextDate.setDate(nextDate.getDate() + (row.periodDays || 365));
+          const nextDate = calculateNextDateFromPeriodDays(new Date(row.data.last_training_date), null, row.periodDays || 365);
 
           const { error } = await supabase
             .from("trainings")
