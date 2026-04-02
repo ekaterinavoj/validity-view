@@ -546,6 +546,12 @@ export const Layout = ({
                 <Building2 className="w-4 h-4" />
                 Provozovny
               </Link>
+              {(isAdmin || isManager) && (
+                <Link to="/event-types" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/event-types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <BookOpen className="w-4 h-4" />
+                  Přehled typů událostí
+                </Link>
+              )}
             </div>
 
             {/* Global System section - independent of mode */}
