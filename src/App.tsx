@@ -44,6 +44,7 @@ import MedicalExaminationTypes from "./pages/MedicalExaminationTypes";
 import MedicalExaminationHistory from "./pages/MedicalExaminationHistory";
 import DatabaseMigrations from "./pages/DatabaseMigrations";
 import Documents from "./pages/Documents";
+import EventTypesOverview from "./pages/EventTypesOverview";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
