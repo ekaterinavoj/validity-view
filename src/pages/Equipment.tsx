@@ -111,7 +111,7 @@ export default function Equipment() {
   });
 
   const uniqueTypes = useMemo(() => {
-    const types = new Set(equipment.map(eq => eq.equipment_type));
+    const types = new Set(equipment.map(eq => eq.equipment_type).filter(Boolean));
     return Array.from(types).sort();
   }, [equipment]);
 
