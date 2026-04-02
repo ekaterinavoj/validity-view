@@ -55,8 +55,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!email) {
       return new Response(
-        JSON.stringify({ error: "Email is required" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ success: false, error: "Email is required" }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -131,32 +131,29 @@ const handler = async (req: Request): Promise<Response> => {
 
     const result = await sendSingleViaSMTP(email, subject, htmlBody, emailProvider);
 
-    if (!result.success) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: `Nepodařilo se odeslat email: ${result.error}`,
-          provider: "smtp",
-          diagnostics: result.diagnostics
-        }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `Testovací email byl úspěšně odeslán na ${email}`, 
-        provider: "smtp",
-        diagnostics: result.diagnostics
-      }),
-      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify(
+        result.success
+          ? { 
+              success: true, 
+              message: `Testovací email byl úspěšně odeslán na ${email}`, 
+              provider: "smtp",
+              diagnostics: result.diagnostics
+            }
+          : { 
+              success: false,
+              error: `Nepodařilo se odeslat email: ${result.error}`,
+              provider: "smtp",
+              diagnostics: result.diagnostics
+            }
+      ),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
     console.error("Error in send-test-email:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ success: false, error: error.message || "Neočekávaná chyba serveru" }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };

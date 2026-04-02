@@ -49,12 +49,21 @@ export function SendTestSmtpEmail({
       });
 
       if (error) {
+        // Try to extract detailed error from response context
+        let details = error.message;
+        try {
+          const ctx = (error as any).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            if (body?.error) details = body.error;
+          }
+        } catch {}
         setResult({
           success: false,
           message: "Nepodařilo se odeslat testovací email",
-          details: error.message,
+          details,
         });
-      } else if (data.success) {
+      } else if (data?.success) {
         setResult({
           success: true,
           message: `Testovací email byl úspěšně odeslán na ${email}`,
