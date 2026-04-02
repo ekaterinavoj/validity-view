@@ -65,7 +65,9 @@ const ProtectedLayout = ({
   requiredModule?: "trainings" | "deadlines" | "plp";
 }) => (
   <ProtectedRoute requiredRoles={requiredRoles} requiredModule={requiredModule}>
-    <Layout>{children}</Layout>
+    <Layout>
+      <ErrorBoundary>{children}</ErrorBoundary>
+    </Layout>
   </ProtectedRoute>
 );
 
