@@ -373,6 +373,12 @@ export const Layout = ({
                         Provozovny
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/event-types" className="flex items-center gap-2 cursor-pointer">
+                        <BookOpen className="w-4 h-4" />
+                        Přehled typů událostí
+                      </Link>
+                    </DropdownMenuItem>
                     {isAdmin && <DropdownMenuItem asChild>
                       <Link to="/audit-log" className="flex items-center gap-2 cursor-pointer">
                         <FileText className="w-4 h-4" />
