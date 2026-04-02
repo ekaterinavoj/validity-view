@@ -956,6 +956,132 @@ USING (
     name: "event_types_overview_page",
     sql: null, // Frontend-only: added read-only event types overview page for managers at /event-types
   },
+  {
+    version: "20260402001000",
+    name: "fix_type_period_triggers_calendar_arithmetic",
+    sql: `
+-- Helper: convert period_days to a calendar-aware interval (years/months/days)
+CREATE OR REPLACE FUNCTION public.period_days_to_interval(p_days INT)
+RETURNS INTERVAL
+LANGUAGE plpgsql IMMUTABLE AS $$
+BEGIN
+  IF p_days >= 365 AND p_days % 365 = 0 THEN
+    RETURN make_interval(years => p_days / 365);
+  ELSIF p_days >= 30 AND p_days % 30 = 0 THEN
+    RETURN make_interval(months => p_days / 30);
+  ELSE
+    RETURN make_interval(days => p_days);
+  END IF;
+END;
+$$;
+
+-- Fix training trigger to use calendar arithmetic
+CREATE OR REPLACE FUNCTION public.recalculate_training_dates_on_type_change()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
+    UPDATE trainings
+    SET next_training_date = last_training_date + period_days_to_interval(NEW.period_days),
+        updated_at = now()
+    WHERE training_type_id = NEW.id
+      AND is_active = true
+      AND deleted_at IS NULL
+      AND period_days_override IS NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Fix deadline trigger to use calendar arithmetic
+CREATE OR REPLACE FUNCTION public.recalculate_deadline_dates_on_type_change()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
+    UPDATE deadlines
+    SET next_check_date = last_check_date + period_days_to_interval(NEW.period_days),
+        updated_at = now()
+    WHERE deadline_type_id = NEW.id
+      AND is_active = true
+      AND deleted_at IS NULL
+      AND period_days_override IS NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Fix medical trigger to use calendar arithmetic
+CREATE OR REPLACE FUNCTION public.recalculate_medical_dates_on_type_change()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
+    UPDATE medical_examinations
+    SET next_examination_date = last_examination_date + period_days_to_interval(NEW.period_days),
+        updated_at = now()
+    WHERE examination_type_id = NEW.id
+      AND is_active = true
+      AND deleted_at IS NULL
+      AND period_days_override IS NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Recalculate ALL existing records to fix any mismatched dates
+-- Trainings without override: use type period
+UPDATE trainings t
+SET next_training_date = t.last_training_date + period_days_to_interval(tt.period_days),
+    updated_at = now()
+FROM training_types tt
+WHERE t.training_type_id = tt.id
+  AND t.is_active = true
+  AND t.deleted_at IS NULL
+  AND t.period_days_override IS NULL;
+
+-- Trainings with override: use override period
+UPDATE trainings t
+SET next_training_date = t.last_training_date + period_days_to_interval(t.period_days_override),
+    updated_at = now()
+WHERE t.is_active = true
+  AND t.deleted_at IS NULL
+  AND t.period_days_override IS NOT NULL;
+
+-- Deadlines without override
+UPDATE deadlines d
+SET next_check_date = d.last_check_date + period_days_to_interval(dt.period_days),
+    updated_at = now()
+FROM deadline_types dt
+WHERE d.deadline_type_id = dt.id
+  AND d.is_active = true
+  AND d.deleted_at IS NULL
+  AND d.period_days_override IS NULL;
+
+-- Deadlines with override
+UPDATE deadlines d
+SET next_check_date = d.last_check_date + period_days_to_interval(d.period_days_override),
+    updated_at = now()
+WHERE d.is_active = true
+  AND d.deleted_at IS NULL
+  AND d.period_days_override IS NOT NULL;
+
+-- Medical without override
+UPDATE medical_examinations me
+SET next_examination_date = me.last_examination_date + period_days_to_interval(met.period_days),
+    updated_at = now()
+FROM medical_examination_types met
+WHERE me.examination_type_id = met.id
+  AND me.is_active = true
+  AND me.deleted_at IS NULL
+  AND me.period_days_override IS NULL;
+
+-- Medical with override
+UPDATE medical_examinations me
+SET next_examination_date = me.last_examination_date + period_days_to_interval(me.period_days_override),
+    updated_at = now()
+WHERE me.is_active = true
+  AND me.deleted_at IS NULL
+  AND me.period_days_override IS NOT NULL;
+    `.trim(),
+  },
 ];
 
 /**
