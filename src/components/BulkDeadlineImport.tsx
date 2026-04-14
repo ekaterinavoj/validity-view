@@ -54,6 +54,8 @@ interface DeadlineImportRow {
   performer?: string;
   company?: string;
   note?: string;
+  requester?: string;
+  result?: string;
 }
 
 interface ParsedDeadlineRow {
@@ -135,6 +137,30 @@ const DEADLINE_COLUMN_MAP: Record<string, string> = {
   "Firma": "company",
   "Poznámka": "note",
   "Zadavatel": "requester",
+  "Výsledek": "result",
+  "Stav": "_stav_export",
+  "Příští kontrola": "_pristi_kontrola",
+  "Zařízení": "_zarizeni",
+  "Typ zařízení": "_typ_zarizeni",
+  "Výrobce": "_vyrobce",
+  "Model": "_model",
+  "Odpovědní": "_odpovedni",
+  "Periodicita": "_periodicita",
+};
+
+// Build reverse map: Czech label → DB value for deadline results
+const DEADLINE_RESULT_LABELS: Record<string, string> = {
+  "vyhovuje": "passed",
+  "vyhovuje s výhradami": "passed_with_reservations",
+  "nevyhovuje": "failed",
+};
+
+const resolveDeadlineResult = (raw: string | undefined): string | null => {
+  if (!raw || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  if (["passed", "passed_with_reservations", "failed"].includes(trimmed)) return trimmed;
+  const matched = DEADLINE_RESULT_LABELS[trimmed.toLowerCase()];
+  return matched || null;
 };
 
 /**

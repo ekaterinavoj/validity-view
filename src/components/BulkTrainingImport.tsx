@@ -30,6 +30,8 @@ interface ImportRow {
   trainer?: string;
   company?: string;
   note?: string;
+  requester?: string;
+  result?: string;
 }
 
 interface ParsedRow {
@@ -76,8 +78,30 @@ const TRAINING_COLUMN_MAP: Record<string, string> = {
   "Školitel": "trainer",
   "Firma": "company",
   "Zadavatel": "requester",
+  "Výsledek": "result",
   "Poznámka": "note",
   "Jméno": "_employee_name", // ignored but mapped to avoid collision
+  "Stav": "_stav_export",
+  "Školení platné do": "_platnost_do",
+  "Středisko": "_stredisko",
+  "Periodicita": "_periodicita",
+};
+
+// Build reverse map: Czech label → DB value for training results
+const TRAINING_RESULT_LABELS: Record<string, string> = {
+  "splněno": "passed",
+  "splněno s výhradami": "passed_with_reservations",
+  "nesplněno": "failed",
+};
+
+const resolveTrainingResult = (raw: string | undefined): string | null => {
+  if (!raw || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  // Already a DB value?
+  if (["passed", "passed_with_reservations", "failed"].includes(trimmed)) return trimmed;
+  // Try Czech label match
+  const matched = TRAINING_RESULT_LABELS[trimmed.toLowerCase()];
+  return matched || null;
 };
 
 const mapTrainingRowColumns = (row: Record<string, any>): ImportRow => {
