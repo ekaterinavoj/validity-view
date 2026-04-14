@@ -44,7 +44,7 @@ export function useDeadlines() {
             id, inventory_number, name, equipment_type, facility, department_id, status, location, responsible_person, manufacturer, model, serial_number
           ),
           deadline_types:deadline_type_id (
-            id, name, facility, period_days
+            id, name, facility, period_days, description
           )
         `)
         .is("deleted_at", null)

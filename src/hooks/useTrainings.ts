@@ -7,6 +7,8 @@ export interface TrainingWithDetails {
   result: "passed" | "passed_with_reservations" | "failed";
   date: string; // next_training_date
   type: string;
+  typeDescription: string;
+  typePeriodDays: number;
   employeeNumber: string;
   employeeName: string;
   employeeId: string;
@@ -80,7 +82,8 @@ export function useTrainings(activeOnly: boolean = true) {
             id,
             name,
             period_days,
-            facility
+            facility,
+            description
           ),
           reminder_templates (
             id,
@@ -132,6 +135,8 @@ export function useTrainings(activeOnly: boolean = true) {
             result,
             date: t.next_training_date,
             type: t.training_types?.name || "",
+            typeDescription: t.training_types?.description || "",
+            typePeriodDays: t.training_types?.period_days ?? 365,
             employeeNumber: t.employees?.employee_number || "",
             employeeName: `${t.employees?.first_name || ""} ${t.employees?.last_name || ""}`.trim(),
             employeeId: t.employee_id,
