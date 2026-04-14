@@ -567,6 +567,10 @@ export const Layout = ({
                   <BookOpen className="w-4 h-4" />
                   Přehled typů událostí
                 </Link>
+                <Link to="/statistics" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/statistics" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <BarChart3 className="w-4 h-4" />
+                  Statistiky
+                </Link>
               </div>}
 
             {/* Systém section - admin only */}
