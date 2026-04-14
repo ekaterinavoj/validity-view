@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
+import { EmployeeStatusBadge, EmployeeStatusLegend, getEmployeeStatusLabel, EmployeeStatus } from "@/components/EmployeeStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -34,19 +35,6 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 
-const employeeStatusLabels: Record<string, string> = {
-  employed: "Aktivní",
-  parental_leave: "Mateřská/rodičovská",
-  sick_leave: "Nemocenská",
-  terminated: "Ukončený",
-};
-
-const employeeStatusColors: Record<string, string> = {
-  employed: "bg-green-500",
-  parental_leave: "bg-blue-500",
-  sick_leave: "bg-yellow-500",
-  terminated: "bg-red-500",
-};
 
 export default function MedicalExaminationHistory() {
   const { toast } = useToast();
@@ -387,9 +375,7 @@ export default function MedicalExaminationHistory() {
                     <TableCell>{exam.employeeNumber}</TableCell>
                     <TableCell className="whitespace-nowrap">{exam.employeeName}</TableCell>
                     <TableCell>
-                      <Badge className={employeeStatusColors[exam.employeeStatus]}>
-                        {employeeStatusLabels[exam.employeeStatus] || exam.employeeStatus}
-                      </Badge>
+                      <EmployeeStatusBadge status={exam.employeeStatus as EmployeeStatus} />
                     </TableCell>
                     <TableCell><DepartmentCell code={exam.department} name={exam.departmentName} /></TableCell>
                     <TableCell>{exam.doctor || "-"}</TableCell>
@@ -499,12 +485,7 @@ export default function MedicalExaminationHistory() {
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
         <span className="font-medium">Stav zaměstnance:</span>
-        {Object.entries(employeeStatusLabels).map(([key, label]) => (
-          <div key={key} className="flex items-center gap-2">
-            <span className={`inline-block w-3 h-3 rounded-full ${employeeStatusColors[key]}`} />
-            <span>{label}</span>
-          </div>
-        ))}
+        <EmployeeStatusLegend />
       </div>
 
       <BulkArchiveDialog

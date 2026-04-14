@@ -1,5 +1,6 @@
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
+import { EmployeeStatusBadge, EmployeeStatusLegend, getEmployeeStatusLabel, EmployeeStatus } from "@/components/EmployeeStatusBadge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,19 +37,6 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 
-const employeeStatusLabels: Record<string, string> = {
-  employed: "Aktivní",
-  parental_leave: "Mateřská/rodičovská",
-  sick_leave: "Nemocenská",
-  terminated: "Ukončený",
-};
-
-const employeeStatusColors: Record<string, string> = {
-  employed: "bg-green-500",
-  parental_leave: "bg-blue-500",
-  sick_leave: "bg-yellow-500",
-  terminated: "bg-red-500",
-};
 
 export default function History() {
   const { toast } = useToast();
@@ -309,7 +297,7 @@ export default function History() {
         "Typ školení": training.type || "",
         "Osobní číslo": training.employeeNumber || "",
         "Jméno": training.employeeName || "",
-        "Stav zaměstnance": employeeStatusLabels[training.employeeStatus] || training.employeeStatus || "",
+        "Stav zaměstnance": getEmployeeStatusLabel(training.employeeStatus),
         "Středisko": formatDepartment(training.department, training.departmentName),
         "Školitel": training.trainer || "",
         "Firma": training.company || "",
@@ -520,9 +508,7 @@ export default function History() {
                       {training.employeeName}
                     </TableCell>
                     <TableCell>
-                      <Badge className={employeeStatusColors[training.employeeStatus]}>
-                        {employeeStatusLabels[training.employeeStatus] || training.employeeStatus}
-                      </Badge>
+                      <EmployeeStatusBadge status={training.employeeStatus as EmployeeStatus} />
                     </TableCell>
                     <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>
                     <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
@@ -595,22 +581,7 @@ export default function History() {
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
         <span className="font-medium">Stav zaměstnance:</span>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-green-500" />
-          <span>Aktivní</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-          <span>Mateřská/rodičovská</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-yellow-500" />
-          <span>Nemocenská</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-red-500" />
-          <span>Ukončený</span>
-        </div>
+        <EmployeeStatusLegend />
       </div>
 
       {/* Bulk Restore Dialog */}

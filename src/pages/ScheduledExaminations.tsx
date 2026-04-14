@@ -37,7 +37,7 @@ import { BulkEditExaminationsDialog } from "@/components/BulkEditExaminationsDia
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { HealthRisksSummary } from "@/components/HealthRisksSummary";
 import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
-import { EmployeeStatusBadge } from "@/components/EmployeeStatusBadge";
+import { EmployeeStatusBadge, getEmployeeStatusLabel } from "@/components/EmployeeStatusBadge";
 import { HEALTH_RISK_FIELDS } from "@/lib/healthRisks";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
@@ -188,7 +188,7 @@ export default function ScheduledExaminations() {
       "Typ prohlídky": e.type,
       "Os. číslo": e.employeeNumber,
       "Jméno": e.employeeName,
-      "Stav zaměstnance": e.employeeStatus,
+      "Stav zaměstnance": getEmployeeStatusLabel(e.employeeStatus),
       "Datum narození": e.employeeBirthDate ? formatDisplayDate(e.employeeBirthDate, "") : "",
       "Věk": e.employeeBirthDate ? String(calculateAge(e.employeeBirthDate) ?? "") : "",
       "Kategorie": e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
@@ -409,7 +409,7 @@ export default function ScheduledExaminations() {
                         colSpan={totalColumns}
                         fields={[
                           { label: "Provozovna", value: getFacilityName(exam.facility) },
-                          { label: "Stav zaměstnance", value: exam.employeeStatus },
+                          { label: "Stav zaměstnance", value: getEmployeeStatusLabel(exam.employeeStatus) },
                           { label: "Datum narození", value: exam.employeeBirthDate ? formatDisplayDate(exam.employeeBirthDate) : null },
                           { label: "Věk", value: exam.employeeBirthDate ? calculateAge(exam.employeeBirthDate) : null },
                           { label: "Periodicita", value: formatPeriodicityDual(exam.period) },
