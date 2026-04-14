@@ -172,7 +172,7 @@ export function BulkEditTrainingsDialog({
         updates.note = formData.note.trim();
       }
       if (formData.facility !== "") {
-        const facilityEntry = facilities.find((f) => f.name === formData.facility);
+        const facilityEntry = facilities.find((f) => f.name === formData.facility || f.code === formData.facility);
         if (facilityEntry) {
           updates.facility = facilityEntry.code;
         }
@@ -202,14 +202,15 @@ export function BulkEditTrainingsDialog({
         for (const trainingId of selectedIds) {
           const { data: training, error: fetchError } = await supabase
             .from("trainings")
-            .select("training_types(period_days)")
+            .select("period_days_override, training_types(period_days)")
             .eq("id", trainingId)
             .single();
 
           if (fetchError) throw fetchError;
 
-          const periodDays = (training as { training_types?: { period_days?: number } })?.training_types?.period_days || 365;
-          const nextDate = calculateNextDateFromPeriodDays(formData.lastTrainingDate, null, periodDays);
+          const typePeriod = (training as { training_types?: { period_days?: number } })?.training_types?.period_days || 365;
+          const overridePeriod = (training as { period_days_override?: number | null })?.period_days_override;
+          const nextDate = calculateNextDateFromPeriodDays(formData.lastTrainingDate, overridePeriod, typePeriod);
 
           const individualUpdates = {
             ...updates,
@@ -346,7 +347,7 @@ export function BulkEditTrainingsDialog({
               </PopoverContent>
             </Popover>
             <p className="text-xs text-muted-foreground">
-              Datum dalšího školení se vypočítá automaticky podle periody každého školení
+              Datum dalšího školení se vypočítá automaticky podle periody každého záznamu (včetně případného individuálního přepisu)
             </p>
           </div>
 
