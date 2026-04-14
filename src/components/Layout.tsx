@@ -224,12 +224,6 @@ export const Layout = ({
                             Pozastavená
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/inactive" className="flex items-center gap-2 cursor-pointer">
-                            <UserX className="w-4 h-4" />
-                            Pozastavená
-                          </Link>
-                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
