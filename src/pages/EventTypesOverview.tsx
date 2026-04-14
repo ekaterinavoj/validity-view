@@ -55,6 +55,7 @@ const TypeSection = ({
   loading,
   searchQuery,
   colorClass,
+  facilityNameMap,
 }: {
   title: string;
   icon: React.ElementType;
@@ -62,17 +63,19 @@ const TypeSection = ({
   loading: boolean;
   searchQuery: string;
   colorClass: string;
+  facilityNameMap: Record<string, string>;
 }) => {
+  const getFacilityName = (code: string) => facilityNameMap[code] || code;
   const filtered = useMemo(() => {
     if (!searchQuery) return types;
     const q = searchQuery.toLowerCase();
     return types.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
-        t.facility.toLowerCase().includes(q) ||
+        getFacilityName(t.facility).toLowerCase().includes(q) ||
         t.description?.toLowerCase().includes(q)
     );
-  }, [types, searchQuery]);
+  }, [types, searchQuery, facilityNameMap]);
 
   return (
     <Card>
