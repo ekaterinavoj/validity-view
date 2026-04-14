@@ -113,7 +113,7 @@ export function BulkEditTrainingsDialog({
 
     files.forEach((file) => {
       if (file.size > MAX_FILE_SIZE) {
-        errors.push(`${file.name}: Příliš velký soubor (max 10MB)`);
+        errors.push(`${file.name}: Příliš velký soubor (max 40MB)`);
         return;
       }
 
