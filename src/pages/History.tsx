@@ -1,5 +1,5 @@
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
-import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
+import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -575,7 +575,8 @@ export default function History() {
                       <ExpandableDetailRow
                         colSpan={14}
                         fields={[
-                          { label: "Periodicita", value: formatPeriodicity(training.period) },
+                          { label: "Periodicita", value: formatPeriodicityDual(training.period) },
+                          ...(training.typeDescription ? [{ label: "Popis typu", value: training.typeDescription }] : []),
                           { label: "Zadavatel", value: training.requester },
                           { label: "Provozovna", value: training.facility },
                         ]}

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
+import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { format } from "date-fns";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { RefreshCw, Download, ArchiveRestore, History as HistoryIcon, Archive } from "lucide-react";

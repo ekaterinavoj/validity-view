@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
+import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {

@@ -1,5 +1,5 @@
 import { StatusBadge } from "@/components/StatusBadge";
-import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
+import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
 import { Button } from "@/components/ui/button";
@@ -412,7 +412,8 @@ export default function ScheduledExaminations() {
                           { label: "Stav zaměstnance", value: exam.employeeStatus },
                           { label: "Datum narození", value: exam.employeeBirthDate ? formatDisplayDate(exam.employeeBirthDate) : null },
                           { label: "Věk", value: exam.employeeBirthDate ? calculateAge(exam.employeeBirthDate) : null },
-                          { label: "Periodicita", value: formatPeriodicity(exam.period) },
+                          { label: "Periodicita", value: formatPeriodicityDual(exam.period) },
+                          ...(exam.typeDescription ? [{ label: "Popis typu", value: exam.typeDescription }] : []),
                           { label: "Datum pozbytí dlouhodobé způsobilosti", value: exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : null },
                           { label: "Lékař", value: exam.doctor },
                           { label: "Zdravotnické zařízení", value: exam.medicalFacility },
