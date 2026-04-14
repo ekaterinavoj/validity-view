@@ -375,9 +375,7 @@ export default function MedicalExaminationHistory() {
                     <TableCell>{exam.employeeNumber}</TableCell>
                     <TableCell className="whitespace-nowrap">{exam.employeeName}</TableCell>
                     <TableCell>
-                      <Badge className={employeeStatusColors[exam.employeeStatus]}>
-                        {employeeStatusLabels[exam.employeeStatus] || exam.employeeStatus}
-                      </Badge>
+                      <EmployeeStatusBadge status={exam.employeeStatus as EmployeeStatus} />
                     </TableCell>
                     <TableCell><DepartmentCell code={exam.department} name={exam.departmentName} /></TableCell>
                     <TableCell>{exam.doctor || "-"}</TableCell>
@@ -487,12 +485,7 @@ export default function MedicalExaminationHistory() {
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
         <span className="font-medium">Stav zaměstnance:</span>
-        {Object.entries(employeeStatusLabels).map(([key, label]) => (
-          <div key={key} className="flex items-center gap-2">
-            <span className={`inline-block w-3 h-3 rounded-full ${employeeStatusColors[key]}`} />
-            <span>{label}</span>
-          </div>
-        ))}
+        <EmployeeStatusLegend />
       </div>
 
       <BulkArchiveDialog
