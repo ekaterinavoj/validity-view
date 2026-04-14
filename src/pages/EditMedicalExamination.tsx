@@ -27,7 +27,7 @@ import { useMedicalExaminationTypes } from "@/hooks/useMedicalExaminationTypes";
 import { useFacilities } from "@/hooks/useFacilities";
 import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
-import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, periodicityToDays, formatPeriodicityDisplay } from "@/components/PeriodicityInput";
+import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, periodicityToDays } from "@/components/PeriodicityInput";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import { MedicalDocumentsList } from "@/components/MedicalDocumentsList";
 import { HealthRisksSection } from "@/components/HealthRisksSection";
@@ -184,10 +184,7 @@ export default function EditMedicalExamination() {
   const watchedPeriodUnit = form.watch("periodUnit");
   const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, watchedPeriodUnit as PeriodicityUnit) : null;
   const typePeriodHint = selectedType
-    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
-        daysToPeriodicityUnit(selectedType.periodDays).value,
-        daysToPeriodicityUnit(selectedType.periodDays).unit
-      )})`
+    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDual(selectedType.periodDays)})`
     : "Prázdné = použije se primární perioda typu";
 
   useEffect(() => {
@@ -354,8 +351,7 @@ export default function EditMedicalExamination() {
                     </FormControl>
                     <SelectContent>
                       {examinationTypes.map((type) => {
-                        const { value: pv, unit: pu } = daysToPeriodicityUnit(type.periodDays);
-                        const periodLabel = formatPeriodicityDisplay(pv, pu);
+                        const periodLabel = formatPeriodicityDual(type.periodDays);
                         return (
                           <SelectItem key={type.id} value={type.id}>
                             <div className="flex flex-col items-start">

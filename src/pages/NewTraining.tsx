@@ -36,7 +36,7 @@ import {
   PeriodicityUnit,
   daysToPeriodicityUnit,
   periodicityToDays,
-  formatPeriodicityDisplay,
+  
 } from "@/components/PeriodicityInput";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 
@@ -136,10 +136,7 @@ export default function NewTraining() {
   const watchedPeriodUnit = form.watch("periodUnit");
   const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, watchedPeriodUnit as PeriodicityUnit) : null;
   const typePeriodHint = selectedTrainingType
-    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
-        daysToPeriodicityUnit(selectedTrainingType.periodDays).value,
-        daysToPeriodicityUnit(selectedTrainingType.periodDays).unit
-      )})`
+    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDual(selectedTrainingType.periodDays)})`
     : "Prázdné = použije se primární perioda typu";
 
   const expirationDate = useMemo(() => {
@@ -299,8 +296,7 @@ export default function NewTraining() {
                     </FormControl>
                     <SelectContent>
                       {trainingTypes.map((type) => {
-                        const { value: pv, unit: pu } = daysToPeriodicityUnit(type.periodDays);
-                        const periodLabel = formatPeriodicityDisplay(pv, pu);
+                        const periodLabel = formatPeriodicityDual(type.periodDays);
                         return (
                           <SelectItem key={type.id} value={type.id}>
                             <div className="flex flex-col items-start">

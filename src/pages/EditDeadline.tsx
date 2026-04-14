@@ -55,7 +55,7 @@ import {
   type PeriodicityUnit,
   daysToPeriodicityUnit,
   periodicityToDays,
-  formatPeriodicityDisplay,
+  
 } from "@/components/PeriodicityInput";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 
@@ -147,10 +147,7 @@ export default function EditDeadline() {
   }, [equipmentResponsibles, watchedEquipmentId]);
   const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, periodUnit) : null;
   const typePeriodHint = selectedType
-    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
-        daysToPeriodicityUnit(selectedType.period_days).value,
-        daysToPeriodicityUnit(selectedType.period_days).unit
-      )})`
+    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDual(selectedType.period_days)})`
     : "Prázdné = použije se primární perioda typu";
 
   const nextCheckDate = lastCheckDate && selectedType
@@ -395,8 +392,7 @@ export default function EditDeadline() {
                       </FormControl>
                       <SelectContent>
                         {deadlineTypes.map(type => {
-                          const { value: pv, unit: pu } = daysToPeriodicityUnit(type.period_days);
-                          const periodLabel = formatPeriodicityDisplay(pv, pu);
+                          const periodLabel = formatPeriodicityDual(type.period_days);
                           return (
                             <SelectItem key={type.id} value={type.id}>
                               <div className="flex flex-col items-start">
