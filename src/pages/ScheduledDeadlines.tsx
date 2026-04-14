@@ -42,7 +42,7 @@ import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkEditDeadlinesDialog } from "@/components/BulkEditDeadlinesDialog";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { BulkDeadlineImport } from "@/components/BulkDeadlineImport";
-import { cn, formatPeriodicity } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import Papa from "papaparse";
@@ -212,7 +212,7 @@ export default function ScheduledDeadlines() {
         "Provozovna": getFacilityName(d.facility),
         "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
         "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
-        "Periodicita": formatPeriodicity(effectivePeriod),
+        "Periodicita": formatPeriodicityDual(effectivePeriod),
         "Provádějící": d.performer || "",
         "Firma": d.company || "",
         "Zadavatel": d.requester || "",

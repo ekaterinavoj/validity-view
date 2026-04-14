@@ -29,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import { formatPeriodicity } from "@/lib/utils";
+// formatPeriodicity replaced by formatPeriodicityDual from TypePeriodicityCell
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { useTrainings } from "@/hooks/useTrainings";
 import { TableSkeleton, PageHeaderSkeleton } from "@/components/LoadingSkeletons";
@@ -295,7 +295,7 @@ export default function ScheduledTrainings() {
         "Školitel": training.trainer || "",
         "Firma": training.company || "",
         "Zadavatel": training.requester || "",
-        "Periodicita": formatPeriodicity(training.period) || "",
+        "Periodicita": formatPeriodicityDual(training.period) || "",
         "Poznámka": training.note || "",
       }));
 
