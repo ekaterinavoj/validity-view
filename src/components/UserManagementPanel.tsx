@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck, Settings2, Download, Trash2 } from "lucide-react";
+import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck, Settings2, Download, Trash2, Users } from "lucide-react";
 import { ProfileEmployeeLink } from "@/components/ProfileEmployeeLink";
 import { AddUserModal } from "@/components/AddUserModal";
 import { ResetPasswordModal } from "@/components/ResetPasswordModal";
@@ -368,6 +368,14 @@ export function UserManagementPanel() {
     toast({ title: "Export úspěšný", description: `Exportováno ${filteredUsers.length} uživatelů.` });
   };
 
+  const userStats = useMemo(() => {
+    const total = users.length;
+    const admins = users.filter(u => u.roles.includes("admin")).length;
+    const managers = users.filter(u => u.roles.includes("manager")).length;
+    const regularUsers = users.filter(u => !u.roles.includes("admin") && !u.roles.includes("manager")).length;
+    return { total, admins, managers, users: regularUsers };
+  }, [users]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -378,6 +386,38 @@ export function UserManagementPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Statistiky uživatelů */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-4 flex flex-col items-center justify-center">
+            <Users className="w-8 h-8 text-primary mb-2" />
+            <div className="text-2xl font-bold">{userStats.total}</div>
+            <div className="text-sm text-muted-foreground">Celkem uživatelů</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 flex flex-col items-center justify-center">
+            <Shield className="w-8 h-8 text-destructive mb-2" />
+            <div className="text-2xl font-bold text-destructive">{userStats.admins}</div>
+            <div className="text-sm text-muted-foreground">Adminů</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 flex flex-col items-center justify-center">
+            <Shield className="w-8 h-8 text-primary mb-2" />
+            <div className="text-2xl font-bold text-primary">{userStats.managers}</div>
+            <div className="text-sm text-muted-foreground">Manažerů</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 flex flex-col items-center justify-center">
+            <Users className="w-8 h-8 text-muted-foreground mb-2" />
+            <div className="text-2xl font-bold">{userStats.users}</div>
+            <div className="text-sm text-muted-foreground">Uživatelů</div>
+          </CardContent>
+        </Card>
+      </div>
+
       {adminCount <= 1 && (
         <Card className="border-warning bg-warning/10">
           <CardContent className="pt-4">
