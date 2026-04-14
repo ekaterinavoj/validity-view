@@ -298,22 +298,16 @@ export default function NewTraining() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {trainingTypes.map((type) => {
-                        const { value: pv, unit: pu } = daysToPeriodicityUnit(type.periodDays);
-                        const formatted = formatPeriodicityDisplay(pv, pu);
-                        const daysLabel = `${type.periodDays} dní`;
-                        const periodLabel = formatted !== daysLabel ? `${formatted} / ${daysLabel}` : daysLabel;
-                        return (
+                      {trainingTypes.map((type) => (
                           <SelectItem key={type.id} value={type.id}>
                             <div className="flex flex-col items-start">
-                              <span>{type.name} ({periodLabel})</span>
+                              <span>{type.name}</span>
                               {type.description && (
                                 <span className="text-xs text-muted-foreground">{type.description}</span>
                               )}
                             </div>
                           </SelectItem>
-                        );
-                      })}
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

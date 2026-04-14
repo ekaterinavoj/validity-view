@@ -4,7 +4,7 @@ import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound, Stethoscope, FolderOpen, AlertTriangle } from "lucide-react";
+import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound, Stethoscope, FolderOpen, AlertTriangle, ClipboardList } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
@@ -89,8 +89,10 @@ export const Layout = ({
   // Deadline mode "Ostatní" dropdown active state (facilities removed - now global)
   const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types", "/deadlines/groups"].some(path => location.pathname === path);
 
-  // System/Data dropdown active state (includes facilities and employees)
-  const isSystemDataActive = location.pathname === "/facilities" || location.pathname === "/employees" || location.pathname === "/departments";
+  // Správa dat dropdown active state
+  const isDataManagementActive = ["/facilities", "/employees", "/departments", "/event-types"].includes(location.pathname);
+  // Systém dropdown active state  
+  const isSystemActive = location.pathname === "/audit-log" || location.pathname.startsWith("/admin");
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   // Always navigate when clicking a module tab (even if already active)
@@ -342,17 +344,16 @@ export const Layout = ({
                   Statistika
                 </NavLink>}
 
-              {/* Global "Systém" section - visible to admin/manager, independent of mode */}
+              {/* Správa dat dropdown - visible to admin/manager */}
               {(isAdmin || isManager) && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/audit-log" || location.pathname.startsWith("/admin") || location.pathname === "/facilities" || location.pathname === "/departments" || location.pathname === "/event-types") && "text-foreground bg-card border-b-2 border-primary")}>
-                      <Settings className="w-4 h-4" />
-                      Systém
+                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", isDataManagementActive && "text-foreground bg-card border-b-2 border-primary")}>
+                      <ClipboardList className="w-4 h-4" />
+                      Správa dat
                       <ChevronDown className="w-4 h-4" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
-                    {/* Zaměstnanci se nezobrazují v modulu Tech. události - nejsou tam potřeba */}
                     {!isDeadlineMode && (
                       <DropdownMenuItem asChild>
                         <Link to="/employees" className="flex items-center gap-2 cursor-pointer">
@@ -379,32 +380,43 @@ export const Layout = ({
                         Přehled typů událostí
                       </Link>
                     </DropdownMenuItem>
-                    {isAdmin && <DropdownMenuItem asChild>
+                  </DropdownMenuContent>
+                </DropdownMenu>}
+
+              {/* Systém dropdown - admin only items */}
+              {isAdmin && <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", isSystemActive && "text-foreground bg-card border-b-2 border-primary")}>
+                      <Settings className="w-4 h-4" />
+                      Systém
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+                    <DropdownMenuItem asChild>
                       <Link to="/audit-log" className="flex items-center gap-2 cursor-pointer">
                         <FileText className="w-4 h-4" />
                         Audit log
                       </Link>
-                    </DropdownMenuItem>}
-                    {isAdmin && <>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/status" className="flex items-center gap-2 cursor-pointer">
-                            <Activity className="w-4 h-4" />
-                            Stav systému
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/settings" className="flex items-center gap-2 cursor-pointer">
-                            <Settings className="w-4 h-4" />
-                            Administrace
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/migrations" className="flex items-center gap-2 cursor-pointer">
-                            <Database className="w-4 h-4" />
-                            Migrace DB
-                          </Link>
-                        </DropdownMenuItem>
-                      </>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/status" className="flex items-center gap-2 cursor-pointer">
+                        <Activity className="w-4 h-4" />
+                        Stav systému
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/settings" className="flex items-center gap-2 cursor-pointer">
+                        <Settings className="w-4 h-4" />
+                        Administrace
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/migrations" className="flex items-center gap-2 cursor-pointer">
+                        <Database className="w-4 h-4" />
+                        Migrace DB
+                      </Link>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>}
             </div>
@@ -532,53 +544,54 @@ export const Layout = ({
                     </Link>
                   )}
                 </>}
-              {!isDeadlineMode && (
-                <Link to="/employees" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/employees" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                  <Users className="w-4 h-4" />
-                  Zaměstnanci
+            </div>
+
+            {/* Správa dat section */}
+            {(isAdmin || isManager) && <div className="space-y-1 pt-2 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Správa dat</p>
+                {!isDeadlineMode && (
+                  <Link to="/employees" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/employees" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                    <Users className="w-4 h-4" />
+                    Zaměstnanci
+                  </Link>
+                )}
+                <Link to="/facilities" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/facilities" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Building2 className="w-4 h-4" />
+                  Provozovny
                 </Link>
-              )}
-              <Link to="/facilities" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/facilities" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                <Building2 className="w-4 h-4" />
-                Provozovny
-              </Link>
-              <Link to="/departments" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/departments" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                <Building2 className="w-4 h-4" />
-                Střediska
-              </Link>
-              {(isAdmin || isManager) && (
+                <Link to="/departments" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/departments" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Building2 className="w-4 h-4" />
+                  Střediska
+                </Link>
                 <Link to="/event-types" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/event-types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                   <BookOpen className="w-4 h-4" />
                   Přehled typů událostí
                 </Link>
-              )}
-            </div>
+              </div>}
 
-            {/* Global System section - independent of mode */}
-            {(isAdmin || isManager) && <div className="space-y-1 pt-2 border-t border-border">
+            {/* Systém section - admin only */}
+            {isAdmin && <div className="space-y-1 pt-2 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Systém</p>
                 {isTrainingMode && <Link to="/statistics" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/statistics" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <BarChart3 className="w-4 h-4" />
                     Statistika
                   </Link>}
-                {isAdmin && <Link to="/audit-log" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/audit-log" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                <Link to="/audit-log" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/audit-log" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                   <FileText className="w-4 h-4" />
                   Audit log
-                </Link>}
-                {isAdmin && <>
-                    <Link to="/admin/status" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/status" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                      <Activity className="w-4 h-4" />
-                      Stav systému
-                    </Link>
-                    <Link to="/admin/settings" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                      <Settings className="w-4 h-4" />
-                      Administrace
-                    </Link>
-                    <Link to="/admin/migrations" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/migrations" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                      <Database className="w-4 h-4" />
-                      Migrace DB
-                    </Link>
-                  </>}
+                </Link>
+                <Link to="/admin/status" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/status" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Activity className="w-4 h-4" />
+                  Stav systému
+                </Link>
+                <Link to="/admin/settings" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Settings className="w-4 h-4" />
+                  Administrace
+                </Link>
+                <Link to="/admin/migrations" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/migrations" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Database className="w-4 h-4" />
+                  Migrace DB
+                </Link>
               </div>}
 
             <div className="space-y-1 pt-2 border-t border-border">
