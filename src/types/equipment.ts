@@ -19,6 +19,7 @@ export interface DeadlineTypeRef {
   name: string;
   facility: string;
   period_days: number;
+  description?: string | null;
 }
 
 export interface Equipment {
