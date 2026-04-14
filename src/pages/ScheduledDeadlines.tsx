@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
+import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { Link } from "react-router-dom";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
@@ -199,6 +199,7 @@ export default function ScheduledDeadlines() {
     const data = dataToExport.map(d => {
       const resps = responsiblesMap?.get(d.id) ?? [];
       const responsibleNames = resps.map(r => r.name).join(", ");
+      const effectivePeriod = d.period_days_override ?? d.deadline_type?.period_days ?? 365;
       return {
         "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
         "Výsledek": getResultLabel((d.result as any) || "passed", "deadline"),
@@ -211,6 +212,7 @@ export default function ScheduledDeadlines() {
         "Provozovna": getFacilityName(d.facility),
         "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
         "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
+        "Periodicita": formatPeriodicity(effectivePeriod),
         "Provádějící": d.performer || "",
         "Firma": d.company || "",
         "Zadavatel": d.requester || "",
@@ -437,7 +439,8 @@ export default function ScheduledDeadlines() {
                             { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
                             { label: "Výrobce", value: deadline.equipment?.manufacturer },
                             { label: "Model", value: deadline.equipment?.model },
-                            { label: "Periodicita", value: formatPeriodicity(deadline.period_days_override ?? deadline.deadline_type?.period_days ?? 365) },
+                            { label: "Periodicita", value: formatPeriodicityDual(deadline.period_days_override ?? deadline.deadline_type?.period_days ?? 365) },
+                            ...(deadline.deadline_type?.description ? [{ label: "Popis typu", value: deadline.deadline_type.description }] : []),
                             { label: "Firma", value: deadline.company },
                             { label: "Zadavatel", value: deadline.requester },
                           ]}

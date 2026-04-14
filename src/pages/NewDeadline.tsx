@@ -317,16 +317,20 @@ export default function NewDeadline() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {deadlineTypes.map(type => (
+                        {deadlineTypes.map(type => {
+                          const { value: pv, unit: pu } = daysToPeriodicityUnit(type.period_days);
+                          const periodLabel = formatPeriodicityDisplay(pv, pu);
+                          return (
                             <SelectItem key={type.id} value={type.id}>
                               <div className="flex flex-col items-start">
-                                <span>{type.name}</span>
+                                <span>{type.name} ({periodLabel})</span>
                                 {type.description && (
                                   <span className="text-xs text-muted-foreground">{type.description}</span>
                                 )}
                               </div>
                             </SelectItem>
-                        ))}
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <FormMessage />

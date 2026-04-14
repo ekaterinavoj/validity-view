@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
+import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { format } from "date-fns";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { RefreshCw, Download, ArchiveRestore, History as HistoryIcon, Archive } from "lucide-react";
@@ -253,6 +253,7 @@ export default function DeadlineHistory() {
       "Provozovna": getFacilityName(d.facility),
       "Poslední kontrola": formatDisplayDate(d.last_check_date, ""),
       "Příští kontrola": formatDisplayDate(d.next_check_date, ""),
+      "Periodicita": formatPeriodicity(d.period),
       "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
       "Provádějící": d.performer || "",
       "Firma": d.company || "",
@@ -466,7 +467,8 @@ export default function DeadlineHistory() {
                       <ExpandableDetailRow
                         colSpan={12}
                         fields={[
-                          { label: "Periodicita", value: formatPeriodicity(deadline.period) },
+                          { label: "Periodicita", value: formatPeriodicityDual(deadline.period) },
+                          ...(deadline.deadline_type?.description ? [{ label: "Popis typu", value: deadline.deadline_type.description }] : []),
                           { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
                           { label: "Výrobce", value: deadline.equipment?.manufacturer },
                           { label: "Model", value: deadline.equipment?.model },

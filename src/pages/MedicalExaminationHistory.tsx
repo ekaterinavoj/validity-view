@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
+import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -479,7 +479,8 @@ export default function MedicalExaminationHistory() {
                       <ExpandableDetailRow
                         colSpan={16}
                         fields={[
-                          { label: "Periodicita", value: formatPeriodicity(exam.period) },
+                          { label: "Periodicita", value: formatPeriodicityDual(exam.period) },
+                          ...(exam.typeDescription ? [{ label: "Popis typu", value: exam.typeDescription }] : []),
                           { label: "Provozovna", value: exam.facility },
                           { label: "Datum pozbytí ZD způsobilosti", value: exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : null },
                         ]}

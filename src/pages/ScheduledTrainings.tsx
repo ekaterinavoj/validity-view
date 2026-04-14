@@ -1,5 +1,5 @@
 import { StatusBadge } from "@/components/StatusBadge";
-import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
+import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { ResultBadge, getResultLabel } from "@/components/ResultBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { Button } from "@/components/ui/button";
@@ -573,7 +573,8 @@ export default function ScheduledTrainings() {
                               { label: "Provozovna", value: getFacilityName(training.facility) },
                               { label: "Firma", value: training.company },
                               { label: "Zadavatel", value: training.requester },
-                              { label: "Periodicita", value: formatPeriodicity(training.period) },
+                              { label: "Periodicita", value: formatPeriodicityDual(training.period) },
+                              ...(training.typeDescription ? [{ label: "Popis typu", value: training.typeDescription }] : []),
                             ]}
                           />
                         )}
