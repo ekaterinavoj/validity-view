@@ -34,7 +34,7 @@ export function FileUploader({
   onFilesChange,
   files,
   maxFiles = 10,
-  maxSize = 20, // 20MB default
+  maxSize = 40, // 40MB default
   acceptedTypes = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"],
 }: FileUploaderProps) {
   const { toast } = useToast();

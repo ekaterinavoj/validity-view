@@ -491,7 +491,7 @@ export default function NewMedicalExamination() {
                 <Label className="text-sm font-medium">Dokumenty (lékařská zpráva)</Label>
                 <p className="text-xs text-muted-foreground mt-1">Nahrajte lékařské zprávy nebo jiné dokumenty</p>
               </div>
-              <FileUploader files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={10} maxSize={20} acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} />
+              <FileUploader files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={10} maxSize={40} acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} />
             </div>
 
             <FormField control={form.control} name="reminderTemplateId" render={({ field }) => (
