@@ -90,7 +90,7 @@ export const Layout = ({
   const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types", "/deadlines/groups"].some(path => location.pathname === path);
 
   // Správa dat dropdown active state
-  const isDataManagementActive = ["/facilities", "/employees", "/departments", "/event-types"].includes(location.pathname);
+  const isDataManagementActive = ["/facilities", "/employees", "/departments", "/event-types", "/statistics"].includes(location.pathname);
   // Systém dropdown active state  
   const isSystemActive = location.pathname === "/audit-log" || location.pathname.startsWith("/admin");
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -338,12 +338,6 @@ export const Layout = ({
                 Dokumenty
               </NavLink>
 
-              {/* Statistics only visible in Training mode and for admin/manager */}
-              {isTrainingMode && (isAdmin || isManager) && <NavLink to="/statistics" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
-                  <BarChart3 className="w-4 h-4" />
-                  Statistika
-                </NavLink>}
-
               {/* Správa dat dropdown - visible to admin/manager */}
               {(isAdmin || isManager) && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -378,6 +372,12 @@ export const Layout = ({
                       <Link to="/event-types" className="flex items-center gap-2 cursor-pointer">
                         <BookOpen className="w-4 h-4" />
                         Přehled typů událostí
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/statistics" className="flex items-center gap-2 cursor-pointer">
+                        <BarChart3 className="w-4 h-4" />
+                        Statistiky
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
