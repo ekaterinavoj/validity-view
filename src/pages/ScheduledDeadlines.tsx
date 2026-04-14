@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
 import { Link } from "react-router-dom";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
