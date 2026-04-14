@@ -40,6 +40,7 @@ export interface HistoryDeadline {
     name: string;
     facility: string;
     period_days: number;
+    description?: string | null;
   } | null;
   // Raw fields needed by page actions
   deleted_at: string | null;
@@ -83,7 +84,7 @@ export function useDeadlineHistory(includeArchived: boolean = false) {
             id, inventory_number, name, equipment_type, facility, department_id, status, location, responsible_person, manufacturer, model, serial_number
           ),
           deadline_types:deadline_type_id (
-            id, name, facility, period_days
+            id, name, facility, period_days, description
           ),
           original_record_id
         `)
@@ -138,7 +139,7 @@ export function useDeadlineHistory(includeArchived: boolean = false) {
           originalRecordId: d.original_record_id || null,
           isVersion: !!d.original_record_id,
           equipment: eq || null,
-          deadline_type: dt ? { id: dt.id, name: dt.name, facility: dt.facility, period_days: dt.period_days } : null,
+          deadline_type: dt ? { id: dt.id, name: dt.name, facility: dt.facility, period_days: dt.period_days, description: dt.description } : null,
           deleted_at: d.deleted_at,
           last_check_date: d.last_check_date,
           next_check_date: d.next_check_date,
