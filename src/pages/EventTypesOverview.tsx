@@ -132,6 +132,13 @@ const TypeSection = ({
 
 const EventTypesOverview = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const { facilities: facilitiesData } = useFacilities();
+
+  const facilityNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    facilitiesData.forEach(f => { map[f.code] = f.name; });
+    return map;
+  }, [facilitiesData]);
 
   const { data: trainingTypes = [], isLoading: loadingTraining } = useQuery({
     queryKey: ["training-types-overview"],
@@ -175,6 +182,7 @@ const EventTypesOverview = () => {
         loading={loadingTraining}
         searchQuery={searchQuery}
         colorClass="text-blue-500"
+        facilityNameMap={facilityNameMap}
       />
 
       <TypeSection
@@ -184,6 +192,7 @@ const EventTypesOverview = () => {
         loading={loadingDeadline}
         searchQuery={searchQuery}
         colorClass="text-orange-500"
+        facilityNameMap={facilityNameMap}
       />
 
       <TypeSection
@@ -193,6 +202,7 @@ const EventTypesOverview = () => {
         loading={loadingMedical}
         searchQuery={searchQuery}
         colorClass="text-green-500"
+        facilityNameMap={facilityNameMap}
       />
     </div>
   );
