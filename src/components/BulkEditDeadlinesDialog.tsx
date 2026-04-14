@@ -188,7 +188,6 @@ export function BulkEditDeadlinesDialog({
                 />
               </PopoverContent>
             </Popover>
-           </div>
             <p className="text-xs text-muted-foreground">
               Datum příští kontroly se vypočítá automaticky podle periody každého záznamu (včetně případného individuálního přepisu)
             </p>
