@@ -479,7 +479,8 @@ export default function MedicalExaminationHistory() {
                       <ExpandableDetailRow
                         colSpan={16}
                         fields={[
-                          { label: "Periodicita", value: formatPeriodicity(exam.period) },
+                          { label: "Periodicita", value: formatPeriodicityDual(exam.period) },
+                          ...(exam.typeDescription ? [{ label: "Popis typu", value: exam.typeDescription }] : []),
                           { label: "Provozovna", value: exam.facility },
                           { label: "Datum pozbytí ZD způsobilosti", value: exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : null },
                         ]}

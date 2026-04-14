@@ -466,7 +466,8 @@ export default function DeadlineHistory() {
                       <ExpandableDetailRow
                         colSpan={12}
                         fields={[
-                          { label: "Periodicita", value: formatPeriodicity(deadline.period) },
+                          { label: "Periodicita", value: formatPeriodicityDual(deadline.period) },
+                          ...(deadline.deadline_type?.description ? [{ label: "Popis typu", value: deadline.deadline_type.description }] : []),
                           { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
                           { label: "Výrobce", value: deadline.equipment?.manufacturer },
                           { label: "Model", value: deadline.equipment?.model },
