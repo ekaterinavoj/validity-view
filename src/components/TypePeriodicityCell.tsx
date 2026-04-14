@@ -32,18 +32,9 @@ export function TypePeriodicityCell({ typeName, description }: TypePeriodicityCe
  */
 export function formatPeriodicityDual(periodDays: number): string {
   const formatted = formatPeriodicity(periodDays);
-  // If already in days, no need to duplicate
-  if (periodDays < 30 || (periodDays % 30 !== 0 && periodDays % 365 !== 0)) {
+  // If already in days (not convertible to months/years), no need to duplicate
+  if (periodDays % 30 !== 0 && periodDays % 365 !== 0) {
     return formatted;
   }
   return `${formatted} / ${periodDays} dní`;
-}
-
-/**
- * Same as formatPeriodicityDual but from value+unit inputs (for form selectors)
- */
-export function formatPeriodicityDualFromUnit(value: number, unit: "days" | "months" | "years"): string {
-  const { periodicityToDays } = require("@/components/PeriodicityInput");
-  const totalDays = unit === "years" ? value * 365 : unit === "months" ? value * 30 : value;
-  return formatPeriodicityDual(totalDays);
 }
