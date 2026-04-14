@@ -368,14 +368,6 @@ export function UserManagementPanel() {
     toast({ title: "Export úspěšný", description: `Exportováno ${filteredUsers.length} uživatelů.` });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   const userStats = useMemo(() => {
     const total = users.length;
     const admins = users.filter(u => u.roles.includes("admin")).length;
@@ -383,6 +375,14 @@ export function UserManagementPanel() {
     const regularUsers = users.filter(u => !u.roles.includes("admin") && !u.roles.includes("manager")).length;
     return { total, admins, managers, users: regularUsers };
   }, [users]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
