@@ -197,7 +197,7 @@ export function BulkEditExaminationsDialog({
             <p className="text-xs text-muted-foreground">
               Datum příští prohlídky se vypočítá automaticky podle periody každého záznamu (včetně případného individuálního přepisu)
             </p>
-
+          </div>
           <div className="space-y-2">
             <Label htmlFor="bulk-doctor">Lékař</Label>
             <Input
