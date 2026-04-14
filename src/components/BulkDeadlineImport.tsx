@@ -926,6 +926,7 @@ export const BulkDeadlineImport = () => {
       const batch = toInsert.slice(i, i + BATCH_SIZE);
       const insertRows = batch.map(row => {
         const nextCheckDate = calculateNextDateFromPeriodDays(new Date(row.data.last_check_date), null, row.periodDays || 365);
+        const resolvedResult = resolveDeadlineResult(row.data.result);
         return {
           equipment_id: row.equipmentId!,
           deadline_type_id: row.deadlineTypeId!,
@@ -934,6 +935,8 @@ export const BulkDeadlineImport = () => {
           next_check_date: nextCheckDate.toISOString().split("T")[0],
           performer: row.data.performer?.trim() || null,
           company: row.data.company?.trim() || null,
+          requester: row.data.requester?.trim() || null,
+          result: resolvedResult || 'passed',
           note: row.data.note?.trim() || null,
           status: 'valid',
           is_active: true,
@@ -977,6 +980,8 @@ export const BulkDeadlineImport = () => {
             next_check_date: nextCheckDate.toISOString().split("T")[0],
             performer: row.data.performer?.trim() || null,
             company: row.data.company?.trim() || null,
+            requester: row.data.requester?.trim() || null,
+            result: resolveDeadlineResult(row.data.result) || undefined,
             note: row.data.note?.trim() || null,
             status: 'valid',
           })
