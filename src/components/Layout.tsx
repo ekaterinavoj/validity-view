@@ -351,7 +351,7 @@ export const Layout = ({
               {/* Global "Systém" section - visible to admin/manager, independent of mode */}
               {(isAdmin || isManager) && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/audit-log" || location.pathname.startsWith("/admin") || location.pathname === "/facilities" || location.pathname === "/event-types") && "text-foreground bg-card border-b-2 border-primary")}>
+                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/audit-log" || location.pathname.startsWith("/admin") || location.pathname === "/facilities" || location.pathname === "/departments" || location.pathname === "/event-types") && "text-foreground bg-card border-b-2 border-primary")}>
                       <Settings className="w-4 h-4" />
                       Systém
                       <ChevronDown className="w-4 h-4" />
