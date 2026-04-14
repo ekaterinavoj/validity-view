@@ -73,8 +73,16 @@ export default function ScheduledExaminations() {
   const { filters, updateFilter, clearFilters, hasActiveFilters, saveCurrentFilters, loadSavedFilter, deleteSavedFilter, savedFilters } = useAdvancedFilters("scheduled-examinations-filters");
 
   const departments = useMemo(() => {
-    const depts = new Set(examinations.map((e) => e.department).filter(Boolean));
-    return Array.from(depts).sort();
+    const deptMap = new Map<string, string>();
+    examinations.forEach((e) => {
+      if (e.department) {
+        const formatted = e.departmentName && e.departmentName !== e.department
+          ? `${e.department} - ${e.departmentName}`
+          : e.department;
+        deptMap.set(formatted, formatted);
+      }
+    });
+    return Array.from(deptMap.keys()).sort();
   }, [examinations]);
 
   const facilities = useMemo(() => {
