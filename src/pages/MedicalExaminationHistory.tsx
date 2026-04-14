@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -380,7 +381,9 @@ export default function MedicalExaminationHistory() {
                     <TableCell className="whitespace-nowrap">
                       {formatDisplayDate(exam.date)}
                     </TableCell>
-                    <TableCell className="font-medium">{exam.type}</TableCell>
+                    <TableCell>
+                      <TypePeriodicityCell typeName={exam.type} periodDays={exam.typePeriodDays} description={exam.typeDescription} />
+                    </TableCell>
                     <TableCell>{exam.employeeNumber}</TableCell>
                     <TableCell className="whitespace-nowrap">{exam.employeeName}</TableCell>
                     <TableCell>
