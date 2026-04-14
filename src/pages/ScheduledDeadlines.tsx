@@ -384,7 +384,7 @@ export default function ScheduledDeadlines() {
                           {deadline.equipment?.name}
                         </TableCell>
                         <TableCell>
-                          <TypePeriodicityCell typeName={deadline.deadline_type?.name || ""} periodDays={deadline.deadline_type?.period_days ?? 365} description={deadline.deadline_type?.description} />
+                          <TypePeriodicityCell typeName={deadline.deadline_type?.name || ""} periodDays={deadline.deadline_type?.period_days ?? 365} description={deadline.deadline_type?.description || undefined} />
                         </TableCell>
                         
                         <TableCell>
