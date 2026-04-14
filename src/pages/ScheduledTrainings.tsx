@@ -84,8 +84,16 @@ export default function ScheduledTrainings() {
   } = useAdvancedFilters("scheduled-trainings-filters");
 
   const departments = useMemo(() => {
-    const depts = new Set(trainings.map((t) => t.department).filter(Boolean));
-    return Array.from(depts).sort();
+    const deptMap = new Map<string, string>();
+    trainings.forEach((t) => {
+      if (t.department) {
+        const formatted = t.departmentName && t.departmentName !== t.department
+          ? `${t.department} - ${t.departmentName}`
+          : t.department;
+        deptMap.set(formatted, formatted);
+      }
+    });
+    return Array.from(deptMap.keys()).sort();
   }, [trainings]);
 
   const facilityCodes = useMemo(() => {
@@ -122,9 +130,12 @@ export default function ScheduledTrainings() {
         filters.statusFilter === "all" || training.status === filters.statusFilter;
       const matchesFacility =
         filters.facilityFilter === "all" || getFacilityName(training.facility) === filters.facilityFilter;
+      const deptFormatted = training.departmentName && training.departmentName !== training.department
+        ? `${training.department} - ${training.departmentName}`
+        : training.department;
       const matchesDepartment =
         filters.departmentFilter === "all" ||
-        training.department === filters.departmentFilter;
+        deptFormatted === filters.departmentFilter;
       const matchesType =
         filters.typeFilter === "all" || training.type === filters.typeFilter;
       const matchesTrainer =

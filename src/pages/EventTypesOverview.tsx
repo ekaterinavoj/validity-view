@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GraduationCap, Wrench, Stethoscope, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFacilities } from "@/hooks/useFacilities";
 
 interface TypeRow {
   id: string;
@@ -54,6 +55,7 @@ const TypeSection = ({
   loading,
   searchQuery,
   colorClass,
+  facilityNameMap,
 }: {
   title: string;
   icon: React.ElementType;
@@ -61,17 +63,19 @@ const TypeSection = ({
   loading: boolean;
   searchQuery: string;
   colorClass: string;
+  facilityNameMap: Record<string, string>;
 }) => {
+  const getFacilityName = (code: string) => facilityNameMap[code] || code;
   const filtered = useMemo(() => {
     if (!searchQuery) return types;
     const q = searchQuery.toLowerCase();
     return types.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
-        t.facility.toLowerCase().includes(q) ||
+        getFacilityName(t.facility).toLowerCase().includes(q) ||
         t.description?.toLowerCase().includes(q)
     );
-  }, [types, searchQuery]);
+  }, [types, searchQuery, facilityNameMap]);
 
   return (
     <Card>
@@ -110,7 +114,7 @@ const TypeSection = ({
                 {filtered.map((t) => (
                   <tr key={t.id} className="border-b last:border-b-0 hover:bg-muted/30">
                     <td className="px-3 py-2 font-medium">{t.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{t.facility}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{getFacilityName(t.facility)}</td>
                     <td className="px-3 py-2 text-muted-foreground">{formatPeriod(t.period_days)}</td>
                     <td className="px-3 py-2 text-muted-foreground hidden md:table-cell truncate max-w-[300px]">
                       {t.description || "—"}
@@ -128,6 +132,13 @@ const TypeSection = ({
 
 const EventTypesOverview = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const { facilities: facilitiesData } = useFacilities();
+
+  const facilityNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    facilitiesData.forEach(f => { map[f.code] = f.name; });
+    return map;
+  }, [facilitiesData]);
 
   const { data: trainingTypes = [], isLoading: loadingTraining } = useQuery({
     queryKey: ["training-types-overview"],
@@ -171,6 +182,7 @@ const EventTypesOverview = () => {
         loading={loadingTraining}
         searchQuery={searchQuery}
         colorClass="text-blue-500"
+        facilityNameMap={facilityNameMap}
       />
 
       <TypeSection
@@ -180,6 +192,7 @@ const EventTypesOverview = () => {
         loading={loadingDeadline}
         searchQuery={searchQuery}
         colorClass="text-orange-500"
+        facilityNameMap={facilityNameMap}
       />
 
       <TypeSection
@@ -189,6 +202,7 @@ const EventTypesOverview = () => {
         loading={loadingMedical}
         searchQuery={searchQuery}
         colorClass="text-green-500"
+        facilityNameMap={facilityNameMap}
       />
     </div>
   );

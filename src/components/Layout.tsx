@@ -84,13 +84,13 @@ export const Layout = ({
   };
 
   // Training mode "Ostatní" dropdown active state (employees moved to global)
-  const isTrainingOstatniActive = ["/training-types", "/departments", "/inactive"].some(path => location.pathname === path);
+  const isTrainingOstatniActive = ["/training-types", "/inactive"].some(path => location.pathname === path);
 
   // Deadline mode "Ostatní" dropdown active state (facilities removed - now global)
   const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types", "/deadlines/groups"].some(path => location.pathname === path);
 
   // System/Data dropdown active state (includes facilities and employees)
-  const isSystemDataActive = location.pathname === "/facilities" || location.pathname === "/employees";
+  const isSystemDataActive = location.pathname === "/facilities" || location.pathname === "/employees" || location.pathname === "/departments";
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   // Always navigate when clicking a module tab (even if already active)
@@ -216,12 +216,6 @@ export const Layout = ({
                           <Link to="/training-types" className="flex items-center gap-2 cursor-pointer">
                             <BookOpen className="w-4 h-4" />
                             Typy školení
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
-                            <Building2 className="w-4 h-4" />
-                            Střediska
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
@@ -351,7 +345,7 @@ export const Layout = ({
               {/* Global "Systém" section - visible to admin/manager, independent of mode */}
               {(isAdmin || isManager) && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/audit-log" || location.pathname.startsWith("/admin") || location.pathname === "/facilities" || location.pathname === "/event-types") && "text-foreground bg-card border-b-2 border-primary")}>
+                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/audit-log" || location.pathname.startsWith("/admin") || location.pathname === "/facilities" || location.pathname === "/departments" || location.pathname === "/event-types") && "text-foreground bg-card border-b-2 border-primary")}>
                       <Settings className="w-4 h-4" />
                       Systém
                       <ChevronDown className="w-4 h-4" />
@@ -371,6 +365,12 @@ export const Layout = ({
                       <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
                         <Building2 className="w-4 h-4" />
                         Provozovny
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
+                        <Building2 className="w-4 h-4" />
+                        Střediska
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -507,10 +507,6 @@ export const Layout = ({
                     <BookOpen className="w-4 h-4" />
                     Typy školení
                   </Link>
-                  <Link to="/departments" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/departments" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                    <Building2 className="w-4 h-4" />
-                    Střediska
-                  </Link>
                   <Link to="/inactive" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/inactive" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <UserX className="w-4 h-4" />
                     Pozastavená
@@ -545,6 +541,10 @@ export const Layout = ({
               <Link to="/facilities" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/facilities" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                 <Building2 className="w-4 h-4" />
                 Provozovny
+              </Link>
+              <Link to="/departments" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/departments" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                <Building2 className="w-4 h-4" />
+                Střediska
               </Link>
               {(isAdmin || isManager) && (
                 <Link to="/event-types" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/event-types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
