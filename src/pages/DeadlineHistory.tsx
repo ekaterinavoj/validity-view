@@ -253,6 +253,7 @@ export default function DeadlineHistory() {
       "Provozovna": getFacilityName(d.facility),
       "Poslední kontrola": formatDisplayDate(d.last_check_date, ""),
       "Příští kontrola": formatDisplayDate(d.next_check_date, ""),
+      "Periodicita": formatPeriodicity(d.period),
       "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
       "Provádějící": d.performer || "",
       "Firma": d.company || "",
