@@ -130,9 +130,12 @@ export default function ScheduledTrainings() {
         filters.statusFilter === "all" || training.status === filters.statusFilter;
       const matchesFacility =
         filters.facilityFilter === "all" || getFacilityName(training.facility) === filters.facilityFilter;
+      const deptFormatted = training.departmentName && training.departmentName !== training.department
+        ? `${training.department} - ${training.departmentName}`
+        : training.department;
       const matchesDepartment =
         filters.departmentFilter === "all" ||
-        training.department === filters.departmentFilter;
+        deptFormatted === filters.departmentFilter;
       const matchesType =
         filters.typeFilter === "all" || training.type === filters.typeFilter;
       const matchesTrainer =
