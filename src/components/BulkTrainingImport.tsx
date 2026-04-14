@@ -783,6 +783,7 @@ export const BulkTrainingImport = () => {
         const batch = toInsert.slice(i, i + BATCH_SIZE);
         const insertRows = batch.map(row => {
           const nextDate = calculateNextDateFromPeriodDays(new Date(row.data.last_training_date), null, row.periodDays || 365);
+          const resolvedResult = resolveTrainingResult(row.data.result);
           return {
             employee_id: row.employeeId!,
             training_type_id: row.trainingTypeId!,
@@ -791,6 +792,8 @@ export const BulkTrainingImport = () => {
             next_training_date: nextDate.toISOString().split('T')[0],
             trainer: row.data.trainer || null,
             company: row.data.company || null,
+            requester: row.data.requester || null,
+            result: resolvedResult || 'passed',
             note: row.data.note || null,
             created_by: user.id,
             status: 'valid',
@@ -817,6 +820,8 @@ export const BulkTrainingImport = () => {
               next_training_date: nextDate.toISOString().split('T')[0],
               trainer: row.data.trainer || null,
               company: row.data.company || null,
+              requester: row.data.requester || null,
+              result: resolveTrainingResult(row.data.result) || 'passed',
               note: row.data.note || null,
               created_by: user.id,
               status: 'valid',
@@ -851,6 +856,8 @@ export const BulkTrainingImport = () => {
               next_training_date: nextDate.toISOString().split('T')[0],
               trainer: row.data.trainer || null,
               company: row.data.company || null,
+              requester: row.data.requester || null,
+              result: resolveTrainingResult(row.data.result) || undefined,
               note: row.data.note || null,
               updated_at: new Date().toISOString(),
             })
