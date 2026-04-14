@@ -114,7 +114,7 @@ const TypeSection = ({
                 {filtered.map((t) => (
                   <tr key={t.id} className="border-b last:border-b-0 hover:bg-muted/30">
                     <td className="px-3 py-2 font-medium">{t.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{t.facility}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{getFacilityName(t.facility)}</td>
                     <td className="px-3 py-2 text-muted-foreground">{formatPeriod(t.period_days)}</td>
                     <td className="px-3 py-2 text-muted-foreground hidden md:table-cell truncate max-w-[300px]">
                       {t.description || "—"}
