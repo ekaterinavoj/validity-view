@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
+import { EmployeeStatusBadge, EmployeeStatusLegend, getEmployeeStatusLabel, EmployeeStatus } from "@/components/EmployeeStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -34,19 +35,6 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 
-const employeeStatusLabels: Record<string, string> = {
-  employed: "Aktivní",
-  parental_leave: "Mateřská/rodičovská",
-  sick_leave: "Nemocenská",
-  terminated: "Ukončený",
-};
-
-const employeeStatusColors: Record<string, string> = {
-  employed: "bg-green-500",
-  parental_leave: "bg-blue-500",
-  sick_leave: "bg-yellow-500",
-  terminated: "bg-red-500",
-};
 
 export default function MedicalExaminationHistory() {
   const { toast } = useToast();
