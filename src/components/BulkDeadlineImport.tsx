@@ -54,6 +54,8 @@ interface DeadlineImportRow {
   performer?: string;
   company?: string;
   note?: string;
+  requester?: string;
+  result?: string;
 }
 
 interface ParsedDeadlineRow {
@@ -135,6 +137,30 @@ const DEADLINE_COLUMN_MAP: Record<string, string> = {
   "Firma": "company",
   "Poznámka": "note",
   "Zadavatel": "requester",
+  "Výsledek": "result",
+  "Stav": "_stav_export",
+  "Příští kontrola": "_pristi_kontrola",
+  "Zařízení": "_zarizeni",
+  "Typ zařízení": "_typ_zarizeni",
+  "Výrobce": "_vyrobce",
+  "Model": "_model",
+  "Odpovědní": "_odpovedni",
+  "Periodicita": "_periodicita",
+};
+
+// Build reverse map: Czech label → DB value for deadline results
+const DEADLINE_RESULT_LABELS: Record<string, string> = {
+  "vyhovuje": "passed",
+  "vyhovuje s výhradami": "passed_with_reservations",
+  "nevyhovuje": "failed",
+};
+
+const resolveDeadlineResult = (raw: string | undefined): string | null => {
+  if (!raw || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  if (["passed", "passed_with_reservations", "failed"].includes(trimmed)) return trimmed;
+  const matched = DEADLINE_RESULT_LABELS[trimmed.toLowerCase()];
+  return matched || null;
 };
 
 /**
@@ -900,6 +926,7 @@ export const BulkDeadlineImport = () => {
       const batch = toInsert.slice(i, i + BATCH_SIZE);
       const insertRows = batch.map(row => {
         const nextCheckDate = calculateNextDateFromPeriodDays(new Date(row.data.last_check_date), null, row.periodDays || 365);
+        const resolvedResult = resolveDeadlineResult(row.data.result);
         return {
           equipment_id: row.equipmentId!,
           deadline_type_id: row.deadlineTypeId!,
@@ -908,6 +935,8 @@ export const BulkDeadlineImport = () => {
           next_check_date: nextCheckDate.toISOString().split("T")[0],
           performer: row.data.performer?.trim() || null,
           company: row.data.company?.trim() || null,
+          requester: row.data.requester?.trim() || null,
+          result: resolvedResult || 'passed',
           note: row.data.note?.trim() || null,
           status: 'valid',
           is_active: true,
@@ -951,6 +980,8 @@ export const BulkDeadlineImport = () => {
             next_check_date: nextCheckDate.toISOString().split("T")[0],
             performer: row.data.performer?.trim() || null,
             company: row.data.company?.trim() || null,
+            requester: row.data.requester?.trim() || null,
+            result: resolveDeadlineResult(row.data.result) || undefined,
             note: row.data.note?.trim() || null,
             status: 'valid',
           })

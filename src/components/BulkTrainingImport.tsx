@@ -30,6 +30,8 @@ interface ImportRow {
   trainer?: string;
   company?: string;
   note?: string;
+  requester?: string;
+  result?: string;
 }
 
 interface ParsedRow {
@@ -76,8 +78,30 @@ const TRAINING_COLUMN_MAP: Record<string, string> = {
   "Školitel": "trainer",
   "Firma": "company",
   "Zadavatel": "requester",
+  "Výsledek": "result",
   "Poznámka": "note",
   "Jméno": "_employee_name", // ignored but mapped to avoid collision
+  "Stav": "_stav_export",
+  "Školení platné do": "_platnost_do",
+  "Středisko": "_stredisko",
+  "Periodicita": "_periodicita",
+};
+
+// Build reverse map: Czech label → DB value for training results
+const TRAINING_RESULT_LABELS: Record<string, string> = {
+  "splněno": "passed",
+  "splněno s výhradami": "passed_with_reservations",
+  "nesplněno": "failed",
+};
+
+const resolveTrainingResult = (raw: string | undefined): string | null => {
+  if (!raw || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  // Already a DB value?
+  if (["passed", "passed_with_reservations", "failed"].includes(trimmed)) return trimmed;
+  // Try Czech label match
+  const matched = TRAINING_RESULT_LABELS[trimmed.toLowerCase()];
+  return matched || null;
 };
 
 const mapTrainingRowColumns = (row: Record<string, any>): ImportRow => {
@@ -759,6 +783,7 @@ export const BulkTrainingImport = () => {
         const batch = toInsert.slice(i, i + BATCH_SIZE);
         const insertRows = batch.map(row => {
           const nextDate = calculateNextDateFromPeriodDays(new Date(row.data.last_training_date), null, row.periodDays || 365);
+          const resolvedResult = resolveTrainingResult(row.data.result);
           return {
             employee_id: row.employeeId!,
             training_type_id: row.trainingTypeId!,
@@ -767,6 +792,8 @@ export const BulkTrainingImport = () => {
             next_training_date: nextDate.toISOString().split('T')[0],
             trainer: row.data.trainer || null,
             company: row.data.company || null,
+            requester: row.data.requester || null,
+            result: resolvedResult || 'passed',
             note: row.data.note || null,
             created_by: user.id,
             status: 'valid',
@@ -793,6 +820,8 @@ export const BulkTrainingImport = () => {
               next_training_date: nextDate.toISOString().split('T')[0],
               trainer: row.data.trainer || null,
               company: row.data.company || null,
+              requester: row.data.requester || null,
+              result: resolveTrainingResult(row.data.result) || 'passed',
               note: row.data.note || null,
               created_by: user.id,
               status: 'valid',
@@ -827,6 +856,8 @@ export const BulkTrainingImport = () => {
               next_training_date: nextDate.toISOString().split('T')[0],
               trainer: row.data.trainer || null,
               company: row.data.company || null,
+              requester: row.data.requester || null,
+              result: resolveTrainingResult(row.data.result) || undefined,
               note: row.data.note || null,
               updated_at: new Date().toISOString(),
             })
