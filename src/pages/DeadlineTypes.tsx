@@ -65,7 +65,7 @@ export default function DeadlineTypes() {
       if (facilityFilter !== "all" && t.facility !== facilityFilter) return false;
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        return t.name.toLowerCase().includes(query) || t.facility.toLowerCase().includes(query) || (t.description || "").toLowerCase().includes(query);
+        return t.name.toLowerCase().includes(query) || getFacilityName(t.facility).toLowerCase().includes(query) || (t.description || "").toLowerCase().includes(query);
       }
       return true;
     });
