@@ -24,3 +24,15 @@ export function TypePeriodicityCell({ typeName, description }: TypePeriodicityCe
 
   return <span className="font-medium">{typeName}</span>;
 }
+
+/**
+ * Format periodicity in dual format: "každé 4 roky / 1460 dní"
+ */
+export function formatPeriodicityDual(periodDays: number): string {
+  const { formatPeriodicity } = require("@/lib/utils");
+  const formatted = formatPeriodicity(periodDays);
+  if (periodDays % 365 === 0 || periodDays % 30 === 0) {
+    return `${formatted} / ${periodDays} dní`;
+  }
+  return formatted;
+}
