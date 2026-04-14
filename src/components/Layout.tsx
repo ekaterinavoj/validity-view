@@ -84,13 +84,13 @@ export const Layout = ({
   };
 
   // Training mode "Ostatní" dropdown active state (employees moved to global)
-  const isTrainingOstatniActive = ["/training-types", "/departments", "/inactive"].some(path => location.pathname === path);
+  const isTrainingOstatniActive = ["/training-types", "/inactive"].some(path => location.pathname === path);
 
   // Deadline mode "Ostatní" dropdown active state (facilities removed - now global)
   const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types", "/deadlines/groups"].some(path => location.pathname === path);
 
   // System/Data dropdown active state (includes facilities and employees)
-  const isSystemDataActive = location.pathname === "/facilities" || location.pathname === "/employees";
+  const isSystemDataActive = location.pathname === "/facilities" || location.pathname === "/employees" || location.pathname === "/departments";
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   // Always navigate when clicking a module tab (even if already active)
