@@ -53,6 +53,7 @@ import {
   
 } from "@/components/PeriodicityInput";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { ResponsiblesPicker, ResponsiblesSelection } from "@/components/ResponsiblesPicker";
 import { useDeadlineResponsibles } from "@/hooks/useDeadlineResponsibles";
 import { getResultOptions } from "@/components/ResultBadge";

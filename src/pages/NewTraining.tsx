@@ -39,6 +39,7 @@ import {
   
 } from "@/components/PeriodicityInput";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),

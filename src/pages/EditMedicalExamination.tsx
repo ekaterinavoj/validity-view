@@ -29,6 +29,7 @@ import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, periodicityToDays } from "@/components/PeriodicityInput";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { MedicalDocumentsList } from "@/components/MedicalDocumentsList";
 import { HealthRisksSection } from "@/components/HealthRisksSection";
 import { createEmptyHealthRisks, fromDbHealthRisks, toDbHealthRisks, type HealthRisks } from "@/lib/healthRisks";

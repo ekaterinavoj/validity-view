@@ -58,6 +58,7 @@ import {
   
 } from "@/components/PeriodicityInput";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 
 const formSchema = z.object({
   deadline_type_id: z.string().min(1, "Vyberte typ události"),

@@ -31,6 +31,7 @@ import { EmployeeMultiSelect } from "@/components/EmployeeMultiSelect";
 import { Progress } from "@/components/ui/progress";
 import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, periodicityToDays } from "@/components/PeriodicityInput";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { HealthRisksSection } from "@/components/HealthRisksSection";
 import { createEmptyHealthRisks, toDbHealthRisks, type HealthRisks } from "@/lib/healthRisks";
 import {
