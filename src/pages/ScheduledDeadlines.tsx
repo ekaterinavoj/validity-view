@@ -199,6 +199,7 @@ export default function ScheduledDeadlines() {
     const data = dataToExport.map(d => {
       const resps = responsiblesMap?.get(d.id) ?? [];
       const responsibleNames = resps.map(r => r.name).join(", ");
+      const effectivePeriod = d.period_days_override ?? d.deadline_type?.period_days ?? 365;
       return {
         "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
         "Výsledek": getResultLabel((d.result as any) || "passed", "deadline"),
@@ -211,6 +212,7 @@ export default function ScheduledDeadlines() {
         "Provozovna": getFacilityName(d.facility),
         "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
         "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
+        "Periodicita": formatPeriodicity(effectivePeriod),
         "Provádějící": d.performer || "",
         "Firma": d.company || "",
         "Zadavatel": d.requester || "",

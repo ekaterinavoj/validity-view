@@ -576,10 +576,6 @@ export const Layout = ({
             {/* Systém section - admin only */}
             {isAdmin && <div className="space-y-1 pt-2 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Systém</p>
-                {isTrainingMode && <Link to="/statistics" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/statistics" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                    <BarChart3 className="w-4 h-4" />
-                    Statistika
-                  </Link>}
                 <Link to="/audit-log" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/audit-log" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                   <FileText className="w-4 h-4" />
                   Audit log
