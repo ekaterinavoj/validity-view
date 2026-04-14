@@ -91,14 +91,15 @@ export function BulkEditDeadlinesDialog({
         for (const deadlineId of selectedIds) {
           const { data: deadline, error: fetchError } = await supabase
             .from("deadlines")
-            .select("deadline_type_id, deadline_types(period_days)")
+            .select("period_days_override, deadline_type_id, deadline_types(period_days)")
             .eq("id", deadlineId)
             .single();
 
           if (fetchError) throw fetchError;
 
-          const periodDays = (deadline as any).deadline_types?.period_days || 365;
-          const nextDate = calculateNextDateFromPeriodDays(formData.lastCheckDate, null, periodDays);
+          const typePeriod = (deadline as any).deadline_types?.period_days || 365;
+          const overridePeriod = (deadline as any).period_days_override;
+          const nextDate = calculateNextDateFromPeriodDays(formData.lastCheckDate, overridePeriod, typePeriod);
 
           const individualUpdates = {
             ...updates,
@@ -187,6 +188,9 @@ export function BulkEditDeadlinesDialog({
                 />
               </PopoverContent>
             </Popover>
+            <p className="text-xs text-muted-foreground">
+              Datum příští kontroly se vypočítá automaticky podle periody každého záznamu (včetně případného individuálního přepisu)
+            </p>
           </div>
 
           <div className="space-y-2">

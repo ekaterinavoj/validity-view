@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import { useFacilities } from "@/hooks/useFacilities";
+import { medicalExaminationResultOptions } from "@/lib/medicalExaminationResults";
 
 interface BulkEditExaminationsDialogProps {
   open: boolean;
@@ -95,14 +96,15 @@ export function BulkEditExaminationsDialog({
         for (const examinationId of selectedIds) {
           const { data: examination, error: fetchError } = await supabase
             .from("medical_examinations")
-            .select("examination_type_id, medical_examination_types(period_days)")
+            .select("period_days_override, examination_type_id, medical_examination_types(period_days)")
             .eq("id", examinationId)
             .single();
 
           if (fetchError) throw fetchError;
 
-          const periodDays = (examination as any).medical_examination_types?.period_days || 365;
-          const nextDate = calculateNextDateFromPeriodDays(formData.lastExaminationDate, null, periodDays);
+          const typePeriod = (examination as any).medical_examination_types?.period_days || 365;
+          const overridePeriod = (examination as any).period_days_override;
+          const nextDate = calculateNextDateFromPeriodDays(formData.lastExaminationDate, overridePeriod, typePeriod);
 
           const individualUpdates = {
             ...updates,
@@ -192,8 +194,10 @@ export function BulkEditExaminationsDialog({
                 />
               </PopoverContent>
             </Popover>
+            <p className="text-xs text-muted-foreground">
+              Datum příští prohlídky se vypočítá automaticky podle periody každého záznamu (včetně případného individuálního přepisu)
+            </p>
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="bulk-doctor">Lékař</Label>
             <Input
@@ -216,12 +220,22 @@ export function BulkEditExaminationsDialog({
 
           <div className="space-y-2">
             <Label htmlFor="bulk-result">Výsledek</Label>
-            <Input
-              id="bulk-result"
+            <Select
               value={formData.result}
-              onChange={(e) => setFormData({ ...formData, result: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
-            />
+              onValueChange={(value) => setFormData({ ...formData, result: value === "__none__" ? "" : value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Ponechat beze změny" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">-- Bez změny --</SelectItem>
+                {medicalExaminationResultOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
