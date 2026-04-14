@@ -374,6 +374,12 @@ export const Layout = ({
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
+                      <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
+                        <Building2 className="w-4 h-4" />
+                        Střediska
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to="/event-types" className="flex items-center gap-2 cursor-pointer">
                         <BookOpen className="w-4 h-4" />
                         Přehled typů událostí
