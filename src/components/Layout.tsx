@@ -89,8 +89,10 @@ export const Layout = ({
   // Deadline mode "Ostatní" dropdown active state (facilities removed - now global)
   const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types", "/deadlines/groups"].some(path => location.pathname === path);
 
-  // System/Data dropdown active state (includes facilities and employees)
-  const isSystemDataActive = location.pathname === "/facilities" || location.pathname === "/employees" || location.pathname === "/departments";
+  // Správa dat dropdown active state
+  const isDataManagementActive = ["/facilities", "/employees", "/departments", "/event-types"].includes(location.pathname);
+  // Systém dropdown active state  
+  const isSystemActive = location.pathname === "/audit-log" || location.pathname.startsWith("/admin");
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   // Always navigate when clicking a module tab (even if already active)
