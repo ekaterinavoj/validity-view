@@ -113,7 +113,10 @@ export default function ScheduledExaminations() {
 
       const matchesStatus = filters.statusFilter === "all" || exam.status === filters.statusFilter;
       const matchesFacility = filters.facilityFilter === "all" || getFacilityName(exam.facility) === filters.facilityFilter;
-      const matchesDepartment = filters.departmentFilter === "all" || exam.department === filters.departmentFilter;
+      const deptFormatted = exam.departmentName && exam.departmentName !== exam.department
+        ? `${exam.department} - ${exam.departmentName}`
+        : exam.department;
+      const matchesDepartment = filters.departmentFilter === "all" || deptFormatted === filters.departmentFilter;
       const matchesType = filters.typeFilter === "all" || exam.type === filters.typeFilter;
       const matchesDoctor = filters.trainerFilter === "all" || exam.doctor === filters.trainerFilter;
 
