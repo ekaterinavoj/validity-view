@@ -10,7 +10,7 @@ interface EmployeeStatusBadgeProps {
   className?: string;
 }
 
-const statusConfig: Record<EmployeeStatus, { label: string; className: string }> = {
+export const statusConfig: Record<EmployeeStatus, { label: string; className: string }> = {
   employed: {
     label: "Aktivní",
     className: "bg-status-valid text-status-valid-foreground",
@@ -28,6 +28,10 @@ const statusConfig: Record<EmployeeStatus, { label: string; className: string }>
     className: "bg-status-terminated text-status-terminated-foreground",
   },
 };
+
+export function getEmployeeStatusLabel(status: string): string {
+  return statusConfig[status as EmployeeStatus]?.label || status || "—";
+}
 
 export const EmployeeStatusBadge = ({ status, statusStartDate, className }: EmployeeStatusBadgeProps) => {
   const config = statusConfig[status] ?? {
