@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GraduationCap, Wrench, Stethoscope, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFacilities } from "@/hooks/useFacilities";
 
 interface TypeRow {
   id: string;
