@@ -29,8 +29,9 @@ import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeMultiSelect } from "@/components/EmployeeMultiSelect";
 import { Progress } from "@/components/ui/progress";
-import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, periodicityToDays, formatPeriodicityDisplay } from "@/components/PeriodicityInput";
+import { PeriodicityInput, PeriodicityUnit, daysToPeriodicityUnit, periodicityToDays } from "@/components/PeriodicityInput";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { HealthRisksSection } from "@/components/HealthRisksSection";
 import { createEmptyHealthRisks, toDbHealthRisks, type HealthRisks } from "@/lib/healthRisks";
 import {
@@ -136,10 +137,7 @@ export default function NewMedicalExamination() {
   const watchedPeriodUnit = form.watch("periodUnit");
   const overridePeriodDays = periodValue != null ? periodicityToDays(periodValue, watchedPeriodUnit as PeriodicityUnit) : null;
   const typePeriodHint = selectedType
-    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDisplay(
-        daysToPeriodicityUnit(selectedType.periodDays).value,
-        daysToPeriodicityUnit(selectedType.periodDays).unit
-      )})`
+    ? `Prázdné = použije se primární perioda typu (${formatPeriodicityDual(selectedType.periodDays)})`
     : "Prázdné = použije se primární perioda typu";
 
   const selectedResult = form.watch("result");
@@ -301,8 +299,7 @@ export default function NewMedicalExamination() {
                     </FormControl>
                     <SelectContent>
                       {examinationTypes.map((type) => {
-                        const { value: pv, unit: pu } = daysToPeriodicityUnit(type.periodDays);
-                        const periodLabel = formatPeriodicityDisplay(pv, pu);
+                        const periodLabel = formatPeriodicityDual(type.periodDays);
                         return (
                           <SelectItem key={type.id} value={type.id}>
                             <div className="flex flex-col items-start">

@@ -25,7 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { formatDisplayDate, calculateAge } from "@/lib/dateFormat";
 import Papa from "papaparse";
-import { formatPeriodicity } from "@/lib/utils";
+// formatPeriodicity replaced by formatPeriodicityDual from TypePeriodicityCell
 
 import { formatDepartment } from "@/components/DepartmentCell";
 import { useMedicalExaminations } from "@/hooks/useMedicalExaminations";
@@ -195,7 +195,7 @@ export default function ScheduledExaminations() {
       "Provozovna": getFacilityName(e.facility) || "",
       "Středisko": formatDepartment(e.department, e.departmentName),
       "Datum prohlídky": formatDisplayDate(e.lastExaminationDate, ""),
-      "Periodicita": formatPeriodicity(e.period),
+      "Periodicita": formatPeriodicityDual(e.period),
       "Výsledek": getMedicalExaminationResultLabel(e.result),
       "Datum pozbytí dlouhodobé způsobilosti": e.longTermFitnessLossDate ? formatDisplayDate(e.longTermFitnessLossDate, "") : "",
       "Lékař": e.doctor || "",

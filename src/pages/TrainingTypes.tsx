@@ -16,7 +16,8 @@ import { Search } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { formatPeriodicity, parsePeriodicityText } from "@/lib/utils";
+import { parsePeriodicityText } from "@/lib/utils";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
@@ -124,7 +125,7 @@ export default function TrainingTypes() {
       const data = trainingTypes.map(t => ({
         "Název": t.name,
         "Provozovna": getFacilityName(t.facility),
-        "Periodicita": formatPeriodicity(t.period_days),
+        "Periodicita": formatPeriodicityDual(t.period_days),
         "Délka (hodiny)": t.duration_hours || "",
         "Popis": t.description || "",
       }));
@@ -379,7 +380,7 @@ export default function TrainingTypes() {
                   <TableRow key={type.id}>
                     <TableCell className="text-sm">{getFacilityName(type.facility)}</TableCell>
                     <TableCell className="font-medium">{type.name}</TableCell>
-                    <TableCell>{formatPeriodicity(type.period_days)}</TableCell>
+                    <TableCell>{formatPeriodicityDual(type.period_days)}</TableCell>
                     <TableCell>{type.duration_hours}</TableCell>
                     <TableCell className="max-w-xs truncate" title={type.description || ""}>{type.description || "-"}</TableCell>
                     <TableCell>

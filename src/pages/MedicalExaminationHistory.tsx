@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/table";
 import { Download, Loader2, RefreshCw, ArchiveRestore, Archive, Trash2, History as HistoryIcon } from "lucide-react";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
-import { formatPeriodicity } from "@/lib/utils";
+// formatPeriodicity replaced by formatPeriodicityDual from TypePeriodicityCell
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";

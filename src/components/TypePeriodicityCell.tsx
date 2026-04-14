@@ -28,11 +28,13 @@ export function TypePeriodicityCell({ typeName, description }: TypePeriodicityCe
 
 /**
  * Format periodicity in dual format: "každé 4 roky / 1460 dní"
+ * Always shows both human-readable and raw days (unless unit is already days).
  */
 export function formatPeriodicityDual(periodDays: number): string {
   const formatted = formatPeriodicity(periodDays);
-  if (periodDays % 365 === 0 || periodDays % 30 === 0) {
-    return `${formatted} / ${periodDays} dní`;
+  // If already in days (not convertible to months/years), no need to duplicate
+  if (periodDays % 30 !== 0 && periodDays % 365 !== 0) {
+    return formatted;
   }
-  return formatted;
+  return `${formatted} / ${periodDays} dní`;
 }

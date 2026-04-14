@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GraduationCap, Wrench, Stethoscope, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { useFacilities } from "@/hooks/useFacilities";
 
 interface TypeRow {
@@ -42,11 +43,7 @@ const fetchMedicalTypes = async (): Promise<TypeRow[]> => {
   return data || [];
 };
 
-const formatPeriod = (days: number) => {
-  if (days >= 365 && days % 365 === 0) return `${days / 365} rok/let`;
-  if (days >= 30 && days % 30 === 0) return `${days / 30} měsíc(ů)`;
-  return `${days} dní`;
-};
+const formatPeriod = (days: number) => formatPeriodicityDual(days);
 
 const TypeSection = ({
   title,
