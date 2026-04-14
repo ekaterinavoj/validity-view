@@ -219,9 +219,9 @@ export const Layout = ({
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
-                            <Building2 className="w-4 h-4" />
-                            Střediska
+                          <Link to="/inactive" className="flex items-center gap-2 cursor-pointer">
+                            <UserX className="w-4 h-4" />
+                            Pozastavená
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
