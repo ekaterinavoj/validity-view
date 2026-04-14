@@ -344,17 +344,16 @@ export const Layout = ({
                   Statistika
                 </NavLink>}
 
-              {/* Global "Systém" section - visible to admin/manager, independent of mode */}
+              {/* Správa dat dropdown - visible to admin/manager */}
               {(isAdmin || isManager) && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/audit-log" || location.pathname.startsWith("/admin") || location.pathname === "/facilities" || location.pathname === "/departments" || location.pathname === "/event-types") && "text-foreground bg-card border-b-2 border-primary")}>
-                      <Settings className="w-4 h-4" />
-                      Systém
+                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", isDataManagementActive && "text-foreground bg-card border-b-2 border-primary")}>
+                      <ClipboardList className="w-4 h-4" />
+                      Správa dat
                       <ChevronDown className="w-4 h-4" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
-                    {/* Zaměstnanci se nezobrazují v modulu Tech. události - nejsou tam potřeba */}
                     {!isDeadlineMode && (
                       <DropdownMenuItem asChild>
                         <Link to="/employees" className="flex items-center gap-2 cursor-pointer">
@@ -381,32 +380,43 @@ export const Layout = ({
                         Přehled typů událostí
                       </Link>
                     </DropdownMenuItem>
-                    {isAdmin && <DropdownMenuItem asChild>
+                  </DropdownMenuContent>
+                </DropdownMenu>}
+
+              {/* Systém dropdown - admin only items */}
+              {isAdmin && <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", isSystemActive && "text-foreground bg-card border-b-2 border-primary")}>
+                      <Settings className="w-4 h-4" />
+                      Systém
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+                    <DropdownMenuItem asChild>
                       <Link to="/audit-log" className="flex items-center gap-2 cursor-pointer">
                         <FileText className="w-4 h-4" />
                         Audit log
                       </Link>
-                    </DropdownMenuItem>}
-                    {isAdmin && <>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/status" className="flex items-center gap-2 cursor-pointer">
-                            <Activity className="w-4 h-4" />
-                            Stav systému
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/settings" className="flex items-center gap-2 cursor-pointer">
-                            <Settings className="w-4 h-4" />
-                            Administrace
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/migrations" className="flex items-center gap-2 cursor-pointer">
-                            <Database className="w-4 h-4" />
-                            Migrace DB
-                          </Link>
-                        </DropdownMenuItem>
-                      </>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/status" className="flex items-center gap-2 cursor-pointer">
+                        <Activity className="w-4 h-4" />
+                        Stav systému
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/settings" className="flex items-center gap-2 cursor-pointer">
+                        <Settings className="w-4 h-4" />
+                        Administrace
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/migrations" className="flex items-center gap-2 cursor-pointer">
+                        <Database className="w-4 h-4" />
+                        Migrace DB
+                      </Link>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>}
             </div>
