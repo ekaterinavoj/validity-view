@@ -513,10 +513,6 @@ export const Layout = ({
                     <BookOpen className="w-4 h-4" />
                     Typy školení
                   </Link>
-                  <Link to="/departments" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/departments" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                    <Building2 className="w-4 h-4" />
-                    Střediska
-                  </Link>
                   <Link to="/inactive" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/inactive" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <UserX className="w-4 h-4" />
                     Pozastavená
