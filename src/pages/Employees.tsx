@@ -157,8 +157,10 @@ export default function Employees() {
         "Pozice": employee.position || "",
         "Středisko": formatDepartment(employee.department, employee.departmentName),
         "Stav": getStatusLabel(employee.status) || "",
+        "Kategorie práce": employee.workCategory ? `Kategorie ${employee.workCategory}` : "",
         "Datum narození": employee.birthDate ? formatDisplayDate(employee.birthDate, "") : "",
         "Věk": employee.birthDate ? String(calculateAge(employee.birthDate) ?? "") : "",
+        "Email nadřízeného": employee.managerEmail || "",
         "Datum od": employee.statusStartDate || employee.terminationDate 
           ? formatDisplayDate(employee.statusStartDate || employee.terminationDate, "")
           : "",
