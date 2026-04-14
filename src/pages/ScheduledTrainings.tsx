@@ -1,4 +1,5 @@
 import { StatusBadge } from "@/components/StatusBadge";
+import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
 import { ResultBadge, getResultLabel } from "@/components/ResultBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { Button } from "@/components/ui/button";
@@ -522,7 +523,9 @@ export default function ScheduledTrainings() {
                           <TableCell className="whitespace-nowrap">
                             {formatDisplayDate(training.date)}
                           </TableCell>
-                          <TableCell className="font-medium">{training.type}</TableCell>
+                          <TableCell>
+                            <TypePeriodicityCell typeName={training.type} periodDays={training.typePeriodDays} description={training.typeDescription} />
+                          </TableCell>
                           <TableCell>{training.employeeNumber}</TableCell>
                           <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
                           <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>

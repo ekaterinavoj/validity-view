@@ -1,4 +1,5 @@
 import { StatusBadge } from "@/components/StatusBadge";
+import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
 import { Button } from "@/components/ui/button";
@@ -366,7 +367,9 @@ export default function ScheduledExaminations() {
                         <StatusBadge status={exam.status} />
                       </TableCell>
                       <TableCell>{formatDisplayDate(exam.nextExaminationDate)}</TableCell>
-                      <TableCell className="font-medium">{exam.type}</TableCell>
+                      <TableCell>
+                        <TypePeriodicityCell typeName={exam.type} periodDays={exam.typePeriodDays} description={exam.typeDescription} />
+                      </TableCell>
                       <TableCell>{exam.employeeNumber}</TableCell>
                       <TableCell>{exam.employeeName}</TableCell>
                       
