@@ -591,7 +591,7 @@ export default function EditMedicalExamination() {
                   files={uploadedFiles}
                   onFilesChange={setUploadedFiles}
                   maxFiles={10}
-                  maxSize={20}
+                  maxSize={40}
                   acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]}
                 />
               </div>

@@ -439,7 +439,7 @@ export default function NewTraining() {
                   Nahrajte protokoly, certifikáty nebo jiné dokumenty k tomuto školení
                 </p>
               </div>
-              <FileUploader files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={10} maxSize={20} acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} />
+              <FileUploader files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={10} maxSize={40} acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} />
             </div>
 
             <FormField control={form.control} name="reminderTemplateId" render={({ field }) => (

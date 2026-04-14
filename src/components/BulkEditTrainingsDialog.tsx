@@ -98,7 +98,7 @@ export function BulkEditTrainingsDialog({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    const MAX_FILE_SIZE = 40 * 1024 * 1024;
     const ALLOWED_TYPES = [
       "application/pdf",
       "application/msword",
