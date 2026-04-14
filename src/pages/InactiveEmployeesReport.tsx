@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatPeriodicity } from "@/lib/utils";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { useInactiveEmployees } from "@/hooks/useEmployees";
 import { useTrainings } from "@/hooks/useTrainings";
@@ -337,7 +337,7 @@ export default function InactiveEmployeesReport() {
                                     {formatDisplayDate(training.lastTrainingDate)}
                                   </TableCell>
                                   <TableCell className="text-center">
-                                    {formatPeriodicity(training.period)}
+                                    {formatPeriodicityDual(training.period)}
                                   </TableCell>
                                   <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                                   <TableCell className="whitespace-nowrap">{training.company}</TableCell>
