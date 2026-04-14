@@ -9,6 +9,8 @@ export interface MedicalExaminationWithDetails {
   nextExaminationDate: string;
   lastExaminationDate: string;
   type: string;
+  typeDescription: string;
+  typePeriodDays: number;
   employeeNumber: string;
   employeeName: string;
   employeeId: string;
@@ -87,7 +89,8 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
             id,
             name,
             period_days,
-            facility
+            facility,
+            description
           ),
           medical_reminder_templates (
             id,
@@ -132,6 +135,8 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           nextExaminationDate: e.next_examination_date,
           lastExaminationDate: e.last_examination_date,
           type: e.medical_examination_types?.name || "",
+          typeDescription: e.medical_examination_types?.description || "",
+          typePeriodDays: e.medical_examination_types?.period_days ?? 365,
           employeeNumber: e.employees?.employee_number || "",
           employeeName: `${e.employees?.first_name || ""} ${e.employees?.last_name || ""}`.trim(),
           employeeId: e.employee_id,

@@ -1,4 +1,5 @@
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
+import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -511,7 +512,9 @@ export default function History() {
                     <TableCell className="whitespace-nowrap">
                       {formatDisplayDate(training.date)}
                     </TableCell>
-                    <TableCell className="font-medium">{training.type}</TableCell>
+                    <TableCell>
+                      <TypePeriodicityCell typeName={training.type} periodDays={training.typePeriodDays} description={training.typeDescription} />
+                    </TableCell>
                     <TableCell>{training.employeeNumber}</TableCell>
                     <TableCell className="whitespace-nowrap">
                       {training.employeeName}

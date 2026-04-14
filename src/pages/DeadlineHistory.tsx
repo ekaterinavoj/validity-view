@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
 import { format } from "date-fns";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { RefreshCw, Download, ArchiveRestore, History as HistoryIcon, Archive } from "lucide-react";
@@ -405,7 +406,9 @@ export default function DeadlineHistory() {
                     <TableCell className="font-medium">
                       {deadline.equipment?.name}
                     </TableCell>
-                    <TableCell>{deadline.deadline_type?.name}</TableCell>
+                    <TableCell>
+                      <TypePeriodicityCell typeName={deadline.deadline_type?.name || ""} periodDays={deadline.deadline_type?.period_days ?? 365} description={deadline.deadline_type?.description || undefined} />
+                    </TableCell>
                     <TableCell>{getFacilityName(deadline.facility)}</TableCell>
                     <TableCell>
                       {formatDisplayDate(deadline.last_check_date)}

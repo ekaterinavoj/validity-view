@@ -6,6 +6,8 @@ export interface HistoryTraining {
   status: "valid" | "warning" | "expired";
   date: string;
   type: string;
+  typeDescription: string;
+  typePeriodDays: number;
   employeeNumber: string;
   employeeName: string;
   employeeId: string;
@@ -69,7 +71,8 @@ export function useTrainingHistory(includeArchived: boolean = false) {
             id,
             name,
             period_days,
-            facility
+            facility,
+            description
           ),
           original_record_id
         `)
@@ -107,6 +110,8 @@ export function useTrainingHistory(includeArchived: boolean = false) {
         status: computeStatus(t.next_training_date),
         date: t.last_training_date,
         type: t.training_types?.name || "",
+        typeDescription: t.training_types?.description || "",
+        typePeriodDays: t.training_types?.period_days ?? 365,
         employeeNumber: t.employees?.employee_number || "",
         employeeName: `${t.employees?.first_name || ""} ${t.employees?.last_name || ""}`.trim(),
         employeeId: t.employee_id,

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { TypePeriodicityCell } from "@/components/TypePeriodicityCell";
 import { Link } from "react-router-dom";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
@@ -382,7 +383,9 @@ export default function ScheduledDeadlines() {
                         <TableCell className="font-medium">
                           {deadline.equipment?.name}
                         </TableCell>
-                        <TableCell>{deadline.deadline_type?.name}</TableCell>
+                        <TableCell>
+                          <TypePeriodicityCell typeName={deadline.deadline_type?.name || ""} periodDays={deadline.deadline_type?.period_days ?? 365} description={deadline.deadline_type?.description || undefined} />
+                        </TableCell>
                         
                         <TableCell>
                           {format(new Date(deadline.last_check_date), "dd.MM.yyyy")}
