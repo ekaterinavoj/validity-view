@@ -360,16 +360,20 @@ export default function EditTraining() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {trainingTypes.map((type) => (
+                      {trainingTypes.map((type) => {
+                        const { value: pv, unit: pu } = daysToPeriodicityUnit(type.periodDays);
+                        const periodLabel = formatPeriodicityDisplay(pv, pu);
+                        return (
                           <SelectItem key={type.id} value={type.id}>
                             <div className="flex flex-col items-start">
-                              <span>{type.name}</span>
+                              <span>{type.name} ({periodLabel})</span>
                               {type.description && (
                                 <span className="text-xs text-muted-foreground">{type.description}</span>
                               )}
                             </div>
                           </SelectItem>
-                      ))}
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <FormMessage />
