@@ -1418,6 +1418,15 @@ END;
 $$;
     `.trim(),
   },
+  {
+    version: "20260414150200",
+    name: "remove_duplicate_type_period_triggers",
+    sql: `
+DROP TRIGGER IF EXISTS recalculate_training_dates_on_type_change ON public.training_types;
+DROP TRIGGER IF EXISTS recalculate_medical_dates_on_type_change ON public.medical_examination_types;
+DROP TRIGGER IF EXISTS recalculate_deadline_dates_on_type_change ON public.deadline_types;
+    `.trim(),
+  },
 ];
 
 /**
