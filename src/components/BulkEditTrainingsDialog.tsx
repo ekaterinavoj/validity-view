@@ -253,7 +253,8 @@ export function BulkEditTrainingsDialog({
 
           for (const file of formData.uploadedFiles) {
             const fileExt = file.name.split(".").pop();
-            const fileName = `${trainingId}/${Date.now()}.${fileExt}`;
+            const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+            const fileName = `${trainingId}/${uniqueSuffix}.${fileExt}`;
 
             const { error: uploadError } = await supabase.storage
               .from("training-documents")
