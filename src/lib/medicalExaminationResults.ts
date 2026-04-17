@@ -1,3 +1,7 @@
+// NOTE: "lost_long_term" is intentionally NOT exposed in the result picker any more —
+// it is captured via the standalone "Současně pozbyl dlouhodobě způsobilosti" checkbox
+// (see EditMedicalExamination / NewMedicalExamination). The value is kept in the union
+// for legacy data, validators and importers.
 export const medicalExaminationResultOptions = [
   {
     value: "passed",
@@ -11,11 +15,13 @@ export const medicalExaminationResultOptions = [
     value: "failed",
     label: "Není zdravotně způsobilý / způsobilá",
   },
-  {
-    value: "lost_long_term",
-    label: "Pozbyl(a) dlouhodobě zdravotní způsobilosti",
-  },
 ] as const;
+
+/** Legacy/imported value, kept for backwards compatibility but hidden from the new UI picker. */
+export const LEGACY_LOST_LONG_TERM_OPTION = {
+  value: "lost_long_term",
+  label: "Pozbyl(a) dlouhodobě zdravotní způsobilosti",
+} as const;
 
 export type MedicalExaminationResultValue = (typeof medicalExaminationResultOptions)[number]["value"];
 

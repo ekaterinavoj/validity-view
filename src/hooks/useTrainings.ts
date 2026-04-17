@@ -31,6 +31,9 @@ export interface TrainingWithDetails {
   repeatDaysAfter: number;
   trainingTypeId: string;
   deletedAt: string | null; // Soft-delete timestamp
+  fixedAt: string | null;
+  fixedByName: string | null;
+  fixedNote: string | null;
 }
 
 export function useTrainings(activeOnly: boolean = true) {
@@ -65,6 +68,9 @@ export function useTrainings(activeOnly: boolean = true) {
           employee_id,
           training_type_id,
           deleted_at,
+          fixed_at,
+          fixed_by_name,
+          fixed_note,
           employees (
             id,
             employee_number,
@@ -127,8 +133,9 @@ export function useTrainings(activeOnly: boolean = true) {
         })
         .map((t: any) => {
           const result = (t.result as "passed" | "passed_with_reservations" | "failed") || "passed";
-          // If result is failed, force expired status
-          const computedStatus = result === "failed" ? "expired" : computeStatus(t.next_training_date);
+          // If result is failed AND not yet fixed, force expired status
+          const isFixed = !!t.fixed_at;
+          const computedStatus = result === "failed" && !isFixed ? "expired" : computeStatus(t.next_training_date);
           return {
             id: t.id,
             status: computedStatus,
@@ -158,6 +165,9 @@ export function useTrainings(activeOnly: boolean = true) {
             repeatDaysAfter: t.repeat_days_after ?? 30,
             trainingTypeId: t.training_type_id,
             deletedAt: t.deleted_at,
+            fixedAt: t.fixed_at || null,
+            fixedByName: t.fixed_by_name || null,
+            fixedNote: t.fixed_note || null,
           };
         });
 

@@ -12,7 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Plus, CalendarClock, Eye, Download, Upload } from "lucide-react";
+import { Edit, Plus, CalendarClock, Eye, Download, Upload, Wrench } from "lucide-react";
+import { MarkAsFixedDialog } from "@/components/MarkAsFixedDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
 import { useFacilities } from "@/hooks/useFacilities";
@@ -60,6 +62,7 @@ export default function ScheduledTrainings() {
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [fixDialogTarget, setFixDialogTarget] = useState<{ id: string; label: string } | null>(null);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -547,23 +550,33 @@ export default function ScheduledTrainings() {
                             <TrainingProtocolCell trainingId={training.id} />
                           </TableCell>
                           <TableCell>
-                            {canEdit ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/edit-training/${training.id}`)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/edit-training/${training.id}`)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {canEdit && training.status === "expired" && training.result === "failed" && !training.fixedAt && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setFixDialogTarget({ id: training.id, label: `${training.type} – ${training.employeeName}` })}
+                                      >
+                                        <Wrench className="h-4 w-4 text-status-valid" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Označit jako opraveno</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                              {canEdit ? (
+                                <Button variant="ghost" size="sm" onClick={() => navigate(`/edit-training/${training.id}`)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Button variant="ghost" size="sm" onClick={() => navigate(`/edit-training/${training.id}`)}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                         {isExpanded && (
@@ -575,6 +588,11 @@ export default function ScheduledTrainings() {
                               { label: "Zadavatel", value: training.requester },
                               { label: "Periodicita", value: formatPeriodicityDual(training.period) },
                               ...(training.typeDescription ? [{ label: "Popis typu", value: training.typeDescription }] : []),
+                              ...(training.fixedAt ? [
+                                { label: "Opraveno dne", value: formatDisplayDate(training.fixedAt) },
+                                { label: "Opravil", value: training.fixedByName ?? "" },
+                                ...(training.fixedNote ? [{ label: "Poznámka k opravě", value: training.fixedNote }] : []),
+                              ] : []),
                             ]}
                           />
                         )}
@@ -588,6 +606,14 @@ export default function ScheduledTrainings() {
           <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
         </Card>
 
+        <MarkAsFixedDialog
+          open={!!fixDialogTarget}
+          onOpenChange={(open) => !open && setFixDialogTarget(null)}
+          recordId={fixDialogTarget?.id ?? null}
+          recordLabel={fixDialogTarget?.label}
+          target="trainings"
+          onSuccess={refetch}
+        />
       </div>
     </>
   );

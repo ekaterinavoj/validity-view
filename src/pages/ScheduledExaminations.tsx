@@ -1,4 +1,6 @@
 import { StatusBadge } from "@/components/StatusBadge";
+import { AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
@@ -380,11 +382,28 @@ export default function ScheduledExaminations() {
                         <HealthRisksSummary value={exam.healthRisks} />
                       </TableCell>
                       <TableCell>
-                        <ResultBadge
-                          result={(exam.result as any) || "passed"}
-                          context="medical"
-                          note={exam.note || undefined}
-                        />
+                        <div className="flex items-center gap-1">
+                          <ResultBadge
+                            result={(exam.result as any) || "passed"}
+                            context="medical"
+                            note={exam.note || undefined}
+                          />
+                          {exam.longTermFitnessLossDate && exam.result !== "lost_long_term" && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertTriangle className="w-4 h-4 text-status-warning cursor-help shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-sm">
+                                    Současně pozbyl(a) dlouhodobě zdravotní způsobilosti
+                                    {exam.longTermFitnessLossDate ? ` (${formatDisplayDate(exam.longTermFitnessLossDate)})` : ""}.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <NoteTooltipText note={exam.note} />

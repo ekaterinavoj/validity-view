@@ -25,6 +25,9 @@ interface DeadlineRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  fixed_at: string | null;
+  fixed_by_name: string | null;
+  fixed_note: string | null;
   equipment: EquipmentRef | null;
   deadline_types: DeadlineTypeRef | null;
 }
@@ -55,9 +58,10 @@ export function useDeadlines() {
       
       const computeStatus = (
         nextDate: string | null | undefined,
-        result?: string | null
+        result?: string | null,
+        fixedAt?: string | null,
       ): "valid" | "warning" | "expired" => {
-        if (result === "failed") return "expired";
+        if (result === "failed" && !fixedAt) return "expired";
         if (!nextDate) return "expired";
         const next = new Date(nextDate);
         if (isNaN(next.getTime())) return "expired";
@@ -77,7 +81,7 @@ export function useDeadlines() {
       // Transform data to match Deadline type
       return (data as DeadlineRow[]).map((item): Deadline => ({
         ...item,
-        status: computeStatus(item.next_check_date, item.result),
+        status: computeStatus(item.next_check_date, item.result, item.fixed_at),
         result: (item.result as Deadline["result"]) ?? undefined,
         deadline_type: item.deadline_types,
       })).sort((a, b) => {

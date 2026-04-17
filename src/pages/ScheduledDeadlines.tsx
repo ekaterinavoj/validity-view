@@ -11,7 +11,11 @@ import {
   Edit,
   Eye,
   Upload,
+  Wrench,
 } from "lucide-react";
+import { MarkAsFixedDialog } from "@/components/MarkAsFixedDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatDisplayDate } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -64,6 +68,7 @@ export default function ScheduledDeadlines() {
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [fixDialogTarget, setFixDialogTarget] = useState<{ id: string; label: string } | null>(null);
 
   const filteredDeadlineIds = useMemo(() => {
     return deadlines.filter(d => d.is_active).map(d => d.id);
@@ -416,19 +421,37 @@ export default function ScheduledDeadlines() {
                           <DeadlineProtocolCell deadlineId={deadline.id} />
                         </TableCell>
                         <TableCell>
-                          {canEdit ? (
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link to={`/deadlines/edit/${deadline.id}`}>
-                                <Edit className="w-4 h-4" />
-                              </Link>
-                            </Button>
-                          ) : (
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link to={`/deadlines/edit/${deadline.id}`}>
-                                <Eye className="w-4 h-4" />
-                              </Link>
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {canEdit && deadline.status === "expired" && deadline.result === "failed" && !deadline.fixed_at && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setFixDialogTarget({ id: deadline.id, label: `${deadline.deadline_type?.name ?? ""} – ${deadline.equipment?.name ?? ""}` })}
+                                    >
+                                      <Wrench className="w-4 h-4 text-status-valid" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Označit jako opraveno</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {canEdit ? (
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link to={`/deadlines/edit/${deadline.id}`}>
+                                  <Edit className="w-4 h-4" />
+                                </Link>
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link to={`/deadlines/edit/${deadline.id}`}>
+                                  <Eye className="w-4 h-4" />
+                                </Link>
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                       {isExpanded && (
@@ -443,6 +466,11 @@ export default function ScheduledDeadlines() {
                             ...(deadline.deadline_type?.description ? [{ label: "Popis typu", value: deadline.deadline_type.description }] : []),
                             { label: "Firma", value: deadline.company },
                             { label: "Zadavatel", value: deadline.requester },
+                            ...(deadline.fixed_at ? [
+                              { label: "Opraveno dne", value: formatDisplayDate(deadline.fixed_at) },
+                              { label: "Opravil", value: deadline.fixed_by_name ?? "" },
+                              ...(deadline.fixed_note ? [{ label: "Poznámka k opravě", value: deadline.fixed_note }] : []),
+                            ] : []),
                           ]}
                         />
                       )}
@@ -473,6 +501,15 @@ export default function ScheduledDeadlines() {
         onConfirm={confirmBulkArchive}
         loading={archiveLoading}
         entityName="událostí"
+      />
+
+      <MarkAsFixedDialog
+        open={!!fixDialogTarget}
+        onOpenChange={(open) => !open && setFixDialogTarget(null)}
+        recordId={fixDialogTarget?.id ?? null}
+        recordLabel={fixDialogTarget?.label}
+        target="deadlines"
+        onSuccess={refetch}
       />
     </div>
   );
