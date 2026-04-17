@@ -73,6 +73,9 @@ export interface Deadline {
   created_by?: string | null;
   created_at: string;
   updated_at: string;
+  fixed_at?: string | null;
+  fixed_by_name?: string | null;
+  fixed_note?: string | null;
   // Lightweight joined data for lists
   equipment?: EquipmentRef | null;
   deadline_type?: DeadlineTypeRef | null;
