@@ -11,7 +11,8 @@ export async function uploadMedicalDocument(
     if (!user) throw new Error("Uživatel není přihlášen");
 
     const fileExt = file.name.split('.').pop();
-    const filePath = `${examinationId}/${Date.now()}.${fileExt}`;
+    const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    const filePath = `${examinationId}/${uniqueSuffix}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("medical-documents")
