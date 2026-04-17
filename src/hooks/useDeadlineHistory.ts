@@ -50,6 +50,9 @@ export interface HistoryDeadline {
   company_raw: string | null;
   originalRecordId: string | null;
   isVersion: boolean;
+  fixed_at: string | null;
+  fixed_by_name: string | null;
+  fixed_note: string | null;
 }
 
 export function useDeadlineHistory(includeArchived: boolean = false) {
@@ -80,6 +83,9 @@ export function useDeadlineHistory(includeArchived: boolean = false) {
           deadline_type_id,
           deleted_at,
           period_days_override,
+          fixed_at,
+          fixed_by_name,
+          fixed_note,
           equipment:equipment_id (
             id, inventory_number, name, equipment_type, facility, department_id, status, location, responsible_person, manufacturer, model, serial_number
           ),
@@ -145,6 +151,9 @@ export function useDeadlineHistory(includeArchived: boolean = false) {
           next_check_date: d.next_check_date,
           performer_raw: d.performer,
           company_raw: d.company,
+          fixed_at: d.fixed_at || null,
+          fixed_by_name: d.fixed_by_name || null,
+          fixed_note: d.fixed_note || null,
         };
       });
 

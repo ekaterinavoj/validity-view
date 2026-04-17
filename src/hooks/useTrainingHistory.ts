@@ -20,11 +20,15 @@ export interface HistoryTraining {
   company: string;
   requester: string;
   period: number;
+  typePeriodDays: number;
   note: string;
-  deletedAt: string | null; // Soft-delete timestamp
+  deletedAt: string | null;
   isArchived: boolean;
-  originalRecordId: string | null; // If set, this is a previous version snapshot
+  originalRecordId: string | null;
   isVersion: boolean;
+  fixedAt: string | null;
+  fixedByName: string | null;
+  fixedNote: string | null;
 }
 
 export function useTrainingHistory(includeArchived: boolean = false) {
@@ -55,6 +59,9 @@ export function useTrainingHistory(includeArchived: boolean = false) {
           employee_id,
           training_type_id,
           deleted_at,
+          fixed_at,
+          fixed_by_name,
+          fixed_note,
           employees (
             id,
             employee_number,
@@ -124,11 +131,15 @@ export function useTrainingHistory(includeArchived: boolean = false) {
         company: t.company || "",
         requester: t.requester || "",
         period: t.period_days_override ?? t.training_types?.period_days ?? 365,
+        typePeriodDays: t.training_types?.period_days ?? 365,
         note: t.note || "",
         deletedAt: t.deleted_at,
         isArchived: t.deleted_at !== null && !t.original_record_id,
         originalRecordId: t.original_record_id || null,
         isVersion: !!t.original_record_id,
+        fixedAt: t.fixed_at || null,
+        fixedByName: t.fixed_by_name || null,
+        fixedNote: t.fixed_note || null,
       }));
 
       setTrainings(transformedData);
