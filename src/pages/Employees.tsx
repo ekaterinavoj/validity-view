@@ -710,27 +710,9 @@ export default function Employees() {
                         <FormLabel>
                           {selectedStatus === "parental_leave" ? "Datum od (mateřská/rodičovská)" : "Datum od (nemocenská)"}
                         </FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-start text-left font-normal"
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <FormControl>
+                          <DateInput value={field.value} onChange={field.onChange} />
+                        </FormControl>
                         <p className="text-xs text-muted-foreground">
                           Pokud nevyplníte, bude automaticky nastaveno aktuální datum.
                         </p>
@@ -747,27 +729,9 @@ export default function Employees() {
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>Datum ukončení *</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-start text-left font-normal"
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <FormControl>
+                          <DateInput value={field.value} onChange={field.onChange} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
