@@ -9,11 +9,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -21,9 +16,9 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
+import { DateInput } from "@/components/ui/date-input";
 import { Badge } from "@/components/ui/badge";
-import { Search, X, Calendar as CalendarIcon, Save, Star, Trash2 } from "lucide-react";
+import { Search, X, Save, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { FilterState, SavedFilter } from "@/hooks/useAdvancedFilters";
@@ -241,58 +236,20 @@ export function AdvancedFilters({
             <label className="text-sm font-medium text-muted-foreground">
               Datum od:
             </label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {filters.dateFrom ? (
-                    formatDisplayDate(filters.dateFrom)
-                  ) : (
-                    <span>Vyberte datum</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={filters.dateFrom}
-                  onSelect={(date) => onFilterChange("dateFrom", date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <DateInput
+              value={filters.dateFrom}
+              onChange={(date) => onFilterChange("dateFrom", date)}
+            />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground">
               Datum do:
             </label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {filters.dateTo ? (
-                    formatDisplayDate(filters.dateTo)
-                  ) : (
-                    <span>Vyberte datum</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={filters.dateTo}
-                  onSelect={(date) => onFilterChange("dateTo", date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <DateInput
+              value={filters.dateTo}
+              onChange={(date) => onFilterChange("dateTo", date)}
+            />
           </div>
         </div>
 

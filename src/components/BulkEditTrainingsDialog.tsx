@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateInput } from "@/components/ui/date-input";
 import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
@@ -319,33 +318,11 @@ export function BulkEditTrainingsDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Datum posledního školení</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.lastTrainingDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarClock className="mr-2 h-4 w-4" />
-                  {formData.lastTrainingDate ? (
-                    format(formData.lastTrainingDate, "d. MMMM yyyy", { locale: cs })
-                  ) : (
-                    <span>Vyberte datum (ponechat prázdné pro beze změny)</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.lastTrainingDate}
-                  onSelect={(date) => setFormData({ ...formData, lastTrainingDate: date })}
-                  initialFocus
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+            <DateInput
+              value={formData.lastTrainingDate}
+              onChange={(date) => setFormData({ ...formData, lastTrainingDate: date })}
+              placeholder="Ponechat prázdné pro beze změny"
+            />
             <p className="text-xs text-muted-foreground">
               Datum dalšího školení se vypočítá automaticky podle periody každého záznamu (včetně případného individuálního přepisu)
             </p>
