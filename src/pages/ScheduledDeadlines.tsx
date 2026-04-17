@@ -54,6 +54,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
 
 export default function ScheduledDeadlines() {
   const { toast } = useToast();
@@ -204,7 +205,8 @@ export default function ScheduledDeadlines() {
     const data = dataToExport.map(d => {
       const resps = responsiblesMap?.get(d.id) ?? [];
       const responsibleNames = resps.map(r => r.name).join(", ");
-      const effectivePeriod = d.period_days_override ?? d.deadline_type?.period_days ?? 365;
+      const typePeriod = d.deadline_type?.period_days ?? 365;
+      const effectivePeriod = d.period_days_override ?? typePeriod;
       return {
         "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
         "Výsledek": getResultLabel((d.result as any) || "passed", "deadline"),
@@ -218,10 +220,14 @@ export default function ScheduledDeadlines() {
         "Poslední kontrola": format(new Date(d.last_check_date), "dd.MM.yyyy"),
         "Příští kontrola": format(new Date(d.next_check_date), "dd.MM.yyyy"),
         "Periodicita": formatPeriodicityDual(effectivePeriod),
+        "Vlastní periodicita": d.period_days_override != null ? `Ano (typ má ${typePeriod} dní)` : "Ne",
         "Provádějící": d.performer || "",
         "Firma": d.company || "",
         "Zadavatel": d.requester || "",
         "Odpovědní": responsibleNames || "",
+        "Opraveno dne": d.fixed_at ? format(new Date(d.fixed_at), "dd.MM.yyyy") : "",
+        "Opravil": d.fixed_by_name || "",
+        "Poznámka k opravě": d.fixed_note || "",
         "Poznámka": d.note || "",
       };
     });
@@ -391,7 +397,10 @@ export default function ScheduledDeadlines() {
                           {deadline.equipment?.name}
                         </TableCell>
                         <TableCell>
-                          <TypePeriodicityCell typeName={deadline.deadline_type?.name || ""} periodDays={deadline.deadline_type?.period_days ?? 365} description={deadline.deadline_type?.description || undefined} />
+                          <div className="flex items-center gap-2">
+                            <TypePeriodicityCell typeName={deadline.deadline_type?.name || ""} periodDays={deadline.deadline_type?.period_days ?? 365} description={deadline.deadline_type?.description || undefined} />
+                            <PeriodOverrideIcon overrideDays={deadline.period_days_override} typeDays={deadline.deadline_type?.period_days ?? null} />
+                          </div>
                         </TableCell>
                         
                         <TableCell>
@@ -462,7 +471,12 @@ export default function ScheduledDeadlines() {
                             { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
                             { label: "Výrobce", value: deadline.equipment?.manufacturer },
                             { label: "Model", value: deadline.equipment?.model },
-                            { label: "Periodicita", value: formatPeriodicityDual(deadline.period_days_override ?? deadline.deadline_type?.period_days ?? 365) },
+                            {
+                              label: "Periodicita",
+                              value: deadline.period_days_override != null
+                                ? `${formatPeriodicityDual(deadline.period_days_override)} (vlastní – typ má ${formatPeriodicityDual(deadline.deadline_type?.period_days ?? 365)})`
+                                : formatPeriodicityDual(deadline.deadline_type?.period_days ?? 365),
+                            },
                             ...(deadline.deadline_type?.description ? [{ label: "Popis typu", value: deadline.deadline_type.description }] : []),
                             { label: "Firma", value: deadline.company },
                             { label: "Zadavatel", value: deadline.requester },

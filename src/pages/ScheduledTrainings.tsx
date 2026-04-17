@@ -47,6 +47,7 @@ import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { BulkEditTrainingsDialog } from "@/components/BulkEditTrainingsDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
+import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
@@ -299,6 +300,10 @@ export default function ScheduledTrainings() {
         "Firma": training.company || "",
         "Zadavatel": training.requester || "",
         "Periodicita": formatPeriodicityDual(training.period) || "",
+        "Vlastní periodicita": training.period !== training.typePeriodDays ? `Ano (typ má ${training.typePeriodDays} dní)` : "Ne",
+        "Opraveno dne": training.fixedAt ? formatDisplayDate(training.fixedAt, "") : "",
+        "Opravil": training.fixedByName || "",
+        "Poznámka k opravě": training.fixedNote || "",
         "Poznámka": training.note || "",
       }));
 
@@ -527,7 +532,10 @@ export default function ScheduledTrainings() {
                             {formatDisplayDate(training.date)}
                           </TableCell>
                           <TableCell>
-                            <TypePeriodicityCell typeName={training.type} periodDays={training.typePeriodDays} description={training.typeDescription} />
+                            <div className="flex items-center gap-2">
+                              <TypePeriodicityCell typeName={training.type} periodDays={training.typePeriodDays} description={training.typeDescription} />
+                              <PeriodOverrideIcon overrideDays={training.period !== training.typePeriodDays ? training.period : null} typeDays={training.typePeriodDays} />
+                            </div>
                           </TableCell>
                           <TableCell>{training.employeeNumber}</TableCell>
                           <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
@@ -586,7 +594,12 @@ export default function ScheduledTrainings() {
                               { label: "Provozovna", value: getFacilityName(training.facility) },
                               { label: "Firma", value: training.company },
                               { label: "Zadavatel", value: training.requester },
-                              { label: "Periodicita", value: formatPeriodicityDual(training.period) },
+                              {
+                                label: "Periodicita",
+                                value: training.period !== training.typePeriodDays
+                                  ? `${formatPeriodicityDual(training.period)} (vlastní – typ má ${formatPeriodicityDual(training.typePeriodDays)})`
+                                  : formatPeriodicityDual(training.period),
+                              },
                               ...(training.typeDescription ? [{ label: "Popis typu", value: training.typeDescription }] : []),
                               ...(training.fixedAt ? [
                                 { label: "Opraveno dne", value: formatDisplayDate(training.fixedAt) },

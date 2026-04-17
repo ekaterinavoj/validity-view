@@ -46,6 +46,10 @@ export function medicalExaminationResultAllowsAdditionalLossFlag(result: string 
 }
 
 export function getMedicalExaminationResultLabel(result: string | null | undefined): string {
+  // Legacy "lost_long_term" is presented as "way to combine" — fitness preserved + long-term loss flag.
+  if (result === "lost_long_term") {
+    return "Zdravotně způsobilý / způsobilá + Pozbyl(a) dlouhodobě zdravotní způsobilosti";
+  }
   const option = medicalExaminationResultOptions.find((item) => item.value === result);
   return option?.label ?? (result || "-");
 }
