@@ -62,7 +62,7 @@ export function MarkAsFixedDialog({
     () =>
       employees.map((e) => ({
         id: e.id,
-        label: `${e.first_name} ${e.last_name}${e.employee_number ? ` (${e.employee_number})` : ""}`,
+        label: `${e.firstName} ${e.lastName}${e.employeeNumber ? ` (${e.employeeNumber})` : ""}`,
       })),
     [employees],
   );
@@ -98,7 +98,7 @@ export function MarkAsFixedDialog({
         toast({ title: "Vyberte zaměstnance", variant: "destructive" });
         return;
       }
-      fixedByName = `${emp.first_name} ${emp.last_name}`.trim();
+      fixedByName = `${emp.firstName} ${emp.lastName}`.trim();
       // Try to find linked profile for the chosen employee (for proper FK linkage)
       const { data: profile } = await supabase
         .from("profiles")
