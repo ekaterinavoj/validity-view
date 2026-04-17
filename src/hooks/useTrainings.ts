@@ -31,6 +31,9 @@ export interface TrainingWithDetails {
   repeatDaysAfter: number;
   trainingTypeId: string;
   deletedAt: string | null; // Soft-delete timestamp
+  fixedAt: string | null;
+  fixedByName: string | null;
+  fixedNote: string | null;
 }
 
 export function useTrainings(activeOnly: boolean = true) {
