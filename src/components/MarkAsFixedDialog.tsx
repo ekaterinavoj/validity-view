@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Wrench, ChevronsUpDown, Check } from "lucide-react";
+import { CalendarIcon, Wrench, ChevronsUpDown, Check, Upload, X, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,10 +24,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useEmployees } from "@/hooks/useEmployees";
 import { cn } from "@/lib/utils";
+import { uploadTrainingDocument, DOCUMENT_TYPE_LABELS } from "@/lib/trainingDocuments";
+import { uploadDeadlineDocument, DEADLINE_DOCUMENT_TYPE_LABELS } from "@/lib/deadlineDocuments";
 
 export type FixedTarget = "trainings" | "deadlines";
 
@@ -40,6 +49,8 @@ interface MarkAsFixedDialogProps {
   onSuccess?: () => void;
 }
 
+const MAX_FILE_SIZE_MB = 40;
+
 export function MarkAsFixedDialog({
   open,
   onOpenChange,
@@ -50,6 +61,7 @@ export function MarkAsFixedDialog({
 }: MarkAsFixedDialogProps) {
   const { toast } = useToast();
   const { employees } = useEmployees();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [fixedDate, setFixedDate] = useState<Date | undefined>(new Date());
   const [mode, setMode] = useState<"employee" | "manual">("employee");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
@@ -57,6 +69,10 @@ export function MarkAsFixedDialog({
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [docType, setDocType] = useState<string>("protocol");
+
+  const docTypeLabels = target === "trainings" ? DOCUMENT_TYPE_LABELS : DEADLINE_DOCUMENT_TYPE_LABELS;
 
   const employeeOptions = useMemo(
     () =>
@@ -73,6 +89,8 @@ export function MarkAsFixedDialog({
     setSelectedEmployeeId("");
     setManualName("");
     setNote("");
+    setFiles([]);
+    setDocType("protocol");
   };
 
   const handleClose = (next: boolean) => {
@@ -80,6 +98,25 @@ export function MarkAsFixedDialog({
       onOpenChange(next);
       if (!next) reset();
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    const tooBig = selected.find((f) => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+    if (tooBig) {
+      toast({
+        title: "Soubor je příliš velký",
+        description: `Maximální velikost je ${MAX_FILE_SIZE_MB} MB (${tooBig.name}).`,
+        variant: "destructive",
+      });
+      return;
+    }
+    setFiles((prev) => [...prev, ...selected]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeFile = (idx: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = async () => {
@@ -99,7 +136,6 @@ export function MarkAsFixedDialog({
         return;
       }
       fixedByName = `${emp.firstName} ${emp.lastName}`.trim();
-      // Try to find linked profile for the chosen employee (for proper FK linkage)
       const { data: profile } = await supabase
         .from("profiles")
         .select("id")
@@ -117,23 +153,53 @@ export function MarkAsFixedDialog({
 
     setSubmitting(true);
     try {
+      // Update record: mark as fixed, flip negative result to "passed", set status valid.
+      // The original result is preserved in the version snapshot via archive trigger.
       const update: Record<string, unknown> = {
         fixed_at: format(fixedDate, "yyyy-MM-dd"),
         fixed_by_name: fixedByName,
         fixed_by_profile_id: fixedByProfileId,
         fixed_note: note.trim() || null,
+        result: "passed",
         status: "valid",
       };
 
       const { error } = await supabase.from(target).update(update).eq("id", recordId);
       if (error) throw error;
 
-      toast({ title: "Záznam označen jako opraveno", description: recordLabel ?? undefined });
+      // Optional: upload new protocol(s) attached to the fix
+      if (files.length > 0) {
+        const uploadFn = target === "trainings" ? uploadTrainingDocument : uploadDeadlineDocument;
+        const description = `Doložení opravy (${format(fixedDate, "dd.MM.yyyy")})${
+          fixedByName ? ` — ${fixedByName}` : ""
+        }`;
+        let failed = 0;
+        for (const file of files) {
+          const { error: upErr } = await uploadFn(recordId, file, docType, description);
+          if (upErr) failed += 1;
+        }
+        if (failed > 0) {
+          toast({
+            title: "Některé soubory se nepodařilo nahrát",
+            description: `${failed} z ${files.length} souborů selhalo.`,
+            variant: "destructive",
+          });
+        }
+      }
+
+      toast({
+        title: "Záznam označen jako opraveno",
+        description: recordLabel ?? undefined,
+      });
       onSuccess?.();
       handleClose(false);
     } catch (err: any) {
       console.error("Mark-as-fixed failed:", err);
-      toast({ title: "Chyba při ukládání", description: err.message, variant: "destructive" });
+      toast({
+        title: "Chyba při ukládání",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +207,7 @@ export function MarkAsFixedDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wrench className="w-5 h-5 text-status-valid" />
@@ -150,7 +216,7 @@ export function MarkAsFixedDialog({
           <DialogDescription>
             {recordLabel
               ? `Záznam: ${recordLabel}`
-              : "Záznam bude označen za platný a doplněn o údaje o opravě."}
+              : "Záznam bude označen za platný, výsledek se změní na pozitivní a doplní se údaje o opravě. Původní výsledek zůstane v historii."}
           </DialogDescription>
         </DialogHeader>
 
@@ -264,6 +330,72 @@ export function MarkAsFixedDialog({
               onChange={(e) => setNote(e.target.value)}
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2 rounded-md border border-dashed border-border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="m-0">Doložení opravy (volitelné)</Label>
+              <Select value={docType} onValueChange={setDocType}>
+                <SelectTrigger className="h-8 w-[180px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(docTypeLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Můžete přiložit nový protokol/certifikát k opravě (max {MAX_FILE_SIZE_MB} MB / soubor).
+              Stávající dokumenty zůstanou zachovány.
+            </p>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileSelect}
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Přidat soubor
+            </Button>
+
+            {files.length > 0 && (
+              <ul className="space-y-1 mt-2">
+                {files.map((file, idx) => (
+                  <li
+                    key={`${file.name}-${idx}`}
+                    className="flex items-center justify-between gap-2 rounded-sm bg-muted/50 px-2 py-1 text-xs"
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">{file.name}</span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 flex-shrink-0"
+                      onClick={() => removeFile(idx)}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
