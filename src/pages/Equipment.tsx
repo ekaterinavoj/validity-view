@@ -636,6 +636,34 @@ export default function Equipment() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!duplicateWarning} onOpenChange={(open) => !open && setDuplicateWarning(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-warning" />
+              Možná duplicita
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {duplicateWarning?.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušit</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (duplicateWarning) {
+                  performCreate(duplicateWarning.pendingData);
+                  setDuplicateWarning(null);
+                  setDialogOpen(false);
+                }
+              }}
+            >
+              Přesto vytvořit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
