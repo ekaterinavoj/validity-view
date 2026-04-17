@@ -53,7 +53,7 @@ export interface DeadlineType {
 
 export interface Deadline {
   id: string;
-  equipment_id: string;
+  equipment_id: string | null;
   deadline_type_id: string;
   facility: string;
   last_check_date: string;

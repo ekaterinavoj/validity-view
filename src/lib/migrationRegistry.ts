@@ -2029,6 +2029,16 @@ ALTER TABLE public.equipment
   DROP CONSTRAINT IF EXISTS equipment_inventory_number_key;
 `.trim(),
   },
+  {
+    version: "20260417160000",
+    name: "deadlines_equipment_id_optional",
+    sql: `
+-- Make equipment_id optional on deadlines so that general inspections
+-- (not tied to a specific piece of equipment) can be recorded.
+ALTER TABLE public.deadlines
+  ALTER COLUMN equipment_id DROP NOT NULL;
+`.trim(),
+  },
 ];
 
 /**

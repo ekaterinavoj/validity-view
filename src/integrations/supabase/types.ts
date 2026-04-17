@@ -313,7 +313,7 @@ export type Database = {
           created_by: string | null
           deadline_type_id: string
           deleted_at: string | null
-          equipment_id: string
+          equipment_id: string | null
           facility: string
           fixed_at: string | null
           fixed_by_name: string | null
@@ -341,7 +341,7 @@ export type Database = {
           created_by?: string | null
           deadline_type_id: string
           deleted_at?: string | null
-          equipment_id: string
+          equipment_id?: string | null
           facility: string
           fixed_at?: string | null
           fixed_by_name?: string | null
@@ -369,7 +369,7 @@ export type Database = {
           created_by?: string | null
           deadline_type_id?: string
           deleted_at?: string | null
-          equipment_id?: string
+          equipment_id?: string | null
           facility?: string
           fixed_at?: string | null
           fixed_by_name?: string | null
