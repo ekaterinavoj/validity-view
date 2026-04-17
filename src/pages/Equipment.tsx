@@ -204,6 +204,19 @@ export default function Equipment() {
     setDeleteDependencies(null);
   };
 
+  const performCreate = (data: typeof formData) => {
+    const equipmentData = {
+      ...data,
+      department_id: data.department_id || null,
+      description: null as string | null,
+      purchase_date: null as string | null,
+    };
+    createEquipment({
+      equipment: equipmentData,
+      responsibleProfileIds: selectedResponsibleIds,
+    });
+  };
+
   const handleSubmit = () => {
     const equipmentData = {
       ...formData,
@@ -214,12 +227,33 @@ export default function Equipment() {
 
     if (editingItem) {
       updateEquipment({ id: editingItem.id, ...equipmentData });
-    } else {
-      createEquipment({
-        equipment: equipmentData,
-        responsibleProfileIds: selectedResponsibleIds,
-      });
+      setDialogOpen(false);
+      return;
     }
+
+    // Soft duplicate check on create — warn but allow override
+    const invNorm = formData.inventory_number.trim().toLowerCase();
+    const nameNorm = formData.name.trim().toLowerCase();
+    const serialNorm = formData.serial_number.trim().toLowerCase();
+
+    const matches: string[] = [];
+    const sameInv = invNorm && equipment.find(e => (e.inventory_number || "").trim().toLowerCase() === invNorm);
+    const sameName = nameNorm && equipment.find(e => (e.name || "").trim().toLowerCase() === nameNorm);
+    const sameSerial = serialNorm && equipment.find(e => (e.serial_number || "").trim().toLowerCase() === serialNorm);
+
+    if (sameInv) matches.push(`inventární číslo „${formData.inventory_number}" (${sameInv.name})`);
+    if (sameName) matches.push(`název „${formData.name}" (inv. č. ${sameName.inventory_number})`);
+    if (sameSerial) matches.push(`sériové číslo „${formData.serial_number}" (${sameSerial.name})`);
+
+    if (matches.length > 0) {
+      setDuplicateWarning({
+        message: `V evidenci již existuje zařízení se shodným ${matches.join(" a ")}. Opravdu chcete vytvořit další?`,
+        pendingData: formData,
+      });
+      return;
+    }
+
+    performCreate(formData);
     setDialogOpen(false);
   };
 
