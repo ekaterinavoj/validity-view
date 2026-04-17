@@ -1969,6 +1969,55 @@ CREATE TRIGGER trg_notify_deadline_fixed AFTER UPDATE OF fixed_at ON public.dead
 -- No schema change is required, but we record this version so the migration log captures the behavioural change.
 SELECT 1;`,
   },
+  {
+    version: "20260417140000",
+    name: "reset_fixed_state_on_negative_result",
+    sql: `
+-- When a previously fixed record is changed back to a negative result
+-- (failed / non_compliant / unfit), the fixed_at / fixed_by_* fields must
+-- be cleared so the "Mark as fixed" action becomes available again, and
+-- status should fall back to expired. This trigger runs BEFORE UPDATE so
+-- it cooperates with the existing override-recalc triggers.
+
+-- ============ Trainings ============
+CREATE OR REPLACE FUNCTION public.reset_training_fixed_on_negative_result()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.result IS DISTINCT FROM OLD.result
+     AND NEW.result IN ('failed', 'non_compliant', 'unfit') THEN
+    NEW.fixed_at := NULL;
+    NEW.fixed_by_profile_id := NULL;
+    NEW.fixed_by_name := NULL;
+    NEW.fixed_note := NULL;
+    NEW.status := 'expired';
+  END IF;
+  RETURN NEW;
+END;$$;
+DROP TRIGGER IF EXISTS trg_reset_training_fixed_on_negative ON public.trainings;
+CREATE TRIGGER trg_reset_training_fixed_on_negative
+  BEFORE UPDATE OF result ON public.trainings
+  FOR EACH ROW EXECUTE FUNCTION public.reset_training_fixed_on_negative_result();
+
+-- ============ Deadlines ============
+CREATE OR REPLACE FUNCTION public.reset_deadline_fixed_on_negative_result()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.result IS DISTINCT FROM OLD.result
+     AND NEW.result IN ('failed', 'non_compliant', 'unfit') THEN
+    NEW.fixed_at := NULL;
+    NEW.fixed_by_profile_id := NULL;
+    NEW.fixed_by_name := NULL;
+    NEW.fixed_note := NULL;
+    NEW.status := 'expired';
+  END IF;
+  RETURN NEW;
+END;$$;
+DROP TRIGGER IF EXISTS trg_reset_deadline_fixed_on_negative ON public.deadlines;
+CREATE TRIGGER trg_reset_deadline_fixed_on_negative
+  BEFORE UPDATE OF result ON public.deadlines
+  FOR EACH ROW EXECUTE FUNCTION public.reset_deadline_fixed_on_negative_result();
+`.trim(),
+  },
 ];
 
 /**

@@ -431,7 +431,7 @@ export default function ScheduledDeadlines() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            {canEdit && deadline.status === "expired" && deadline.result === "failed" && !deadline.fixed_at && (
+                            {canEdit && deadline.status === "expired" && deadline.result === "failed" && (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
