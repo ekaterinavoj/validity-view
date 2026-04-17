@@ -157,6 +157,8 @@ export default function EditMedicalExamination() {
             repeatDaysAfter: String(exam.repeat_days_after || 30),
             note: exam.note || "",
             longTermFitnessLossDate: exam.long_term_fitness_loss_date ? new Date(exam.long_term_fitness_loss_date) : undefined,
+            // Pre-check the additional flag if a loss date is stored alongside a non-"lost_long_term" result
+            hasAdditionalLongTermLoss: !!exam.long_term_fitness_loss_date && exam.result !== "lost_long_term",
           });
           setHealthRisks(fromDbHealthRisks(exam.zdravotni_rizika));
           setPeriodUnit(overridePeriod?.unit ?? typeUnit);
