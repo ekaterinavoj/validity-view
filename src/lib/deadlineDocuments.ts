@@ -38,9 +38,10 @@ export async function uploadDeadlineDocument(
       return { data: null, error: new Error("User not authenticated") };
     }
 
-    // Create unique file path
+    // Create unique file path (random suffix prevents collisions in same millisecond)
     const fileExt = file.name.split(".").pop();
-    const fileName = `${deadlineId}/${user.id}/${Date.now()}.${fileExt}`;
+    const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    const fileName = `${deadlineId}/${user.id}/${uniqueSuffix}.${fileExt}`;
 
     // Upload to storage
     const { data: uploadData, error: uploadError } = await supabase.storage
