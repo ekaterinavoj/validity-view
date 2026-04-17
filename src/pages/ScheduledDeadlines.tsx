@@ -502,6 +502,15 @@ export default function ScheduledDeadlines() {
         loading={archiveLoading}
         entityName="událostí"
       />
+
+      <MarkAsFixedDialog
+        open={!!fixDialogTarget}
+        onOpenChange={(open) => !open && setFixDialogTarget(null)}
+        recordId={fixDialogTarget?.id ?? null}
+        recordLabel={fixDialogTarget?.label}
+        target="deadlines"
+        onSuccess={refetch}
+      />
     </div>
   );
 }
