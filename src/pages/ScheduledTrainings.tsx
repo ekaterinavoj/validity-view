@@ -559,7 +559,7 @@ export default function ScheduledTrainings() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              {canEdit && training.status === "expired" && training.result === "failed" && !training.fixedAt && (
+                              {canEdit && training.status === "expired" && training.result === "failed" && (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
