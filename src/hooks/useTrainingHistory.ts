@@ -20,7 +20,6 @@ export interface HistoryTraining {
   company: string;
   requester: string;
   period: number;
-  typePeriodDays: number;
   note: string;
   deletedAt: string | null;
   isArchived: boolean;
@@ -131,7 +130,6 @@ export function useTrainingHistory(includeArchived: boolean = false) {
         company: t.company || "",
         requester: t.requester || "",
         period: t.period_days_override ?? t.training_types?.period_days ?? 365,
-        typePeriodDays: t.training_types?.period_days ?? 365,
         note: t.note || "",
         deletedAt: t.deleted_at,
         isArchived: t.deleted_at !== null && !t.original_record_id,

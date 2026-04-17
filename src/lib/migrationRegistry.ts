@@ -1959,6 +1959,16 @@ DROP TRIGGER IF EXISTS trg_notify_deadline_fixed ON public.deadlines;
 CREATE TRIGGER trg_notify_deadline_fixed AFTER UPDATE OF fixed_at ON public.deadlines FOR EACH ROW EXECUTE FUNCTION public.notify_deadline_fixed();
     `.trim(),
   },
+  {
+    version: "20260417130500",
+    name: "fix_dialog_promotes_result_to_passed",
+    sql: `-- UI semantics change: MarkAsFixedDialog now also sets result='passed' (in addition to fixed_at + status='valid')
+-- and lets the user attach new protocol documents.
+-- The original negative result remains preserved in the auto-archived snapshot row
+-- (see archive_training_before_edit / archive_deadline_before_edit which fire when result IS DISTINCT FROM).
+-- No schema change is required, but we record this version so the migration log captures the behavioural change.
+SELECT 1;`,
+  },
 ];
 
 /**
