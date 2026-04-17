@@ -55,7 +55,7 @@ import { getResultOptions } from "@/components/ResultBadge";
 
 const formSchema = z.object({
   deadline_type_id: z.string().min(1, "Vyberte typ události"),
-  equipment_id: z.string().min(1, "Vyberte zařízení"),
+  equipment_id: z.string().nullable().optional(),
   facility: z.string().min(1, "Vyberte provozovnu"),
   last_check_date: z.date({ required_error: "Vyberte datum poslední kontroly" }),
   period_value: z.number().min(1, "Zadejte periodicitu").nullable(),
@@ -199,7 +199,7 @@ export default function NewDeadline() {
 
       const { data: deadlineData, error } = await supabase.from("deadlines").insert({
         deadline_type_id: data.deadline_type_id,
-        equipment_id: data.equipment_id,
+        equipment_id: data.equipment_id || null,
         facility: data.facility,
         last_check_date: format(data.last_check_date, "yyyy-MM-dd"),
         next_check_date: format(next_check_date, "yyyy-MM-dd"),
@@ -360,14 +360,18 @@ export default function NewDeadline() {
                 name="equipment_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Zařízení *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <FormLabel>Zařízení (nepovinné)</FormLabel>
+                    <Select
+                      onValueChange={(val) => field.onChange(val === "__none__" ? null : val)}
+                      value={field.value || "__none__"}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Vyberte zařízení" />
+                          <SelectValue placeholder="Vyberte zařízení nebo nechte prázdné" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="__none__">— Bez zařízení (obecná kontrola) —</SelectItem>
                         {activeEquipment.map(eq => (
                           <SelectItem key={eq.id} value={eq.id}>
                             {eq.inventory_number} - {eq.name}

@@ -110,8 +110,8 @@ export default function DeadlineHistory() {
       if (filters.statusFilter !== "all" && d.status !== filters.statusFilter) return false;
       if (filters.searchQuery) {
         const query = filters.searchQuery.toLowerCase();
-        const matchesEquipment = d.equipment?.name.toLowerCase().includes(query) ||
-          d.equipment?.inventory_number.toLowerCase().includes(query);
+        const matchesEquipment = d.equipment?.name?.toLowerCase().includes(query) ||
+          d.equipment?.inventory_number?.toLowerCase().includes(query);
         const matchesType = d.deadline_type?.name.toLowerCase().includes(query);
         if (!matchesEquipment && !matchesType) return false;
       }
