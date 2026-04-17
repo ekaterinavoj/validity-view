@@ -18,9 +18,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download, Loader2, RefreshCw, List, GitBranch } from "lucide-react";
+import { DateInput } from "@/components/ui/date-input";
+import { Edit, Plus, Trash2, Search, X, Download, Loader2, RefreshCw, List, GitBranch } from "lucide-react";
 import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -635,30 +634,9 @@ export default function Employees() {
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Datum narození</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-left font-normal"
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                            captionLayout="dropdown-buttons"
-                            fromYear={1940}
-                            toYear={new Date().getFullYear()}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                        <DateInput value={field.value} onChange={field.onChange} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
