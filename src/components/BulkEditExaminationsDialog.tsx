@@ -21,8 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateInput } from "@/components/ui/date-input";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -168,32 +167,11 @@ export function BulkEditExaminationsDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Datum poslední prohlídky</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.lastExaminationDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarClock className="mr-2 h-4 w-4" />
-                  {formData.lastExaminationDate ? (
-                    format(formData.lastExaminationDate, "d. MMMM yyyy", { locale: cs })
-                  ) : (
-                    <span>Vyberte datum (ponechat prázdné pro beze změny)</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.lastExaminationDate}
-                  onSelect={(date) => setFormData({ ...formData, lastExaminationDate: date })}
-                  locale={cs}
-                />
-              </PopoverContent>
-            </Popover>
+            <DateInput
+              value={formData.lastExaminationDate}
+              onChange={(date) => setFormData({ ...formData, lastExaminationDate: date })}
+              placeholder="Ponechat prázdné pro beze změny"
+            />
             <p className="text-xs text-muted-foreground">
               Datum příští prohlídky se vypočítá automaticky podle periody každého záznamu (včetně případného individuálního přepisu)
             </p>
