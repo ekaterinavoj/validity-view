@@ -31,6 +31,14 @@ export function medicalExaminationResultRequiresLossDate(result: string | null |
   return result === "lost_long_term";
 }
 
+/**
+ * Returns true if the user can independently mark "lost long-term fitness" alongside the main result
+ * (i.e. for any positive result that isn't already "lost_long_term").
+ */
+export function medicalExaminationResultAllowsAdditionalLossFlag(result: string | null | undefined): boolean {
+  return result !== "lost_long_term";
+}
+
 export function getMedicalExaminationResultLabel(result: string | null | undefined): string {
   const option = medicalExaminationResultOptions.find((item) => item.value === result);
   return option?.label ?? (result || "-");

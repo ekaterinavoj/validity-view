@@ -38,8 +38,10 @@ import {
   medicalExaminationResultOptions,
   medicalExaminationResultRequiresLossDate,
   medicalExaminationResultRequiresNote,
+  medicalExaminationResultAllowsAdditionalLossFlag,
   getMedicalExaminationStatusFromResult,
 } from "@/lib/medicalExaminationResults";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -56,16 +58,21 @@ const formSchema = z.object({
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   note: z.string().optional(),
   longTermFitnessLossDate: z.date().optional(),
+  hasAdditionalLongTermLoss: z.boolean().optional(),
 }).superRefine((values, ctx) => {
-  if (medicalExaminationResultRequiresNote(values.result) && !values.note?.trim()) {
+  const additional = !!values.hasAdditionalLongTermLoss && medicalExaminationResultAllowsAdditionalLossFlag(values.result);
+
+  if ((medicalExaminationResultRequiresNote(values.result) || additional) && !values.note?.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "U výsledku s podmínkou nebo omezením musíte doplnit poznámku.",
+      message: additional
+        ? "Při označení dlouhodobé ztráty způsobilosti musíte doplnit poznámku."
+        : "U výsledku s podmínkou nebo omezením musíte doplnit poznámku.",
       path: ["note"],
     });
   }
 
-  if (medicalExaminationResultRequiresLossDate(values.result) && !values.longTermFitnessLossDate) {
+  if ((medicalExaminationResultRequiresLossDate(values.result) || additional) && !values.longTermFitnessLossDate) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Vyberte datum pozbytí dlouhodobé zdravotní způsobilosti.",
@@ -442,7 +449,38 @@ export default function NewMedicalExamination() {
               )}
             />
 
-            {medicalExaminationResultRequiresLossDate(selectedResult) && (
+            {medicalExaminationResultAllowsAdditionalLossFlag(selectedResult) && (
+              <FormField
+                control={form.control}
+                name="hasAdditionalLongTermLoss"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start gap-3 rounded-lg border border-status-warning/40 bg-status-warning/10 p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={!!field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(!!checked);
+                          if (!checked) {
+                            form.setValue("longTermFitnessLossDate", undefined);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="cursor-pointer text-sm font-medium">
+                        Současně pozbyl dlouhodobě zdravotní způsobilosti
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Použijte např. po návratu z nemocenské, kdy zaměstnanec je aktuálně způsobilý, ale dlouhodobě pozbyl způsobilosti k jiné činnosti. Vyžaduje datum pozbytí a poznámku.
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {(medicalExaminationResultRequiresLossDate(selectedResult) ||
+              (form.watch("hasAdditionalLongTermLoss") && medicalExaminationResultAllowsAdditionalLossFlag(selectedResult))) && (
               <FormField
                 control={form.control}
                 name="longTermFitnessLossDate"
