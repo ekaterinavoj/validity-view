@@ -125,7 +125,7 @@ export default function EditDeadline() {
 
   // Auto-populate responsibles when equipment changes (not on initial load)
   const watchedEquipmentId = form.watch("equipment_id");
-  const { responsibles: equipmentResponsibles } = useEquipmentResponsibles(watchedEquipmentId);
+  const { responsibles: equipmentResponsibles } = useEquipmentResponsibles(watchedEquipmentId || undefined);
   const initialEquipmentIdRef = useRef<string | null>(null);
 
   useEffect(() => {

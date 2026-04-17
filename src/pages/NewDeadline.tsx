@@ -130,7 +130,7 @@ export default function NewDeadline() {
 
   // Watch equipment selection to auto-populate responsibles from equipment
   const watchedEquipmentId = form.watch("equipment_id");
-  const { responsibles: equipmentResponsibles } = useEquipmentResponsibles(watchedEquipmentId);
+  const { responsibles: equipmentResponsibles } = useEquipmentResponsibles(watchedEquipmentId || undefined);
 
   useEffect(() => {
     if (equipmentResponsibles && equipmentResponsibles.length > 0 && watchedEquipmentId) {
