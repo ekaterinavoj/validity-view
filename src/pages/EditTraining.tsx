@@ -4,9 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2, ArrowLeft } from "lucide-react";
+import { DateInput } from "@/components/ui/date-input";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { formatDisplayDate } from "@/lib/dateFormat";
@@ -434,29 +433,13 @@ export default function EditTraining() {
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Datum školení *</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                          disabled={!canEdit}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={canEdit ? field.onChange : undefined}
-                        initialFocus
-                        disabled={!canEdit}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <FormControl>
+                    <DateInput
+                      value={field.value}
+                      onChange={canEdit ? field.onChange : undefined}
+                      disabled={!canEdit}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
