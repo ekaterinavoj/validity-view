@@ -38,8 +38,10 @@ import {
   medicalExaminationResultOptions,
   medicalExaminationResultRequiresLossDate,
   medicalExaminationResultRequiresNote,
+  medicalExaminationResultAllowsAdditionalLossFlag,
   getMedicalExaminationStatusFromResult,
 } from "@/lib/medicalExaminationResults";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -56,16 +58,21 @@ const formSchema = z.object({
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   note: z.string().optional(),
   longTermFitnessLossDate: z.date().optional(),
+  hasAdditionalLongTermLoss: z.boolean().optional(),
 }).superRefine((values, ctx) => {
-  if (medicalExaminationResultRequiresNote(values.result) && !values.note?.trim()) {
+  const additional = !!values.hasAdditionalLongTermLoss && medicalExaminationResultAllowsAdditionalLossFlag(values.result);
+
+  if ((medicalExaminationResultRequiresNote(values.result) || additional) && !values.note?.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "U výsledku s podmínkou nebo omezením musíte doplnit poznámku.",
+      message: additional
+        ? "Při označení dlouhodobé ztráty způsobilosti musíte doplnit poznámku."
+        : "U výsledku s podmínkou nebo omezením musíte doplnit poznámku.",
       path: ["note"],
     });
   }
 
-  if (medicalExaminationResultRequiresLossDate(values.result) && !values.longTermFitnessLossDate) {
+  if ((medicalExaminationResultRequiresLossDate(values.result) || additional) && !values.longTermFitnessLossDate) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Vyberte datum pozbytí dlouhodobé zdravotní způsobilosti.",
