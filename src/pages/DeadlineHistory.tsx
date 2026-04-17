@@ -257,6 +257,9 @@ export default function DeadlineHistory() {
       "Stav": d.status === "valid" ? "Platná" : d.status === "warning" ? "Brzy vyprší" : "Prošlá",
       "Provádějící": d.performer || "",
       "Firma": d.company || "",
+      "Opraveno dne": d.fixed_at ? formatDisplayDate(d.fixed_at, "") : "",
+      "Opravil": d.fixed_by_name || "",
+      "Poznámka k opravě": d.fixed_note || "",
       "Archivováno": d.deleted_at ? "Ano" : "Ne",
     }));
     
@@ -419,7 +422,14 @@ export default function DeadlineHistory() {
                     </TableCell>
                     <TableCell>{deadline.performer || "-"}</TableCell>
                     <TableCell>
-                      <NoteTooltipText note={deadline.note} />
+                      <div className="flex items-center gap-2">
+                        <NoteTooltipText note={deadline.note} />
+                        {deadline.fixed_at && (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 whitespace-nowrap">
+                            Opraveno {formatDisplayDate(deadline.fixed_at)}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -467,13 +477,23 @@ export default function DeadlineHistory() {
                       <ExpandableDetailRow
                         colSpan={12}
                         fields={[
-                          { label: "Periodicita", value: formatPeriodicityDual(deadline.period) },
+                          {
+                            label: "Periodicita",
+                            value: deadline.period !== (deadline.deadline_type?.period_days ?? 365)
+                              ? `${formatPeriodicityDual(deadline.period)} (vlastní – typ má ${formatPeriodicityDual(deadline.deadline_type?.period_days ?? 365)})`
+                              : formatPeriodicityDual(deadline.period),
+                          },
                           ...(deadline.deadline_type?.description ? [{ label: "Popis typu", value: deadline.deadline_type.description }] : []),
                           { label: "Typ zařízení", value: deadline.equipment?.equipment_type },
                           { label: "Výrobce", value: deadline.equipment?.manufacturer },
                           { label: "Model", value: deadline.equipment?.model },
                           { label: "Firma", value: deadline.company },
                           { label: "Zadavatel", value: deadline.requester },
+                          ...(deadline.fixed_at ? [
+                            { label: "Opraveno dne", value: formatDisplayDate(deadline.fixed_at) },
+                            { label: "Opravil", value: deadline.fixed_by_name ?? "" },
+                            ...(deadline.fixed_note ? [{ label: "Poznámka k opravě", value: deadline.fixed_note }] : []),
+                          ] : []),
                         ]}
                       />
                     )}

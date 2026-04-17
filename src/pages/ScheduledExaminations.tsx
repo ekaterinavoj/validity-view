@@ -45,6 +45,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { BulkMedicalImport } from "@/components/BulkMedicalImport";
+import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -370,7 +371,10 @@ export default function ScheduledExaminations() {
                       </TableCell>
                       <TableCell>{formatDisplayDate(exam.nextExaminationDate)}</TableCell>
                       <TableCell>
-                        <TypePeriodicityCell typeName={exam.type} periodDays={exam.typePeriodDays} description={exam.typeDescription} />
+                        <div className="flex items-center gap-2">
+                          <TypePeriodicityCell typeName={exam.type} periodDays={exam.typePeriodDays} description={exam.typeDescription} />
+                          <PeriodOverrideIcon overrideDays={exam.period !== exam.typePeriodDays ? exam.period : null} typeDays={exam.typePeriodDays} />
+                        </div>
                       </TableCell>
                       <TableCell>{exam.employeeNumber}</TableCell>
                       <TableCell>{exam.employeeName}</TableCell>
@@ -431,7 +435,12 @@ export default function ScheduledExaminations() {
                           { label: "Stav zaměstnance", value: getEmployeeStatusLabel(exam.employeeStatus) },
                           { label: "Datum narození", value: exam.employeeBirthDate ? formatDisplayDate(exam.employeeBirthDate) : null },
                           { label: "Věk", value: exam.employeeBirthDate ? calculateAge(exam.employeeBirthDate) : null },
-                          { label: "Periodicita", value: formatPeriodicityDual(exam.period) },
+                          {
+                            label: "Periodicita",
+                            value: exam.period !== exam.typePeriodDays
+                              ? `${formatPeriodicityDual(exam.period)} (vlastní – typ má ${formatPeriodicityDual(exam.typePeriodDays)})`
+                              : formatPeriodicityDual(exam.period),
+                          },
                           ...(exam.typeDescription ? [{ label: "Popis typu", value: exam.typeDescription }] : []),
                           { label: "Datum pozbytí dlouhodobé způsobilosti", value: exam.longTermFitnessLossDate ? formatDisplayDate(exam.longTermFitnessLossDate) : null },
                           { label: "Lékař", value: exam.doctor },

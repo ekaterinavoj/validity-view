@@ -301,6 +301,9 @@ export default function History() {
         "Středisko": formatDepartment(training.department, training.departmentName),
         "Školitel": training.trainer || "",
         "Firma": training.company || "",
+        "Opraveno dne": training.fixedAt ? formatDisplayDate(training.fixedAt, "") : "",
+        "Opravil": training.fixedByName || "",
+        "Poznámka k opravě": training.fixedNote || "",
         "Poznámka": training.note || "",
       }));
 
@@ -514,7 +517,14 @@ export default function History() {
                     <TableCell className="whitespace-nowrap">{training.trainer}</TableCell>
                     <TableCell className="whitespace-nowrap">{training.company}</TableCell>
                     <TableCell>
-                      <NoteTooltipText note={training.note} />
+                      <div className="flex items-center gap-2">
+                        <NoteTooltipText note={training.note} />
+                        {training.fixedAt && (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 whitespace-nowrap">
+                            Opraveno {formatDisplayDate(training.fixedAt)}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     {(archiveFilter === "all" || archiveFilter === "archived" || archiveFilter === "versions") && (
                       <TableCell>
@@ -561,10 +571,20 @@ export default function History() {
                       <ExpandableDetailRow
                         colSpan={14}
                         fields={[
-                          { label: "Periodicita", value: formatPeriodicityDual(training.period) },
+                          {
+                            label: "Periodicita",
+                            value: training.period !== training.typePeriodDays
+                              ? `${formatPeriodicityDual(training.period)} (vlastní – typ má ${formatPeriodicityDual(training.typePeriodDays)})`
+                              : formatPeriodicityDual(training.period),
+                          },
                           ...(training.typeDescription ? [{ label: "Popis typu", value: training.typeDescription }] : []),
                           { label: "Zadavatel", value: training.requester },
                           { label: "Provozovna", value: training.facility },
+                          ...(training.fixedAt ? [
+                            { label: "Opraveno dne", value: formatDisplayDate(training.fixedAt) },
+                            { label: "Opravil", value: training.fixedByName ?? "" },
+                            ...(training.fixedNote ? [{ label: "Poznámka k opravě", value: training.fixedNote }] : []),
+                          ] : []),
                         ]}
                       />
                     )}
