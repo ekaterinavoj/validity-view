@@ -315,6 +315,10 @@ export type Database = {
           deleted_at: string | null
           equipment_id: string
           facility: string
+          fixed_at: string | null
+          fixed_by_name: string | null
+          fixed_by_profile_id: string | null
+          fixed_note: string | null
           id: string
           is_active: boolean
           last_check_date: string
@@ -339,6 +343,10 @@ export type Database = {
           deleted_at?: string | null
           equipment_id: string
           facility: string
+          fixed_at?: string | null
+          fixed_by_name?: string | null
+          fixed_by_profile_id?: string | null
+          fixed_note?: string | null
           id?: string
           is_active?: boolean
           last_check_date: string
@@ -363,6 +371,10 @@ export type Database = {
           deleted_at?: string | null
           equipment_id?: string
           facility?: string
+          fixed_at?: string | null
+          fixed_by_name?: string | null
+          fixed_by_profile_id?: string | null
+          fixed_note?: string | null
           id?: string
           is_active?: boolean
           last_check_date?: string
@@ -392,6 +404,13 @@ export type Database = {
             columns: ["equipment_id"]
             isOneToOne: false
             referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deadlines_fixed_by_profile_id_fkey"
+            columns: ["fixed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1452,6 +1471,10 @@ export type Database = {
           deleted_at: string | null
           employee_id: string
           facility: string
+          fixed_at: string | null
+          fixed_by_name: string | null
+          fixed_by_profile_id: string | null
+          fixed_note: string | null
           id: string
           is_active: boolean
           last_training_date: string
@@ -1477,6 +1500,10 @@ export type Database = {
           deleted_at?: string | null
           employee_id: string
           facility: string
+          fixed_at?: string | null
+          fixed_by_name?: string | null
+          fixed_by_profile_id?: string | null
+          fixed_note?: string | null
           id?: string
           is_active?: boolean
           last_training_date: string
@@ -1502,6 +1529,10 @@ export type Database = {
           deleted_at?: string | null
           employee_id?: string
           facility?: string
+          fixed_at?: string | null
+          fixed_by_name?: string | null
+          fixed_by_profile_id?: string | null
+          fixed_note?: string | null
           id?: string
           is_active?: boolean
           last_training_date?: string
@@ -1526,6 +1557,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trainings_fixed_by_profile_id_fkey"
+            columns: ["fixed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
