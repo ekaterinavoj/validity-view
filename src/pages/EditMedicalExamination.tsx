@@ -536,7 +536,39 @@ export default function EditMedicalExamination() {
               )}
             />
 
-            {medicalExaminationResultRequiresLossDate(selectedResult) && (
+            {medicalExaminationResultAllowsAdditionalLossFlag(selectedResult) && (
+              <FormField
+                control={form.control}
+                name="hasAdditionalLongTermLoss"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start gap-3 rounded-lg border border-status-warning/40 bg-status-warning/10 p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={!!field.value}
+                        disabled={!canEdit}
+                        onCheckedChange={(checked) => {
+                          field.onChange(!!checked);
+                          if (!checked) {
+                            form.setValue("longTermFitnessLossDate", undefined);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="cursor-pointer text-sm font-medium">
+                        Současně pozbyl dlouhodobě zdravotní způsobilosti
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Použijte např. po návratu z nemocenské, kdy zaměstnanec je aktuálně způsobilý, ale dlouhodobě pozbyl způsobilosti k jiné činnosti. Vyžaduje datum pozbytí a poznámku.
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {(medicalExaminationResultRequiresLossDate(selectedResult) ||
+              (form.watch("hasAdditionalLongTermLoss") && medicalExaminationResultAllowsAdditionalLossFlag(selectedResult))) && (
               <FormField
                 control={form.control}
                 name="longTermFitnessLossDate"
