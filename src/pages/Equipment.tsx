@@ -94,6 +94,7 @@ export default function Equipment() {
   const [deleteDependencies, setDeleteDependencies] = useState<EquipmentDependencies | null>(null);
   const [checkingDeps, setCheckingDeps] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentType | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ message: string; pendingData: typeof formData } | null>(null);
   const [selectedResponsibleIds, setSelectedResponsibleIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     inventory_number: "",
