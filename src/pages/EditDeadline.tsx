@@ -28,12 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { DateInput } from "@/components/ui/date-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEquipment } from "@/hooks/useEquipment";
 import { useDeadlineTypes } from "@/hooks/useDeadlineTypes";
@@ -495,36 +490,13 @@ export default function EditDeadline() {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Datum poslední kontroly *</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                           <Button
-                             variant="outline"
-                             className={cn(
-                               "w-full pl-3 text-left font-normal",
-                               !field.value && "text-muted-foreground"
-                             )}
-                             disabled={!canEdit}
-                           >
-                            {field.value ? (
-                              formatDisplayDate(field.value)
-                            ) : (
-                              "Vyberte datum"
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                         <Calendar
-                           mode="single"
-                           selected={field.value}
-                           onSelect={canEdit ? field.onChange : undefined}
-                           locale={cs}
-                           disabled={!canEdit}
-                         />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <DateInput
+                        value={field.value}
+                        onChange={canEdit ? field.onChange : undefined}
+                        disabled={!canEdit}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
