@@ -2018,6 +2018,17 @@ CREATE TRIGGER trg_reset_deadline_fixed_on_negative
   FOR EACH ROW EXECUTE FUNCTION public.reset_deadline_fixed_on_negative_result();
 `.trim(),
   },
+  {
+    version: "20260417150000",
+    name: "drop_equipment_inventory_number_unique",
+    sql: `
+-- Allow multiple equipment records to share the same inventory number
+-- (e.g. legacy "Různé" records). Duplicate prevention is now handled
+-- in the UI with a soft warning instead of a hard DB constraint.
+ALTER TABLE public.equipment
+  DROP CONSTRAINT IF EXISTS equipment_inventory_number_key;
+`.trim(),
+  },
 ];
 
 /**
