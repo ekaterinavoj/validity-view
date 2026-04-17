@@ -127,7 +127,7 @@ export default function ScheduledDeadlines() {
       
       if (filters.responsibleFilter !== "all") {
         const equipmentIds = getEquipmentIdsByProfile(filters.responsibleFilter);
-        if (!equipmentIds.includes(d.equipment_id)) return false;
+        if (!d.equipment_id || !equipmentIds.includes(d.equipment_id)) return false;
       }
       
       if (filters.searchQuery) {
