@@ -46,6 +46,10 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { BulkMedicalImport } from "@/components/BulkMedicalImport";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
+import { downloadMatrixXLSX, type CellState, type MatrixEmployee, type MatrixEntry, type MatrixEventType } from "@/lib/matrixExport";
+import { useEmployees } from "@/hooks/useEmployees";
+import { useMedicalExaminationTypes } from "@/hooks/useMedicalExaminationTypes";
+import { Grid3x3 } from "lucide-react";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
