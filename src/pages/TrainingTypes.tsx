@@ -24,7 +24,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { exportToCSV } from "@/lib/csvExport";
 import Papa from "papaparse";
-import { CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),

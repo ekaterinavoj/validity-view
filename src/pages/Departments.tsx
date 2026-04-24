@@ -31,7 +31,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { exportToCSV } from "@/lib/csvExport";
 import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
-import { CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 const formSchema = z.object({
   code: z.string().min(1, "Zadejte číslo střediska"),

@@ -34,7 +34,7 @@ import { exportToCSV } from "@/lib/csvExport";
 import { supabase } from "@/integrations/supabase/client";
 import Papa from "papaparse";
 import { useToast } from "@/hooks/use-toast";
-import { CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function DeadlineTypes() {
   const { deadlineTypes, isLoading, error, refetch, createDeadlineType, updateDeadlineType, deleteDeadlineType, isCreating, isUpdating } = useDeadlineTypes();

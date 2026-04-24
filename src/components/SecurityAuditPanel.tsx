@@ -14,7 +14,7 @@ import { Loader2, Eye, Download, Filter, X, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDisplayDateTime } from "@/lib/dateFormat";
 import { exportToCSV } from "@/lib/csvExport";
-import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 interface Row {
   id: string;

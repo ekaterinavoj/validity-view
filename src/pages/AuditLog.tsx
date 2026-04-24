@@ -17,7 +17,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { exportToCSV } from "@/lib/csvExport";
-import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 interface AuditLog {
   id: string;
