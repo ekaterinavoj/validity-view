@@ -16,6 +16,10 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ImportDescription } from "@/components/ImportDescription";
+import { MissingHeadersAlert } from "@/components/MissingHeadersAlert";
+import type { MissingHeader } from "@/lib/importValidation";
+
+const HEADER_ERROR_SENTINEL = "__HEADER_VALIDATION_ERROR__";
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import Papa from "papaparse";
 // XLSX removed — bulk import accepts only CSV
@@ -258,6 +262,8 @@ export const BulkDeadlineImport = () => {
   const [deadlineProgress, setDeadlineProgress] = useState(0);
   const [deadlineResult, setDeadlineResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
   const [deadlineErrors, setDeadlineErrors] = useState<string[]>([]);
+  const [equipmentHeaderError, setEquipmentHeaderError] = useState<{ missing: MissingHeader[]; detected: string[] } | null>(null);
+  const [deadlineHeaderError, setDeadlineHeaderError] = useState<{ missing: MissingHeader[]; detected: string[] } | null>(null);
 
   const [settings, setSettings] = useState<ImportSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
@@ -363,9 +369,12 @@ export const BulkDeadlineImport = () => {
       "Provozovna": ["Provozovna", "facility"],
     });
     if (!headerCheck.ok) {
-      const detail = formatMissingHeadersMessage(headerCheck.missingDetailed);
-      throw new Error(`Chybí povinné sloupce:\n${detail}\n\nStáhněte si vzorovou šablonu.`);
+      setEquipmentHeaderError({ missing: headerCheck.missingDetailed, detected: headerCheck.detected });
+      setEquipmentPreview(null);
+      setShowEquipmentPreview(true);
+      throw new Error(HEADER_ERROR_SENTINEL);
     }
+    setEquipmentHeaderError(null);
 
     // Map Czech column names from exports to English import names
     return rawData.map(row => mapEquipmentRowColumns(row));
@@ -508,11 +517,13 @@ export const BulkDeadlineImport = () => {
       const data = await parseEquipmentFile(file);
       await validateEquipment(data);
     } catch (err) {
-      toast({
-        title: "Chyba při čtení souboru",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
+      if ((err as Error)?.message !== HEADER_ERROR_SENTINEL) {
+        toast({
+          title: "Chyba při čtení souboru",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
     }
 
     event.target.value = "";
@@ -710,9 +721,12 @@ export const BulkDeadlineImport = () => {
       "Datum kontroly": ["Datum kontroly", "last_check_date"],
     });
     if (!headerCheck.ok) {
-      const detail = formatMissingHeadersMessage(headerCheck.missingDetailed);
-      throw new Error(`Chybí povinné sloupce:\n${detail}\n\nStáhněte si vzorovou šablonu.`);
+      setDeadlineHeaderError({ missing: headerCheck.missingDetailed, detected: headerCheck.detected });
+      setDeadlinePreview(null);
+      setShowDeadlinePreview(true);
+      throw new Error(HEADER_ERROR_SENTINEL);
     }
+    setDeadlineHeaderError(null);
 
     // Map Czech column names from exports to English import names
     const mapped = rawData.map(row => mapDeadlineRowColumns(row));
@@ -895,11 +909,13 @@ export const BulkDeadlineImport = () => {
       const data = await parseDeadlineFile(file);
       await validateDeadlines(data);
     } catch (err) {
-      toast({
-        title: "Chyba při čtení souboru",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
+      if ((err as Error)?.message !== HEADER_ERROR_SENTINEL) {
+        toast({
+          title: "Chyba při čtení souboru",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
     }
 
     event.target.value = "";
@@ -1157,6 +1173,13 @@ export const BulkDeadlineImport = () => {
               </DialogDescription>
             </DialogHeader>
 
+            {equipmentHeaderError && (
+              <MissingHeadersAlert
+                missing={equipmentHeaderError.missing}
+                detected={equipmentHeaderError.detected}
+              />
+            )}
+
             {equipmentPreview && (
               <div className="space-y-4">
                 {equipmentPreview.totalRows >= 1000 && (
@@ -1311,6 +1334,13 @@ export const BulkDeadlineImport = () => {
                 Zkontrolujte data před importem
               </DialogDescription>
             </DialogHeader>
+
+            {deadlineHeaderError && (
+              <MissingHeadersAlert
+                missing={deadlineHeaderError.missing}
+                detected={deadlineHeaderError.detected}
+              />
+            )}
 
             {deadlinePreview && (
               <div className="space-y-4">

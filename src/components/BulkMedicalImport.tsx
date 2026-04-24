@@ -13,6 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { ImportDescription } from "@/components/ImportDescription";
+import { MissingHeadersAlert } from "@/components/MissingHeadersAlert";
+import type { MissingHeader } from "@/lib/importValidation";
+
+const HEADER_ERROR_SENTINEL = "__HEADER_VALIDATION_ERROR__";
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
 import { HEALTH_RISK_FIELDS, HEALTH_RISK_VALUES, type HealthRiskValue, toDbHealthRisks, createEmptyHealthRisks, type HealthRisks } from "@/lib/healthRisks";
@@ -158,6 +162,7 @@ export const BulkMedicalImport = () => {
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [headerError, setHeaderError] = useState<{ missing: MissingHeader[]; detected: string[] } | null>(null);
 
   const canImport = isAdmin || isManager;
 
@@ -288,9 +293,12 @@ export const BulkMedicalImport = () => {
       "Datum prohlídky": ["Datum prohlídky", "last_examination_date"],
     });
     if (!headerCheck.ok) {
-      const detail = formatMissingHeadersMessage(headerCheck.missingDetailed);
-      throw new Error(`Chybí povinné sloupce:\n${detail}\n\nStáhněte si vzorovou šablonu.`);
+      setHeaderError({ missing: headerCheck.missingDetailed, detected: headerCheck.detected });
+      setPreview(null);
+      setShowPreviewDialog(true);
+      throw new Error(HEADER_ERROR_SENTINEL);
     }
+    setHeaderError(null);
 
     // Map Czech column names from exports to English import names
     const mapped = rawData.map(row => mapMedicalRowColumns(row));
@@ -468,11 +476,13 @@ export const BulkMedicalImport = () => {
       const data = await parseFile(file);
       await validateAndPreview(data);
     } catch (error: any) {
-      toast({
-        title: "Chyba při čtení souboru",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error?.message !== HEADER_ERROR_SENTINEL) {
+        toast({
+          title: "Chyba při čtení souboru",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     }
     
     event.target.value = "";
@@ -722,6 +732,13 @@ export const BulkMedicalImport = () => {
                 Zkontrolujte data před importem
               </DialogDescription>
             </DialogHeader>
+
+          {headerError && (
+            <MissingHeadersAlert
+              missing={headerError.missing}
+              detected={headerError.detected}
+            />
+          )}
 
           {preview && (
               <div className="space-y-4">

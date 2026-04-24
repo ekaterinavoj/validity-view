@@ -3702,6 +3702,25 @@ SELECT 1;`,
 --    detailní chybu s výčtem akceptovaných názvů přes formatMissingHeadersMessage.
 SELECT 1;`,
   },
+  {
+    version: "20260424350000",
+    name: "seed_alert_defaults_per_module",
+    sql: `-- Seed výchozí konfigurace per-modul per-záznam připomínek do system_settings.
+-- Idempotentní – existující hodnoty zůstanou nedotčené.
+-- UI komponenta ModuleReminderSettings tyto hodnoty čte jako defaulty pro nové záznamy.
+INSERT INTO public.system_settings (key, value, description)
+VALUES
+  ('alert_defaults_trainings',
+   '{"enabled": true, "remind_days_before": 30, "repeat_days_after": 30}'::jsonb,
+   'Výchozí per-záznam připomínky pro modul Školení'),
+  ('alert_defaults_deadlines',
+   '{"enabled": true, "remind_days_before": 30, "repeat_days_after": 30}'::jsonb,
+   'Výchozí per-záznam připomínky pro modul Technické lhůty'),
+  ('alert_defaults_medical',
+   '{"enabled": true, "remind_days_before": 30, "repeat_days_after": 30}'::jsonb,
+   'Výchozí per-záznam připomínky pro modul PLP')
+ON CONFLICT (key) DO NOTHING;`,
+  },
 ];
 
 /**

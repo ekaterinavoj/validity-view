@@ -16,10 +16,14 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ImportDescription } from "@/components/ImportDescription";
+import { MissingHeadersAlert } from "@/components/MissingHeadersAlert";
+import type { MissingHeader } from "@/lib/importValidation";
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import Papa from "papaparse";
+
+const HEADER_ERROR_SENTINEL = "__HEADER_VALIDATION_ERROR__";
 // XLSX removed — bulk import accepts only CSV
 
 interface ImportRow {
@@ -267,6 +271,7 @@ export const BulkTrainingImport = () => {
   const [settings, setSettings] = useState<ImportSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
+  const [headerError, setHeaderError] = useState<{ missing: MissingHeader[]; detected: string[] } | null>(null);
   const abortRef = useRef(false);
 
   // Only admin and manager can import
@@ -365,9 +370,12 @@ export const BulkTrainingImport = () => {
       "Datum školení": ["Datum školení", "last_training_date"],
     });
     if (!headerCheck.ok) {
-      const detail = formatMissingHeadersMessage(headerCheck.missingDetailed);
-      throw new Error(`Chybí povinné sloupce:\n${detail}\n\nStáhněte si vzorovou šablonu.`);
+      setHeaderError({ missing: headerCheck.missingDetailed, detected: headerCheck.detected });
+      setPreview(null);
+      setShowPreviewDialog(true);
+      throw new Error(HEADER_ERROR_SENTINEL);
     }
+    setHeaderError(null);
 
     // Map Czech column names from exports to English import names
     const mapped = rawData.map(row => mapTrainingRowColumns(row));
@@ -653,11 +661,14 @@ export const BulkTrainingImport = () => {
 
       await validateAndPreview(data);
     } catch (error: any) {
-      toast({
-        title: "Chyba při načítání souboru",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Header validation errors are surfaced inline via MissingHeadersAlert in the dialog
+      if (error?.message !== HEADER_ERROR_SENTINEL) {
+        toast({
+          title: "Chyba při načítání souboru",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       event.target.value = '';
     }
@@ -1097,6 +1108,13 @@ export const BulkTrainingImport = () => {
               Zkontrolujte data před importem. Schvalte nebo upravte návrhy párování.
             </DialogDescription>
           </DialogHeader>
+
+          {headerError && (
+            <MissingHeadersAlert
+              missing={headerError.missing}
+              detected={headerError.detected}
+            />
+          )}
 
           {preview && (
             <div className="space-y-4">
