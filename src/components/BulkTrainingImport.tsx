@@ -1063,7 +1063,7 @@ export const BulkTrainingImport = () => {
               <input
                 id="file-upload"
                 type="file"
-                accept=".csv,.xlsx,.xls"
+                accept=".csv"
                 onChange={handleFileUpload}
                 className="hidden"
                 disabled={parsing}
@@ -1280,13 +1280,9 @@ export const BulkTrainingImport = () => {
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <Label className="font-semibold text-destructive">Chybné záznamy ({preview.errorRows.length})</Label>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => exportErrors('xlsx')}>
+                      <Button variant="outline" size="sm" onClick={exportErrors} title="Formát: CSV (středník, UTF-8)">
                         <FileDown className="w-4 h-4 mr-1" />
-                        Export XLSX
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => exportErrors('csv')}>
-                        <FileDown className="w-4 h-4 mr-1" />
-                        Export CSV
+                        Export chyb
                       </Button>
                     </div>
                   </div>
