@@ -197,11 +197,33 @@ const Profile = () => {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Změna hesla</h3>
                 <p className="text-sm text-muted-foreground">
-                  Chcete-li změnit heslo, klikněte na tlačítko níže
+                  Heslo musí mít minimálně {PASSWORD_MIN_LENGTH} znaků, velké písmeno, číslici a speciální znak.
                 </p>
                 <Button variant="outline" onClick={() => setChangePasswordDialog(true)}>
                   <KeyRound className="w-4 h-4 mr-2" />
                   Změnit heslo
+                </Button>
+              </div>
+
+              <Separator className="my-4" />
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Aktivní přihlášení</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Z bezpečnostních důvodů můžete jedním kliknutím odhlásit všechna ostatní zařízení a prohlížeče,
+                  ve kterých jste aktuálně přihlášeni. Vaše současné přihlášení v tomto prohlížeči zůstane aktivní.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={handleSignOutOthers}
+                  disabled={loading}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Odhlásit všechna ostatní zařízení
                 </Button>
               </div>
 
@@ -226,7 +248,7 @@ const Profile = () => {
           <DialogHeader>
             <DialogTitle>Změnit heslo</DialogTitle>
             <DialogDescription>
-              Zadejte nové heslo. Heslo musí mít alespoň 6 znaků.
+              Heslo musí mít alespoň {PASSWORD_MIN_LENGTH} znaků a obsahovat velké písmeno, číslici a speciální znak.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -238,7 +260,9 @@ const Profile = () => {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Zadejte nové heslo"
+                autoComplete="new-password"
               />
+              <PasswordStrengthMeter password={newPassword} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Potvrzení hesla</Label>
@@ -248,7 +272,11 @@ const Profile = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Zadejte heslo znovu"
+                autoComplete="new-password"
               />
+              {confirmPassword.length > 0 && confirmPassword !== newPassword && (
+                <p className="text-xs text-destructive">Hesla se neshodují.</p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -262,7 +290,7 @@ const Profile = () => {
             >
               Zrušit
             </Button>
-            <Button onClick={handleChangePassword} disabled={loading}>
+            <Button onClick={handleChangePassword} disabled={loading || !canChangePassword}>
               <Save className="w-4 h-4 mr-2" />
               Změnit heslo
             </Button>
