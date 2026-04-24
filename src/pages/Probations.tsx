@@ -56,7 +56,7 @@ export default function Probations() {
 
   const hasFilters = search !== "" || windowFilter !== "ending_30";
 
-  if (loading) return <TableSkeleton />;
+  if (loading) return <TableSkeleton columns={8} />;
   if (error) return <ErrorDisplay message={error} />;
 
   return (
