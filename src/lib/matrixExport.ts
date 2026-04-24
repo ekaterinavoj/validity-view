@@ -32,11 +32,21 @@ export interface MatrixEntry {
 
 const STATE_GLYPH: Record<CellState, string> = {
   ok: "✓",
-  warning: "✓",
+  warning: "⚠",
   expired: "✗",
-  missing: "",
+  missing: "—",
   na: "",
 };
+
+/** Legend rows prepended to every matrix export so the symbols are self-explanatory. */
+const LEGEND_ROWS: string[][] = [
+  ["LEGENDA SYMBOLŮ"],
+  ["✓", "Platné — záznam existuje a je v pořádku"],
+  ["⚠", "Brzy vyprší — končí platnost do 30 dní"],
+  ["✗", "Prošlé — platnost vypršela"],
+  ["—", "Chybí — záznam pro tuto kombinaci neexistuje"],
+  [""], // blank separator row before header
+];
 
 interface BuildTrainingMatrixArgs {
   filename: string;
