@@ -399,29 +399,21 @@ export function FilePreviewDialog({
     contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (!open) return null;
-
-  const currentFile = allFiles[currentDocIndex];
-  const dialogTitle = showMultipleFiles 
-    ? `Dokument ${currentDocIndex + 1} z ${allFiles.length}` 
-    : (allFiles[0]?.name || "Dokument");
-
   // Compute adaptive dialog dimensions based on the underlying media's aspect ratio.
-  // - PDFs: viewport.width/height in points (1pt ≈ 1.333px); A4 portrait ≈ 595×842, landscape ≈ 842×595.
+  // - PDFs: viewport.width/height in points (A4 portrait ≈ 595×842, landscape ≈ 842×595).
   // - Images: natural pixel dimensions.
   // We constrain the dialog to fit the viewport while preserving aspect ratio so portrait
   // documents render narrower (no wasted side-space) and landscape/wide images render wider.
   const adaptiveStyle = useMemo<React.CSSProperties>(() => {
+    if (typeof window === "undefined") return {};
     if (!mediaMeta || mediaMeta.width <= 0 || mediaMeta.height <= 0) {
-      return {};
+      return { width: "min(90vw, 1024px)", height: "90vh" };
     }
     const aspect = mediaMeta.width / mediaMeta.height;
-    // Reserve ~140px for header + padding when computing target content height.
     const maxH = Math.round(window.innerHeight * 0.92);
     const maxW = Math.round(window.innerWidth * 0.95);
     const minW = 480;
-    const contentH = maxH - 140;
-    // Width derived from aspect ratio of the content area.
+    const contentH = maxH - 140; // header + padding budget
     let targetW = Math.round(contentH * aspect) + 64; // + horizontal padding
     targetW = Math.min(Math.max(targetW, minW), maxW);
     return {
@@ -430,6 +422,14 @@ export function FilePreviewDialog({
       height: `${maxH}px`,
     };
   }, [mediaMeta]);
+
+  if (!open) return null;
+
+  const currentFile = allFiles[currentDocIndex];
+  const dialogTitle = showMultipleFiles 
+    ? `Dokument ${currentDocIndex + 1} z ${allFiles.length}` 
+    : (allFiles[0]?.name || "Dokument");
+
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
