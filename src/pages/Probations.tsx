@@ -284,7 +284,10 @@ export default function Probations() {
                       Sekce <strong>„Celodenní překážky v práci“</strong> automaticky prodlužuje konec ZD.
                     </li>
                   </ol>
-                  <Button asChild size="sm" className="w-full mt-3">
+                  <p className="text-[11px] text-muted-foreground mt-2 mb-2 italic">
+                    Tip: Klikněte na řádek v přehledu níže – otevře se editace zaměstnance přímo na sekci ZD.
+                  </p>
+                  <Button asChild size="sm" className="w-full">
                     <Link to="/employees">
                       <ExternalLink className="h-4 w-4 mr-1" /> Otevřít Zaměstnance
                     </Link>
