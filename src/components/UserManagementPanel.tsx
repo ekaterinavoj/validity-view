@@ -589,9 +589,10 @@ export function UserManagementPanel() {
                   <TableHead>Jméno</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Stav</TableHead>
-                  <TableHead>Poslední změna hesla</TableHead>
                   <TableHead>Propojení se zaměstnancem</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Stav hesla</TableHead>
+                  <TableHead>Poslední změna hesla</TableHead>
                   <TableHead>Změnit roli</TableHead>
                   <TableHead className="w-12">Akce</TableHead>
                 </TableRow>
@@ -599,7 +600,7 @@ export function UserManagementPanel() {
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       Žádní uživatelé nenalezeni
                     </TableCell>
                   </TableRow>
