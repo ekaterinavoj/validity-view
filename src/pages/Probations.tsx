@@ -67,21 +67,19 @@ interface AuditEntry {
 export default function Probations() {
   const { employees, loading, error } = useEmployees();
   const { toast } = useToast();
+  const { preferences, updatePreference, isLoaded: prefsLoaded } = useUserPreferences();
   const [windowFilter, setWindowFilter] = useState<WindowFilter>("ending_30");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"list" | "history">("list");
-  // Compact mode = jen přehled bez záložek (uloženo v localStorage)
-  const [compactMode, setCompactMode] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("probations-compact-mode") === "1";
-  });
+
+  // Compact mode = jen přehled bez záložek. Source of truth: user_preferences (DB),
+  // s localStorage cache pro rychlou hydrataci. Synced napříč zařízeními.
+  const compactMode = preferences.probationsCompactMode;
   const toggleCompact = (next: boolean) => {
-    setCompactMode(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("probations-compact-mode", next ? "1" : "0");
-    }
-    if (next) setTab("list");
+    updatePreference("probationsCompactMode", next);
+    if (next) setTab("list"); // vynuť přehled, abychom neviseli na skryté záložce
   };
+
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
@@ -118,8 +116,14 @@ export default function Probations() {
     return m;
   }, [employees]);
 
-  // Load audit history when switching tab
+  // Load audit history ONLY when:
+  //   • user prefs are loaded (we know whether compact mode is on),
+  //   • compact mode is OFF (history tab is rendered),
+  //   • the active tab is "history".
+  // → V kompaktním režimu se dotaz na audit_logs vůbec neprovede (úspora backendu).
   useEffect(() => {
+    if (!prefsLoaded) return;
+    if (compactMode) return;
     if (tab !== "history") return;
     let cancelled = false;
     (async () => {
@@ -143,7 +147,15 @@ export default function Probations() {
     return () => {
       cancelled = true;
     };
-  }, [tab]);
+  }, [tab, compactMode, prefsLoaded]);
+
+  // Když uživatel přepne do compact módu po načtení historie, vyčistíme stav, aby
+  // se v paměti netáhly už nepotřebné záznamy.
+  useEffect(() => {
+    if (compactMode && auditEntries.length > 0) {
+      setAuditEntries([]);
+    }
+  }, [compactMode, auditEntries.length]);
 
   const exportRows = filtered.map((e) => ({
     "Os. číslo": e.employeeNumber || "",
