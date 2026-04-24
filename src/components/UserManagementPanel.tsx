@@ -548,6 +548,16 @@ export function UserManagementPanel() {
                 <SelectItem value="user">Uživatel</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={passwordFilter} onValueChange={setPasswordFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Stav hesla" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všechna hesla</SelectItem>
+                <SelectItem value="review">Nutno zkontrolovat</SelectItem>
+                <SelectItem value="ok">V pořádku</SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant="outline" size="sm" onClick={loadUsers}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Obnovit
@@ -556,7 +566,7 @@ export function UserManagementPanel() {
               variant="outline"
               size="sm"
               onClick={exportToCSV}
-              title="Formát: CSV (oddělovač středník, kódování UTF-8 s BOM, kompatibilní s Excelem)"
+              title={CSV_FORMAT_TOOLTIP}
             >
               <Download className="w-4 h-4 mr-2" />
               Export
