@@ -1941,6 +1941,15 @@ export type Database = {
         Returns: undefined
       }
       recalculate_all_statuses: { Args: never; Returns: Json }
+      security_scan_rls_coverage: {
+        Args: never
+        Returns: {
+          policy_count: number
+          rls_enabled: boolean
+          status: string
+          table_name: string
+        }[]
+      }
       set_user_role: {
         Args: {
           _new_role: Database["public"]["Enums"]["app_role"]
