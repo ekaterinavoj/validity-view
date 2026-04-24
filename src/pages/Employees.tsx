@@ -40,6 +40,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeStatusBadge, EmployeeStatus } from "@/components/EmployeeStatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
+import { ProbationBadge } from "@/components/ProbationBadge";
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
