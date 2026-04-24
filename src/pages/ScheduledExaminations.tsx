@@ -130,12 +130,26 @@ export default function ScheduledExaminations() {
       const matchesDepartment = filters.departmentFilter === "all" || deptFormatted === filters.departmentFilter;
       const matchesType = filters.typeFilter === "all" || exam.type === filters.typeFilter;
       const matchesDoctor = filters.trainerFilter === "all" || exam.doctor === filters.trainerFilter;
+      const matchesResult = filters.resultFilter === "all" || (exam.result ?? "") === filters.resultFilter;
+      const matchesWorkCategory =
+        filters.workCategoryFilter === "all" || (exam.employeeWorkCategory ?? "") === filters.workCategoryFilter;
 
       const examDate = new Date(exam.nextExaminationDate);
       const matchesDateFrom = !filters.dateFrom || examDate >= filters.dateFrom;
       const matchesDateTo = !filters.dateTo || examDate <= filters.dateTo;
 
-      return matchesSearch && matchesStatus && matchesFacility && matchesDepartment && matchesType && matchesDoctor && matchesDateFrom && matchesDateTo;
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesFacility &&
+        matchesDepartment &&
+        matchesType &&
+        matchesDoctor &&
+        matchesResult &&
+        matchesWorkCategory &&
+        matchesDateFrom &&
+        matchesDateTo
+      );
     });
   }, [filters, examinations, facilityNameMap]);
 
