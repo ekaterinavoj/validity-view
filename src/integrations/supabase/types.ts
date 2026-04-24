@@ -56,6 +56,48 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_signin_attempts: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          email: string
+          error_code: string | null
+          error_message: string | null
+          http_status: number | null
+          id: string
+          ip_address: string | null
+          request_id: string | null
+          status: string
+          user_agent: string | null
+        }
+        Insert: {
+          attempt_number?: number
+          created_at?: string
+          email: string
+          error_code?: string | null
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          ip_address?: string | null
+          request_id?: string | null
+          status: string
+          user_agent?: string | null
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          email?: string
+          error_code?: string | null
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          ip_address?: string | null
+          request_id?: string | null
+          status?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       deadline_documents: {
         Row: {
           deadline_id: string
