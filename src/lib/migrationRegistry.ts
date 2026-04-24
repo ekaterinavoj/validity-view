@@ -3758,6 +3758,30 @@ SELECT 1;`,
 --    odpovědným osobám se neposílá nic.
 SELECT 1;`,
   },
+  {
+    version: "20260424151317",
+    name: "drop_duplicate_training_documents_delete_policy",
+    sql: `-- Odstranění duplicitní (a nedostatečně přísné) DELETE policy
+-- pro storage bucket 'training-documents'.
+-- Stará policy 'Users can delete their own training documents' kontrolovala
+-- pouze vlastnictví složky podle UUID v cestě a NEKONTROLOVALA, zda je
+-- uživatel schválený. Ponecháváme přísnější 'training_docs_delete_authorized'
+-- (vyžaduje is_user_approved + owner = auth.uid()).
+DROP POLICY IF EXISTS "Users can delete their own training documents" ON storage.objects;`,
+  },
+  {
+    version: "20260424380000",
+    name: "ui_pagination_probations_and_recipient_diagnostics",
+    sql: `-- UI-only změny (žádný zásah do DB schématu):
+-- 1) Probations: přidáno stránkování (TablePagination + usePagination, 25/stránku)
+--    pro velký seznam zaměstnanců se zkušební dobou.
+-- 2) ModuleRecipientsSelector: přidána diagnostika přepínačů 'Notifikace nadřízeným'
+--    (varování, pokud v systému není žádný uživatel s rolí Manažer) a
+--    'Notifikace odpovědným osobám' (varování, pokud není vybrána žádná skupina).
+-- 3) UserManagementPanel a ExportReminderLogs: tlačítka exportu přejmenována
+--    na "Export"/"Export PDF" a doplněny tooltipy s formátem souboru.
+SELECT 1;`,
+  },
 ];
 
 /**
