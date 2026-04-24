@@ -572,6 +572,11 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Header validation error */}
+            {headerError && (
+              <MissingHeadersAlert missing={headerError.missing} detected={headerError.detected} />
+            )}
+
             {/* Large dataset warning */}
             {importedData.length >= 1000 && (
               <Alert className="border-amber-500/50 bg-amber-500/10">
