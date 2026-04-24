@@ -318,10 +318,6 @@ export default function Equipment() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Obnovit
-          </Button>
           <BulkEquipmentImport onImportComplete={() => refetch()} />
           <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
             <Download className="w-4 h-4 mr-2" />
