@@ -601,6 +601,7 @@ export default function Employees() {
         <h2 className="text-3xl font-bold text-foreground">Zaměstnanci</h2>
 
         <div className="flex gap-2">
+          <RefreshButton onRefresh={() => refetch()} loading={employeesLoading} />
           <BulkEmployeeImport />
           <Button variant="outline" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
             <Download className="w-4 h-4 mr-2" />

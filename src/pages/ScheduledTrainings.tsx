@@ -491,6 +491,7 @@ export default function ScheduledTrainings() {
                 Import
               </Button>
             )}
+            <RefreshButton onRefresh={() => refetch()} loading={trainingsLoading} />
             {canEdit && (
               <Button onClick={() => navigate("/new-training")}>
                 <Plus className="w-4 h-4 mr-2" />

@@ -362,6 +362,7 @@ export default function ScheduledExaminations() {
               Import
             </Button>
           )}
+          <RefreshButton onRefresh={() => refetch()} loading={examinationsLoading} />
           {canEdit && (
             <Button onClick={() => navigate("/plp/new")}>
               <Plus className="w-4 h-4 mr-2" />
