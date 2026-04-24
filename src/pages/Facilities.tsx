@@ -22,7 +22,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { exportToCSV } from "@/lib/csvExport";
 import Papa from "papaparse";
-import { CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 const formSchema = z.object({
   name: z.string().min(1, "Zadejte název provozovny"),
@@ -117,7 +117,7 @@ export default function Facilities() {
         "Stav": f.is_active ? "Aktivní" : "Neaktivní",
       }));
       const timestamp = new Date().toISOString().split('T')[0];
-      exportToCSV({ filename: `provozovny_${timestamp}.csv`, data });
+      exportToCSV({ filename: buildExportFilename("provozovny"), data });
       toast({ title: "Export dokončen", description: `Exportováno ${data.length} provozoven.` });
     } catch (err: any) {
       toast({ title: "Chyba exportu", description: err.message, variant: "destructive" });

@@ -37,9 +37,10 @@ import { AddUserModal } from "@/components/AddUserModal";
 import { ResetPasswordModal } from "@/components/ResetPasswordModal";
 import { ChangeEmailModal } from "@/components/ChangeEmailModal";
 import { ModuleAccessManager } from "@/components/ModuleAccessManager";
-import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { exportToCSV as exportCSVHelper } from "@/lib/csvExport";
+import { buildExportFilename, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 interface UserProfile {
   id: string;
@@ -75,6 +76,7 @@ export function UserManagementPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [passwordFilter, setPasswordFilter] = useState<string>("all");
   
   // Modal states
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
@@ -325,9 +327,14 @@ export function UserManagementPanel() {
       const matchesRole =
         roleFilter === "all" || user.roles.includes(roleFilter);
 
-      return matchesSearch && matchesRole;
+      const matchesPassword =
+        passwordFilter === "all" ||
+        (passwordFilter === "review" && user.must_review_password) ||
+        (passwordFilter === "ok" && !user.must_review_password);
+
+      return matchesSearch && matchesRole && matchesPassword;
     });
-  }, [users, searchQuery, roleFilter]);
+  }, [users, searchQuery, roleFilter, passwordFilter]);
 
   const exportToCSV = () => {
     const data = filteredUsers.map((u) => ({
@@ -335,16 +342,13 @@ export function UserManagementPanel() {
       "Email": u.email,
       "Pozice": u.position || "",
       "Role": u.roles.map(r => roleLabels[r] || r).join(", "),
+      "Stav hesla": u.must_review_password ? "Nutno zkontrolovat" : "V pořádku",
+      "Poslední změna hesla": u.password_updated_at
+        ? new Date(u.password_updated_at).toLocaleDateString("cs-CZ")
+        : (u.updated_at ? new Date(u.updated_at).toLocaleDateString("cs-CZ") : ""),
     }));
 
-    const csv = Papa.unparse(data, { delimiter: ";" });
-    const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `uzivatele_${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-
+    exportCSVHelper({ filename: buildExportFilename("uzivatele"), data });
     toast({ title: "Export úspěšný", description: `Exportováno ${data.length} uživatelů.` });
   };
 
@@ -368,7 +372,7 @@ export function UserManagementPanel() {
       headStyles: { fillColor: [59, 130, 246] },
     });
 
-    doc.save(`uzivatele_${new Date().toISOString().split("T")[0]}.pdf`);
+    doc.save(buildExportFilename("uzivatele").replace(/\.csv$/, ".pdf"));
     toast({ title: "Export úspěšný", description: `Exportováno ${filteredUsers.length} uživatelů.` });
   };
 
@@ -544,6 +548,16 @@ export function UserManagementPanel() {
                 <SelectItem value="user">Uživatel</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={passwordFilter} onValueChange={setPasswordFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Stav hesla" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všechna hesla</SelectItem>
+                <SelectItem value="review">Nutno zkontrolovat</SelectItem>
+                <SelectItem value="ok">V pořádku</SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant="outline" size="sm" onClick={loadUsers}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Obnovit
@@ -552,7 +566,7 @@ export function UserManagementPanel() {
               variant="outline"
               size="sm"
               onClick={exportToCSV}
-              title="Formát: CSV (oddělovač středník, kódování UTF-8 s BOM, kompatibilní s Excelem)"
+              title={CSV_FORMAT_TOOLTIP}
             >
               <Download className="w-4 h-4 mr-2" />
               Export

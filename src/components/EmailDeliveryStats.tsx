@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { buildExportFilename } from "@/lib/exportFilename";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -262,9 +263,8 @@ export function EmailDeliveryStats() {
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const timestamp = format(new Date(), "yyyy-MM-dd");
       link.setAttribute("href", url);
-      link.setAttribute("download", `email_statistiky_${timestamp}.csv`);
+      link.setAttribute("download", buildExportFilename("statistiky-emailu"));
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();

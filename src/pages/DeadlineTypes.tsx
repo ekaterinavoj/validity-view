@@ -34,7 +34,7 @@ import { exportToCSV } from "@/lib/csvExport";
 import { supabase } from "@/integrations/supabase/client";
 import Papa from "papaparse";
 import { useToast } from "@/hooks/use-toast";
-import { CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function DeadlineTypes() {
   const { deadlineTypes, isLoading, error, refetch, createDeadlineType, updateDeadlineType, deleteDeadlineType, isCreating, isUpdating } = useDeadlineTypes();
@@ -106,7 +106,7 @@ export default function DeadlineTypes() {
         "Popis": t.description || "",
       }));
       const timestamp = new Date().toISOString().split('T')[0];
-      exportToCSV({ filename: `typy_udalosti_${timestamp}.csv`, data });
+      exportToCSV({ filename: buildExportFilename("typy-udalosti"), data });
       toast({ title: "Export dokončen", description: `Exportováno ${data.length} typů.` });
     } catch (err: any) {
       toast({ title: "Chyba exportu", description: err.message, variant: "destructive" });

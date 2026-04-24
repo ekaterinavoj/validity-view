@@ -26,7 +26,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/hooks/usePagination";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 type WindowFilter = "ending_14" | "ending_30" | "ending_60" | "all_active";
 
@@ -195,7 +195,7 @@ export default function Probations() {
     }
     try {
       exportToCSV({
-        filename: `zkusebni-doby_${filterLabel[windowFilter]}_${new Date().toISOString().slice(0, 10)}`,
+        filename: buildExportFilename(`zkusebni-doby-${filterLabel[windowFilter]}`),
         data: exportRows,
       });
     } catch (e: any) {

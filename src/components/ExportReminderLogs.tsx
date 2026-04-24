@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { buildExportFilename } from "@/lib/exportFilename";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -110,7 +111,7 @@ export function ExportReminderLogs() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `reminder-logs-${format(new Date(), "yyyy-MM-dd")}.csv`;
+      link.download = buildExportFilename("logy-pripominek-skoleni");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

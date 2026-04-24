@@ -53,7 +53,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { Grid3x3 } from "lucide-react";
 import { RefreshButton } from "@/components/RefreshButton";
-import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
@@ -400,9 +400,8 @@ export default function ScheduledTrainings() {
         }
       }
 
-      const timestamp = format(new Date(), "yyyy-MM-dd");
       downloadTrainingMatrixXLSX({
-        filename: `matice_skoleni_${timestamp}`,
+        filename: buildExportFilename("matice-skoleni").replace(/\.csv$/, ""),
         employees: empRows,
         eventTypes: typeRows,
         entries,

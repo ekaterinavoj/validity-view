@@ -31,7 +31,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { exportToCSV } from "@/lib/csvExport";
 import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
-import { CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 const formSchema = z.object({
   code: z.string().min(1, "Zadejte číslo střediska"),
@@ -83,8 +83,7 @@ export default function Departments() {
         "Číslo střediska": d.code,
         "Název": d.name || "",
       }));
-      const timestamp = new Date().toISOString().split('T')[0];
-      exportToCSV({ filename: `strediska_${timestamp}.csv`, data });
+      exportToCSV({ filename: buildExportFilename("strediska"), data });
       toast({ title: "Export dokončen", description: `Exportováno ${data.length} středisek.` });
     } catch (err: any) {
       toast({ title: "Chyba exportu", description: err.message, variant: "destructive" });

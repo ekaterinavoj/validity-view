@@ -1,4 +1,5 @@
 import { StatusBadge } from "@/components/StatusBadge";
+import { buildExportFilename } from "@/lib/exportFilename";
 import { AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
@@ -263,7 +264,7 @@ export default function ScheduledExaminations() {
     const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `prohlidky_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.download = buildExportFilename("plp");
     link.click();
   };
 
