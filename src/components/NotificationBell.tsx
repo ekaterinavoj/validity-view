@@ -32,10 +32,44 @@ interface Notification {
 export function NotificationBell() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+
+  // Mapování notifikací na cílové URL podle related_entity_type
+  const getNotificationLink = (n: Notification): string | null => {
+    const t = n.related_entity_type;
+    const id = n.related_entity_id;
+    if (!t) return null;
+    switch (t) {
+      case "probation_period":
+      case "probation_ending":
+        // Cílí přímo na editaci zaměstnance v sekci ZD
+        return id ? `/employees?edit=${id}&focus=probation` : "/probations";
+      case "employee_age_50":
+        return id ? `/employees?edit=${id}` : "/employees";
+      case "training":
+        return "/trainings";
+      case "deadline":
+        return "/deadlines";
+      case "medical_examination":
+      case "plp":
+        return "/medical-examinations";
+      default:
+        return null;
+    }
+  };
+
+  const handleNotificationClick = async (n: Notification) => {
+    const link = getNotificationLink(n);
+    if (!n.is_read) {
+      await markAsRead(n.id);
+    }
+    setOpen(false);
+    if (link) navigate(link);
+  };
 
   const fetchNotifications = async () => {
     if (!user) return;
