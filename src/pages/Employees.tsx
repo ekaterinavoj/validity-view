@@ -60,6 +60,10 @@ const formSchema = z.object({
   notes: z.string().optional(),
   // Manager hierarchy – only the FK reference
   managerEmployeeId: z.string().optional(),
+  // Probation period tracking (zákoník práce 2026)
+  startDate: z.date().optional(),
+  probationMonths: z.coerce.number().int().min(1).max(8).optional(),
+  probationEndDate: z.date().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -216,6 +220,9 @@ export default function Employees() {
       statusStartDate: employee.statusStartDate ? new Date(employee.statusStartDate) : undefined,
       notes: employee.notes || "",
       managerEmployeeId: employee.managerEmployeeId || "",
+      startDate: employee.startDate ? new Date(employee.startDate) : undefined,
+      probationMonths: employee.probationMonths ?? undefined,
+      probationEndDate: employee.probationEndDate ? new Date(employee.probationEndDate) : undefined,
     });
     setDialogOpen(true);
   };
@@ -400,6 +407,10 @@ export default function Employees() {
         notes: notes || null,
         // Manager hierarchy – only FK
         manager_employee_id: data.managerEmployeeId || null,
+        // Probation period tracking
+        start_date: data.startDate ? format(data.startDate, "yyyy-MM-dd") : null,
+        probation_months: data.probationMonths ?? null,
+        probation_end_date: data.probationEndDate ? format(data.probationEndDate, "yyyy-MM-dd") : null,
       };
 
       if (editingEmployee) {
