@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Papa from 'papaparse';
 import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
 import { ImportDescription } from "@/components/ImportDescription";
 
 const equipmentSchema = z.object({
