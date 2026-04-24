@@ -67,10 +67,15 @@ interface AuditEntry {
 export default function Probations() {
   const { employees, loading, error } = useEmployees();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { preferences, updatePreference, isLoaded: prefsLoaded } = useUserPreferences();
   const [windowFilter, setWindowFilter] = useState<WindowFilter>("ending_30");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"list" | "history">("list");
+
+  const goToEmployeeProbation = (employeeId: string) => {
+    navigate(`/employees?edit=${employeeId}&focus=probation`);
+  };
 
   // Compact mode = jen přehled bez záložek. Source of truth: user_preferences (DB),
   // s localStorage cache pro rychlou hydrataci. Synced napříč zařízeními.
