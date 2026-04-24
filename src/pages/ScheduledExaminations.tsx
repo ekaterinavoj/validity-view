@@ -314,6 +314,16 @@ export default function ScheduledExaminations() {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportMatrix}
+            disabled={exportingMatrix || allEmployees.length === 0 || allExamTypes.length === 0}
+            title="Souhrnná matice: zaměstnanci × typy prohlídek (XLSX s ✓/⚠/✗)"
+          >
+            <Grid3x3 className="w-4 h-4 mr-2" />
+            {exportingMatrix ? "Generuji…" : "Matice PLP"}
+          </Button>
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
               <Upload className="w-4 h-4 mr-2" />
