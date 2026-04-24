@@ -59,12 +59,15 @@ export default function ScheduledExaminations() {
   const [showInactiveEmployees, setShowInactiveEmployees] = useState(false);
   const { examinations, loading: examinationsLoading, error: examinationsError, refetch } = useMedicalExaminations(!showInactiveEmployees);
   const { facilities: facilitiesData } = useFacilities();
+  const { employees: allEmployees } = useEmployees();
+  const { examinationTypes: allExamTypes } = useMedicalExaminationTypes();
   const [selectedExaminations, setSelectedExaminations] = useState<Set<string>>(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [exportingMatrix, setExportingMatrix] = useState(false);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
