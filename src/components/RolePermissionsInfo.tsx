@@ -36,6 +36,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { label: "Zobrazit přehled typů událostí napříč moduly", user: false, manager: true, admin: true },
       { label: "Zobrazit statistiky", user: false, manager: true, admin: true },
       { label: "Zobrazit pozastavená školení (inaktivní zaměstnanci)", user: false, manager: true, admin: true },
+      { label: "Přehled zkušebních dob zaměstnanců", user: false, manager: true, admin: true },
     ],
   },
   {
@@ -64,10 +65,12 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    title: "Vlastní profil",
+    title: "Vlastní profil a notifikace",
     items: [
       { label: "Zobrazit a upravit svůj profil, změnit heslo", user: true, manager: true, admin: true },
       { label: "Nastavení zobrazení (barva, řazení sloupců)", user: true, manager: true, admin: true },
+      { label: "Přijímat in-app notifikace (zvoneček) – konec ZD podřízeného", user: false, manager: true, admin: true },
+      { label: "Přijímat in-app notifikace (zvoneček) – konec ZD všech zaměstnanců", user: false, manager: false, admin: true },
     ],
   },
 ];
