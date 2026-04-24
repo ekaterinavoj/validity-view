@@ -12,7 +12,15 @@ import Papa from 'papaparse';
 import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
+import { checkRequiredHeaders } from "@/lib/importValidation";
 import { ImportDescription } from "@/components/ImportDescription";
+
+const REQUIRED_EQUIPMENT_HEADERS: Record<string, string[]> = {
+  "Inventární číslo": ["Inventární číslo", "inventoryNumber", "inventory_number"],
+  "Název": ["Název", "name"],
+  "Typ zařízení": ["Typ zařízení", "equipmentType", "equipment_type"],
+  "Provozovna": ["Provozovna", "facility"],
+};
 
 const equipmentSchema = z.object({
   inventoryNumber: z.string().min(1, "Inventární číslo je povinné").max(100),
