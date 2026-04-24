@@ -22,6 +22,7 @@ import AuditLog from "./pages/AuditLog";
 import Profile from "./pages/Profile";
 import AdminSettings from "./pages/AdminSettings";
 import SystemStatus from "./pages/SystemStatus";
+import SecurityChecklist from "./pages/SecurityChecklist";
 
 import NotFound from "./pages/NotFound";
 import NoAccess from "./pages/NoAccess";
@@ -138,6 +139,7 @@ const App = () => (
             <Route path="/admin/settings" element={<ProtectedLayout requiredRoles={["admin"]}><AdminSettings /></ProtectedLayout>} />
             <Route path="/admin/status" element={<ProtectedLayout requiredRoles={["admin"]}><SystemStatus /></ProtectedLayout>} />
             <Route path="/admin/migrations" element={<ProtectedLayout requiredRoles={["admin"]}><DatabaseMigrations /></ProtectedLayout>} />
+            <Route path="/admin/security-checklist" element={<ProtectedLayout requiredRoles={["admin"]}><SecurityChecklist /></ProtectedLayout>} />
             
             <Route path="/documents" element={<ProtectedLayout><Documents /></ProtectedLayout>} />
             <Route path="/event-types" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><EventTypesOverview /></ProtectedLayout>} />
