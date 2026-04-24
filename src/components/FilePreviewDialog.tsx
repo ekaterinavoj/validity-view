@@ -45,12 +45,14 @@ function PDFViewer({
   scale, 
   viewMode,
   showHeader = false,
+  onFirstPageMeta,
 }: { 
   url: string; 
   fileName: string; 
   scale: number; 
   viewMode: ViewMode;
   showHeader?: boolean;
+  onFirstPageMeta?: (meta: { width: number; height: number }) => void;
 }) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
@@ -64,6 +66,17 @@ function PDFViewer({
   const onDocumentLoadError = useCallback(() => {
     setPdfError(true);
   }, []);
+
+  const handlePageLoadSuccess = useCallback(
+    (page: any) => {
+      // Native page units (PDF points). Pass to parent only on first page.
+      if (page?.pageNumber === 1 && onFirstPageMeta) {
+        const viewport = page.getViewport({ scale: 1 });
+        onFirstPageMeta({ width: viewport.width, height: viewport.height });
+      }
+    },
+    [onFirstPageMeta],
+  );
 
   const pageNumbers = useMemo(() => {
     return Array.from({ length: numPages }, (_, i) => i + 1);
@@ -106,6 +119,7 @@ function PDFViewer({
               scale={scale}
               renderTextLayer={true}
               renderAnnotationLayer={true}
+              onLoadSuccess={handlePageLoadSuccess}
             />
             {numPages > 1 && (
               <div className="flex items-center gap-2">
@@ -143,6 +157,7 @@ function PDFViewer({
                   scale={scale}
                   renderTextLayer={true}
                   renderAnnotationLayer={true}
+                  onLoadSuccess={page === 1 ? handlePageLoadSuccess : undefined}
                 />
               </div>
             ))}
