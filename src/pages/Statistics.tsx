@@ -324,12 +324,17 @@ export default function Statistics() {
       color: "hsl(var(--status-expired))"
     }
   };
-  // Dynamic year list from actual data
+  // Dynamic year list from actual data — parse year from ISO string to avoid TZ drift.
   const years = useMemo(() => {
     const yearSet = new Set<string>();
+    const addYear = (value?: string | null) => {
+      if (!value) return;
+      const y = String(value).slice(0, 4);
+      if (/^\d{4}$/.test(y)) yearSet.add(y);
+    };
     allTrainings.forEach(t => {
-      if (t.date) yearSet.add(new Date(t.date).getFullYear().toString());
-      if (t.lastTrainingDate) yearSet.add(new Date(t.lastTrainingDate).getFullYear().toString());
+      addYear(t.date);
+      addYear(t.lastTrainingDate);
     });
     const sorted = Array.from(yearSet).sort((a, b) => Number(b) - Number(a));
     return ["all", ...sorted];
