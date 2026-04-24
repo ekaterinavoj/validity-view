@@ -472,6 +472,12 @@ export const BulkMedicalImport = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Reset stale header / preview state on re-upload
+    setHeaderError(null);
+    setPreview(null);
+    setImportResult(null);
+    setImportErrors([]);
+
     try {
       const data = await parseFile(file);
       await validateAndPreview(data);

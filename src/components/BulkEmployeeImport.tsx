@@ -215,6 +215,12 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset stale state on re-upload so previous errors / preview disappear
+    setHeaderError(null);
+    setImportedData([]);
+    setImportResult(null);
+    setImportErrorsList([]);
+
     const MAX_SIZE = 5 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       toast({ title: "Soubor je příliš velký", description: "Maximální velikost je 5MB.", variant: "destructive" });

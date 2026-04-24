@@ -3721,6 +3721,20 @@ VALUES
    'Výchozí per-záznam připomínky pro modul PLP')
 ON CONFLICT (key) DO NOTHING;`,
   },
+  {
+    version: "20260424360000",
+    name: "reminders_per_recipient_grouping_and_simulation",
+    sql: `-- UI/Edge-only změny:
+-- 1) send-training-reminders nyní seskupuje záznamy per příjemce – jeden e-mail
+--    s tabulkou všech záznamů místo N samostatných e-mailů. Idempotency
+--    (repeat_days_after) je zachována per záznam.
+-- 2) Nová admin komponenta ReminderSimulationPreview – simuluje odeslání
+--    pro vybraný modul + šablonu, zobrazí per-příjemce digest s tabulkou
+--    a diagnostiku přeskočených záznamů (recent log v okně repeat_days_after).
+-- 3) Bulk import komponenty resetují stav MissingHeadersAlert při novém uploadu.
+-- Žádné změny DB schématu.
+SELECT 1;`,
+  },
 ];
 
 /**

@@ -513,6 +513,12 @@ export const BulkDeadlineImport = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Reset stale header / preview state on re-upload
+    setEquipmentHeaderError(null);
+    setEquipmentPreview(null);
+    setEquipmentResult(null);
+    setEquipmentErrors([]);
+
     try {
       const data = await parseEquipmentFile(file);
       await validateEquipment(data);
@@ -904,6 +910,12 @@ export const BulkDeadlineImport = () => {
   const handleDeadlineFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Reset stale header / preview state on re-upload
+    setDeadlineHeaderError(null);
+    setDeadlinePreview(null);
+    setDeadlineResult(null);
+    setDeadlineErrors([]);
 
     try {
       const data = await parseDeadlineFile(file);

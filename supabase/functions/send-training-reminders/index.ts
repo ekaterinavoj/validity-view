@@ -190,6 +190,67 @@ const handler = async (req: Request): Promise<Response> => {
     today.setHours(0, 0, 0, 0);
     const deliveryMode = moduleRecipients.delivery_mode || "bcc";
 
+    /**
+     * Per-recipient grouping
+     * --------------------------------------------------
+     * Each recipient (module recipient OR manager) accumulates a list of trainings
+     * that should appear in HIS digest. We then emit ONE email per recipient
+     * containing a single {{records_table}} with all their records, instead of
+     * one email per training.
+     *
+     * Idempotency (`repeat_days_after`) is still evaluated per-training so that a
+     * training that was already emailed within the window is excluded from the
+     * digest of EVERY recipient (it stays out of the table and we count it once
+     * in `totalSkipped`).
+     */
+    interface DigestRow {
+      trainingId: string;
+      employeeName: string;
+      employeeEmail: string;
+      trainingName: string;
+      nextDate: Date;
+      nextDateFormatted: string;
+      daysUntil: number;
+      statusColor: string;
+      daysLabel: string;
+      template: ReminderTemplate;
+    }
+
+    // Map<recipientEmail, { rows: DigestRow[], type: "module" | "manager", managerName?: string }>
+    const moduleDigest = new Map<string, DigestRow[]>();
+    const managerDigest = new Map<string, { rows: DigestRow[]; firstName: string; lastName: string }>();
+
+    // Pre-load managers (only if manager notifications are enabled)
+    let managers: Array<{ id: string; email: string; first_name: string; last_name: string; employee_id: string }> = [];
+    const subordinatesCache = new Map<string, Set<string>>();
+
+    if (managerNotifications.enabled) {
+      const { data: managerProfiles } = await supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name, employee_id")
+        .not("employee_id", "is", null);
+
+      if (managerProfiles && managerProfiles.length > 0) {
+        const { data: managerRoles } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["admin", "manager"])
+          .in("user_id", managerProfiles.map((p) => p.id));
+
+        const managerUserIds = new Set(managerRoles?.map((r) => r.user_id) || []);
+        managers = managerProfiles
+          .filter((p) => managerUserIds.has(p.id) && p.employee_id)
+          .map((p) => ({ ...p, employee_id: p.employee_id! }));
+
+        for (const mgr of managers) {
+          const { data: subs } = await supabase.rpc("get_subordinate_employee_ids", {
+            root_employee_id: mgr.employee_id,
+          });
+          subordinatesCache.set(mgr.id, new Set((subs || []).map((s: any) => s.employee_id)));
+        }
+      }
+    }
+
     for (const training of allTrainings as Training[]) {
       const nextDate = new Date(training.next_training_date);
       nextDate.setHours(0, 0, 0, 0);
@@ -199,12 +260,12 @@ const handler = async (req: Request): Promise<Response> => {
       // Only process if within the reminder window (including past-due)
       if (daysUntil > remindDaysBefore) continue;
 
-      // Resolve template for email content (not recipients!)
+      // Resolve template (fallback to default)
       const template = (training.reminder_template_id && templateMap.has(training.reminder_template_id))
         ? templateMap.get(training.reminder_template_id)!
         : defaultTemplate;
 
-      // Deduplication check
+      // Idempotency check via repeat_days_after
       const repeatDaysAfter = training.repeat_days_after ?? 30;
       if (repeatDaysAfter > 0) {
         const cutoffDate = new Date();
@@ -222,13 +283,15 @@ const handler = async (req: Request): Promise<Response> => {
           .limit(1);
 
         if (recentLogs && recentLogs.length > 0) {
-          console.log(`Skipping training ${training.id}: reminder already sent on ${recentLogs[0].created_at} (repeat_days_after=${repeatDaysAfter})`);
+          console.log(
+            `Skipping training ${training.id}: already sent on ${recentLogs[0].created_at} (repeat_days_after=${repeatDaysAfter})`,
+          );
           totalSkipped++;
           continue;
         }
       }
 
-      // Prepare email content
+      // Build digest row
       const trainingType = Array.isArray(training.training_types)
         ? training.training_types[0]
         : training.training_types;
@@ -240,12 +303,6 @@ const handler = async (req: Request): Promise<Response> => {
       const employeeName = employee
         ? `${employee.first_name} ${employee.last_name}`
         : "Neznámý zaměstnanec";
-
-      const subject = template.email_subject
-        .replace(/\{\{training_name\}\}/g, trainingName)
-        .replace(/\{\{days_remaining\}\}/g, daysUntil.toString())
-        .replace(/\{\{employee_name\}\}/g, employeeName);
-
       const employeeEmail = employee?.email || "";
       const nextDateFormatted = nextDate.toLocaleDateString("cs-CZ");
       const statusColor = daysUntil < 0 ? "#ef4444" : daysUntil <= 7 ? "#f59e0b" : "#22c55e";
@@ -253,8 +310,61 @@ const handler = async (req: Request): Promise<Response> => {
       const daysUnit = absDays === 1 ? "den" : (absDays >= 2 && absDays <= 4) ? "dny" : "dnů";
       const daysLabel = daysUntil < 0 ? `${absDays} ${daysUnit} po termínu` : `${daysUntil} ${daysUnit}`;
 
-      // Build records table HTML for {{records_table}} variable
-      const recordsTableHtml = `
+      const row: DigestRow = {
+        trainingId: training.id,
+        employeeName,
+        employeeEmail,
+        trainingName,
+        nextDate,
+        nextDateFormatted,
+        daysUntil,
+        statusColor,
+        daysLabel,
+        template,
+      };
+
+      // Append to module recipients' digest
+      for (const email of moduleRecipientEmails) {
+        if (!moduleDigest.has(email)) moduleDigest.set(email, []);
+        moduleDigest.get(email)!.push(row);
+      }
+
+      // Append to manager digests (only if employee is subordinate)
+      for (const mgr of managers) {
+        if (moduleRecipientEmails.includes(mgr.email.toLowerCase())) continue;
+        const subs = subordinatesCache.get(mgr.id);
+        if (!subs || subs.size <= 1) continue;
+        if (!subs.has(training.employee_id)) continue;
+
+        const key = mgr.email.toLowerCase();
+        if (!managerDigest.has(key)) {
+          managerDigest.set(key, { rows: [], firstName: mgr.first_name, lastName: mgr.last_name });
+        }
+        managerDigest.get(key)!.rows.push(row);
+      }
+    }
+
+    /**
+     * Render a multi-row records_table for a digest.
+     */
+    const buildRecordsTable = (rows: DigestRow[]): string => {
+      const tbody = rows
+        .map(
+          (r) => `
+            <tr>
+              <td style="border: 1px solid #e5e7eb; padding: 10px;">${r.employeeName}</td>
+              <td style="border: 1px solid #e5e7eb; padding: 10px;">${r.employeeEmail}</td>
+              <td style="border: 1px solid #e5e7eb; padding: 10px;">${r.trainingName}</td>
+              <td style="border: 1px solid #e5e7eb; padding: 10px;">${r.nextDateFormatted}</td>
+              <td style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">
+                <span style="background-color: ${r.statusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
+                  ${r.daysLabel}
+                </span>
+              </td>
+            </tr>`,
+        )
+        .join("");
+      return `
         <table style="border-collapse: collapse; width: 100%; margin-top: 12px;">
           <thead>
             <tr style="background-color: #f3f4f6;">
@@ -265,203 +375,132 @@ const handler = async (req: Request): Promise<Response> => {
               <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">Dnů</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td style="border: 1px solid #e5e7eb; padding: 10px;">${employeeName}</td>
-              <td style="border: 1px solid #e5e7eb; padding: 10px;">${employeeEmail}</td>
-              <td style="border: 1px solid #e5e7eb; padding: 10px;">${trainingName}</td>
-              <td style="border: 1px solid #e5e7eb; padding: 10px;">${nextDateFormatted}</td>
-              <td style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">
-                <span style="background-color: ${statusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
-                  ${daysLabel}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      `;
+          <tbody>${tbody}</tbody>
+        </table>`;
+    };
 
-      const body = template.email_body
-        .replace(/\{\{training_name\}\}/g, trainingName)
-        .replace(/\{\{days_remaining\}\}/g, daysUntil.toString())
-        .replace(/\{\{employee_name\}\}/g, employeeName)
-        .replace(/\{\{records_table\}\}/g, recordsTableHtml);
+    /**
+     * Send a digest email and write one reminder_logs row per included training.
+     */
+    const sendDigest = async (
+      recipientEmails: string[],
+      rows: DigestRow[],
+      mode: "bcc" | "to" | "cc",
+      digestType: "module_recipients" | "manager_notification",
+      managerName?: string,
+    ) => {
+      if (rows.length === 0 || recipientEmails.length === 0) return;
 
-      // If template already includes {{records_table}}, don't append default table
+      // Pick the first row's template for subject/body (records share template via filter)
+      // For mixed templates, fallback to default template's subject/body.
+      const template = rows[0].template;
+      const tableHtml = buildRecordsTable(rows);
+      const totalCount = rows.length;
+      const expiredCount = rows.filter((r) => r.daysUntil < 0).length;
+      const expiringCount = totalCount - expiredCount;
+
+      const subjectVars = (s: string) =>
+        s
+          .replace(/\{\{training_name\}\}/g, totalCount === 1 ? rows[0].trainingName : `${totalCount} školení`)
+          .replace(/\{\{employee_name\}\}/g, totalCount === 1 ? rows[0].employeeName : `${totalCount} zaměstnanců`)
+          .replace(/\{\{days_remaining\}\}/g, totalCount === 1 ? String(rows[0].daysUntil) : "—")
+          .replace(/\{totalCount\}/g, String(totalCount))
+          .replace(/\{expiringCount\}/g, String(expiringCount))
+          .replace(/\{expiredCount\}/g, String(expiredCount));
+
+      const greeting = managerName ? `<p>Dobrý den, ${managerName},</p>` : "";
+      const subject = subjectVars(template.email_subject);
+      const bodyText = subjectVars(template.email_body).replace(/\{\{records_table\}\}/g, tableHtml);
       const templateHasRecordsTable = /\{\{records_table\}\}/.test(template.email_body);
 
       const htmlBody = `
         <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; color: #333;">
+          ${greeting}
           <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            ${body.split('\n').map(line => `<p style="margin: 8px 0;">${line}</p>`).join('')}
+            ${bodyText.split("\n").map((line) => `<p style="margin: 8px 0;">${line}</p>`).join("")}
           </div>
-          ${templateHasRecordsTable ? '' : recordsTableHtml}
+          ${templateHasRecordsTable ? "" : tableHtml}
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
           <p style="color: #9ca3af; font-size: 12px;">
             Tento email byl odeslán automaticky systémem evidence školení.
           </p>
-        </div>
-      `;
+        </div>`;
 
-      // 1) Send to module-configured recipients
-      if (moduleRecipientEmails.length > 0) {
-        try {
-          const result = await sendViaSMTP(moduleRecipientEmails, subject, htmlBody, deliveryMode, emailProvider);
+      try {
+        const result = await sendViaSMTP(recipientEmails, subject, htmlBody, mode, emailProvider);
 
-          if (result.success) {
-            console.log(`Email sent for training ${training.id} to module recipients`);
-            totalEmailsSent++;
-
+        if (result.success) {
+          totalEmailsSent++;
+          // Log per-training so dedup (repeat_days_after) sees each record
+          for (const r of rows) {
             await supabase.from("reminder_logs").insert({
-              training_id: training.id,
-              template_id: template.id,
-              template_name: template.name,
-              recipient_emails: moduleRecipientEmails,
+              training_id: r.trainingId,
+              template_id: r.template.id,
+              template_name: r.template.name,
+              recipient_emails: recipientEmails,
               email_subject: subject,
-              email_body: body,
+              email_body: bodyText,
               status: "sent",
               provider_used: "smtp",
-              delivery_mode: deliveryMode,
+              delivery_mode: mode,
             });
-
-            results.push({
-              training_id: training.id,
-              template: template.name,
-              recipients: moduleRecipientEmails.length,
-              type: "module_recipients",
-              status: "sent",
-            });
-          } else {
-            throw new Error(result.error);
           }
-        } catch (emailError: any) {
-          console.error(`Failed to send email for training ${training.id}:`, emailError);
-
+          results.push({
+            type: digestType,
+            recipients: recipientEmails,
+            records: rows.length,
+            status: "sent",
+          });
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (emailError: any) {
+        console.error(`Failed to send digest to ${recipientEmails.join(",")}:`, emailError);
+        for (const r of rows) {
           await supabase.from("reminder_logs").insert({
-            training_id: training.id,
-            template_id: template.id,
-            template_name: template.name,
-            recipient_emails: moduleRecipientEmails,
+            training_id: r.trainingId,
+            template_id: r.template.id,
+            template_name: r.template.name,
+            recipient_emails: recipientEmails,
             email_subject: subject,
-            email_body: body,
+            email_body: bodyText,
             status: "failed",
             error_message: emailError.message,
             provider_used: "smtp",
-            delivery_mode: deliveryMode,
-          });
-
-          results.push({
-            training_id: training.id,
-            template: template.name,
-            type: "module_recipients",
-            status: "failed",
-            error: emailError.message,
+            delivery_mode: mode,
           });
         }
+        results.push({
+          type: digestType,
+          recipients: recipientEmails,
+          records: rows.length,
+          status: "failed",
+          error: emailError.message,
+        });
       }
+    };
 
-      // 2) Send to managers if enabled (filtered by subordinate hierarchy)
-      if (managerNotifications.enabled) {
-        // Get managers with linked employees
-        const { data: managerProfiles } = await supabase
-          .from("profiles")
-          .select("id, email, first_name, last_name, employee_id")
-          .not("employee_id", "is", null);
-
-        if (managerProfiles && managerProfiles.length > 0) {
-          const { data: managerRoles } = await supabase
-            .from("user_roles")
-            .select("user_id")
-            .in("role", ["admin", "manager"])
-            .in("user_id", managerProfiles.map(p => p.id));
-
-          const managerUserIds = new Set(managerRoles?.map(r => r.user_id) || []);
-          const managers = managerProfiles.filter(p => managerUserIds.has(p.id) && p.employee_id);
-
-          for (const manager of managers) {
-            // Skip if manager already receives via module recipients
-            if (moduleRecipientEmails.includes(manager.email.toLowerCase())) continue;
-
-            // Check if this training's employee is subordinate to this manager
-            const { data: subordinates } = await supabase.rpc("get_subordinate_employee_ids", {
-              root_employee_id: manager.employee_id!,
-            });
-
-            if (!subordinates || subordinates.length <= 1) continue;
-
-            const subordinateIds = subordinates.map((s: any) => s.employee_id);
-            if (!subordinateIds.includes(training.employee_id)) continue;
-
-            // This manager is responsible for this employee - send notification
-            const mgrSubject = `Připomínka školení: ${employeeName} - ${trainingName}`;
-            const mgrDaysLabel = daysUntil < 0 ? `${Math.abs(daysUntil)} ${Math.abs(daysUntil) === 1 ? "den" : Math.abs(daysUntil) >= 2 && Math.abs(daysUntil) <= 4 ? "dny" : "dnů"} po termínu` : `${daysUntil} ${daysUntil === 1 ? "den" : daysUntil >= 2 && daysUntil <= 4 ? "dny" : "dnů"}`;
-            const mgrStatusColor = daysUntil < 0 ? "#ef4444" : daysUntil <= 7 ? "#f59e0b" : "#22c55e";
-            const mgrNextDateFormatted = nextDate.toLocaleDateString("cs-CZ");
-            const mgrBody = `
-              <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; color: #333;">
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                  <p>Dobrý den, ${manager.first_name} ${manager.last_name},</p>
-                  <p>školení <strong>${trainingName}</strong> zaměstnance <strong>${employeeName}</strong> vyžaduje pozornost.</p>
-                </div>
-                <table style="border-collapse: collapse; width: 100%; margin-top: 20px;">
-                  <thead>
-                    <tr style="background-color: #f3f4f6;">
-                      <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Zaměstnanec</th>
-                      <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Školení</th>
-                      <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: left;">Vyprší</th>
-                      <th style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">Dnů</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style="border: 1px solid #e5e7eb; padding: 10px;">${employeeName}</td>
-                      <td style="border: 1px solid #e5e7eb; padding: 10px;">${trainingName}</td>
-                      <td style="border: 1px solid #e5e7eb; padding: 10px;">${mgrNextDateFormatted}</td>
-                      <td style="border: 1px solid #e5e7eb; padding: 10px; text-align: center;">
-                        <span style="background-color: ${mgrStatusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
-                          ${mgrDaysLabel}
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-                <p style="color: #9ca3af; font-size: 12px;">Tento email byl odeslán automaticky systémem evidence školení.</p>
-              </div>
-            `;
-
-            try {
-              const mgrResult = await sendViaSMTP([manager.email], mgrSubject, mgrBody, "to", emailProvider);
-
-              await supabase.from("reminder_logs").insert({
-                training_id: training.id,
-                template_id: template.id,
-                template_name: "Manager notification",
-                recipient_emails: [manager.email],
-                email_subject: mgrSubject,
-                email_body: mgrBody,
-                status: mgrResult.success ? "sent" : "failed",
-                error_message: mgrResult.error || null,
-                provider_used: "smtp",
-                delivery_mode: "to",
-              });
-
-              if (mgrResult.success) {
-                totalEmailsSent++;
-                console.log(`Sent manager notification to ${manager.email} for training ${training.id}`);
-                results.push({
-                  training_id: training.id,
-                  type: "manager_notification",
-                  manager_email: manager.email,
-                  status: "sent",
-                });
-              }
-            } catch (mgrError: any) {
-              console.error(`Failed to send manager notification to ${manager.email}:`, mgrError);
-            }
-          }
+    // 1) Module recipients: all share the same recipient list, one digest with merged rows
+    if (moduleRecipientEmails.length > 0) {
+      // Merge digest rows by training_id (deduplicate; module recipients all see the same set)
+      const seen = new Set<string>();
+      const merged: DigestRow[] = [];
+      for (const rows of moduleDigest.values()) {
+        for (const r of rows) {
+          if (seen.has(r.trainingId)) continue;
+          seen.add(r.trainingId);
+          merged.push(r);
         }
       }
+      if (merged.length > 0) {
+        await sendDigest(moduleRecipientEmails, merged, deliveryMode as any, "module_recipients");
+      }
+    }
+
+    // 2) Manager digests: one email per manager
+    for (const [email, digest] of managerDigest.entries()) {
+      if (digest.rows.length === 0) continue;
+      await sendDigest([email], digest.rows, "to", "manager_notification", `${digest.firstName} ${digest.lastName}`);
     }
 
     console.log(`Reminder check completed. Total emails sent: ${totalEmailsSent}, skipped (dedup): ${totalSkipped}`);
