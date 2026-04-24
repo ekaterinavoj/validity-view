@@ -446,6 +446,28 @@ export function UserManagementPanel() {
         </Card>
       )}
 
+      {passwordsToReviewCount > 0 && (
+        <Card className="border-warning bg-warning/10">
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
+              <div>
+                <p className="font-medium text-foreground">
+                  {passwordsToReviewCount === 1
+                    ? "1 uživatel má heslo, které nesplňuje aktuální pravidla"
+                    : `${passwordsToReviewCount} uživatelů má heslo, které nesplňuje aktuální pravidla`}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Tito uživatelé byli automaticky vyzváni ke změně hesla při příštím přihlášení.
+                  Sloupec „Poslední změna hesla" zobrazuje konkrétní účty se značkou „Doporučeno změnit".
+                  Stávající hesla zůstávají funkční, dokud je uživatel nezmění.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Info about admin provisioning */}
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="pt-4">
