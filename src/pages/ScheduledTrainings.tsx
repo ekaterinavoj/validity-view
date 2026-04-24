@@ -500,6 +500,15 @@ export default function ScheduledTrainings() {
                 : "Export CSV"
               }
             </Button>
+            <Button
+              variant="outline"
+              onClick={exportMatrix}
+              disabled={exportingMatrix || allEmployees.length === 0 || allTrainingTypes.length === 0}
+              title="Souhrnná matice: zaměstnanci × typy školení (XLSX s ✓/⚠/✗)"
+            >
+              <Grid3x3 className="w-4 h-4 mr-2" />
+              {exportingMatrix ? "Generuji…" : "Matice školení"}
+            </Button>
             {canEdit && (
               <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
                 <Upload className="w-4 h-4 mr-2" />
