@@ -41,6 +41,7 @@ import { EmployeeStatusBadge, EmployeeStatus } from "@/components/EmployeeStatus
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
 import { ProbationBadge } from "@/components/ProbationBadge";
+import { ProbationObstaclesSection } from "@/components/ProbationObstaclesSection";
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
