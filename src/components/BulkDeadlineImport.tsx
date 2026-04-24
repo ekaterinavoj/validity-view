@@ -703,14 +703,15 @@ export const BulkDeadlineImport = () => {
 
     // Header validation
     const headers = rawData.length > 0 ? Object.keys(rawData[0]) : [];
-    const { checkRequiredHeaders } = await import("@/lib/importValidation");
+    const { checkRequiredHeaders, formatMissingHeadersMessage } = await import("@/lib/importValidation");
     const headerCheck = checkRequiredHeaders(headers, {
       "Typ události": ["Typ události", "deadline_type_name"],
       "Provozovna": ["Provozovna", "facility_code"],
       "Datum kontroly": ["Datum kontroly", "last_check_date"],
     });
     if (!headerCheck.ok) {
-      throw new Error(`Chybí povinné sloupce: ${headerCheck.missing.join(", ")}. Stáhněte si vzorovou šablonu.`);
+      const detail = formatMissingHeadersMessage(headerCheck.missingDetailed);
+      throw new Error(`Chybí povinné sloupce:\n${detail}\n\nStáhněte si vzorovou šablonu.`);
     }
 
     // Map Czech column names from exports to English import names
