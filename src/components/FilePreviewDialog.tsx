@@ -406,9 +406,38 @@ export function FilePreviewDialog({
     ? `Dokument ${currentDocIndex + 1} z ${allFiles.length}` 
     : (allFiles[0]?.name || "Dokument");
 
+  // Compute adaptive dialog dimensions based on the underlying media's aspect ratio.
+  // - PDFs: viewport.width/height in points (1pt ≈ 1.333px); A4 portrait ≈ 595×842, landscape ≈ 842×595.
+  // - Images: natural pixel dimensions.
+  // We constrain the dialog to fit the viewport while preserving aspect ratio so portrait
+  // documents render narrower (no wasted side-space) and landscape/wide images render wider.
+  const adaptiveStyle = useMemo<React.CSSProperties>(() => {
+    if (!mediaMeta || mediaMeta.width <= 0 || mediaMeta.height <= 0) {
+      return {};
+    }
+    const aspect = mediaMeta.width / mediaMeta.height;
+    // Reserve ~140px for header + padding when computing target content height.
+    const maxH = Math.round(window.innerHeight * 0.92);
+    const maxW = Math.round(window.innerWidth * 0.95);
+    const minW = 480;
+    const contentH = maxH - 140;
+    // Width derived from aspect ratio of the content area.
+    let targetW = Math.round(contentH * aspect) + 64; // + horizontal padding
+    targetW = Math.min(Math.max(targetW, minW), maxW);
+    return {
+      width: `${targetW}px`,
+      maxWidth: `${maxW}px`,
+      height: `${maxH}px`,
+    };
+  }, [mediaMeta]);
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden" aria-describedby={undefined}>
+      <DialogContent
+        className="flex flex-col p-0 overflow-hidden sm:max-w-[95vw]"
+        style={mediaMeta ? adaptiveStyle : { width: "min(90vw, 1024px)", height: "90vh" }}
+        aria-describedby={undefined}
+      >
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between pr-8">
             <div className="flex items-center gap-3 min-w-0 flex-1">
