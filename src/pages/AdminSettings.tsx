@@ -36,6 +36,7 @@ import { MedicalDocsAccessDebug } from "@/components/MedicalDocsAccessDebug";
 import { MigrationsStatus } from "@/components/MigrationsStatus";
 import { SecurityFindings } from "@/components/SecurityFindings";
 import { SecurityAuditPanel } from "@/components/SecurityAuditPanel";
+import { SecurityScanRunner } from "@/components/SecurityScanRunner";
 import { ShieldAlert } from "lucide-react";
 
 import { DisplaySettings } from "@/components/DisplaySettings";
@@ -1365,6 +1366,7 @@ export default function AdminSettings() {
 
         {/* Security Tab */}
         <TabsContent value="security" className="space-y-6">
+          <SecurityScanRunner />
           <SecurityFindings />
           <MigrationsStatus />
         </TabsContent>

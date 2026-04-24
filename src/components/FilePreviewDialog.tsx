@@ -172,15 +172,18 @@ function PDFViewer({
 function ImageViewer({
   url,
   fileName,
+  scale = 1,
   showHeader = false,
   onMeta,
 }: {
   url: string;
   fileName: string;
+  scale?: number;
   showHeader?: boolean;
   onMeta?: (meta: { width: number; height: number }) => void;
 }) {
   const [error, setError] = useState(false);
+  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
 
   if (error) {
     return (
@@ -189,6 +192,14 @@ function ImageViewer({
       </div>
     );
   }
+
+  const imgStyle: React.CSSProperties = naturalSize
+    ? {
+        width: `${naturalSize.width * scale}px`,
+        height: `${naturalSize.height * scale}px`,
+        maxWidth: "none",
+      }
+    : { maxWidth: "100%", maxHeight: "80vh", objectFit: "contain" };
 
   return (
     <div className="space-y-2">
@@ -202,10 +213,12 @@ function ImageViewer({
         <img
           src={url}
           alt={fileName}
-          className="max-w-full max-h-[80vh] object-contain rounded"
+          style={imgStyle}
+          className="rounded"
           onError={() => setError(true)}
           onLoad={(e) => {
             const img = e.currentTarget;
+            setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
             onMeta?.({ width: img.naturalWidth, height: img.naturalHeight });
           }}
         />
@@ -226,6 +239,7 @@ export function FilePreviewDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState<number>(1.0);
+  const [autoFit, setAutoFit] = useState<boolean>(true); // fit-to-page mode (default ON)
   const [viewMode, setViewMode] = useState<ViewMode>(preferences.pdfViewMode || "scroll");
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
   // Native dimensions of currently shown media – used to adapt dialog size.
@@ -253,6 +267,13 @@ export function FilePreviewDialog({
     );
   }, [allFiles]);
 
+  const hasImages = useMemo(() => {
+    return allFiles.some(f =>
+      f.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f.name)
+    );
+  }, [allFiles]);
+
+  const hasZoomable = hasPDFs || hasImages;
   const showMultipleFiles = allFiles.length > 1;
 
   // Sync viewMode with user preference
@@ -266,6 +287,7 @@ export function FilePreviewDialog({
   useEffect(() => {
     if (open) {
       setScale(1.0);
+      setAutoFit(true);
       setError(null);
       setCurrentDocIndex(0);
       setViewMode(preferences.pdfViewMode || "scroll");
@@ -368,8 +390,38 @@ export function FilePreviewDialog({
     updatePreference("pdfViewMode", mode);
   };
 
-  const zoomIn = () => setScale((prev) => Math.min(prev + 0.25, 3.0));
-  const zoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.5));
+  const zoomIn = () => {
+    setAutoFit(false);
+    setScale((prev) => Math.min(prev + 0.25, 3.0));
+  };
+  const zoomOut = () => {
+    setAutoFit(false);
+    setScale((prev) => Math.max(prev - 0.25, 0.5));
+  };
+  const fitToPage = () => {
+    setAutoFit(true);
+  };
+
+  // Auto-fit: spočítej scale tak, aby šířka stránky odpovídala dostupné oblasti.
+  useEffect(() => {
+    if (!autoFit || !mediaMeta || !contentRef.current) return;
+    const computeFit = () => {
+      const container = contentRef.current;
+      if (!container) return;
+      const availableW = container.clientWidth - 48; // padding
+      const availableH = container.clientHeight - 80; // padding + header
+      if (availableW <= 0 || availableH <= 0) return;
+      const scaleW = availableW / mediaMeta.width;
+      const scaleH = availableH / mediaMeta.height;
+      // Vyber menší — celá strana se vejde bez ořezu
+      const fitScale = Math.min(scaleW, scaleH, 2.5);
+      setScale(Math.max(0.5, fitScale));
+    };
+    computeFit();
+    const ro = new ResizeObserver(computeFit);
+    if (contentRef.current) ro.observe(contentRef.current);
+    return () => ro.disconnect();
+  }, [autoFit, mediaMeta, currentDocIndex]);
 
   const getFileUrl = (f: PreviewFile) => {
     const fileKey = f.name + (f.url || "");
@@ -525,8 +577,8 @@ export function FilePreviewDialog({
                 </div>
               )}
               
-              {/* Zoom Controls */}
-              {hasPDFs && !loading && (
+              {/* Zoom Controls (PDF + Images) */}
+              {hasZoomable && !loading && (
                 <>
                   <Separator orientation="vertical" className="h-6" />
                   <div className="flex items-center gap-1">
@@ -539,9 +591,15 @@ export function FilePreviewDialog({
                     >
                       <ZoomOut className="w-4 h-4" />
                     </Button>
-                    <span className="text-sm min-w-[50px] text-center">
-                      {Math.round(scale * 100)}%
-                    </span>
+                    <Button
+                      variant={autoFit ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={fitToPage}
+                      title="Přizpůsobit stránce (vejde se celá)"
+                      className="text-xs min-w-[55px]"
+                    >
+                      {autoFit ? "Fit" : `${Math.round(scale * 100)}%`}
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -606,6 +664,7 @@ export function FilePreviewDialog({
                 <ImageViewer
                   url={getFileUrl(currentFile)}
                   fileName={currentFile.name}
+                  scale={scale}
                   showHeader={false}
                   onMeta={(m) => setMediaMeta(m)}
                 />

@@ -423,6 +423,12 @@ export const Layout = ({
                         Migrace DB
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/security-checklist" className="flex items-center gap-2 cursor-pointer">
+                        <AlertTriangle className="w-4 h-4" />
+                        Security checklist
+                      </Link>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>}
             </div>

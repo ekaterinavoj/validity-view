@@ -2,12 +2,111 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Table — globální wrapper s podporou sticky horizontálního scrollbaru.
+ * 
+ * Automaticky obaluje tabulku do scrollovatelného kontejneru a navíc
+ * zobrazí přilepený horizontální posuvník dole ve viewportu, pokud je
+ * tabulka mimo zobrazenou oblast (uživatel nemusí skrolovat na konec
+ * tabulky a zpět). Aktivuje se jen při skutečném horizontálním přetečení.
+ */
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-  ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
-      <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
-    </div>
-  ),
+  ({ className, ...props }, ref) => {
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    const proxyRef = React.useRef<HTMLDivElement>(null);
+    const [isOverflowing, setIsOverflowing] = React.useState(false);
+    const [showSticky, setShowSticky] = React.useState(false);
+    const [scrollWidth, setScrollWidth] = React.useState(0);
+    const [containerRect, setContainerRect] = React.useState<DOMRect | null>(null);
+    const isSyncing = React.useRef(false);
+
+    const update = React.useCallback(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      const overflowing = el.scrollWidth > el.clientWidth + 1;
+      setIsOverflowing(overflowing);
+      setScrollWidth(el.scrollWidth);
+      const rect = el.getBoundingClientRect();
+      setContainerRect(rect);
+      const viewportH = window.innerHeight;
+      // Sticky bar: jen pokud je tabulka v dohledu, ale její spodek je pod viewportem
+      setShowSticky(overflowing && rect.bottom > viewportH - 8 && rect.top < viewportH - 40);
+    }, []);
+
+    React.useEffect(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      update();
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      const inner = el.querySelector("table");
+      if (inner) ro.observe(inner);
+      const handler = () => update();
+      window.addEventListener("scroll", handler, { passive: true });
+      window.addEventListener("resize", handler, { passive: true });
+      return () => {
+        ro.disconnect();
+        window.removeEventListener("scroll", handler);
+        window.removeEventListener("resize", handler);
+      };
+    }, [update]);
+
+    const onContentScroll = React.useCallback(() => {
+      if (isSyncing.current) return;
+      const c = containerRef.current;
+      const p = proxyRef.current;
+      if (!c || !p) return;
+      isSyncing.current = true;
+      p.scrollLeft = c.scrollLeft;
+      requestAnimationFrame(() => {
+        isSyncing.current = false;
+      });
+    }, []);
+
+    const onProxyScroll = React.useCallback(() => {
+      if (isSyncing.current) return;
+      const c = containerRef.current;
+      const p = proxyRef.current;
+      if (!c || !p) return;
+      isSyncing.current = true;
+      c.scrollLeft = p.scrollLeft;
+      requestAnimationFrame(() => {
+        isSyncing.current = false;
+      });
+    }, []);
+
+    return (
+      <>
+        <div
+          ref={containerRef}
+          className="relative w-full overflow-auto"
+          onScroll={onContentScroll}
+        >
+          <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
+        </div>
+        {showSticky && containerRect && (
+          <div
+            className="fixed z-40 pointer-events-none"
+            style={{
+              left: `${containerRect.left}px`,
+              width: `${containerRect.width}px`,
+              bottom: 0,
+            }}
+            aria-hidden="true"
+          >
+            <div
+              ref={proxyRef}
+              className="overflow-x-auto pointer-events-auto bg-background/95 backdrop-blur-sm border-t border-border shadow-lg"
+              style={{ height: 14 }}
+              onScroll={onProxyScroll}
+            >
+              <div style={{ width: scrollWidth, height: 1 }} />
+            </div>
+          </div>
+        )}
+      </>
+    );
+  },
 );
 Table.displayName = "Table";
 
