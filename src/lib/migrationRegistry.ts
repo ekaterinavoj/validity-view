@@ -3677,6 +3677,31 @@ SELECT 1;`,
 -- již existuje v src/lib/importValidation.ts a pokrývá všechny moduly.
 SELECT 1;`,
   },
+  {
+    version: "20260424340000",
+    name: "ui_per_module_reminders_and_records_table",
+    sql: `-- UI/edge-only změna – databázové schéma se neupravuje.
+--
+-- 1) Vráceny per-modul nastavení per-záznam upozornění (Školení, PLP, Tech. lhůty)
+--    – komponenta ModuleReminderSettings ukládá konfiguraci do system_settings
+--    pod klíči alert_defaults_trainings / alert_defaults_deadlines /
+--    alert_defaults_medical (enabled, remind_days_before, repeat_days_after).
+--    Tyto hodnoty slouží jako výchozí pro nové záznamy; každý záznam
+--    má vlastní override (sloupce remind_days_before / repeat_days_after
+--    / reminder_template_id) – ten řídí skutečné odesílání v edge funkcích
+--    (run-deadline-reminders, run-medical-reminders, send-training-reminders).
+--
+-- 2) Šablony připomínek nyní podporují proměnnou {{records_table}}, která
+--    se v těle e-mailu nahradí auto-generovanou HTML tabulkou záznamů.
+--    Pokud šablona proměnnou neobsahuje, tabulka se připojí pod tělo
+--    (zachována zpětná kompatibilita).
+--
+-- 3) MissingHeadersAlert – inline UI komponenta zvýrazňující chybějící CSV
+--    hlavičky a očekávané aliasy (BulkEmployeeImport, BulkEquipmentImport).
+--    BulkTrainingImport / BulkMedicalImport / BulkDeadlineImport zobrazují
+--    detailní chybu s výčtem akceptovaných názvů přes formatMissingHeadersMessage.
+SELECT 1;`,
+  },
 ];
 
 /**
