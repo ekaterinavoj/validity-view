@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
 import { checkRequiredHeaders } from "@/lib/importValidation";
+import { MissingHeadersAlert } from "@/components/MissingHeadersAlert";
 
 const REQUIRED_EMPLOYEE_HEADERS: Record<string, string[]> = {
   "Jméno": ["Jméno", "firstName"],
