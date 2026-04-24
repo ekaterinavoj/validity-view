@@ -349,6 +349,12 @@ export const Layout = ({
                 Dokumenty
               </NavLink>
 
+              {/* Návody - visible to all approved users */}
+              <NavLink to="/guides" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
+                <BookOpen className="w-4 h-4" />
+                Návody
+              </NavLink>
+
               {/* Správa dat dropdown - visible to admin/manager */}
               {(isAdmin || isManager) && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -615,6 +621,10 @@ export const Layout = ({
               <Link to="/documents" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/documents" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                 <FolderOpen className="w-4 h-4" />
                 Dokumenty
+              </Link>
+              <Link to="/guides" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/guides" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                <BookOpen className="w-4 h-4" />
+                Návody
               </Link>
             </div>
 

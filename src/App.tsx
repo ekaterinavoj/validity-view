@@ -49,6 +49,7 @@ import Documents from "./pages/Documents";
 import EventTypesOverview from "./pages/EventTypesOverview";
 import MyPermissions from "./pages/MyPermissions";
 import Probations from "./pages/Probations";
+import Guides from "./pages/Guides";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -142,6 +143,7 @@ const App = () => (
             <Route path="/admin/security-checklist" element={<ProtectedLayout requiredRoles={["admin"]}><SecurityChecklist /></ProtectedLayout>} />
             
             <Route path="/documents" element={<ProtectedLayout><Documents /></ProtectedLayout>} />
+            <Route path="/guides" element={<ProtectedLayout><Guides /></ProtectedLayout>} />
             <Route path="/event-types" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><EventTypesOverview /></ProtectedLayout>} />
             <Route path="/no-access" element={<ProtectedRoute><NoAccess /></ProtectedRoute>} />
             

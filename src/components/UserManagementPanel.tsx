@@ -360,12 +360,16 @@ export function UserManagementPanel() {
     doc.text(`Vygenerováno: ${new Date().toLocaleDateString("cs-CZ")}`, 14, 22);
 
     autoTable(doc, {
-      head: [["Jméno", "Email", "Pozice", "Role"]],
+      head: [["Jméno", "Email", "Pozice", "Role", "Stav hesla", "Poslední změna hesla"]],
       body: filteredUsers.map((u) => [
         `${u.first_name} ${u.last_name}`,
         u.email,
         u.position || "",
         u.roles.map(r => roleLabels[r] || r).join(", "),
+        u.must_review_password ? "Nutno zkontrolovat" : "V pořádku",
+        u.password_updated_at
+          ? new Date(u.password_updated_at).toLocaleDateString("cs-CZ")
+          : (u.updated_at ? new Date(u.updated_at).toLocaleDateString("cs-CZ") : ""),
       ]),
       startY: 28,
       styles: { fontSize: 9 },
@@ -589,9 +593,10 @@ export function UserManagementPanel() {
                   <TableHead>Jméno</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Stav</TableHead>
-                  <TableHead>Poslední změna hesla</TableHead>
                   <TableHead>Propojení se zaměstnancem</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Stav hesla</TableHead>
+                  <TableHead>Poslední změna hesla</TableHead>
                   <TableHead>Změnit roli</TableHead>
                   <TableHead className="w-12">Akce</TableHead>
                 </TableRow>
@@ -599,7 +604,7 @@ export function UserManagementPanel() {
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       Žádní uživatelé nenalezeni
                     </TableCell>
                   </TableRow>
@@ -633,31 +638,6 @@ export function UserManagementPanel() {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          <div className="flex flex-col gap-1">
-                            {user.password_updated_at ? (
-                              <span title={new Date(user.password_updated_at).toLocaleString("cs-CZ")}>
-                                {new Date(user.password_updated_at).toLocaleDateString("cs-CZ")}
-                              </span>
-                            ) : user.updated_at ? (
-                              <span title={new Date(user.updated_at).toLocaleString("cs-CZ")}>
-                                {new Date(user.updated_at).toLocaleDateString("cs-CZ")}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground/50">—</span>
-                            )}
-                            {user.must_review_password && (
-                              <Badge
-                                variant="outline"
-                                className="w-fit text-xs border-warning text-warning"
-                                title="Heslo nesplňuje aktuální bezpečnostní pravidla. Uživatel byl vyzván ke změně."
-                              >
-                                <AlertTriangle className="w-3 h-3 mr-1" />
-                                Doporučeno změnit
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
                         <TableCell>
                           {isAdmin ? (
                             <Badge variant="secondary" className="text-xs">
@@ -675,6 +655,40 @@ export function UserManagementPanel() {
                           <Badge className={roleColors[currentRole]}>
                             {roleLabels[currentRole] || currentRole}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {user.must_review_password ? (
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-warning text-warning bg-warning/10"
+                              title="Heslo nesplňuje aktuální bezpečnostní pravidla. Uživatel byl vyzván ke změně."
+                            >
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              Nutno zkontrolovat
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-[hsl(var(--status-valid))] text-[hsl(var(--status-valid))] bg-[hsl(var(--status-valid))]/10"
+                              title="Heslo splňuje aktuální pravidla."
+                            >
+                              <Shield className="w-3 h-3 mr-1" />
+                              V pořádku
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {user.password_updated_at ? (
+                            <span title={new Date(user.password_updated_at).toLocaleString("cs-CZ")}>
+                              {new Date(user.password_updated_at).toLocaleDateString("cs-CZ")}
+                            </span>
+                          ) : user.updated_at ? (
+                            <span title={new Date(user.updated_at).toLocaleString("cs-CZ")}>
+                              {new Date(user.updated_at).toLocaleDateString("cs-CZ")}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/50">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Select
