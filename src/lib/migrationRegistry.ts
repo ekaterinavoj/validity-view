@@ -3077,6 +3077,34 @@ SELECT 1;`,
 -- Žádné databázové změny nejsou potřeba.
 SELECT 1;`,
   },
+  {
+    version: "20260424150000",
+    name: "ui_statistics_test_coverage_and_empty_states",
+    sql: `-- UI-only: rozšíření testovacího pokrytí a hardening empty states pro /statistics.
+-- 1) Vytvořen modul src/lib/statisticsHelpers.ts s čistými helpery:
+--    parseYearFromISO, parseMonthFromISO, isInYear, buildDepartmentLabel,
+--    computeAvgAttempts, formatAvgAttempts, formatStatCount.
+--    Helpery jsou nyní jediným zdrojem pravdy pro:
+--      • parsování roku/měsíce nezávislé na časovém pásmu (tabulky i grafy),
+--      • mapování čitelného popisku oddělení v grafech,
+--      • výpočet průměru pokusů emailů (0 místo 1 při prázdném datasetu).
+-- 2) Statistics.tsx a EmailDeliveryStats.tsx byly refaktorovány tak, aby
+--    používaly tyto helpery — sjednocení parsování dat napříč všemi tabulkami
+--    i grafy (rok, měsíc, filtr, dropdown).
+-- 3) Měsíční přehled (monthlyDistribution) nyní také parsuje měsíc bez
+--    new Date() — odstraněn poslední TZ-citlivý bod na stránce.
+-- 4) Empty state pro prázdný rok: pokud uživatel vybere rok, pro který nejsou
+--    žádná školení, ale jiné roky data mají, zobrazí se nápověda „Zkuste vybrat
+--    jiný rok / Všechny roky" místo generického „přidejte školení".
+-- 5) Přidány vitest unit testy:
+--      • src/test/statistics-regressions.test.ts — pokrývá všechny 3 bugy
+--        z migrace 20260424140000 + parseMonthFromISO TZ edge cases.
+--      • src/test/statistics-route-access.test.ts — pinuje matici
+--        Admin/Manager/User × /statistics tak, aby budoucí změna guardů
+--        v App.tsx / routeAccess.ts neuvolnila přístup pro běžné uživatele.
+-- Žádné databázové změny nejsou potřeba.
+SELECT 1;`,
+  },
 ];
 
 /**
