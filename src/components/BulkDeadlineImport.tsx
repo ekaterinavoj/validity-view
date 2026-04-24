@@ -16,6 +16,10 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ImportDescription } from "@/components/ImportDescription";
+import { MissingHeadersAlert } from "@/components/MissingHeadersAlert";
+import type { MissingHeader } from "@/lib/importValidation";
+
+const HEADER_ERROR_SENTINEL = "__HEADER_VALIDATION_ERROR__";
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import Papa from "papaparse";
 // XLSX removed — bulk import accepts only CSV
@@ -258,6 +262,8 @@ export const BulkDeadlineImport = () => {
   const [deadlineProgress, setDeadlineProgress] = useState(0);
   const [deadlineResult, setDeadlineResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
   const [deadlineErrors, setDeadlineErrors] = useState<string[]>([]);
+  const [equipmentHeaderError, setEquipmentHeaderError] = useState<{ missing: MissingHeader[]; detected: string[] } | null>(null);
+  const [deadlineHeaderError, setDeadlineHeaderError] = useState<{ missing: MissingHeader[]; detected: string[] } | null>(null);
 
   const [settings, setSettings] = useState<ImportSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
