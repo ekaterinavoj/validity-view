@@ -268,7 +268,7 @@ export default function ScheduledDeadlines() {
               Import
             </Button>
           )}
-          <RefreshButton onRefresh={() => refetch()} loading={isLoading} />
+          <RefreshButton onRefresh={async () => { await refetch(); }} loading={isLoading} />
           {canEdit && (
             <Link to="/deadlines/new">
               <Button size="sm">
