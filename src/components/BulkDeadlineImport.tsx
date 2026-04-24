@@ -369,9 +369,12 @@ export const BulkDeadlineImport = () => {
       "Provozovna": ["Provozovna", "facility"],
     });
     if (!headerCheck.ok) {
-      const detail = formatMissingHeadersMessage(headerCheck.missingDetailed);
-      throw new Error(`Chybí povinné sloupce:\n${detail}\n\nStáhněte si vzorovou šablonu.`);
+      setEquipmentHeaderError({ missing: headerCheck.missingDetailed, detected: headerCheck.detected });
+      setEquipmentPreview(null);
+      setShowEquipmentPreview(true);
+      throw new Error(HEADER_ERROR_SENTINEL);
     }
+    setEquipmentHeaderError(null);
 
     // Map Czech column names from exports to English import names
     return rawData.map(row => mapEquipmentRowColumns(row));
@@ -716,9 +719,12 @@ export const BulkDeadlineImport = () => {
       "Datum kontroly": ["Datum kontroly", "last_check_date"],
     });
     if (!headerCheck.ok) {
-      const detail = formatMissingHeadersMessage(headerCheck.missingDetailed);
-      throw new Error(`Chybí povinné sloupce:\n${detail}\n\nStáhněte si vzorovou šablonu.`);
+      setDeadlineHeaderError({ missing: headerCheck.missingDetailed, detected: headerCheck.detected });
+      setDeadlinePreview(null);
+      setShowDeadlinePreview(true);
+      throw new Error(HEADER_ERROR_SENTINEL);
     }
+    setDeadlineHeaderError(null);
 
     // Map Czech column names from exports to English import names
     const mapped = rawData.map(row => mapDeadlineRowColumns(row));
