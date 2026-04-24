@@ -38,6 +38,7 @@ import { SecurityFindings } from "@/components/SecurityFindings";
 import { SecurityAuditPanel } from "@/components/SecurityAuditPanel";
 import { SecurityScanRunner } from "@/components/SecurityScanRunner";
 import { SessionTimeoutSettings } from "@/components/SessionTimeoutSettings";
+import { PasswordPolicySettings } from "@/components/PasswordPolicySettings";
 import { ShieldAlert } from "lucide-react";
 
 import { DisplaySettings } from "@/components/DisplaySettings";
@@ -1368,6 +1369,7 @@ export default function AdminSettings() {
         {/* Security Tab */}
         <TabsContent value="security" className="space-y-6">
           <SessionTimeoutSettings />
+          <PasswordPolicySettings />
           <SecurityScanRunner />
           <SecurityFindings />
           <MigrationsStatus />
