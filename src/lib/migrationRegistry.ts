@@ -3782,6 +3782,32 @@ DROP POLICY IF EXISTS "Users can delete their own training documents" ON storage
 --    na "Export"/"Export PDF" a doplněny tooltipy s formátem souboru.
 SELECT 1;`,
   },
+  {
+    version: "20260424400000",
+    name: "ui_security_hardening_and_sticky_table_scroll",
+    sql: `-- UI / infrastructure-only změny (žádný zásah do DB schématu):
+-- 1) nginx.conf: přidána CSP, HSTS, Permissions-Policy, X-Frame-Options,
+--    rate-limit zóny (auth_zone, api_zone) a limit_conn per IP.
+-- 2) selfhosted-resources/nginx-reverseproxy/frontend a frontend-api:
+--    HTTP→HTTPS redirect, modern TLS (1.2/1.3), HSTS, CSP, OCSP stapling,
+--    a striktní rate-limiting na /auth/v1/(token|signup|recover|otp|magiclink)
+--    s limitem 5 req/min (anti brute-force).
+-- 3) Nová stránka /admin/security-checklist (SecurityChecklist.tsx) —
+--    interaktivní checklist hardeningu (CSP, HSTS, RLS, rate limiting,
+--    secrets rotace, zálohy, audit). Stav je uložen v localStorage,
+--    export do Markdown.
+-- 4) Nová komponenta SecurityScanRunner v Administraci → Bezpečnost —
+--    spouští klientský sken (RLS test, HTTP hlavičky, secrets audit),
+--    ukládá historii posledních 20 běhů s detailem zjištění.
+-- 5) FilePreviewDialog: přidán režim "Fit to page" (auto-scale podle
+--    rozměru dialogu) + manuální zoom controls i pro obrázky.
+-- 6) shadcn/ui Table: globální wrapper s plovoucím horizontálním
+--    scrollbarem přilepeným ke spodku viewportu — uživatel nemusí
+--    skrolovat na konec dlouhých tabulek (100+ řádků), aby viděl
+--    nativní posuvník. Aktivuje se jen při skutečném horizontálním
+--    přetečení a respektuje pozici tabulky v okně.
+SELECT 1;`,
+  },
 ];
 
 /**
