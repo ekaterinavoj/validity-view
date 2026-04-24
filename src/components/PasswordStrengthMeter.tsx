@@ -24,9 +24,9 @@ export function PasswordStrengthMeter({ password, compact = false }: PasswordStr
             className={cn(
               "font-medium",
               evalResult.strength === "very_strong" || evalResult.strength === "strong"
-                ? "text-success"
+                ? "text-[hsl(var(--status-valid-foreground))]"
                 : evalResult.strength === "medium"
-                ? "text-warning"
+                ? "text-warning-foreground"
                 : "text-destructive"
             )}
           >
@@ -47,7 +47,7 @@ export function PasswordStrengthMeter({ password, compact = false }: PasswordStr
           {Object.entries(evalResult.checks).map(([key, check]) => (
             <li key={key} className="flex items-center gap-1.5">
               {check.ok ? (
-                <Check className="h-3.5 w-3.5 text-success" />
+                <Check className="h-3.5 w-3.5 text-[hsl(var(--status-valid-foreground))]" />
               ) : (
                 <X className="h-3.5 w-3.5 text-muted-foreground" />
               )}

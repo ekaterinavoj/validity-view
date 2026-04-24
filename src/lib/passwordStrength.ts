@@ -100,7 +100,7 @@ export function strengthBarClass(s: PasswordStrength): string {
   switch (s) {
     case "very_strong":
     case "strong":
-      return "bg-success";
+      return "bg-[hsl(var(--status-valid))]";
     case "medium":
       return "bg-warning";
     default:
