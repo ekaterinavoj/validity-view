@@ -435,7 +435,7 @@ export function FilePreviewDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
         className="flex flex-col p-0 overflow-hidden sm:max-w-[95vw]"
-        style={mediaMeta ? adaptiveStyle : { width: "min(90vw, 1024px)", height: "90vh" }}
+        style={adaptiveStyle}
         aria-describedby={undefined}
       >
         <DialogHeader className="px-6 py-4 border-b shrink-0">
