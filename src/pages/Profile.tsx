@@ -12,11 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PasswordStrengthMeter } from "@/components/PasswordStrengthMeter";
-import { evaluatePassword, PASSWORD_MIN_LENGTH } from "@/lib/passwordStrength";
+import { evaluatePassword } from "@/lib/passwordStrength";
+import { usePasswordPolicy } from "@/hooks/usePasswordPolicy";
 
 const Profile = () => {
   const { toast } = useToast();
   const { profile, refreshProfile } = useAuth();
+  const { policy } = usePasswordPolicy();
   const [loading, setLoading] = useState(false);
 
   // Změna hesla
@@ -69,7 +71,7 @@ const Profile = () => {
     }
   };
 
-  const passwordEval = evaluatePassword(newPassword);
+  const passwordEval = evaluatePassword(newPassword, policy);
   const canChangePassword =
     passwordEval.meetsMinimum && newPassword === confirmPassword && confirmPassword.length > 0;
 
