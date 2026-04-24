@@ -232,7 +232,11 @@ export function useInactiveEmployees() {
 
       if (fetchError) throw fetchError;
 
-      setEmployees(resolveManagers((data || []).map(mapEmployee)));
+      const mapped = resolveManagers((data || []).map(mapEmployee));
+      setEmployees(mapped);
+      await logEmployeeAccess("inactive_list", mapped.length, {
+        statuses: ["parental_leave", "sick_leave", "terminated"],
+      });
     } catch (err: any) {
       console.error("Error fetching inactive employees:", err);
       setError("Nepodařilo se načíst neaktivní zaměstnance. Zkuste to prosím znovu.");
