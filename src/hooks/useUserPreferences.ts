@@ -26,6 +26,10 @@ export interface UserPreferences {
 
   // Page-specific (synced cross-device)
   probationsCompactMode: boolean; // /probations: hide history tab entirely (no audit query)
+
+  // Notification bell filters (synced cross-device)
+  notificationCategory: "all" | "probation" | "training" | "deadline" | "medical" | "other";
+  notificationOnlyUnread: boolean;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -44,6 +48,8 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   autoRefresh: false,
   autoRefreshInterval: 60,
   probationsCompactMode: false,
+  notificationCategory: "all",
+  notificationOnlyUnread: false,
 };
 
 const getStorageKey = (userId: string | null) => {

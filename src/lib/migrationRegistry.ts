@@ -3514,6 +3514,21 @@ SELECT 1;`,
 --     je již implementován na /probations.
 SELECT 1;`,
   },
+  {
+    version: "20260424235000",
+    name: "notification_filters_cross_device_persistence",
+    sql: `-- UI-only změna (žádné schema):
+--   • NotificationBell filtry (kategorie ZD/Školení/Lhůty/PLP/Ostatní + "Jen nepřečtené")
+--     se nyní ukládají do tabulky public.user_preferences přes useUserPreferences hook,
+--     takže se přenášejí napříč zařízeními.
+--   • Stav nepřečtených notifikací per kategorie je řízen sloupcem notifications.is_read,
+--     který je v DB od počátku — agregace per kategorie probíhá na klientovi z DB záznamů,
+--     takže je konzistentní napříč zařízeními bez nutnosti nové tabulky.
+--   • ZD notifikace (check_probation_period_endings): běží denně přes pg_cron,
+--     generuje 14-denní (info) a 0-denní (warning) notifikace pro adminy a přímého
+--     manažera, s deduplikací per den. Žádná změna není potřeba.
+SELECT 1;`,
+  },
 ];
 
 /**
