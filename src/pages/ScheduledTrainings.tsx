@@ -400,9 +400,8 @@ export default function ScheduledTrainings() {
         }
       }
 
-      const timestamp = format(new Date(), "yyyy-MM-dd");
       downloadTrainingMatrixXLSX({
-        filename: `matice_skoleni_${timestamp}`,
+        filename: buildExportFilename("matice-skoleni").replace(/\.csv$/, ""),
         employees: empRows,
         eventTypes: typeRows,
         entries,

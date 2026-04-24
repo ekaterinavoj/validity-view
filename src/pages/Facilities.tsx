@@ -117,7 +117,7 @@ export default function Facilities() {
         "Stav": f.is_active ? "Aktivní" : "Neaktivní",
       }));
       const timestamp = new Date().toISOString().split('T')[0];
-      exportToCSV({ filename: `provozovny_${timestamp}.csv`, data });
+      exportToCSV({ filename: buildExportFilename("provozovny"), data });
       toast({ title: "Export dokončen", description: `Exportováno ${data.length} provozoven.` });
     } catch (err: any) {
       toast({ title: "Chyba exportu", description: err.message, variant: "destructive" });

@@ -289,12 +289,8 @@ export default function AuditLog() {
         Detail: (formatChangeDetails(log) ?? []).join(" | "),
       }));
 
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, "0");
-      const d = String(today.getDate()).padStart(2, "0");
       exportToCSV({
-        filename: `audit-log_${y}-${m}-${d}.csv`,
+        filename: buildExportFilename("audit-log"),
         data: rows,
       });
 

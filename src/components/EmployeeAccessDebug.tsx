@@ -175,7 +175,7 @@ export function EmployeeAccessDebug() {
     }
     try {
       exportToCSV({
-        filename: `employee-access-logs-${new Date().toISOString().slice(0, 10)}.csv`,
+        filename: buildExportFilename("logy-pristupu-zamestnanci"),
         data: filteredLogs.map((log) => ({
           cas: formatDisplayDateTime(log.created_at),
           uzivatel: log.user_email ?? "",

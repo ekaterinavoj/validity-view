@@ -195,7 +195,7 @@ export default function Probations() {
     }
     try {
       exportToCSV({
-        filename: `zkusebni-doby_${filterLabel[windowFilter]}_${new Date().toISOString().slice(0, 10)}`,
+        filename: buildExportFilename(`zkusebni-doby-${filterLabel[windowFilter]}`),
         data: exportRows,
       });
     } catch (e: any) {

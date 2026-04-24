@@ -460,9 +460,8 @@ export default function Statistics() {
       allData.push({ "SEKCE": "PROVOZOVNY" });
       facilityData.forEach(row => allData.push(row));
 
-      const timestamp = new Date().toISOString().split('T')[0];
       exportToCSV({
-        filename: `statistiky_${timestamp}.csv`,
+        filename: buildExportFilename("statistiky"),
         data: allData,
       });
 

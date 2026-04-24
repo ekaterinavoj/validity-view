@@ -108,7 +108,7 @@ export function SecurityAuditPanel() {
       return;
     }
     exportToCSV({
-      filename: `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`,
+      filename: buildExportFilename("audit-log"),
       data: rows.map((r) => ({
         cas: formatDisplayDateTime(r.created_at),
         akce: r.action,

@@ -131,7 +131,7 @@ export default function TrainingTypes() {
         "Popis": t.description || "",
       }));
       const timestamp = new Date().toISOString().split('T')[0];
-      exportToCSV({ filename: `typy_skoleni_${timestamp}.csv`, data });
+      exportToCSV({ filename: buildExportFilename("typy-skoleni"), data });
       toast({ title: "Export dokončen", description: `Exportováno ${data.length} typů.` });
     } catch (err: any) {
       toast({ title: "Chyba exportu", description: err.message, variant: "destructive" });

@@ -83,8 +83,7 @@ export default function Departments() {
         "Číslo střediska": d.code,
         "Název": d.name || "",
       }));
-      const timestamp = new Date().toISOString().split('T')[0];
-      exportToCSV({ filename: `strediska_${timestamp}.csv`, data });
+      exportToCSV({ filename: buildExportFilename("strediska"), data });
       toast({ title: "Export dokončen", description: `Exportováno ${data.length} středisek.` });
     } catch (err: any) {
       toast({ title: "Chyba exportu", description: err.message, variant: "destructive" });
