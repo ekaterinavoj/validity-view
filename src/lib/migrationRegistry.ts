@@ -3477,6 +3477,20 @@ CREATE TRIGGER trg_user_preferences_updated_at
 -- Žádná změna databázového schématu (využívá stávající related_entity_type='probation_period').
 SELECT 1;`,
   },
+  {
+    version: "20260424220000",
+    name: "notification_filter_and_hierarchy_tree_filter",
+    sql: `-- UI-only změny:
+--   • NotificationBell: filtr podle kategorie (ZD / Školení / Lhůty / PLP / Ostatní)
+--     + přepínač „jen nepřečtené"; badge počtů per kategorie z lokálních dat.
+--   • EmployeeHierarchyTree: skrývá zaměstnance se status='terminated' a „povyšuje"
+--     jejich podřízené pod nejbližšího aktivního manažera (řetězení nahoru).
+--     Plochý přehled zaměstnanců (status='all'/'terminated') zůstává nezměněn –
+--     bývalý nadřízený je tedy stále vidí v seznamu (RLS: is_manager_of dle
+--     manager_employee_id, který se při ukončení nemaže).
+-- Žádná změna databázového schématu.
+SELECT 1;`,
+  },
 ];
 
 /**

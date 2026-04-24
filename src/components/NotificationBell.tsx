@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Check, Trash2, X } from "lucide-react";
+import { Bell, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -9,6 +9,9 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -29,14 +32,36 @@ interface Notification {
   user_id: string;
 }
 
+type FilterCategory = "all" | "probation" | "training" | "deadline" | "medical" | "other";
+
+const CATEGORY_LABELS: Record<FilterCategory, string> = {
+  all: "Vše",
+  probation: "ZD",
+  training: "Školení",
+  deadline: "Lhůty",
+  medical: "PLP",
+  other: "Ostatní",
+};
+
+/** Mapuje related_entity_type na kategorii filtru. */
+function categorize(n: Notification): FilterCategory {
+  const t = n.related_entity_type ?? "";
+  if (t === "probation_period" || t === "probation_ending") return "probation";
+  if (t === "training") return "training";
+  if (t === "deadline") return "deadline";
+  if (t === "medical_examination" || t === "plp") return "medical";
+  return "other";
+}
+
 export function NotificationBell() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState<FilterCategory>("all");
+  const [onlyUnread, setOnlyUnread] = useState(false);
 
   // Mapování notifikací na cílové URL podle related_entity_type
   const getNotificationLink = (n: Notification): string | null => {
@@ -46,7 +71,6 @@ export function NotificationBell() {
     switch (t) {
       case "probation_period":
       case "probation_ending":
-        // Cílí přímo na editaci zaměstnance v sekci ZD
         return id ? `/employees?edit=${id}&focus=probation` : "/probations";
       case "employee_age_50":
         return id ? `/employees?edit=${id}` : "/employees";
@@ -85,7 +109,6 @@ export function NotificationBell() {
       if (error) throw error;
       
       setNotifications(data || []);
-      setUnreadCount(data?.filter(n => !n.is_read).length || 0);
     } catch (error) {
       console.error("Error fetching notifications:", error);
     }
@@ -95,7 +118,6 @@ export function NotificationBell() {
     if (user) {
       fetchNotifications();
 
-      // Subscribe to new notifications
       const channel = supabase
         .channel("notifications")
         .on(
@@ -109,9 +131,7 @@ export function NotificationBell() {
           (payload) => {
             const newNotification = payload.new as Notification;
             setNotifications(prev => [newNotification, ...prev]);
-            setUnreadCount(prev => prev + 1);
             
-            // Show toast for new notification
             toast({
               title: newNotification.title,
               description: newNotification.message,
@@ -124,6 +144,7 @@ export function NotificationBell() {
         supabase.removeChannel(channel);
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const markAsRead = async (id: string) => {
@@ -138,30 +159,32 @@ export function NotificationBell() {
       setNotifications(prev =>
         prev.map(n => (n.id === id ? { ...n, is_read: true } : n))
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
   };
 
+  /** Označit jako přečtené – jen v aktuálně viditelném filtru. */
   const markAllAsRead = async () => {
     if (!user) return;
     setLoading(true);
-    
+
     try {
+      const targetIds = filtered.filter(n => !n.is_read).map(n => n.id);
+      if (targetIds.length === 0) return;
+
       const { error } = await supabase
         .from("notifications")
         .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq("user_id", user.id)
-        .eq("is_read", false);
+        .in("id", targetIds);
 
       if (error) throw error;
 
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
-      
+      const idSet = new Set(targetIds);
+      setNotifications(prev => prev.map(n => idSet.has(n.id) ? { ...n, is_read: true } : n));
+
       toast({
-        title: "Oznámení označena jako přečtená",
+        title: `Označeno jako přečtené (${targetIds.length})`,
       });
     } catch (error: any) {
       toast({
@@ -176,8 +199,6 @@ export function NotificationBell() {
 
   const deleteNotification = async (id: string) => {
     try {
-      const notification = notifications.find(n => n.id === id);
-      
       const { error } = await supabase
         .from("notifications")
         .delete()
@@ -186,46 +207,53 @@ export function NotificationBell() {
       if (error) throw error;
 
       setNotifications(prev => prev.filter(n => n.id !== id));
-      if (notification && !notification.is_read) {
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
     } catch (error) {
       console.error("Error deleting notification:", error);
     }
   };
 
-  const getNotificationTypeColor = (type: string) => {
-    switch (type) {
-      case "warning":
-        return "bg-yellow-500/10 border-yellow-500/30 text-yellow-700 dark:text-yellow-400";
-      case "error":
-        return "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400";
-      case "success":
-        return "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400";
-      default:
-        return "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400";
+  // Counts per category (na všech datech, ne jen filtru)
+  const unreadByCategory = useMemo(() => {
+    const counts: Record<FilterCategory, number> = {
+      all: 0, probation: 0, training: 0, deadline: 0, medical: 0, other: 0,
+    };
+    for (const n of notifications) {
+      if (n.is_read) continue;
+      counts.all++;
+      counts[categorize(n)]++;
     }
-  };
+    return counts;
+  }, [notifications]);
+
+  const filtered = useMemo(() => {
+    return notifications.filter(n => {
+      if (category !== "all" && categorize(n) !== category) return false;
+      if (onlyUnread && n.is_read) return false;
+      return true;
+    });
+  }, [notifications, category, onlyUnread]);
+
+  const totalUnread = unreadByCategory.all;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
+          {totalUnread > 0 && (
             <Badge
               variant="destructive"
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
             >
-              {unreadCount > 9 ? "9+" : unreadCount}
+              {totalUnread > 9 ? "9+" : totalUnread}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-96 p-0" align="end">
+      <PopoverContent className="w-[420px] p-0" align="end">
         <div className="flex items-center justify-between p-4 border-b">
           <h4 className="font-semibold">Oznámení</h4>
-          {unreadCount > 0 && (
+          {filtered.some(n => !n.is_read) && (
             <Button
               variant="ghost"
               size="sm"
@@ -233,20 +261,47 @@ export function NotificationBell() {
               disabled={loading}
             >
               <Check className="h-4 w-4 mr-1" />
-              Označit vše
+              Označit zobrazené
             </Button>
           )}
         </div>
-        
+
+        <div className="px-3 pt-3 pb-2 border-b space-y-2">
+          <Tabs value={category} onValueChange={(v) => setCategory(v as FilterCategory)}>
+            <TabsList className="grid grid-cols-6 h-auto">
+              {(Object.keys(CATEGORY_LABELS) as FilterCategory[]).map((c) => (
+                <TabsTrigger key={c} value={c} className="text-xs px-1 py-1.5 relative">
+                  {CATEGORY_LABELS[c]}
+                  {unreadByCategory[c] > 0 && (
+                    <span className="ml-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] rounded-full bg-primary text-primary-foreground">
+                      {unreadByCategory[c]}
+                    </span>
+                  )}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <div className="flex items-center justify-between px-1">
+            <Label htmlFor="only-unread" className="text-xs text-muted-foreground cursor-pointer">
+              Jen nepřečtené
+            </Label>
+            <Switch
+              id="only-unread"
+              checked={onlyUnread}
+              onCheckedChange={setOnlyUnread}
+            />
+          </div>
+        </div>
+
         <ScrollArea className="h-[400px]">
-          {notifications.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Žádná oznámení</p>
+              <p>{onlyUnread || category !== "all" ? "Žádná oznámení v tomto filtru" : "Žádná oznámení"}</p>
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map((notification) => {
+              {filtered.map((notification) => {
                 const link = getNotificationLink(notification);
                 return (
                 <div
