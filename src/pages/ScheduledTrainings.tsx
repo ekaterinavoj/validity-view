@@ -543,6 +543,7 @@ export default function ScheduledTrainings() {
           onSaveFilters={saveCurrentFilters}
           onLoadFilter={loadSavedFilter}
           onDeleteFilter={deleteSavedFilter}
+        onSetDefaultFilter={setDefaultFilter}
           savedFilters={savedFilters}
           hasActiveFilters={hasActiveFilters}
           departments={departments}

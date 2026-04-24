@@ -393,6 +393,7 @@ export default function ScheduledExaminations() {
         onSaveFilters={saveCurrentFilters}
         onLoadFilter={loadSavedFilter}
         onDeleteFilter={deleteSavedFilter}
+        onSetDefaultFilter={setDefaultFilter}
         facilities={facilities}
         departments={departments}
         trainingTypes={examinationTypes}

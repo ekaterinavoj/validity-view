@@ -291,6 +291,7 @@ export default function ScheduledDeadlines() {
         onSaveFilters={saveCurrentFilters}
         onLoadFilter={loadSavedFilter}
         onDeleteFilter={deleteSavedFilter}
+        onSetDefaultFilter={setDefaultFilter}
         savedFilters={savedFilters}
         hasActiveFilters={hasActiveFilters}
         departments={[]}

@@ -320,6 +320,7 @@ export default function DeadlineHistory() {
         onSaveFilters={saveCurrentFilters}
         onLoadFilter={loadSavedFilter}
         onDeleteFilter={deleteSavedFilter}
+        onSetDefaultFilter={setDefaultFilter}
         savedFilters={savedFilters}
         hasActiveFilters={hasActiveFilters}
         departments={[]}
