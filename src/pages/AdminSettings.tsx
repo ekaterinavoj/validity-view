@@ -517,6 +517,9 @@ export default function AdminSettings() {
             onDeadlineRecipientsChange={(r) => setDeadlineRecipients(r)}
           />
 
+          {/* Per-module per-record alert defaults */}
+          <ModuleReminderSettings />
+
           {/*
             ⚠️ Souhrnné (weekly) připomínky byly skryty.
             Aplikace nyní používá pouze per-záznam připomínky podle modulu.
