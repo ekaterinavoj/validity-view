@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Lock } from "lucide-react";
 import { z } from "zod";
 import companyLogo from "@/assets/company-logo.png";
+import { consumeIdleLogoutFlag } from "@/hooks/useSessionTimeout";
 
 const loginSchema = z.object({
   email: z.string().email("Neplatný email"),
@@ -17,6 +18,7 @@ const loginSchema = z.object({
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, signIn } = useAuth();
   const { toast } = useToast();
 
@@ -30,6 +32,18 @@ export default function Auth() {
       navigate("/");
     }
   }, [user, navigate]);
+
+  // Show one-time message when redirected here by idle auto-logout
+  useEffect(() => {
+    const fromIdle = consumeIdleLogoutFlag() || searchParams.get("reason") === "idle";
+    if (fromIdle) {
+      toast({
+        title: "Byli jste odhlášeni",
+        description: "Z důvodu neaktivity bylo vaše přihlášení ukončeno.",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

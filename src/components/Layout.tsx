@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./NotificationBell";
 import { getModuleFromPath } from "@/lib/routeModuleMap";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -28,6 +29,9 @@ export const Layout = ({
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Auto-logout on inactivity (configurable in Admin Settings → system_settings.session_timeout)
+  useSessionTimeout();
 
   // Check module access
   const canAccessTrainings = hasModuleAccess("trainings");
