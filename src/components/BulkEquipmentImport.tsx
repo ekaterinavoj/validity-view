@@ -570,6 +570,10 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Header validation error */}
+            {headerError && (
+              <MissingHeadersAlert missing={headerError.missing} detected={headerError.detected} />
+            )}
             <ImportDescription
               requiredColumns={[
                 { name: "Inv. číslo", description: "inventární číslo zařízení (unikátní identifikátor)" },
