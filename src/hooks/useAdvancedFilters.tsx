@@ -78,6 +78,8 @@ export function useAdvancedFilters(storageKey: string = "training-filters") {
         const processed = parsed.map((filter: SavedFilter) => ({
           ...filter,
           filters: {
+            // Ensure new optional fields default to "all" for backward compatibility
+            ...DEFAULT_FILTERS,
             ...filter.filters,
             dateFrom: filter.filters.dateFrom ? new Date(filter.filters.dateFrom) : undefined,
             dateTo: filter.filters.dateTo ? new Date(filter.filters.dateTo) : undefined,
