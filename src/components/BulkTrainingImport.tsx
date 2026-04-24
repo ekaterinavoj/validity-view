@@ -876,7 +876,7 @@ export const BulkTrainingImport = () => {
     }
   };
 
-  const exportErrors = (format: 'xlsx' | 'csv') => {
+  const exportErrors = () => {
     if (!preview || preview.errorRows.length === 0) {
       toast({
         title: "Žádné chyby",
