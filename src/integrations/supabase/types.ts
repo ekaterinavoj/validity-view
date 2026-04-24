@@ -530,6 +530,9 @@ export type Database = {
           manager_employee_id: string | null
           notes: string | null
           position: string
+          probation_end_date: string | null
+          probation_months: number | null
+          start_date: string | null
           status: string
           status_start_date: string | null
           termination_date: string | null
@@ -548,6 +551,9 @@ export type Database = {
           manager_employee_id?: string | null
           notes?: string | null
           position: string
+          probation_end_date?: string | null
+          probation_months?: number | null
+          start_date?: string | null
           status: string
           status_start_date?: string | null
           termination_date?: string | null
@@ -566,6 +572,9 @@ export type Database = {
           manager_employee_id?: string | null
           notes?: string | null
           position?: string
+          probation_end_date?: string | null
+          probation_months?: number | null
+          start_date?: string | null
           status?: string
           status_start_date?: string | null
           termination_date?: string | null
@@ -1772,6 +1781,7 @@ export type Database = {
         Args: { _examination_id: string; _user_id: string }
         Returns: boolean
       }
+      check_probation_period_endings: { Args: never; Returns: Json }
       debug_employee_visibility: {
         Args: { _target_user_id: string }
         Returns: {
@@ -1855,6 +1865,7 @@ export type Database = {
         Args: { _target_employee_id: string; _user_id: string }
         Returns: boolean
       }
+      is_managerial_position: { Args: { _position: string }; Returns: boolean }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
       log_realtime_denied: {
         Args: { _reason: string; _topic: string }
