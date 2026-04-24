@@ -280,15 +280,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      return { error: error ?? null };
-    } catch (error: any) {
-      return { error };
+    // Retry logic for transient server errors (500, network issues) — common on selfhosted
+    // after long idle periods or backend restarts.
+    const MAX_ATTEMPTS = 3;
+    const BASE_DELAY_MS = 700;
+    let lastError: any = null;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (!error) {
+          if (attempt > 1) {
+            console.log(`[AuthContext] signIn succeeded on attempt ${attempt}`);
+          }
+          return { error: null };
+        }
+
+        lastError = error;
+
+        // Decide if error is retryable. Don't retry credentials/validation errors.
+        const status = (error as any)?.status ?? 0;
+        const message = (error?.message ?? "").toLowerCase();
+        const isRetryable =
+          status >= 500 ||
+          status === 0 ||
+          status === 408 ||
+          status === 429 ||
+          message.includes("database error") ||
+          message.includes("granting user") ||
+          message.includes("network") ||
+          message.includes("fetch") ||
+          message.includes("timeout") ||
+          message.includes("unexpected_failure");
+
+        if (!isRetryable || attempt === MAX_ATTEMPTS) {
+          return { error };
+        }
+
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        console.warn(
+          `[AuthContext] signIn attempt ${attempt} failed (status=${status}): ${error.message}. Retrying in ${delay}ms...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } catch (error: any) {
+        lastError = error;
+        if (attempt === MAX_ATTEMPTS) return { error };
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        console.warn(
+          `[AuthContext] signIn attempt ${attempt} threw: ${error?.message}. Retrying in ${delay}ms...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
+
+    return { error: lastError };
   };
 
   const signUp = async (
