@@ -494,10 +494,10 @@ export function ModuleRecipientsSelector({
           if (!showManagerWarning && !showResponsibleWarning) return null;
 
           return (
-            <div className="p-3 bg-warning/10 border border-warning/30 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-warning mt-0.5" />
-              <div className="text-sm text-warning-foreground space-y-1">
-                <p className="font-medium text-foreground">Diagnostika nastavení příjemců</p>
+            <div className="p-3 bg-status-warning/10 border border-status-warning/30 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-status-warning-foreground mt-0.5" />
+              <div className="text-sm text-foreground space-y-1">
+                <p className="font-medium">Diagnostika nastavení příjemců</p>
                 {showManagerWarning && (
                   <p>
                     Notifikace nadřízeným je zapnutá, ale v systému není žádný uživatel s rolí <strong>Manažer</strong>. E-maily nadřízeným nebudou odeslány.
