@@ -600,12 +600,14 @@ export function FilePreviewDialog({
                   scale={scale}
                   viewMode={viewMode}
                   showHeader={false}
+                  onFirstPageMeta={(m) => setMediaMeta(m)}
                 />
               ) : isFileImage(currentFile) ? (
                 <ImageViewer
                   url={getFileUrl(currentFile)}
                   fileName={currentFile.name}
                   showHeader={false}
+                  onMeta={(m) => setMediaMeta(m)}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-32 space-y-2">
