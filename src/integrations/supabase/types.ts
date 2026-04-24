@@ -1113,6 +1113,47 @@ export type Database = {
         }
         Relationships: []
       }
+      probation_obstacles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date_from: string
+          date_to: string
+          employee_id: string
+          id: string
+          reason: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date_from: string
+          date_to: string
+          employee_id: string
+          id?: string
+          reason: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date_from?: string
+          date_to?: string
+          employee_id?: string
+          id?: string
+          reason?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "probation_obstacles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           approval_status: string
@@ -1784,6 +1825,10 @@ export type Database = {
         Args: { _examination_id: string; _user_id: string }
         Returns: boolean
       }
+      can_view_employee: {
+        Args: { _employee_id: string; _user_id: string }
+        Returns: boolean
+      }
       check_probation_period_endings: { Args: never; Returns: Json }
       debug_employee_visibility: {
         Args: { _target_user_id: string }
@@ -1881,6 +1926,10 @@ export type Database = {
           _target_user_id: string
         }
         Returns: undefined
+      }
+      sum_probation_obstacle_days: {
+        Args: { _employee_id: string }
+        Returns: number
       }
     }
     Enums: {
