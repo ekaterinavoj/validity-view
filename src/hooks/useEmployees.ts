@@ -1,6 +1,40 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Logs an access event for the employees table (best-effort, never throws).
+ * Captures user role + filter context for security auditing.
+ */
+async function logEmployeeAccess(
+  action: "list" | "detail" | "inactive_list" | "export",
+  rowsReturned: number,
+  filters: Record<string, unknown>,
+) {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData?.user;
+    if (!user) return;
+
+    const { data: rolesData } = await supabase.rpc("get_user_roles", {
+      _user_id: user.id,
+    });
+    const role = Array.isArray(rolesData) && rolesData.length > 0 ? rolesData[0] : "user";
+
+    await supabase.from("employee_access_logs").insert({
+      user_id: user.id,
+      user_email: user.email ?? null,
+      user_role: role,
+      action,
+      rows_returned: rowsReturned,
+      filters,
+      source: "web",
+    });
+  } catch (err) {
+    // Never block the UI on audit failure
+    console.warn("employee_access_logs insert failed", err);
+  }
+}
+
 export interface EmployeeWithDepartment {
   id: string;
   employeeNumber: string;
