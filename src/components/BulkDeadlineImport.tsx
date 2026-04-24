@@ -354,6 +354,18 @@ export const BulkDeadlineImport = () => {
       throw new Error("Nepodporovaný formát souboru. Použijte CSV.");
     }
 
+    // Header validation
+    const headers = rawData.length > 0 ? Object.keys(rawData[0]) : [];
+    const { checkRequiredHeaders } = await import("@/lib/importValidation");
+    const headerCheck = checkRequiredHeaders(headers, {
+      "Inventární číslo": ["Inventární číslo", "inventory_number"],
+      "Název": ["Název", "name"],
+      "Provozovna": ["Provozovna", "facility"],
+    });
+    if (!headerCheck.ok) {
+      throw new Error(`Chybí povinné sloupce: ${headerCheck.missing.join(", ")}. Stáhněte si vzorovou šablonu.`);
+    }
+
     // Map Czech column names from exports to English import names
     return rawData.map(row => mapEquipmentRowColumns(row));
   };
