@@ -8,7 +8,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEmployees } from "@/hooks/useEmployees";
 import { ProbationBadge } from "@/components/ProbationBadge";
 import { DepartmentCell } from "@/components/DepartmentCell";
-import { Search, X, ClipboardList, Bell, Info, Download, FileText, History } from "lucide-react";
+import { Search, X, ClipboardList, Bell, Info, Download, FileText, History, LayoutList, Layers } from "lucide-react";
+import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
@@ -66,6 +67,18 @@ export default function Probations() {
   const [windowFilter, setWindowFilter] = useState<WindowFilter>("ending_30");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"list" | "history">("list");
+  // Compact mode = jen přehled bez záložek (uloženo v localStorage)
+  const [compactMode, setCompactMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("probations-compact-mode") === "1";
+  });
+  const toggleCompact = (next: boolean) => {
+    setCompactMode(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("probations-compact-mode", next ? "1" : "0");
+    }
+    if (next) setTab("list");
+  };
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
@@ -220,17 +233,43 @@ export default function Probations() {
             nadřízeného.
           </>
         }
+        actions={
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Toggle
+                  pressed={compactMode}
+                  onPressedChange={toggleCompact}
+                  aria-label="Přepnout zobrazení bez záložek"
+                  size="sm"
+                  variant="outline"
+                  className="h-9"
+                >
+                  {compactMode ? <LayoutList className="h-4 w-4 mr-1" /> : <Layers className="h-4 w-4 mr-1" />}
+                  <span className="text-xs">{compactMode ? "Jen přehled" : "S historií"}</span>
+                </Toggle>
+              </TooltipTrigger>
+              <TooltipContent>
+                {compactMode
+                  ? "Záložka Historie změn je skrytá. Klikněte pro obnovení obou záložek."
+                  : "Skrýt záložku Historie změn pro rychlé použití."}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        }
       />
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "list" | "history")}>
-        <TabsList>
-          <TabsTrigger value="list">
-            <ClipboardList className="h-4 w-4 mr-1" /> Přehled
-          </TabsTrigger>
-          <TabsTrigger value="history">
-            <History className="h-4 w-4 mr-1" /> Historie změn
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={compactMode ? "list" : tab} onValueChange={(v) => setTab(v as "list" | "history")}>
+        {!compactMode && (
+          <TabsList>
+            <TabsTrigger value="list">
+              <ClipboardList className="h-4 w-4 mr-1" /> Přehled
+            </TabsTrigger>
+            <TabsTrigger value="history">
+              <History className="h-4 w-4 mr-1" /> Historie změn
+            </TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value="list" className="space-y-4">
           <Card className="p-4">

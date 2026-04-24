@@ -45,12 +45,14 @@ function PDFViewer({
   scale, 
   viewMode,
   showHeader = false,
+  onFirstPageMeta,
 }: { 
   url: string; 
   fileName: string; 
   scale: number; 
   viewMode: ViewMode;
   showHeader?: boolean;
+  onFirstPageMeta?: (meta: { width: number; height: number }) => void;
 }) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
@@ -64,6 +66,17 @@ function PDFViewer({
   const onDocumentLoadError = useCallback(() => {
     setPdfError(true);
   }, []);
+
+  const handlePageLoadSuccess = useCallback(
+    (page: any) => {
+      // Native page units (PDF points). Pass to parent only on first page.
+      if (page?.pageNumber === 1 && onFirstPageMeta) {
+        const viewport = page.getViewport({ scale: 1 });
+        onFirstPageMeta({ width: viewport.width, height: viewport.height });
+      }
+    },
+    [onFirstPageMeta],
+  );
 
   const pageNumbers = useMemo(() => {
     return Array.from({ length: numPages }, (_, i) => i + 1);
@@ -106,6 +119,7 @@ function PDFViewer({
               scale={scale}
               renderTextLayer={true}
               renderAnnotationLayer={true}
+              onLoadSuccess={handlePageLoadSuccess}
             />
             {numPages > 1 && (
               <div className="flex items-center gap-2">
@@ -143,6 +157,7 @@ function PDFViewer({
                   scale={scale}
                   renderTextLayer={true}
                   renderAnnotationLayer={true}
+                  onLoadSuccess={page === 1 ? handlePageLoadSuccess : undefined}
                 />
               </div>
             ))}
@@ -154,7 +169,17 @@ function PDFViewer({
 }
 
 // Single Image Viewer Component
-function ImageViewer({ url, fileName, showHeader = false }: { url: string; fileName: string; showHeader?: boolean }) {
+function ImageViewer({
+  url,
+  fileName,
+  showHeader = false,
+  onMeta,
+}: {
+  url: string;
+  fileName: string;
+  showHeader?: boolean;
+  onMeta?: (meta: { width: number; height: number }) => void;
+}) {
   const [error, setError] = useState(false);
 
   if (error) {
@@ -177,8 +202,12 @@ function ImageViewer({ url, fileName, showHeader = false }: { url: string; fileN
         <img
           src={url}
           alt={fileName}
-          className="max-w-full max-h-[500px] object-contain rounded"
+          className="max-w-full max-h-[80vh] object-contain rounded"
           onError={() => setError(true)}
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            onMeta?.({ width: img.naturalWidth, height: img.naturalHeight });
+          }}
         />
       </div>
     </div>
@@ -199,6 +228,8 @@ export function FilePreviewDialog({
   const [scale, setScale] = useState<number>(1.0);
   const [viewMode, setViewMode] = useState<ViewMode>(preferences.pdfViewMode || "scroll");
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
+  // Native dimensions of currently shown media – used to adapt dialog size.
+  const [mediaMeta, setMediaMeta] = useState<{ width: number; height: number } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Determine files to show
@@ -238,8 +269,14 @@ export function FilePreviewDialog({
       setError(null);
       setCurrentDocIndex(0);
       setViewMode(preferences.pdfViewMode || "scroll");
+      setMediaMeta(null);
     }
   }, [open, preferences.pdfViewMode]);
+
+  // Reset measured size whenever the user switches between files
+  useEffect(() => {
+    setMediaMeta(null);
+  }, [currentDocIndex]);
 
   // Load URLs for all files
   useEffect(() => {
@@ -362,6 +399,30 @@ export function FilePreviewDialog({
     contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Compute adaptive dialog dimensions based on the underlying media's aspect ratio.
+  // - PDFs: viewport.width/height in points (A4 portrait ≈ 595×842, landscape ≈ 842×595).
+  // - Images: natural pixel dimensions.
+  // We constrain the dialog to fit the viewport while preserving aspect ratio so portrait
+  // documents render narrower (no wasted side-space) and landscape/wide images render wider.
+  const adaptiveStyle = useMemo<React.CSSProperties>(() => {
+    if (typeof window === "undefined") return {};
+    if (!mediaMeta || mediaMeta.width <= 0 || mediaMeta.height <= 0) {
+      return { width: "min(90vw, 1024px)", height: "90vh" };
+    }
+    const aspect = mediaMeta.width / mediaMeta.height;
+    const maxH = Math.round(window.innerHeight * 0.92);
+    const maxW = Math.round(window.innerWidth * 0.95);
+    const minW = 480;
+    const contentH = maxH - 140; // header + padding budget
+    let targetW = Math.round(contentH * aspect) + 64; // + horizontal padding
+    targetW = Math.min(Math.max(targetW, minW), maxW);
+    return {
+      width: `${targetW}px`,
+      maxWidth: `${maxW}px`,
+      height: `${maxH}px`,
+    };
+  }, [mediaMeta]);
+
   if (!open) return null;
 
   const currentFile = allFiles[currentDocIndex];
@@ -369,9 +430,14 @@ export function FilePreviewDialog({
     ? `Dokument ${currentDocIndex + 1} z ${allFiles.length}` 
     : (allFiles[0]?.name || "Dokument");
 
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden" aria-describedby={undefined}>
+      <DialogContent
+        className="flex flex-col p-0 overflow-hidden sm:max-w-[95vw]"
+        style={adaptiveStyle}
+        aria-describedby={undefined}
+      >
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between pr-8">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -534,12 +600,14 @@ export function FilePreviewDialog({
                   scale={scale}
                   viewMode={viewMode}
                   showHeader={false}
+                  onFirstPageMeta={(m) => setMediaMeta(m)}
                 />
               ) : isFileImage(currentFile) ? (
                 <ImageViewer
                   url={getFileUrl(currentFile)}
                   fileName={currentFile.name}
                   showHeader={false}
+                  onMeta={(m) => setMediaMeta(m)}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-32 space-y-2">
