@@ -12,6 +12,14 @@ import Papa from 'papaparse';
 import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
+import { checkRequiredHeaders } from "@/lib/importValidation";
+
+const REQUIRED_EMPLOYEE_HEADERS: Record<string, string[]> = {
+  "Jméno": ["Jméno", "firstName"],
+  "Příjmení": ["Příjmení", "lastName"],
+  "Email": ["Email", "email"],
+  "Pozice": ["Pozice", "position"],
+};
 
 const employeeSchema = z.object({
   firstName: z.string().min(1, "Jméno je povinné").max(100),
