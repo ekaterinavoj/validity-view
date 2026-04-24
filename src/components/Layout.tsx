@@ -349,6 +349,12 @@ export const Layout = ({
                 Dokumenty
               </NavLink>
 
+              {/* Návody - visible to all approved users */}
+              <NavLink to="/guides" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
+                <BookOpen className="w-4 h-4" />
+                Návody
+              </NavLink>
+
               {/* Správa dat dropdown - visible to admin/manager */}
               {(isAdmin || isManager) && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
