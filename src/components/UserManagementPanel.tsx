@@ -372,7 +372,7 @@ export function UserManagementPanel() {
       headStyles: { fillColor: [59, 130, 246] },
     });
 
-    doc.save(`uzivatele_${new Date().toISOString().split("T")[0]}.pdf`);
+    doc.save(buildExportFilename("uzivatele").replace(/\.csv$/, ".pdf"));
     toast({ title: "Export úspěšný", description: `Exportováno ${filteredUsers.length} uživatelů.` });
   };
 
