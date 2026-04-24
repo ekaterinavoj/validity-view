@@ -52,6 +52,8 @@ interface UserProfile {
   approval_status?: string;
   updated_at?: string; // From auth - indicates last password change
   created_at?: string; // From auth
+  must_review_password?: boolean;
+  password_updated_at?: string | null;
 }
 
 const roleLabels: Record<string, string> = {
@@ -167,12 +169,14 @@ export function UserManagementPanel() {
         }
       }
 
-      const usersWithRoles: UserProfile[] = (profilesData || []).map((p) => ({
+      const usersWithRoles: UserProfile[] = (profilesData || []).map((p: any) => ({
         ...p,
         roles: rolesMap.get(p.id) || [],
         approval_status: p.approval_status,
         updated_at: authUsersMap[p.id]?.updated_at,
         created_at: authUsersMap[p.id]?.created_at,
+        must_review_password: p.must_review_password ?? false,
+        password_updated_at: p.password_updated_at ?? null,
       }));
 
       setUsers(usersWithRoles);
@@ -376,6 +380,11 @@ export function UserManagementPanel() {
     return { total, admins, managers, users: regularUsers };
   }, [users]);
 
+  const passwordsToReviewCount = useMemo(
+    () => users.filter((u) => u.must_review_password).length,
+    [users]
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -430,6 +439,28 @@ export function UserManagementPanel() {
                 <p className="text-sm text-muted-foreground">
                   V systému je pouze jeden administrátor. Doporučujeme přidat dalšího administrátora 
                   pro případ nedostupnosti. Role jediného admina nelze změnit.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {passwordsToReviewCount > 0 && (
+        <Card className="border-warning bg-warning/10">
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
+              <div>
+                <p className="font-medium text-foreground">
+                  {passwordsToReviewCount === 1
+                    ? "1 uživatel má heslo, které nesplňuje aktuální pravidla"
+                    : `${passwordsToReviewCount} uživatelů má heslo, které nesplňuje aktuální pravidla`}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Tito uživatelé byli automaticky vyzváni ke změně hesla při příštím přihlášení.
+                  Sloupec „Poslední změna hesla" zobrazuje konkrétní účty se značkou „Doporučeno změnit".
+                  Stávající hesla zůstávají funkční, dokud je uživatel nezmění.
                 </p>
               </div>
             </div>
@@ -589,13 +620,29 @@ export function UserManagementPanel() {
                           )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {user.updated_at ? (
-                            <span title={new Date(user.updated_at).toLocaleString("cs-CZ")}>
-                              {new Date(user.updated_at).toLocaleDateString("cs-CZ")}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground/50">—</span>
-                          )}
+                          <div className="flex flex-col gap-1">
+                            {user.password_updated_at ? (
+                              <span title={new Date(user.password_updated_at).toLocaleString("cs-CZ")}>
+                                {new Date(user.password_updated_at).toLocaleDateString("cs-CZ")}
+                              </span>
+                            ) : user.updated_at ? (
+                              <span title={new Date(user.updated_at).toLocaleString("cs-CZ")}>
+                                {new Date(user.updated_at).toLocaleDateString("cs-CZ")}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/50">—</span>
+                            )}
+                            {user.must_review_password && (
+                              <Badge
+                                variant="outline"
+                                className="w-fit text-xs border-warning text-warning"
+                                title="Heslo nesplňuje aktuální bezpečnostní pravidla. Uživatel byl vyzván ke změně."
+                              >
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                Doporučeno změnit
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {isAdmin ? (

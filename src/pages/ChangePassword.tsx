@@ -76,12 +76,18 @@ export default function ChangePassword() {
         throw updateError;
       }
 
-      // Clear must_change_password flag
+      // Clear must_change_password flag and stamp password_updated_at via RPC
       if (user) {
         await supabase
           .from("profiles")
           .update({ must_change_password: false } as any)
           .eq("id", user.id);
+        // Reset password review flag (new password meets policy thanks to client-side validation + HIBP)
+        try {
+          await supabase.rpc("mark_password_reviewed" as any);
+        } catch (e) {
+          console.warn("mark_password_reviewed failed (non-critical):", e);
+        }
       }
 
       await refreshProfile();

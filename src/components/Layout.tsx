@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { NotificationBell } from "./NotificationBell";
 import { getModuleFromPath } from "@/lib/routeModuleMap";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
+import { PasswordReviewModal } from "./PasswordReviewModal";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -649,5 +650,6 @@ export const Layout = ({
         )}
         <main>{children}</main>
       </div>
+      <PasswordReviewModal />
     </div>;
 };
