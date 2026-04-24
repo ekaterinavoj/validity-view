@@ -269,8 +269,14 @@ export function FilePreviewDialog({
       setError(null);
       setCurrentDocIndex(0);
       setViewMode(preferences.pdfViewMode || "scroll");
+      setMediaMeta(null);
     }
   }, [open, preferences.pdfViewMode]);
+
+  // Reset measured size whenever the user switches between files
+  useEffect(() => {
+    setMediaMeta(null);
+  }, [currentDocIndex]);
 
   // Load URLs for all files
   useEffect(() => {
