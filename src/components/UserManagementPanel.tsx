@@ -76,6 +76,7 @@ export function UserManagementPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [passwordFilter, setPasswordFilter] = useState<string>("all");
   
   // Modal states
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
@@ -326,9 +327,14 @@ export function UserManagementPanel() {
       const matchesRole =
         roleFilter === "all" || user.roles.includes(roleFilter);
 
-      return matchesSearch && matchesRole;
+      const matchesPassword =
+        passwordFilter === "all" ||
+        (passwordFilter === "review" && user.must_review_password) ||
+        (passwordFilter === "ok" && !user.must_review_password);
+
+      return matchesSearch && matchesRole && matchesPassword;
     });
-  }, [users, searchQuery, roleFilter]);
+  }, [users, searchQuery, roleFilter, passwordFilter]);
 
   const exportToCSV = () => {
     const data = filteredUsers.map((u) => ({
@@ -336,16 +342,13 @@ export function UserManagementPanel() {
       "Email": u.email,
       "Pozice": u.position || "",
       "Role": u.roles.map(r => roleLabels[r] || r).join(", "),
+      "Stav hesla": u.must_review_password ? "Nutno zkontrolovat" : "V pořádku",
+      "Poslední změna hesla": u.password_updated_at
+        ? new Date(u.password_updated_at).toLocaleDateString("cs-CZ")
+        : (u.updated_at ? new Date(u.updated_at).toLocaleDateString("cs-CZ") : ""),
     }));
 
-    const csv = Papa.unparse(data, { delimiter: ";" });
-    const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `uzivatele_${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-
+    exportCSVHelper({ filename: buildExportFilename("uzivatele"), data });
     toast({ title: "Export úspěšný", description: `Exportováno ${data.length} uživatelů.` });
   };
 
