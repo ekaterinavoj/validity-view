@@ -163,6 +163,9 @@ export default function Employees() {
         "Kategorie práce": employee.workCategory ? `Kategorie ${employee.workCategory}` : "",
         "Datum narození": employee.birthDate ? formatDisplayDate(employee.birthDate, "") : "",
         "Věk": employee.birthDate ? String(calculateAge(employee.birthDate) ?? "") : "",
+        "Datum nástupu": employee.startDate ? formatDisplayDate(employee.startDate, "") : "",
+        "Konec zkušební doby": employee.probationEndDate ? formatDisplayDate(employee.probationEndDate, "") : "",
+        "Zkušební doba (měsíce)": employee.probationMonths != null ? String(employee.probationMonths) : "",
         "Email nadřízeného": employee.managerEmail || "",
         "Datum od": employee.statusStartDate || employee.terminationDate 
           ? formatDisplayDate(employee.statusStartDate || employee.terminationDate, "")
