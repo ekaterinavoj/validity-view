@@ -370,8 +370,38 @@ export function FilePreviewDialog({
     updatePreference("pdfViewMode", mode);
   };
 
-  const zoomIn = () => setScale((prev) => Math.min(prev + 0.25, 3.0));
-  const zoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.5));
+  const zoomIn = () => {
+    setAutoFit(false);
+    setScale((prev) => Math.min(prev + 0.25, 3.0));
+  };
+  const zoomOut = () => {
+    setAutoFit(false);
+    setScale((prev) => Math.max(prev - 0.25, 0.5));
+  };
+  const fitToPage = () => {
+    setAutoFit(true);
+  };
+
+  // Auto-fit: spočítej scale tak, aby šířka stránky odpovídala dostupné oblasti.
+  useEffect(() => {
+    if (!autoFit || !mediaMeta || !contentRef.current) return;
+    const computeFit = () => {
+      const container = contentRef.current;
+      if (!container) return;
+      const availableW = container.clientWidth - 48; // padding
+      const availableH = container.clientHeight - 80; // padding + header
+      if (availableW <= 0 || availableH <= 0) return;
+      const scaleW = availableW / mediaMeta.width;
+      const scaleH = availableH / mediaMeta.height;
+      // Vyber menší — celá strana se vejde bez ořezu
+      const fitScale = Math.min(scaleW, scaleH, 2.5);
+      setScale(Math.max(0.5, fitScale));
+    };
+    computeFit();
+    const ro = new ResizeObserver(computeFit);
+    if (contentRef.current) ro.observe(contentRef.current);
+    return () => ro.disconnect();
+  }, [autoFit, mediaMeta, currentDocIndex]);
 
   const getFileUrl = (f: PreviewFile) => {
     const fileKey = f.name + (f.url || "");
