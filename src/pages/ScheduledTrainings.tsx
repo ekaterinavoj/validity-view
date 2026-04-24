@@ -93,6 +93,7 @@ export default function ScheduledTrainings() {
     saveCurrentFilters,
     loadSavedFilter,
     deleteSavedFilter,
+    setDefaultFilter,
     savedFilters,
   } = useAdvancedFilters("scheduled-trainings-filters");
 

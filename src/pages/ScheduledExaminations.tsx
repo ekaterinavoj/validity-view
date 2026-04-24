@@ -82,7 +82,7 @@ export default function ScheduledExaminations() {
     return facilityNameMap[code] || code;
   };
 
-  const { filters, updateFilter, clearFilters, hasActiveFilters, saveCurrentFilters, loadSavedFilter, deleteSavedFilter, savedFilters } = useAdvancedFilters("scheduled-examinations-filters");
+  const { filters, updateFilter, clearFilters, hasActiveFilters, saveCurrentFilters, loadSavedFilter, deleteSavedFilter, setDefaultFilter, savedFilters } = useAdvancedFilters("scheduled-examinations-filters");
 
   const departments = useMemo(() => {
     const deptMap = new Map<string, string>();

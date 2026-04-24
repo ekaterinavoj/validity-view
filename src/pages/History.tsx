@@ -78,6 +78,7 @@ export default function History() {
     saveCurrentFilters,
     loadSavedFilter,
     deleteSavedFilter,
+    setDefaultFilter,
     savedFilters,
   } = useAdvancedFilters("history-filters");
 

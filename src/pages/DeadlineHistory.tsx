@@ -94,6 +94,7 @@ export default function DeadlineHistory() {
     saveCurrentFilters,
     loadSavedFilter,
     deleteSavedFilter,
+    setDefaultFilter,
     savedFilters
   } = useAdvancedFilters("deadline-history-filters");
 

@@ -113,6 +113,7 @@ export default function ScheduledDeadlines() {
     saveCurrentFilters,
     loadSavedFilter,
     deleteSavedFilter,
+    setDefaultFilter,
     savedFilters
   } = useAdvancedFilters("deadline-filters");
 
