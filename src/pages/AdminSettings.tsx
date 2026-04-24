@@ -1365,6 +1365,7 @@ export default function AdminSettings() {
 
         {/* Security Tab */}
         <TabsContent value="security" className="space-y-6">
+          <SecurityScanRunner />
           <SecurityFindings />
           <MigrationsStatus />
         </TabsContent>
