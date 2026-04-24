@@ -733,6 +733,7 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
+          </>)}
 
           {/* Test & History Actions */}
           <Card>
@@ -747,31 +748,11 @@ export default function AdminSettings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Školení</Label>
+                <Label className="text-sm font-medium">Školení (per-záznam test)</Label>
                 <div className="flex gap-2">
                   <SendSingleTestEmail isEnabled={reminderFrequency.enabled} />
-                  <SendTestSummaryEmail 
-                    hasRecipients={reminderRecipients.user_ids.length > 0}
-                    isEnabled={reminderFrequency.enabled}
-                  />
                 </div>
               </div>
-               <Separator />
-               <div className="space-y-2">
-                 <Label className="text-sm font-medium">Technické lhůty</Label>
-                 <SendTestDeadlineEmail 
-                   hasRecipients={deadlineRecipients.user_ids.length > 0}
-                   isEnabled={deadlineReminderFrequency.enabled}
-                 />
-               </div>
-               <Separator />
-               <div className="space-y-2">
-                 <Label className="text-sm font-medium">PLP (Lékařské prohlídky)</Label>
-                 <SendTestMedicalEmail 
-                   hasRecipients={medicalRecipients.user_ids.length > 0}
-                   isEnabled={medicalReminderFrequency.enabled}
-                 />
-               </div>
                <Separator />
                <EmailHistory />
             </CardContent>
