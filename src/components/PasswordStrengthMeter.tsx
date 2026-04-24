@@ -1,15 +1,20 @@
 import { Check, X } from "lucide-react";
-import { evaluatePassword, strengthLabel, strengthBarClass } from "@/lib/passwordStrength";
+import { evaluatePassword, strengthLabel, strengthBarClass, type PasswordPolicy } from "@/lib/passwordStrength";
+import { usePasswordPolicy } from "@/hooks/usePasswordPolicy";
 import { cn } from "@/lib/utils";
 
 interface PasswordStrengthMeterProps {
   password: string;
   /** Optional: hide the per-rule checklist (only show the bar + label) */
   compact?: boolean;
+  /** Optional: pre-loaded policy. When omitted, the meter loads it itself. */
+  policy?: PasswordPolicy;
 }
 
-export function PasswordStrengthMeter({ password, compact = false }: PasswordStrengthMeterProps) {
-  const evalResult = evaluatePassword(password);
+export function PasswordStrengthMeter({ password, compact = false, policy }: PasswordStrengthMeterProps) {
+  const auto = usePasswordPolicy();
+  const activePolicy = policy ?? auto.policy;
+  const evalResult = evaluatePassword(password, activePolicy);
 
   if (!password) return null;
 
