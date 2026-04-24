@@ -19,15 +19,17 @@ export function PageHeader({ icon: Icon, title, description, actions, className 
   return (
     <div className={cn("flex flex-col gap-2 mb-2", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {Icon && <Icon className="h-6 w-6 text-engel-blue shrink-0" />}
-          <h1 className="text-2xl font-semibold truncate">{title}</h1>
+        <div className="flex items-start gap-2 min-w-0">
+          {Icon && <Icon className="h-6 w-6 text-engel-blue shrink-0 mt-1" />}
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-foreground truncate">{title}</h1>
+            {description && (
+              <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
+            )}
+          </div>
         </div>
-        {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
       </div>
-      {description && (
-        <p className="text-sm text-muted-foreground">{description}</p>
-      )}
     </div>
   );
 }
