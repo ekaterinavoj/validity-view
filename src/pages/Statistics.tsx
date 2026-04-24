@@ -91,18 +91,23 @@ export default function Statistics() {
   }).length, [activeTrainings, today]);
 
   // Department statistics - filtered by year
+  // Use the human-readable department name (with code as suffix only if available)
+  // so the chart X axis doesn't show raw inventory-style codes (e.g. "2002000001").
   const departmentStats = useMemo(() => {
     return yearFilteredTrainings.reduce((acc, training) => {
-      const deptCode = training.department || "Nezařazeno";
-      const dept = training.departmentName ? `${deptCode} - ${training.departmentName}` : deptCode;
-      if (!acc[dept]) {
-        acc[dept] = {
+      const code = training.department || "";
+      const name = training.departmentName || "";
+      const label = name
+        ? (code ? `${name} (${code})` : name)
+        : (code || "Nezařazeno");
+      if (!acc[label]) {
+        acc[label] = {
           valid: 0,
           warning: 0,
           expired: 0
         };
       }
-      acc[dept][training.status]++;
+      acc[label][training.status]++;
       return acc;
     }, {} as Record<string, {
       valid: number;
