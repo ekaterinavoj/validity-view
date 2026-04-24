@@ -22,6 +22,8 @@ import { exportToCSV } from "@/lib/csvExport";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { TablePagination } from "@/components/TablePagination";
+import { usePagination } from "@/hooks/usePagination";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
