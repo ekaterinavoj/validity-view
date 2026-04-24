@@ -3659,6 +3659,24 @@ SELECT 1;`,
 --     auto-perzistenci posledního stavu (per-user localStorage).
 SELECT 1;`,
   },
+  {
+    version: "20260424320000",
+    name: "ui_bulk_import_header_validation",
+    sql: `-- UI-only změna – databázové schéma se neupravuje.
+--
+-- Sjednocená validace hlaviček CSV ve všech bulk importech:
+--   • BulkEmployeeImport (Jméno, Příjmení, Email, Pozice)
+--   • BulkEquipmentImport (Inventární číslo, Název, Typ zařízení, Provozovna)
+--   • BulkTrainingImport (Typ školení, Provozovna, Datum školení)
+--   • BulkMedicalImport (Typ prohlídky, Provozovna, Datum prohlídky)
+--   • BulkDeadlineImport (Typ události, Provozovna, Datum kontroly + Inventární číslo, Název pro Equipment)
+--
+-- Při chybějících povinných sloupcích se zobrazí toast/error s konkrétním
+-- výčtem chybějících hlaviček a doporučením stáhnout vzorovou šablonu.
+-- Funkcionalita per-row chybové reporty + export chyb (downloadErrorCSV)
+-- již existuje v src/lib/importValidation.ts a pokrývá všechny moduly.
+SELECT 1;`,
+  },
 ];
 
 /**
