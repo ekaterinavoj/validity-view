@@ -169,7 +169,17 @@ function PDFViewer({
 }
 
 // Single Image Viewer Component
-function ImageViewer({ url, fileName, showHeader = false }: { url: string; fileName: string; showHeader?: boolean }) {
+function ImageViewer({
+  url,
+  fileName,
+  showHeader = false,
+  onMeta,
+}: {
+  url: string;
+  fileName: string;
+  showHeader?: boolean;
+  onMeta?: (meta: { width: number; height: number }) => void;
+}) {
   const [error, setError] = useState(false);
 
   if (error) {
@@ -192,8 +202,12 @@ function ImageViewer({ url, fileName, showHeader = false }: { url: string; fileN
         <img
           src={url}
           alt={fileName}
-          className="max-w-full max-h-[500px] object-contain rounded"
+          className="max-w-full max-h-[80vh] object-contain rounded"
           onError={() => setError(true)}
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            onMeta?.({ width: img.naturalWidth, height: img.naturalHeight });
+          }}
         />
       </div>
     </div>
