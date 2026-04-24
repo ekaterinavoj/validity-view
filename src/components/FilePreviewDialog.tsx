@@ -226,6 +226,7 @@ export function FilePreviewDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState<number>(1.0);
+  const [autoFit, setAutoFit] = useState<boolean>(true); // fit-to-page mode (default ON)
   const [viewMode, setViewMode] = useState<ViewMode>(preferences.pdfViewMode || "scroll");
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
   // Native dimensions of currently shown media – used to adapt dialog size.
