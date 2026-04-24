@@ -358,14 +358,15 @@ export const BulkTrainingImport = () => {
 
     // Header validation against required columns (with Czech ↔ English aliases)
     const headers = rawData.length > 0 ? Object.keys(rawData[0]) : [];
-    const { checkRequiredHeaders } = await import("@/lib/importValidation");
+    const { checkRequiredHeaders, formatMissingHeadersMessage } = await import("@/lib/importValidation");
     const headerCheck = checkRequiredHeaders(headers, {
       "Typ školení": ["Typ školení", "training_type_name"],
       "Provozovna": ["Provozovna", "facility_code"],
       "Datum školení": ["Datum školení", "last_training_date"],
     });
     if (!headerCheck.ok) {
-      throw new Error(`Chybí povinné sloupce: ${headerCheck.missing.join(", ")}. Stáhněte si vzorovou šablonu.`);
+      const detail = formatMissingHeadersMessage(headerCheck.missingDetailed);
+      throw new Error(`Chybí povinné sloupce:\n${detail}\n\nStáhněte si vzorovou šablonu.`);
     }
 
     // Map Czech column names from exports to English import names
