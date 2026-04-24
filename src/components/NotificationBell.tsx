@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { formatDistanceToNow } from "date-fns";
 import { cs } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -57,11 +58,15 @@ export function NotificationBell() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { preferences, updatePreference, isLoaded } = useUserPreferences();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [category, setCategory] = useState<FilterCategory>("all");
-  const [onlyUnread, setOnlyUnread] = useState(false);
+  // Filter state mirrors cross-device preferences (DB-backed via useUserPreferences)
+  const category = (preferences.notificationCategory ?? "all") as FilterCategory;
+  const onlyUnread = preferences.notificationOnlyUnread ?? false;
+  const setCategory = (c: FilterCategory) => updatePreference("notificationCategory", c);
+  const setOnlyUnread = (v: boolean) => updatePreference("notificationOnlyUnread", v);
 
   // Mapování notifikací na cílové URL podle related_entity_type.
   // Vrací i lidský label pro tlačítko, aby uživatel věděl, kam ho to pošle.
