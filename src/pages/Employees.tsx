@@ -653,6 +653,62 @@ export default function Employees() {
                   )}
                 />
 
+                {/* Probation period section (Zákoník práce 2026) */}
+                <div className="border-t pt-4 mt-4">
+                  <p className="text-sm font-medium text-muted-foreground mb-3">Zkušební doba</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Datum nástupu</FormLabel>
+                          <FormControl>
+                            <DateInput value={field.value} onChange={field.onChange} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="probationMonths"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Délka (měsíce)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={8}
+                              placeholder="4 (běžná) / 8 (vedoucí)"
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="probationEndDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Konec ZD (přepsat)</FormLabel>
+                          <FormControl>
+                            <DateInput value={field.value} onChange={field.onChange} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Default: 4 měsíce (běžní), 8 měsíců (vedoucí). Konec ZD se vypočte automaticky z data nástupu, ale lze ho ručně přepsat (např. kvůli překážkám v práci dle ZP 2026).
+                  </p>
+                </div>
+
                 <div className="border-t pt-4 mt-4">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Nadřízený (pro hierarchii)</p>
                   
