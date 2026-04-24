@@ -217,7 +217,7 @@ export function EmployeeAccessDebug() {
                   {logs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                        {formatDateTime(log.created_at)}
+                        {formatDisplayDateTime(log.created_at)}
                       </TableCell>
                       <TableCell>{log.user_email ?? "—"}</TableCell>
                       <TableCell>
