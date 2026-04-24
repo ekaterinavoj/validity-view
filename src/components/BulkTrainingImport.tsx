@@ -271,40 +271,7 @@ export const BulkTrainingImport = () => {
   // Only admin and manager can import
   const canImport = isAdmin || isManager;
 
-  const downloadTemplateXLSX = () => {
-    const template = [
-      {
-        "Osobní číslo": "EMP001",
-        "Email": "jan.novak@example.com",
-        "Typ školení": "BOZP",
-        "Provozovna": "qlar-jenec-dc3",
-        "Datum školení": "15.01.2024",
-        "Školitel": "Jan Novák",
-        "Firma": "Bezpečnostní akademie",
-        "Poznámka": "Poznámka k školení"
-      },
-      {
-        "Osobní číslo": "EMP002",
-        "Email": "petr.svoboda@example.com",
-        "Typ školení": "ATEX",
-        "Provozovna": "qlar-jenec-dc3",
-        "Datum školení": "20.02.2024",
-        "Školitel": "",
-        "Firma": "",
-        "Poznámka": ""
-      }
-    ];
-
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Školení");
-    XLSX.writeFile(wb, "sablona_import_skoleni.xlsx");
-
-    toast({
-      title: "Šablona stažena",
-      description: "Excel šablona pro import školení byla stažena.",
-    });
-  };
+  // Template download was removed — round-trip is via existing data export.
 
   const downloadTemplateCSV = () => {
     const template = [
