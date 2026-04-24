@@ -250,26 +250,63 @@ export default function Probations() {
         }
         actions={
           <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Toggle
-                  pressed={compactMode}
-                  onPressedChange={toggleCompact}
-                  aria-label="Přepnout zobrazení bez záložek"
-                  size="sm"
-                  variant="outline"
-                  className="h-9"
-                >
-                  {compactMode ? <LayoutList className="h-4 w-4 mr-1" /> : <Layers className="h-4 w-4 mr-1" />}
-                  <span className="text-xs">{compactMode ? "Jen přehled" : "S historií"}</span>
-                </Toggle>
-              </TooltipTrigger>
-              <TooltipContent>
-                {compactMode
-                  ? "Záložka Historie změn je skrytá. Klikněte pro obnovení obou záložek."
-                  : "Skrýt záložku Historie změn pro rychlé použití."}
-              </TooltipContent>
-            </Tooltip>
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">
+                    <HelpCircle className="h-4 w-4 mr-1" />
+                    <span className="text-xs">Kde najdu ZD?</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 text-sm">
+                  <p className="font-medium mb-2">Kde se nastavuje zkušební doba</p>
+                  <ol className="space-y-1.5 list-decimal list-inside text-muted-foreground">
+                    <li>
+                      Otevřete <strong>Správa dat → Zaměstnanci</strong>.
+                    </li>
+                    <li>
+                      U konkrétního zaměstnance klikněte na ikonu <strong>úpravy</strong>.
+                    </li>
+                    <li>
+                      Najděte sekci <strong>„Zkušební doba“</strong> – pole{" "}
+                      <em>Datum nástupu</em>, <em>Délka (měsíce)</em> a <em>Konec ZD (přepsat)</em>.
+                    </li>
+                    <li>
+                      Při ručním přepsání se objeví povinné pole{" "}
+                      <strong>„Důvod úpravy konce ZD“</strong>.
+                    </li>
+                    <li>
+                      Sekce <strong>„Celodenní překážky v práci“</strong> automaticky prodlužuje konec ZD.
+                    </li>
+                  </ol>
+                  <Button asChild size="sm" className="w-full mt-3">
+                    <Link to="/employees">
+                      <ExternalLink className="h-4 w-4 mr-1" /> Otevřít Zaměstnance
+                    </Link>
+                  </Button>
+                </PopoverContent>
+              </Popover>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    pressed={compactMode}
+                    onPressedChange={toggleCompact}
+                    aria-label="Přepnout zobrazení bez záložek"
+                    size="sm"
+                    variant="outline"
+                    className="h-9"
+                  >
+                    {compactMode ? <LayoutList className="h-4 w-4 mr-1" /> : <Layers className="h-4 w-4 mr-1" />}
+                    <span className="text-xs">{compactMode ? "Jen přehled" : "S historií"}</span>
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {compactMode
+                    ? "Záložka Historie změn je skrytá (a backend dotaz se neprovádí). Kliknutím obnovíte."
+                    : "Skrýt Historii změn – v compact módu se vůbec nedotazuje audit log."}
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </TooltipProvider>
         }
       />
