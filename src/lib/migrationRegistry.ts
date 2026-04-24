@@ -3464,6 +3464,19 @@ CREATE TRIGGER trg_user_preferences_updated_at
   BEFORE UPDATE ON public.user_preferences
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();`,
   },
+  {
+    version: "20260424210000",
+    name: "probation_deeplinks_and_notification_routing",
+    sql: `-- UI-only změny:
+--   • /probations: klikací řádky + tlačítko „Upravit ZD" otevře editaci zaměstnance
+--     a scrollne přímo na sekci „Zkušební doba" (?edit=<id>&focus=probation)
+--   • Employees: deep-link handler v useEffect (useSearchParams), id="probation-section"
+--   • NotificationBell: kliknutí na notifikaci routuje podle related_entity_type
+--     (probation_period → /employees?edit=<empId>&focus=probation)
+--   • Popover „Kde najdu ZD" rozšířen o tip ke klikání řádků
+-- Žádná změna databázového schématu (využívá stávající related_entity_type='probation_period').
+SELECT 1;`,
+  },
 ];
 
 /**
