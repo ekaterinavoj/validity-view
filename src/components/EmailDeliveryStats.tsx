@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { computeAvgAttempts, formatAvgAttempts } from "@/lib/statisticsHelpers";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 interface EmailStats {
   totalSent: number;

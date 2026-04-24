@@ -14,6 +14,7 @@ import { Loader2, ShieldCheck, Eye, Download, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDisplayDateTime } from "@/lib/dateFormat";
 import { exportToCSV } from "@/lib/csvExport";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 interface UserOption {
   id: string;

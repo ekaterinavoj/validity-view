@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Papa from 'papaparse';
 import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
-import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 import { checkRequiredHeaders } from "@/lib/importValidation";
 import { MissingHeadersAlert } from "@/components/MissingHeadersAlert";
 

@@ -36,6 +36,7 @@ import { formatDisplayDate } from "@/lib/dateFormat";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 
 export default function History() {

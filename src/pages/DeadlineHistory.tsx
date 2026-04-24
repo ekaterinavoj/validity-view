@@ -41,6 +41,7 @@ import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function DeadlineHistory() {
   const { history, loading: isLoading, error, refetch } = useDeadlineHistory(true);

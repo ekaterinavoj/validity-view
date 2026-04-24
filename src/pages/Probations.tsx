@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 type WindowFilter = "ending_14" | "ending_30" | "ending_60" | "all_active";
 

@@ -53,6 +53,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { Grid3x3 } from "lucide-react";
 import { RefreshButton } from "@/components/RefreshButton";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
