@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ROUTE_CATALOG, canAccessRoute } from "@/pages/MyPermissions";
+import { ROUTE_CATALOG, canAccessRoute } from "@/lib/routeAccess";
 
 type AppRole = "admin" | "manager" | "user";
 type AppModule = "trainings" | "deadlines" | "plp";
