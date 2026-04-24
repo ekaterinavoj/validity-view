@@ -622,6 +622,10 @@ export const Layout = ({
                 <FolderOpen className="w-4 h-4" />
                 Dokumenty
               </Link>
+              <Link to="/guides" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/guides" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                <BookOpen className="w-4 h-4" />
+                Návody
+              </Link>
             </div>
 
             <div className="space-y-1 pt-2 border-t border-border">
