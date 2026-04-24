@@ -455,9 +455,9 @@ export function EmailDeliveryStats() {
             90 dní
           </Button>
           <div className="w-px bg-border mx-1" />
-          <Button variant="outline" size="sm" onClick={exportToCSV} disabled={exporting || !stats}>
+          <Button variant="outline" size="sm" onClick={exportToCSV} disabled={exporting || !stats} title="Formát: CSV (středník, UTF-8)">
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            Export
           </Button>
           <Button variant="ghost" size="sm" onClick={loadStats}>
             <RefreshCw className="w-4 h-4" />

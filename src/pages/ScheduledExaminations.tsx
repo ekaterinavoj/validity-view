@@ -46,7 +46,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { BulkMedicalImport } from "@/components/BulkMedicalImport";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
-import { downloadMatrixXLSX, type CellState, type MatrixEmployee, type MatrixEntry, type MatrixEventType } from "@/lib/matrixExport";
+import { downloadPLPDetailXLSX, type PLPDetailRow } from "@/lib/matrixExport";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useMedicalExaminationTypes } from "@/hooks/useMedicalExaminationTypes";
 import { Grid3x3 } from "lucide-react";
@@ -232,41 +232,41 @@ export default function ScheduledExaminations() {
   const exportMatrix = async () => {
     setExportingMatrix(true);
     try {
-      const empRows: MatrixEmployee[] = allEmployees
-        .filter((e) => e.status !== "terminated")
-        .map((e) => ({
-          id: e.id,
-          department: e.department ? `${e.department}${e.departmentName ? ` - ${e.departmentName}` : ""}` : "—",
-          lastName: e.lastName,
-          firstName: e.firstName,
-          position: e.position,
-          statusLabel: e.status === "employed" ? "Aktivní" : e.status === "parental_leave" ? "Mateřská" : e.status === "sick_leave" ? "Nemocenská" : "Ukončen",
-          managerName: e.managerFirstName || e.managerLastName ? `${e.managerFirstName ?? ""} ${e.managerLastName ?? ""}`.trim() : "",
-        }));
-      const typeRows: MatrixEventType[] = allExamTypes.map((t) => ({ id: t.id, name: t.name, facility: t.facility }));
-      const today = new Date();
-      const warn = new Date(); warn.setDate(warn.getDate() + 30);
-      const latest = new Map<string, { date: Date }>();
-      for (const ex of examinations) {
-        const key = `${ex.employeeId}|${ex.examinationTypeId}`;
-        const d = new Date(ex.nextExaminationDate);
-        const prev = latest.get(key);
-        if (!prev || d > prev.date) latest.set(key, { date: d });
-      }
-      const entries: MatrixEntry[] = [];
-      for (const emp of empRows) for (const t of typeRows) {
-        const f = latest.get(`${emp.id}|${t.id}`);
-        let state: CellState = !f ? "na" : f.date < today ? "expired" : f.date <= warn ? "warning" : "ok";
-        entries.push({ employeeId: emp.id, eventTypeId: t.id, state });
-      }
-      downloadMatrixXLSX({
-        title: "Matice prohlídek",
-        filename: `matice_plp_${format(new Date(), "yyyy-MM-dd")}`,
-        employees: empRows, eventTypes: typeRows, entries, eventsLabel: "Prohlídka",
+      // Build one row per examination (visible by RLS).
+      // For each examination: name, last/next date, type, work category, active health risks, result, note.
+      const activeRisks = (risks: any): string => {
+        if (!risks || typeof risks !== "object") return "";
+        const labels: Record<string, string> = HEALTH_RISK_FIELDS.reduce(
+          (acc, f) => {
+            acc[f.key] = f.label;
+            return acc;
+          },
+          {} as Record<string, string>,
+        );
+        return Object.entries(risks)
+          .filter(([, v]) => v && v !== "ne" && v !== "no" && v !== "false" && v !== false)
+          .map(([k]) => labels[k] ?? k)
+          .join(", ");
+      };
+
+      const rows: PLPDetailRow[] = examinations.map((ex) => ({
+        fullName: ex.employeeName ?? "",
+        examinationDate: ex.lastExaminationDate ? formatDisplayDate(ex.lastExaminationDate) : "",
+        expiryDate: ex.nextExaminationDate ? formatDisplayDate(ex.nextExaminationDate) : "",
+        examinationType: ex.type ?? "",
+        workCategory: ex.employeeWorkCategory ?? "",
+        healthRisks: activeRisks(ex.healthRisks),
+        result: ex.result ? getMedicalExaminationResultLabel(ex.result) : "",
+        note: ex.note ?? "",
+      }));
+
+      downloadPLPDetailXLSX({
+        filename: `prehled_plp_${format(new Date(), "yyyy-MM-dd")}`,
+        rows,
       });
-      toast({ title: "Matice exportována", description: `${empRows.length} zam. × ${typeRows.length} typů prohlídek` });
+      toast({ title: "Přehled exportován", description: `${rows.length} prohlídek` });
     } catch (err: any) {
-      toast({ title: "Chyba", description: err?.message ?? "Nepodařilo se vygenerovat matici.", variant: "destructive" });
+      toast({ title: "Chyba", description: err?.message ?? "Nepodařilo se vygenerovat přehled.", variant: "destructive" });
     } finally {
       setExportingMatrix(false);
     }
@@ -310,19 +310,19 @@ export default function ScheduledExaminations() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <Button variant="outline" size="sm" onClick={exportToCSV}>
+          <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            Export
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={exportMatrix}
-            disabled={exportingMatrix || allEmployees.length === 0 || allExamTypes.length === 0}
-            title="Souhrnná matice: zaměstnanci × typy prohlídek (XLSX s ✓/⚠/✗)"
+            disabled={exportingMatrix || examinations.length === 0}
+            title="Formát: XLSX — jméno, datum, konec, typ, kategorie, rizika, výsledek, poznámka"
           >
             <Grid3x3 className="w-4 h-4 mr-2" />
-            {exportingMatrix ? "Generuji…" : "Matice PLP"}
+            {exportingMatrix ? "Generuji…" : "Přehled"}
           </Button>
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>

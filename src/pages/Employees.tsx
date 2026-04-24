@@ -602,9 +602,9 @@ export default function Employees() {
 
         <div className="flex gap-2">
           <BulkEmployeeImport />
-          <Button variant="outline" onClick={exportToCSV}>
+          <Button variant="outline" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            Export
           </Button>
           <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>

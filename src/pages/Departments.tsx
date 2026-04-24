@@ -267,9 +267,9 @@ export default function Departments() {
             <Upload className="w-4 h-4 mr-2" />
             Import
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
+          <Button variant="outline" size="sm" onClick={handleExport} title="Formát: CSV (středník, UTF-8)">
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            Export
           </Button>
           <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>

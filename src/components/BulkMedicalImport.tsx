@@ -688,14 +688,6 @@ export const BulkMedicalImport = () => {
         />
 
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={downloadTemplateXLSX}>
-            <Download className="w-4 h-4 mr-2" />
-            Šablona XLSX
-          </Button>
-          <Button variant="outline" size="sm" onClick={downloadTemplateCSV}>
-            <FileDown className="w-4 h-4 mr-2" />
-            Šablona CSV
-          </Button>
           <input
             type="file"
             accept=".csv,.xlsx,.xls"
@@ -709,6 +701,7 @@ export const BulkMedicalImport = () => {
             size="sm"
             onClick={() => document.getElementById('medical-import-file')?.click()}
             disabled={parsing}
+            title="Podporované formáty: XLSX, XLS, CSV (středník, UTF-8)"
           >
             <Upload className="w-4 h-4 mr-2" />
             {parsing ? "Zpracovávám..." : "Vybrat soubor"}
