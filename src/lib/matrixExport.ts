@@ -102,7 +102,8 @@ export function downloadTrainingMatrixCSV({
     return row;
   });
 
-  const csv = Papa.unparse([headerRow, ...dataRows], { delimiter: ";" });
+  // Prepend legend so users immediately understand symbols, then header + data.
+  const csv = Papa.unparse([...LEGEND_ROWS, headerRow, ...dataRows], { delimiter: ";" });
   downloadCsv(filename, csv);
 }
 
