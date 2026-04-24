@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, KeyRound, Palette } from "lucide-react";
+import { User, Save, KeyRound, Palette, ShieldCheck, LogOut } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PasswordStrengthMeter } from "@/components/PasswordStrengthMeter";
+import { evaluatePassword, PASSWORD_MIN_LENGTH } from "@/lib/passwordStrength";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -67,6 +69,10 @@ const Profile = () => {
     }
   };
 
+  const passwordEval = evaluatePassword(newPassword);
+  const canChangePassword =
+    passwordEval.meetsMinimum && newPassword === confirmPassword && confirmPassword.length > 0;
+
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
       toast({
@@ -76,10 +82,10 @@ const Profile = () => {
       });
       return;
     }
-    if (newPassword.length < 6) {
+    if (!passwordEval.meetsMinimum) {
       toast({
-        title: "Heslo je příliš krátké",
-        description: "Heslo musí mít alespoň 6 znaků.",
+        title: "Heslo nesplňuje požadavky",
+        description: passwordEval.firstError || `Heslo musí mít alespoň ${PASSWORD_MIN_LENGTH} znaků, velké písmeno, číslici a speciální znak.`,
         variant: "destructive",
       });
       return;
@@ -87,7 +93,14 @@ const Profile = () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+      if (error) {
+        if (/pwned|breach|leaked|weak/i.test(error.message ?? "")) {
+          throw new Error(
+            "Toto heslo bylo nalezeno v databázi uniklých hesel. Zvolte prosím jiné, silnější heslo."
+          );
+        }
+        throw error;
+      }
       toast({
         title: "Heslo změněno",
         description: "Vaše heslo bylo úspěšně změněno.",
@@ -99,6 +112,30 @@ const Profile = () => {
       toast({
         title: "Chyba při změně hesla",
         description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignOutOthers = async () => {
+    const ok = window.confirm(
+      "Opravdu chcete odhlásit všechna ostatní přihlášení? Tato akce zachová pouze vaše aktuální přihlášení v tomto prohlížeči."
+    );
+    if (!ok) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut({ scope: "others" });
+      if (error) throw error;
+      toast({
+        title: "Ostatní zařízení odhlášena",
+        description: "Všechna ostatní přihlášení k vašemu účtu byla ukončena.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Chyba při odhlášení",
+        description: error?.message ?? "Nepodařilo se odhlásit ostatní zařízení.",
         variant: "destructive",
       });
     } finally {
