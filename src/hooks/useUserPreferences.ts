@@ -110,8 +110,8 @@ export function useUserPreferences() {
     let cancelled = false;
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from("user_preferences")
+        const { data, error } = await (supabase
+          .from("user_preferences") as any)
           .select("preferences")
           .eq("user_id", userId)
           .maybeSingle();
