@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, ShieldCheck, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { formatDateTime } from "@/lib/dateFormat";
+import { formatDisplayDateTime } from "@/lib/dateFormat";
 
 interface UserOption {
   id: string;
