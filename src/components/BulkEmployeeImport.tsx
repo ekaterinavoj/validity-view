@@ -222,7 +222,21 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     setIsProcessing(true);
     try {
       const jsonData = await parseFile(file);
-      
+
+      // Header validation
+      const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
+      const headerCheck = checkRequiredHeaders(headers, REQUIRED_EMPLOYEE_HEADERS);
+      if (!headerCheck.ok) {
+        toast({
+          title: "Chybí povinné sloupce",
+          description: `V CSV chybí: ${headerCheck.missing.join(", ")}. Stáhněte si vzorovou šablonu.`,
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        e.target.value = '';
+        return;
+      }
+
       if (jsonData.length > 5000) {
         toast({ title: "Příliš mnoho řádků", description: "Maximální počet řádků je 5000.", variant: "destructive" });
         setIsProcessing(false);
