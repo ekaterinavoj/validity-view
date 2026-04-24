@@ -517,11 +517,13 @@ export const BulkDeadlineImport = () => {
       const data = await parseEquipmentFile(file);
       await validateEquipment(data);
     } catch (err) {
-      toast({
-        title: "Chyba při čtení souboru",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
+      if ((err as Error)?.message !== HEADER_ERROR_SENTINEL) {
+        toast({
+          title: "Chyba při čtení souboru",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
     }
 
     event.target.value = "";
@@ -907,11 +909,13 @@ export const BulkDeadlineImport = () => {
       const data = await parseDeadlineFile(file);
       await validateDeadlines(data);
     } catch (err) {
-      toast({
-        title: "Chyba při čtení souboru",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
+      if ((err as Error)?.message !== HEADER_ERROR_SENTINEL) {
+        toast({
+          title: "Chyba při čtení souboru",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
     }
 
     event.target.value = "";
