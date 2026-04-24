@@ -1,31 +1,40 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { PASSWORD_MIN_LENGTH } from "@/lib/passwordStrength";
+import { usePasswordPolicy } from "@/hooks/usePasswordPolicy";
+import { isPasswordExpired } from "@/lib/passwordStrength";
 
 const SNOOZE_KEY = "password-review-snoozed-until";
 const SNOOZE_DAYS = 7;
 
 /**
- * Modal that nags users with `must_review_password = true` to set a stronger password.
- * Shown after login. User can snooze for 7 days (per browser).
+ * Modal that nags users to set a stronger password. Shown after login when EITHER:
+ *   - profile.must_review_password === true (legacy flag — admin or migration set it), OR
+ *   - the active password_policy has max_age_enabled and the user's
+ *     password_updated_at is older than max_age_days.
+ *
+ * User can snooze for 7 days (per browser, per user).
  *
  * Note: Supabase doesn't store password plaintext, so we cannot verify whether the
- * existing password meets the new policy. Instead we ask every legacy user to confirm
- * / rotate to a password that satisfies the current rules.
+ * existing password meets the new policy. Instead we ask flagged users to rotate.
  */
 export const PasswordReviewModal = () => {
   const { profile, user } = useAuth();
+  const { policy } = usePasswordPolicy();
   const [open, setOpen] = useState(false);
+
+  const passwordExpired = useMemo(() => {
+    if (!profile) return false;
+    return isPasswordExpired((profile as any).password_updated_at ?? null, policy);
+  }, [profile, policy]);
 
   useEffect(() => {
     if (!user || !profile) return;
     const mustReview = (profile as any).must_review_password === true;
-    if (!mustReview) {
+    if (!mustReview && !passwordExpired) {
       setOpen(false);
       return;
     }
@@ -45,7 +54,7 @@ export const PasswordReviewModal = () => {
     }
 
     setOpen(true);
-  }, [user, profile]);
+  }, [user, profile, passwordExpired]);
 
   const handleSnooze = () => {
     if (!user) return;
@@ -58,11 +67,27 @@ export const PasswordReviewModal = () => {
     setOpen(false);
   };
 
-  const handleDismissForSession = async () => {
-    // Track that user has at least seen the message — admin still sees them as pending
-    // until the password is actually changed via mark_password_reviewed RPC.
+  const handleDismissForSession = () => {
     setOpen(false);
   };
+
+  // Dynamically build requirement bullets from active policy
+  const ruleBullets: string[] = [`Alespoň ${policy.min_length} znaků`];
+  if (policy.require_uppercase && policy.require_digit) {
+    ruleBullets.push("Velké písmeno a číslice");
+  } else {
+    if (policy.require_uppercase) ruleBullets.push("Velké písmeno");
+    if (policy.require_digit) ruleBullets.push("Číslice");
+  }
+  if (policy.require_lowercase) ruleBullets.push("Malé písmeno");
+  if (policy.require_special) ruleBullets.push("Speciální znak (např. !@#$)");
+
+  const headline = passwordExpired
+    ? "Vaše heslo vypršelo"
+    : "Doporučujeme změnit heslo";
+  const intro = passwordExpired
+    ? `Z bezpečnostních důvodů je nutné měnit heslo nejméně každých ${policy.max_age_days} dní. Nastavte si nové heslo splňující aktuální pravidla:`
+    : "Z důvodu zvýšených bezpečnostních požadavků doporučujeme všem stávajícím uživatelům aktualizovat heslo tak, aby splňovalo nová pravidla:";
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleDismissForSession(); }}>
@@ -70,17 +95,14 @@ export const PasswordReviewModal = () => {
         <DialogHeader>
           <div className="flex items-center gap-3">
             <ShieldAlert className="w-8 h-8 text-warning" />
-            <DialogTitle>Doporučujeme změnit heslo</DialogTitle>
+            <DialogTitle>{headline}</DialogTitle>
           </div>
           <DialogDescription className="pt-2 space-y-2">
-            <span className="block">
-              Z důvodu zvýšených bezpečnostních požadavků doporučujeme všem
-              stávajícím uživatelům aktualizovat heslo tak, aby splňovalo nová pravidla:
-            </span>
+            <span className="block">{intro}</span>
             <ul className="list-disc list-inside text-xs text-muted-foreground pl-2">
-              <li>Alespoň {PASSWORD_MIN_LENGTH} znaků</li>
-              <li>Velké písmeno a číslice</li>
-              <li>Speciální znak (např. !@#$)</li>
+              {ruleBullets.map((b) => (
+                <li key={b}>{b}</li>
+              ))}
             </ul>
             <span className="block text-xs text-muted-foreground">
               Vaše stávající heslo zůstává funkční, dokud ho nezměníte.

@@ -3965,6 +3965,43 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.get_password_review_summary() TO authenticated;`,
   },
+  {
+    version: "20260424161500",
+    name: "password_policy_settings",
+    sql: `-- Seed configurable password policy into system_settings
+INSERT INTO public.system_settings (key, value, description)
+VALUES (
+  'password_policy',
+  jsonb_build_object(
+    'min_length', 10,
+    'require_uppercase', true,
+    'require_lowercase', false,
+    'require_digit', true,
+    'require_special', true,
+    'max_age_enabled', false,
+    'max_age_days', 90
+  ),
+  'Pravidla síly hesla a volitelné vynucování změny hesla po N dnech (admin-only nastavení).'
+)
+ON CONFLICT (key) DO NOTHING;
+
+-- Allow authenticated users to READ only the password_policy row
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'system_settings'
+      AND policyname = 'Authenticated can read password_policy'
+  ) THEN
+    CREATE POLICY "Authenticated can read password_policy"
+      ON public.system_settings
+      FOR SELECT
+      TO authenticated
+      USING (key = 'password_policy');
+  END IF;
+END$$;`,
+  },
 ];
 
 /**

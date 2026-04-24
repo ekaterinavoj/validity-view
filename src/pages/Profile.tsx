@@ -12,11 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PasswordStrengthMeter } from "@/components/PasswordStrengthMeter";
-import { evaluatePassword, PASSWORD_MIN_LENGTH } from "@/lib/passwordStrength";
+import { evaluatePassword } from "@/lib/passwordStrength";
+import { usePasswordPolicy } from "@/hooks/usePasswordPolicy";
 
 const Profile = () => {
   const { toast } = useToast();
   const { profile, refreshProfile } = useAuth();
+  const { policy } = usePasswordPolicy();
   const [loading, setLoading] = useState(false);
 
   // Změna hesla
@@ -69,7 +71,7 @@ const Profile = () => {
     }
   };
 
-  const passwordEval = evaluatePassword(newPassword);
+  const passwordEval = evaluatePassword(newPassword, policy);
   const canChangePassword =
     passwordEval.meetsMinimum && newPassword === confirmPassword && confirmPassword.length > 0;
 
@@ -85,7 +87,7 @@ const Profile = () => {
     if (!passwordEval.meetsMinimum) {
       toast({
         title: "Heslo nesplňuje požadavky",
-        description: passwordEval.firstError || `Heslo musí mít alespoň ${PASSWORD_MIN_LENGTH} znaků, velké písmeno, číslici a speciální znak.`,
+        description: passwordEval.firstError || `Heslo musí mít alespoň ${policy.min_length} znaků a splňovat aktuální pravidla.`,
         variant: "destructive",
       });
       return;
@@ -204,7 +206,7 @@ const Profile = () => {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Změna hesla</h3>
                 <p className="text-sm text-muted-foreground">
-                  Heslo musí mít minimálně {PASSWORD_MIN_LENGTH} znaků, velké písmeno, číslici a speciální znak.
+                  Heslo musí mít minimálně {policy.min_length} znaků a splňovat aktuální pravidla nastavená administrátorem.
                 </p>
                 <Button variant="outline" onClick={() => setChangePasswordDialog(true)}>
                   <KeyRound className="w-4 h-4 mr-2" />
@@ -255,7 +257,7 @@ const Profile = () => {
           <DialogHeader>
             <DialogTitle>Změnit heslo</DialogTitle>
             <DialogDescription>
-              Heslo musí mít alespoň {PASSWORD_MIN_LENGTH} znaků a obsahovat velké písmeno, číslici a speciální znak.
+              Heslo musí mít alespoň {policy.min_length} znaků a splňovat aktuální pravidla.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
