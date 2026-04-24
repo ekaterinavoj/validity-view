@@ -51,6 +51,10 @@ export interface EmployeeWithDepartment {
   notes?: string;
   workCategory?: string | null;
   birthDate?: string | null;
+  // Probation period tracking
+  startDate?: string | null;
+  probationEndDate?: string | null;
+  probationMonths?: number | null;
   // Manager hierarchy – resolved via JOIN
   managerEmployeeId?: string | null;
   managerFirstName?: string | null;
@@ -75,6 +79,9 @@ function mapEmployee(e: any): EmployeeWithDepartment {
     notes: e.notes,
     workCategory: e.work_category,
     birthDate: e.birth_date,
+    startDate: e.start_date,
+    probationEndDate: e.probation_end_date,
+    probationMonths: e.probation_months,
     managerEmployeeId: e.manager_employee_id,
     // Will be resolved after fetch from the employee list itself
     managerFirstName: null,
@@ -113,6 +120,9 @@ const EMPLOYEE_SELECT = `
   department_id,
   work_category,
   birth_date,
+  start_date,
+  probation_end_date,
+  probation_months,
   manager_employee_id,
   departments (
     id,

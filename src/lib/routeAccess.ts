@@ -46,6 +46,7 @@ export const ROUTE_CATALOG: RouteEntry[] = [
   { path: "/event-types", label: "Přehled typů událostí", group: "Správa dat", requiredRoles: ["admin", "manager"] },
   { path: "/statistics", label: "Statistiky", group: "Správa dat", requiredRoles: ["admin", "manager"] },
   { path: "/inactive", label: "Pozastavená školení", group: "Správa dat", requiredRoles: ["admin", "manager"] },
+  { path: "/probations", label: "Zkušební doby", group: "Správa dat", requiredRoles: ["admin", "manager"] },
 
   // Documents & profile (open to all approved users)
   { path: "/documents", label: "Dokumenty", group: "Dokumenty a profil" },

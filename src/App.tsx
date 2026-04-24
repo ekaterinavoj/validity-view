@@ -47,6 +47,7 @@ import DatabaseMigrations from "./pages/DatabaseMigrations";
 import Documents from "./pages/Documents";
 import EventTypesOverview from "./pages/EventTypesOverview";
 import MyPermissions from "./pages/MyPermissions";
+import Probations from "./pages/Probations";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -125,6 +126,7 @@ const App = () => (
             <Route path="/departments" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Departments /></ProtectedLayout>} />
             <Route path="/facilities" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Facilities /></ProtectedLayout>} />
             <Route path="/inactive" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><InactiveEmployeesReport /></ProtectedLayout>} />
+            <Route path="/probations" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Probations /></ProtectedLayout>} />
             
             {/* Audit log - admin only */}
             <Route path="/audit-log" element={<ProtectedLayout requiredRoles={["admin"]}><AuditLog /></ProtectedLayout>} />

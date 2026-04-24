@@ -40,6 +40,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeStatusBadge, EmployeeStatus } from "@/components/EmployeeStatusBadge";
 import { StatusLegend } from "@/components/StatusLegend";
 import { WorkCategoryBadge } from "@/components/WorkCategoryBadge";
+import { ProbationBadge } from "@/components/ProbationBadge";
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
@@ -60,6 +61,10 @@ const formSchema = z.object({
   notes: z.string().optional(),
   // Manager hierarchy – only the FK reference
   managerEmployeeId: z.string().optional(),
+  // Probation period tracking (zákoník práce 2026)
+  startDate: z.date().optional(),
+  probationMonths: z.coerce.number().int().min(1).max(8).optional(),
+  probationEndDate: z.date().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -159,6 +164,9 @@ export default function Employees() {
         "Kategorie práce": employee.workCategory ? `Kategorie ${employee.workCategory}` : "",
         "Datum narození": employee.birthDate ? formatDisplayDate(employee.birthDate, "") : "",
         "Věk": employee.birthDate ? String(calculateAge(employee.birthDate) ?? "") : "",
+        "Datum nástupu": employee.startDate ? formatDisplayDate(employee.startDate, "") : "",
+        "Konec zkušební doby": employee.probationEndDate ? formatDisplayDate(employee.probationEndDate, "") : "",
+        "Zkušební doba (měsíce)": employee.probationMonths != null ? String(employee.probationMonths) : "",
         "Email nadřízeného": employee.managerEmail || "",
         "Datum od": employee.statusStartDate || employee.terminationDate 
           ? formatDisplayDate(employee.statusStartDate || employee.terminationDate, "")
@@ -216,6 +224,9 @@ export default function Employees() {
       statusStartDate: employee.statusStartDate ? new Date(employee.statusStartDate) : undefined,
       notes: employee.notes || "",
       managerEmployeeId: employee.managerEmployeeId || "",
+      startDate: employee.startDate ? new Date(employee.startDate) : undefined,
+      probationMonths: employee.probationMonths ?? undefined,
+      probationEndDate: employee.probationEndDate ? new Date(employee.probationEndDate) : undefined,
     });
     setDialogOpen(true);
   };
@@ -400,6 +411,10 @@ export default function Employees() {
         notes: notes || null,
         // Manager hierarchy – only FK
         manager_employee_id: data.managerEmployeeId || null,
+        // Probation period tracking
+        start_date: data.startDate ? format(data.startDate, "yyyy-MM-dd") : null,
+        probation_months: data.probationMonths ?? null,
+        probation_end_date: data.probationEndDate ? format(data.probationEndDate, "yyyy-MM-dd") : null,
       };
 
       if (editingEmployee) {
@@ -642,6 +657,62 @@ export default function Employees() {
                   )}
                 />
 
+                {/* Probation period section (Zákoník práce 2026) */}
+                <div className="border-t pt-4 mt-4">
+                  <p className="text-sm font-medium text-muted-foreground mb-3">Zkušební doba</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Datum nástupu</FormLabel>
+                          <FormControl>
+                            <DateInput value={field.value} onChange={field.onChange} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="probationMonths"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Délka (měsíce)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={8}
+                              placeholder="4 (běžná) / 8 (vedoucí)"
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="probationEndDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Konec ZD (přepsat)</FormLabel>
+                          <FormControl>
+                            <DateInput value={field.value} onChange={field.onChange} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Default: 4 měsíce (běžní), 8 měsíců (vedoucí). Konec ZD se vypočte automaticky z data nástupu, ale lze ho ručně přepsat (např. kvůli překážkám v práci dle ZP 2026).
+                  </p>
+                </div>
+
                 <div className="border-t pt-4 mt-4">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Nadřízený (pro hierarchii)</p>
                   
@@ -872,6 +943,7 @@ export default function Employees() {
               <SortableTableHead label="Dat. narození" sortKey="birthDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead>Věk</TableHead>
               <TableHead>Nadřízený</TableHead>
+              <SortableTableHead label="Konec ZD" sortKey="probationEndDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
@@ -879,7 +951,7 @@ export default function Employees() {
           <TableBody>
             {sortedEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                   Žádní zaměstnanci nenalezeni
                 </TableCell>
               </TableRow>
@@ -908,6 +980,13 @@ export default function Employees() {
                         : employee.managerEmail || '-'}
                     </span>
                   ) : '-'}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {employee.probationEndDate ? (
+                    <ProbationBadge endDate={employee.probationEndDate} />
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <EmployeeStatusBadge 

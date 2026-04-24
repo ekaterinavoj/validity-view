@@ -3105,6 +3105,111 @@ SELECT 1;`,
 -- Žádné databázové změny nejsou potřeba.
 SELECT 1;`,
   },
+  {
+    version: "20260424160000",
+    name: "probation_period_tracking",
+    sql: `-- Sledování zkušební doby zaměstnanců (Zákoník práce 2026: 4 měs. běžní / 8 měs. vedoucí)
+ALTER TABLE public.employees
+  ADD COLUMN IF NOT EXISTS start_date date,
+  ADD COLUMN IF NOT EXISTS probation_end_date date,
+  ADD COLUMN IF NOT EXISTS probation_months integer;
+
+CREATE OR REPLACE FUNCTION public.is_managerial_position(_position text)
+RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path = public AS $f$
+  SELECT _position IS NOT NULL AND (
+    LOWER(_position) LIKE '%vedouc%' OR LOWER(_position) LIKE '%manaž%' OR
+    LOWER(_position) LIKE '%manag%' OR LOWER(_position) LIKE '%ředitel%' OR
+    LOWER(_position) LIKE '%reditel%' OR LOWER(_position) LIKE '%head%' OR
+    LOWER(_position) LIKE '%chief%' OR LOWER(_position) LIKE '%director%'
+  )
+$f$;
+
+CREATE OR REPLACE FUNCTION public.calculate_probation_end_date()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $f$
+DECLARE v_months integer;
+BEGIN
+  IF NEW.start_date IS NULL THEN NEW.probation_end_date := NULL; RETURN NEW; END IF;
+  IF NEW.probation_months IS NOT NULL THEN v_months := NEW.probation_months;
+  ELSIF public.is_managerial_position(NEW.position) THEN v_months := 8; NEW.probation_months := 8;
+  ELSE v_months := 4; NEW.probation_months := 4; END IF;
+  IF TG_OP = 'INSERT' AND NEW.probation_end_date IS NULL THEN
+    NEW.probation_end_date := NEW.start_date + (v_months || ' months')::interval;
+  ELSIF TG_OP = 'UPDATE' AND (
+    OLD.start_date IS DISTINCT FROM NEW.start_date OR OLD.probation_months IS DISTINCT FROM NEW.probation_months
+  ) AND (NEW.probation_end_date IS NULL OR NEW.probation_end_date = OLD.probation_end_date) THEN
+    NEW.probation_end_date := NEW.start_date + (v_months || ' months')::interval;
+  END IF;
+  RETURN NEW;
+END; $f$;
+
+DROP TRIGGER IF EXISTS trg_calculate_probation_end_date ON public.employees;
+CREATE TRIGGER trg_calculate_probation_end_date BEFORE INSERT OR UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION public.calculate_probation_end_date();
+
+CREATE INDEX IF NOT EXISTS idx_employees_probation_end_date
+  ON public.employees(probation_end_date) WHERE probation_end_date IS NOT NULL AND status = 'employed';
+
+CREATE OR REPLACE FUNCTION public.check_probation_period_endings()
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $f$
+DECLARE
+  v_today date := CURRENT_DATE; v_warn date := CURRENT_DATE + INTERVAL '14 days';
+  v_emp RECORD; v_admin RECORD; v_mgr_uid uuid;
+  v_type text; v_title text; v_msg text; v_days int; v_exists int; v_total int := 0;
+BEGIN
+  FOR v_emp IN SELECT id, first_name, last_name, position, probation_end_date, manager_employee_id
+    FROM public.employees WHERE status = 'employed'
+      AND probation_end_date IS NOT NULL AND probation_end_date IN (v_today, v_warn)
+  LOOP
+    v_days := v_emp.probation_end_date - v_today;
+    IF v_days = 0 THEN v_type := 'warning'; v_title := 'Konec zkušební doby DNES';
+      v_msg := format('Zaměstnanci %s %s (%s) dnes končí zkušební doba.',
+        v_emp.first_name, v_emp.last_name, COALESCE(v_emp.position, ''));
+    ELSE v_type := 'info'; v_title := 'Zkušební doba končí za 14 dní';
+      v_msg := format('Zaměstnanci %s %s (%s) končí zkušební doba %s.',
+        v_emp.first_name, v_emp.last_name, COALESCE(v_emp.position, ''),
+        to_char(v_emp.probation_end_date, 'DD.MM.YYYY'));
+    END IF;
+    FOR v_admin IN SELECT DISTINCT user_id FROM public.user_roles WHERE role = 'admin' LOOP
+      SELECT COUNT(*) INTO v_exists FROM public.notifications
+        WHERE user_id = v_admin.user_id AND related_entity_type = 'probation_period'
+          AND related_entity_id = v_emp.id AND type = v_type AND created_at::date = v_today;
+      IF v_exists = 0 THEN
+        INSERT INTO public.notifications (user_id, title, message, type, related_entity_type, related_entity_id)
+        VALUES (v_admin.user_id, v_title, v_msg, v_type, 'probation_period', v_emp.id);
+        v_total := v_total + 1;
+      END IF;
+    END LOOP;
+    IF v_emp.manager_employee_id IS NOT NULL THEN
+      SELECT id INTO v_mgr_uid FROM public.profiles WHERE employee_id = v_emp.manager_employee_id LIMIT 1;
+      IF v_mgr_uid IS NOT NULL THEN
+        SELECT COUNT(*) INTO v_exists FROM public.notifications
+          WHERE user_id = v_mgr_uid AND related_entity_type = 'probation_period'
+            AND related_entity_id = v_emp.id AND type = v_type AND created_at::date = v_today;
+        IF v_exists = 0 THEN
+          INSERT INTO public.notifications (user_id, title, message, type, related_entity_type, related_entity_id)
+          VALUES (v_mgr_uid, v_title, v_msg, v_type, 'probation_period', v_emp.id);
+          v_total := v_total + 1;
+        END IF;
+      END IF;
+    END IF;
+  END LOOP;
+  RETURN jsonb_build_object('notifications_created', v_total, 'run_at', now());
+END; $f$;
+
+UPDATE public.employees SET probation_months = CASE WHEN public.is_managerial_position(position) THEN 8 ELSE 4 END
+  WHERE start_date IS NOT NULL AND probation_months IS NULL;
+UPDATE public.employees SET probation_end_date = start_date + (probation_months || ' months')::interval
+  WHERE start_date IS NOT NULL AND probation_end_date IS NULL AND probation_months IS NOT NULL;
+
+DO $f$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.unschedule('check-probation-period-endings-daily')
+      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'check-probation-period-endings-daily');
+    PERFORM cron.schedule('check-probation-period-endings-daily', '0 8 * * *',
+      $cron$ SELECT public.check_probation_period_endings(); $cron$);
+  END IF;
+END $f$;`,
+  },
 ];
 
 /**
