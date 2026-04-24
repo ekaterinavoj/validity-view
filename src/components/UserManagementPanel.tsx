@@ -37,9 +37,10 @@ import { AddUserModal } from "@/components/AddUserModal";
 import { ResetPasswordModal } from "@/components/ResetPasswordModal";
 import { ChangeEmailModal } from "@/components/ChangeEmailModal";
 import { ModuleAccessManager } from "@/components/ModuleAccessManager";
-import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { exportToCSV as exportCSVHelper } from "@/lib/csvExport";
+import { buildExportFilename, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 interface UserProfile {
   id: string;
