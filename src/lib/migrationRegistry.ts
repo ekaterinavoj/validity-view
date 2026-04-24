@@ -3734,6 +3734,7 @@ ON CONFLICT (key) DO NOTHING;`,
 -- 3) Bulk import komponenty resetují stav MissingHeadersAlert při novém uploadu.
 -- Žádné změny DB schématu.
 SELECT 1;`,
+  },
   {
     version: "20260424370000",
     name: "unified_import_export_tooltips_and_recipient_toggles_audit",
