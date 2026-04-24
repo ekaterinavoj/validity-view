@@ -286,21 +286,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const BASE_DELAY_MS = 700;
     let lastError: any = null;
 
+    // Correlation id to trace all attempts for one logical signIn in DB logs / console.
+    const requestId =
+      (typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    const userAgent =
+      typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : null;
+
+    // Best-effort logger to public.auth_signin_attempts. Never throws or blocks login.
+    const logAttempt = async (params: {
+      attempt: number;
+      status: "success" | "failure" | "retry";
+      httpStatus?: number | null;
+      errorCode?: string | null;
+      errorMessage?: string | null;
+    }) => {
+      try {
+        await supabase.from("auth_signin_attempts").insert({
+          email: email.trim().toLowerCase().slice(0, 320),
+          attempt_number: params.attempt,
+          status: params.status,
+          http_status: params.httpStatus ?? null,
+          error_code: params.errorCode ? String(params.errorCode).slice(0, 100) : null,
+          error_message: params.errorMessage ? params.errorMessage.slice(0, 2000) : null,
+          request_id: requestId,
+          user_agent: userAgent,
+        });
+      } catch (logErr: any) {
+        // Silent — diagnostics must never break auth.
+        console.debug("[AuthContext] logAttempt failed:", logErr?.message);
+      }
+    };
+
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
 
         if (!error) {
-          if (attempt > 1) {
-            console.log(`[AuthContext] signIn succeeded on attempt ${attempt}`);
-          }
+          console.log(
+            `[AuthContext] signIn success requestId=${requestId} email=${email} attempt=${attempt}`
+          );
+          void logAttempt({ attempt, status: "success" });
           return { error: null };
         }
 
         lastError = error;
 
-        // Decide if error is retryable. Don't retry credentials/validation errors.
         const status = (error as any)?.status ?? 0;
+        const code = (error as any)?.code ?? (error as any)?.name ?? null;
         const message = (error?.message ?? "").toLowerCase();
         const isRetryable =
           status >= 500 ||
@@ -314,22 +348,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           message.includes("timeout") ||
           message.includes("unexpected_failure");
 
-        if (!isRetryable || attempt === MAX_ATTEMPTS) {
+        const isFinal = !isRetryable || attempt === MAX_ATTEMPTS;
+
+        console.warn(
+          `[AuthContext] signIn attempt ${attempt}/${MAX_ATTEMPTS} requestId=${requestId} email=${email} ` +
+            `status=${status} code=${code ?? "n/a"} retryable=${isRetryable} final=${isFinal} message="${error.message}"`
+        );
+
+        void logAttempt({
+          attempt,
+          status: isFinal ? "failure" : "retry",
+          httpStatus: status || null,
+          errorCode: code,
+          errorMessage: error.message,
+        });
+
+        if (isFinal) {
           return { error };
         }
 
         const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
-        console.warn(
-          `[AuthContext] signIn attempt ${attempt} failed (status=${status}): ${error.message}. Retrying in ${delay}ms...`
-        );
         await new Promise((resolve) => setTimeout(resolve, delay));
       } catch (error: any) {
         lastError = error;
-        if (attempt === MAX_ATTEMPTS) return { error };
-        const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        const isFinal = attempt === MAX_ATTEMPTS;
         console.warn(
-          `[AuthContext] signIn attempt ${attempt} threw: ${error?.message}. Retrying in ${delay}ms...`
+          `[AuthContext] signIn attempt ${attempt}/${MAX_ATTEMPTS} requestId=${requestId} email=${email} ` +
+            `threw: name=${error?.name} message="${error?.message}" final=${isFinal}`
         );
+        void logAttempt({
+          attempt,
+          status: isFinal ? "failure" : "retry",
+          httpStatus: null,
+          errorCode: error?.name ?? "exception",
+          errorMessage: error?.message ?? String(error),
+        });
+        if (isFinal) return { error };
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
