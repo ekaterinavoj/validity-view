@@ -131,6 +131,30 @@ export function useEmployees(statusFilter?: string) {
     setError(null);
 
     try {
+      // Optimization: for managers, restrict the query to their subordinates
+      // (RLS would also enforce this, but pre-filtering reduces DB & network work
+      // and avoids relying on row-level rejections).
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+
+      let allowedIds: string[] | null = null;
+      if (userId) {
+        const { data: rolesData } = await supabase.rpc("get_user_roles", { _user_id: userId });
+        const roles = (rolesData ?? []) as string[];
+        const isAdmin = roles.includes("admin");
+        const isManager = roles.includes("manager");
+
+        if (!isAdmin && isManager) {
+          const { data: subs } = await supabase.rpc("get_subordinate_employee_ids", {
+            root_employee_id: (await supabase.rpc("get_user_employee_id", { _user_id: userId })).data,
+          });
+          allowedIds = (subs ?? []).map((r: { employee_id: string }) => r.employee_id);
+        } else if (!isAdmin && !isManager) {
+          const ownEmpRes = await supabase.rpc("get_user_employee_id", { _user_id: userId });
+          allowedIds = ownEmpRes.data ? [ownEmpRes.data as string] : [];
+        }
+      }
+
       let query = supabase
         .from("employees")
         .select(EMPLOYEE_SELECT)
@@ -140,11 +164,24 @@ export function useEmployees(statusFilter?: string) {
       if (statusFilter && statusFilter !== "all") {
         query = query.eq("status", statusFilter);
       }
+      if (allowedIds !== null) {
+        if (allowedIds.length === 0) {
+          setEmployees([]);
+          await logEmployeeAccess("list", 0, { statusFilter, scope: "restricted-empty" });
+          return;
+        }
+        query = query.in("id", allowedIds);
+      }
 
       const { data, error: fetchError } = await query;
       if (fetchError) throw fetchError;
 
-      setEmployees(resolveManagers((data || []).map(mapEmployee)));
+      const mapped = resolveManagers((data || []).map(mapEmployee));
+      setEmployees(mapped);
+      await logEmployeeAccess("list", mapped.length, {
+        statusFilter,
+        scope: allowedIds === null ? "all" : "restricted",
+      });
     } catch (err: any) {
       console.error("Error fetching employees:", err);
       setError("Nepodařilo se načíst zaměstnance. Zkuste to prosím znovu.");
