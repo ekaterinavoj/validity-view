@@ -150,7 +150,35 @@ function TreeNodeComponent({ node, level = 0 }: { node: TreeNode; level?: number
 }
 
 export function EmployeeHierarchyTree({ employees, className }: EmployeeHierarchyTreeProps) {
-  const tree = buildTree(employees);
+  // Skryjeme ukončené zaměstnance ze stromu (zůstávají v plochém přehledu).
+  // Aktivní + mateřská + nemocenská se zobrazují normálně.
+  // Pokud má ukončený zaměstnanec podřízené, jeho přímí podřízení se „povýší"
+  // pod jeho původního manažera (skutečný strom hierarchie pro aktivní lidi).
+  const visibleEmployees = (() => {
+    const byId = new Map(employees.map((e) => [e.id, e]));
+    const isHidden = (e: Employee) => e.status === "terminated";
+
+    /** Najde nejbližšího aktivního manažera procházením řetězce nahoru. */
+    const resolveManager = (startId: string | null | undefined): string | null => {
+      const seen = new Set<string>();
+      let current = startId ?? null;
+      while (current) {
+        if (seen.has(current)) return null; // safety proti cyklu
+        seen.add(current);
+        const mgr = byId.get(current);
+        if (!mgr) return null;
+        if (!isHidden(mgr)) return mgr.id;
+        current = mgr.managerEmployeeId ?? null;
+      }
+      return null;
+    };
+
+    return employees
+      .filter((e) => !isHidden(e))
+      .map((e) => ({ ...e, managerEmployeeId: resolveManager(e.managerEmployeeId) }));
+  })();
+
+  const tree = buildTree(visibleEmployees);
 
   if (tree.length === 0) {
     return (
