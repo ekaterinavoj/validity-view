@@ -1173,6 +1173,13 @@ export const BulkDeadlineImport = () => {
               </DialogDescription>
             </DialogHeader>
 
+            {equipmentHeaderError && (
+              <MissingHeadersAlert
+                missing={equipmentHeaderError.missing}
+                detected={equipmentHeaderError.detected}
+              />
+            )}
+
             {equipmentPreview && (
               <div className="space-y-4">
                 {equipmentPreview.totalRows >= 1000 && (
@@ -1327,6 +1334,13 @@ export const BulkDeadlineImport = () => {
                 Zkontrolujte data před importem
               </DialogDescription>
             </DialogHeader>
+
+            {deadlineHeaderError && (
+              <MissingHeadersAlert
+                missing={deadlineHeaderError.missing}
+                detected={deadlineHeaderError.detected}
+              />
+            )}
 
             {deadlinePreview && (
               <div className="space-y-4">
