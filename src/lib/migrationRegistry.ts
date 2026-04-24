@@ -3415,6 +3415,16 @@ BEGIN
   RETURN NEW;
 END; $f$;`,
   },
+  {
+    version: "20260424190000",
+    name: "probations_compact_view_and_adaptive_preview",
+    sql: `-- UI-only změny:
+--   • /probations: přepínač pro zobrazení bez záložek (jen přehled)
+--   • FilePreviewDialog: adaptivní rozměry dialogu podle formátu (PDF/obrázek)
+--   • Vitest kontrakty pro RLS audit_logs a probation_obstacles
+-- Žádná změna databázového schématu.
+SELECT 1;`,
+  },
 ];
 
 /**
