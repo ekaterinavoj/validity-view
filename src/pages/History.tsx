@@ -26,7 +26,7 @@ import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { supabase } from "@/integrations/supabase/client";
 import { useFacilities } from "@/hooks/useFacilities";
-import * as XLSX from 'xlsx';
+// XLSX removed — exports use CSV
 import Papa from 'papaparse';
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";

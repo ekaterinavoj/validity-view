@@ -30,7 +30,7 @@ import { useInactiveEmployees } from "@/hooks/useEmployees";
 import { useTrainings } from "@/hooks/useTrainings";
 import { CardsSkeleton, TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
-import * as XLSX from 'xlsx';
+// XLSX removed — exports use CSV
 
 const statusLabels = {
   employed: "Zaměstnaný",

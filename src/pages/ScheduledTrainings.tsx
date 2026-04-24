@@ -29,7 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import * as XLSX from 'xlsx';
+// XLSX removed — all exports use CSV via Papa
 import Papa from 'papaparse';
 // formatPeriodicity replaced by formatPeriodicityDual from TypePeriodicityCell
 import { formatDisplayDate } from "@/lib/dateFormat";
