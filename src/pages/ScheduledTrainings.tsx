@@ -48,6 +48,10 @@ import { BulkEditTrainingsDialog } from "@/components/BulkEditTrainingsDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
+import { downloadMatrixXLSX, type CellState, type MatrixEmployee, type MatrixEventType, type MatrixEntry } from "@/lib/matrixExport";
+import { useEmployees } from "@/hooks/useEmployees";
+import { useTrainingTypes } from "@/hooks/useTrainingTypes";
+import { Grid3x3 } from "lucide-react";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
@@ -56,6 +60,8 @@ export default function ScheduledTrainings() {
   const canEdit = isAdmin || isManager;
   const { trainings, loading: trainingsLoading, error: trainingsError, refetch } = useTrainings(true);
   const { facilities: facilitiesData } = useFacilities();
+  const { employees: allEmployees } = useEmployees();
+  const { trainingTypes: allTrainingTypes } = useTrainingTypes();
   const [selectedTrainings, setSelectedTrainings] = useState<Set<string>>(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -63,6 +69,7 @@ export default function ScheduledTrainings() {
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [exportingMatrix, setExportingMatrix] = useState(false);
   const [fixDialogTarget, setFixDialogTarget] = useState<{ id: string; label: string } | null>(null);
 
   const facilityNameMap = useMemo(() => {
@@ -334,6 +341,105 @@ export default function ScheduledTrainings() {
     }
   };
 
+  /**
+   * Export matrix XLSX: employees × training types with ✓/⚠/✗ cells.
+   * Uses ALL trainings (active only) and currently visible employee scope from RLS.
+   */
+  const exportMatrix = async () => {
+    setExportingMatrix(true);
+    try {
+      // Build employee rows from RLS-filtered employee list (manager sees subordinates only)
+      const empRows: MatrixEmployee[] = allEmployees
+        .filter((e) => e.status !== "terminated")
+        .map((e) => ({
+          id: e.id,
+          department: e.department
+            ? `${e.department}${e.departmentName ? ` - ${e.departmentName}` : ""}`
+            : "—",
+          lastName: e.lastName,
+          firstName: e.firstName,
+          position: e.position,
+          statusLabel:
+            e.status === "employed"
+              ? "Aktivní"
+              : e.status === "parental_leave"
+                ? "Mateřská"
+                : e.status === "sick_leave"
+                  ? "Nemocenská"
+                  : "Ukončen",
+          managerName:
+            e.managerFirstName || e.managerLastName
+              ? `${e.managerFirstName ?? ""} ${e.managerLastName ?? ""}`.trim()
+              : "",
+        }));
+
+      const typeRows: MatrixEventType[] = allTrainingTypes.map((t) => ({
+        id: t.id,
+        name: t.name,
+        facility: t.facility,
+      }));
+
+      // Build per-employee × per-type state
+      const today = new Date();
+      const warningCutoff = new Date();
+      warningCutoff.setDate(warningCutoff.getDate() + 30);
+
+      // Group trainings by (employeeId|typeId) — keep newest next_training_date
+      const latest = new Map<string, { date: Date; status: string }>();
+      for (const t of trainings) {
+        if (!t.is_active) continue;
+        const key = `${t.employeeId}|${t.trainingTypeId}`;
+        const date = new Date(t.date);
+        const prev = latest.get(key);
+        if (!prev || date > prev.date) {
+          latest.set(key, { date, status: t.status });
+        }
+      }
+
+      const entries: MatrixEntry[] = [];
+      for (const emp of empRows) {
+        for (const type of typeRows) {
+          const key = `${emp.id}|${type.id}`;
+          const found = latest.get(key);
+          let state: CellState;
+          if (!found) {
+            state = "na"; // not assigned to this employee
+          } else if (found.date < today) {
+            state = "expired";
+          } else if (found.date <= warningCutoff) {
+            state = "warning";
+          } else {
+            state = "ok";
+          }
+          entries.push({ employeeId: emp.id, eventTypeId: type.id, state });
+        }
+      }
+
+      const timestamp = format(new Date(), "yyyy-MM-dd");
+      downloadMatrixXLSX({
+        title: "Matice školení",
+        filename: `matice_skoleni_${timestamp}`,
+        employees: empRows,
+        eventTypes: typeRows,
+        entries,
+        eventsLabel: "Školení",
+      });
+
+      toast({
+        title: "Matice exportována",
+        description: `${empRows.length} zaměstnanců × ${typeRows.length} typů školení`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Chyba při exportu matice",
+        description: error?.message ?? "Nepodařilo se vygenerovat matici.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingMatrix(false);
+    }
+  };
+
   // expand + checkbox? + stav + platnost + typ + os.č. + jméno + středisko + datum + školitel + výsledek + poznámka + protokol + akce = 13 or 12
   const totalColumns = canEdit ? 13 : 12;
 
@@ -393,6 +499,15 @@ export default function ScheduledTrainings() {
                 ? `Export CSV (${selectedTrainings.size})`
                 : "Export CSV"
               }
+            </Button>
+            <Button
+              variant="outline"
+              onClick={exportMatrix}
+              disabled={exportingMatrix || allEmployees.length === 0 || allTrainingTypes.length === 0}
+              title="Souhrnná matice: zaměstnanci × typy školení (XLSX s ✓/⚠/✗)"
+            >
+              <Grid3x3 className="w-4 h-4 mr-2" />
+              {exportingMatrix ? "Generuji…" : "Matice školení"}
             </Button>
             {canEdit && (
               <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
