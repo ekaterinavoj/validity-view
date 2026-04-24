@@ -36,6 +36,7 @@ import { formatDisplayDate } from "@/lib/dateFormat";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 
 export default function History() {
@@ -369,7 +370,7 @@ export default function History() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" size="sm" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

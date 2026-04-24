@@ -22,6 +22,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { exportToCSV } from "@/lib/csvExport";
 import Papa from "papaparse";
+import { CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 const formSchema = z.object({
   name: z.string().min(1, "Zadejte název provozovny"),
@@ -263,11 +264,11 @@ export default function Facilities() {
         
         <div className="flex gap-2">
           <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelect} />
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} title={CSV_IMPORT_TOOLTIP}>
             <Upload className="w-4 h-4 mr-2" />Import
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" />Export CSV
+          <Button variant="outline" size="sm" onClick={handleExport} title={CSV_FORMAT_TOOLTIP}>
+            <Download className="w-4 h-4 mr-2" />Export
           </Button>
           <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>

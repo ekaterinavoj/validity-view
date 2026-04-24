@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 type WindowFilter = "ending_14" | "ending_30" | "ending_60" | "all_active";
 
@@ -367,11 +368,11 @@ export default function Probations() {
                 </Button>
               )}
               <div className="flex items-center gap-2 ml-auto">
-                <Button variant="outline" size="sm" onClick={handleCsvExport}>
-                  <Download className="h-4 w-4 mr-1" /> CSV
+                <Button variant="outline" size="sm" onClick={handleCsvExport} title={CSV_FORMAT_TOOLTIP}>
+                  <Download className="h-4 w-4 mr-1" /> Export
                 </Button>
-                <Button variant="outline" size="sm" onClick={handlePdfExport}>
-                  <FileText className="h-4 w-4 mr-1" /> PDF
+                <Button variant="outline" size="sm" onClick={handlePdfExport} title="Formát: PDF (přehled zkušebních dob)">
+                  <FileText className="h-4 w-4 mr-1" /> Export PDF
                 </Button>
                 <span className="text-sm text-muted-foreground whitespace-nowrap">
                   Celkem: {filtered.length}

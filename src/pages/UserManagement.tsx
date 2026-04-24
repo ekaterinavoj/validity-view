@@ -13,6 +13,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { useNavigate } from "react-router-dom";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -296,7 +297,7 @@ export default function UserManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" size="sm" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

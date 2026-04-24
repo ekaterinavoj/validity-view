@@ -55,6 +55,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
 import { RefreshButton } from "@/components/RefreshButton";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function ScheduledDeadlines() {
   const { toast } = useToast();
@@ -258,7 +259,7 @@ export default function ScheduledDeadlines() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-foreground">Naplánované události</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" size="sm" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

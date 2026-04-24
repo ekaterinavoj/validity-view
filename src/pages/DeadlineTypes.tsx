@@ -34,6 +34,7 @@ import { exportToCSV } from "@/lib/csvExport";
 import { supabase } from "@/integrations/supabase/client";
 import Papa from "papaparse";
 import { useToast } from "@/hooks/use-toast";
+import { CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function DeadlineTypes() {
   const { deadlineTypes, isLoading, error, refetch, createDeadlineType, updateDeadlineType, deleteDeadlineType, isCreating, isUpdating } = useDeadlineTypes();
@@ -217,11 +218,11 @@ export default function DeadlineTypes() {
         </div>
         <div className="flex items-center gap-2">
           <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelect} />
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} title={CSV_IMPORT_TOOLTIP}>
             <Upload className="w-4 h-4 mr-2" />Import
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" />Export CSV
+          <Button variant="outline" size="sm" onClick={handleExport} title={CSV_FORMAT_TOOLTIP}>
+            <Download className="w-4 h-4 mr-2" />Export
           </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="w-4 h-4 mr-2" />Obnovit

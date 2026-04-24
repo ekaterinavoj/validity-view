@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { computeAvgAttempts, formatAvgAttempts } from "@/lib/statisticsHelpers";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 interface EmailStats {
   totalSent: number;
@@ -455,7 +456,7 @@ export function EmailDeliveryStats() {
             90 dní
           </Button>
           <div className="w-px bg-border mx-1" />
-          <Button variant="outline" size="sm" onClick={exportToCSV} disabled={exporting || !stats} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" size="sm" onClick={exportToCSV} disabled={exporting || !stats} title={CSV_FORMAT_TOOLTIP}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

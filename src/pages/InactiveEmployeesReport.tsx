@@ -30,6 +30,7 @@ import { useInactiveEmployees } from "@/hooks/useEmployees";
 import { useTrainings } from "@/hooks/useTrainings";
 import { CardsSkeleton, TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 // XLSX removed — exports use CSV
 
 const statusLabels = {
@@ -191,7 +192,7 @@ export default function InactiveEmployeesReport() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" size="sm" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

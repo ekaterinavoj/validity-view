@@ -14,6 +14,7 @@ import { Loader2, ShieldCheck, Eye, Download, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDisplayDateTime } from "@/lib/dateFormat";
 import { exportToCSV } from "@/lib/csvExport";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 interface UserOption {
   id: string;
@@ -304,9 +305,9 @@ export function EmployeeAccessDebug() {
                 kontext). Použijte filtry pro vyhledání a tlačítko Export pro stažení CSV.
               </CardDescription>
             </div>
-            <Button onClick={handleExportLogs} variant="outline" size="sm" className="gap-2">
+            <Button onClick={handleExportLogs} variant="outline" size="sm" className="gap-2" title={CSV_FORMAT_TOOLTIP}>
               <Download className="h-4 w-4" />
-              Export CSV ({filteredLogs.length})
+              Export ({filteredLogs.length})
             </Button>
           </div>
         </CardHeader>

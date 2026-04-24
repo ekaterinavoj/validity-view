@@ -48,6 +48,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { RefreshButton } from "@/components/RefreshButton";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 // Helper: detect managerial position by keywords (mirrors DB function is_managerial_position)
 const isManagerialPosition = (position: string | undefined | null): boolean => {
@@ -604,7 +605,7 @@ export default function Employees() {
         <div className="flex gap-2">
           <RefreshButton onRefresh={() => refetch()} loading={employeesLoading} />
           <BulkEmployeeImport />
-          <Button variant="outline" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
