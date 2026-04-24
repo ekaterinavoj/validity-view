@@ -478,6 +478,42 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_access_logs: {
+        Row: {
+          action: string
+          created_at: string
+          filters: Json | null
+          id: string
+          rows_returned: number | null
+          source: string | null
+          user_email: string | null
+          user_id: string | null
+          user_role: string | null
+        }
+        Insert: {
+          action?: string
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          rows_returned?: number | null
+          source?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          rows_returned?: number | null
+          source?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           birth_date: string | null
@@ -1724,6 +1760,15 @@ export type Database = {
       calculate_training_status: {
         Args: { next_date: string }
         Returns: string
+      }
+      debug_employee_visibility: {
+        Args: { _target_user_id: string }
+        Returns: {
+          employee_email: string
+          employee_id: string
+          employee_name: string
+          reason: string
+        }[]
       }
       get_registration_mode: { Args: never; Returns: string }
       get_subordinate_employee_ids: {
