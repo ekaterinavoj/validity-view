@@ -228,14 +228,35 @@ export default function AuditLog() {
         newDisplay = newVal ? "Archivováno" : "Aktivní";
       }
 
+      // Format probation date fields → dd.MM.yyyy
+      if (
+        field === "start_date" ||
+        field === "probation_end_date" ||
+        field === "date_from" ||
+        field === "date_to"
+      ) {
+        const fmt = (v: any) => {
+          if (!v) return "—";
+          try { return format(new Date(v), "dd.MM.yyyy"); } catch { return String(v); }
+        };
+        oldDisplay = fmt(oldVal);
+        newDisplay = fmt(newVal);
+      }
+
+      // Probation override reason: empty → "—"
+      if (field === "probation_override_reason" || field === "reason") {
+        oldDisplay = oldVal ? String(oldVal) : "—";
+        newDisplay = newVal ? String(newVal) : "—";
+      }
+
       const label = fieldLabels[field] || field;
       
       if (log.action === "INSERT") {
-        details.push(`${label}: ${newDisplay || "-"}`);
+        details.push(`${label}: ${newDisplay || "—"}`);
       } else if (log.action === "DELETE") {
-        details.push(`${label}: ${oldDisplay || "-"}`);
+        details.push(`${label}: ${oldDisplay || "—"}`);
       } else {
-        details.push(`${label}: ${oldDisplay || "-"} → ${newDisplay || "-"}`);
+        details.push(`${label}: ${oldDisplay ?? "—"} → ${newDisplay ?? "—"}`);
       }
     }
 
@@ -292,9 +313,13 @@ export default function AuditLog() {
                 <SelectContent>
                   <SelectItem value="all">Všechny tabulky</SelectItem>
                   <SelectItem value="trainings">Školení</SelectItem>
+                  <SelectItem value="deadlines">Technické události</SelectItem>
+                  <SelectItem value="medical_examinations">PLP</SelectItem>
+                  <SelectItem value="employees">Zaměstnanci</SelectItem>
+                  <SelectItem value="employees_probation">Zkušební doba</SelectItem>
+                  <SelectItem value="probation_obstacles">Překážky v ZD</SelectItem>
                   <SelectItem value="user_roles">Role uživatelů</SelectItem>
                   <SelectItem value="training_types">Typy školení</SelectItem>
-                  <SelectItem value="employees">Zaměstnanci</SelectItem>
                   <SelectItem value="departments">Oddělení</SelectItem>
                 </SelectContent>
               </Select>
