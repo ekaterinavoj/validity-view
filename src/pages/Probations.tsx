@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useEmployees } from "@/hooks/useEmployees";
 import { ProbationBadge } from "@/components/ProbationBadge";
 import { DepartmentCell } from "@/components/DepartmentCell";
-import { Search, X, ClipboardList } from "lucide-react";
+import { Search, X, ClipboardList, Bell, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { formatDisplayDate } from "@/lib/dateFormat";
@@ -67,9 +68,9 @@ export default function Probations() {
           <h1 className="text-2xl font-semibold">Zkušební doby</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Přehled aktivních zaměstnanců s blížícím se koncem zkušební doby. Notifikace
-          v aplikaci se generují <strong>14 dní před koncem</strong> a <strong>v den konce</strong>
-          {" "}pro administrátory a přímého nadřízeného.
+          Přehled aktivních zaměstnanců s blížícím se koncem zkušební doby. <Bell className="inline h-3.5 w-3.5 mb-0.5" /> In-app
+          notifikace ve zvonečku se generují <strong>14 dní před koncem</strong> a <strong>v den konce</strong>{" "}
+          pro administrátory a přímého nadřízeného. Notifikace nejsou rozesílány e-mailem.
         </p>
       </div>
 
@@ -147,7 +148,22 @@ export default function Probations() {
                     {e.probationMonths ?? "-"}
                   </TableCell>
                   <TableCell>
-                    <ProbationBadge endDate={e.probationEndDate} />
+                    <div className="flex items-center gap-1.5">
+                      <ProbationBadge endDate={e.probationEndDate} />
+                      {e.probationOverrideReason && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-3.5 w-3.5 text-status-warning cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs font-medium mb-1">Ručně upraveno – důvod:</p>
+                              <p className="text-xs">{e.probationOverrideReason}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {e.managerFirstName || e.managerLastName

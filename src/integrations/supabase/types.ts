@@ -532,6 +532,7 @@ export type Database = {
           position: string
           probation_end_date: string | null
           probation_months: number | null
+          probation_override_reason: string | null
           start_date: string | null
           status: string
           status_start_date: string | null
@@ -553,6 +554,7 @@ export type Database = {
           position: string
           probation_end_date?: string | null
           probation_months?: number | null
+          probation_override_reason?: string | null
           start_date?: string | null
           status: string
           status_start_date?: string | null
@@ -574,6 +576,7 @@ export type Database = {
           position?: string
           probation_end_date?: string | null
           probation_months?: number | null
+          probation_override_reason?: string | null
           start_date?: string | null
           status?: string
           status_start_date?: string | null
