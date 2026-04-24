@@ -48,12 +48,13 @@ export default function Statistics() {
   // Combine all trainings for complete statistics
   const allTrainings = useMemo(() => [...activeTrainings, ...inactiveTrainings], [activeTrainings, inactiveTrainings]);
 
-  // Filter trainings by selected year (based on next_training_date)
+  // Filter trainings by selected year (based on next_training_date).
+  // Parse year directly from ISO string to avoid timezone shifts.
   const yearFilteredTrainings = useMemo(() => {
     if (selectedYear === "all") return activeTrainings;
     return activeTrainings.filter(t => {
-      const date = new Date(t.date);
-      return date.getFullYear().toString() === selectedYear;
+      if (!t.date) return false;
+      return String(t.date).slice(0, 4) === selectedYear;
     });
   }, [activeTrainings, selectedYear]);
 
