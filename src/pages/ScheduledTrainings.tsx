@@ -480,7 +480,7 @@ export default function ScheduledTrainings() {
               variant="outline"
               onClick={exportMatrix}
               disabled={exportingMatrix || allEmployees.length === 0 || allTrainingTypes.length === 0}
-              title="Formát: XLSX — zaměstnanci × typy školení (✓ má / prázdné nemá)"
+              title="Formát: CSV — zaměstnanci × typy školení (✓ má / prázdné nemá)"
             >
               <Grid3x3 className="w-4 h-4 mr-2" />
               {exportingMatrix ? "Generuji…" : "Matice"}
