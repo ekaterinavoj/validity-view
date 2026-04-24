@@ -101,6 +101,13 @@ const Profile = () => {
         }
         throw error;
       }
+      // Reset password review flag (validated client-side + HIBP server-side)
+      try {
+        await supabase.rpc("mark_password_reviewed" as any);
+        await refreshProfile();
+      } catch (e) {
+        console.warn("mark_password_reviewed failed (non-critical):", e);
+      }
       toast({
         title: "Heslo změněno",
         description: "Vaše heslo bylo úspěšně změněno.",
