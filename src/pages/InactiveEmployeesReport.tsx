@@ -193,7 +193,7 @@ export default function InactiveEmployeesReport() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            Export
           </Button>
         </div>
       </div>

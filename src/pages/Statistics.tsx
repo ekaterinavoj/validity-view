@@ -518,7 +518,7 @@ export default function Statistics() {
           </Select>
           <Button variant="outline" onClick={handleExportCSV} disabled={trainingsLoading || typesLoading || totalTrainings === 0}>
             <Download className="w-4 h-4 mr-2" />
-            {trainingsLoading ? "Načítám..." : "Export CSV"}
+            {trainingsLoading ? "Načítám..." : "Export"}
           </Button>
         </div>
       </div>

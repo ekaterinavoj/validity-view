@@ -604,7 +604,7 @@ export default function Employees() {
           <BulkEmployeeImport />
           <Button variant="outline" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            Export
           </Button>
           <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>

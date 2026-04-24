@@ -476,8 +476,8 @@ export default function ScheduledTrainings() {
             <Button variant="outline" onClick={exportToCSV}>
               <Download className="w-4 h-4 mr-2" />
               {selectedTrainings.size > 0 
-                ? `Export CSV (${selectedTrainings.size})`
-                : "Export CSV"
+                ? `Export (${selectedTrainings.size})`
+                : "Export"
               }
             </Button>
             <Button

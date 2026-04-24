@@ -269,7 +269,7 @@ export default function Departments() {
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            Export
           </Button>
           <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>

@@ -309,7 +309,7 @@ export default function Equipment() {
           <BulkEquipmentImport onImportComplete={() => refetch()} />
           <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            Export
           </Button>
           <Button size="sm" onClick={openCreateDialog}>
             <Plus className="w-4 h-4 mr-2" />
