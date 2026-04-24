@@ -49,6 +49,7 @@ import Documents from "./pages/Documents";
 import EventTypesOverview from "./pages/EventTypesOverview";
 import MyPermissions from "./pages/MyPermissions";
 import Probations from "./pages/Probations";
+import Guides from "./pages/Guides";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
