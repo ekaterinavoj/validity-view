@@ -571,9 +571,15 @@ export function FilePreviewDialog({
                     >
                       <ZoomOut className="w-4 h-4" />
                     </Button>
-                    <span className="text-sm min-w-[50px] text-center">
-                      {Math.round(scale * 100)}%
-                    </span>
+                    <Button
+                      variant={autoFit ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={fitToPage}
+                      title="Přizpůsobit stránce (vejde se celá)"
+                      className="text-xs min-w-[55px]"
+                    >
+                      {autoFit ? "Fit" : `${Math.round(scale * 100)}%`}
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
