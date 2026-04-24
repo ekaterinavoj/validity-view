@@ -23,7 +23,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { exportToCSV } from "@/lib/csvExport";
-import * as XLSX from "xlsx";
+import Papa from "papaparse";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -140,16 +140,13 @@ export default function TrainingTypes() {
   // ---- Import ----
   const parseFile = (file: File): Promise<any[]> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const data = new Uint8Array(event.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          resolve(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]));
-        } catch (error) { reject(error); }
-      };
-      reader.onerror = () => reject(new Error("Chyba čtení souboru"));
-      reader.readAsArrayBuffer(file);
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        delimiter: "",
+        complete: (results) => resolve(results.data as any[]),
+        error: (error) => reject(error),
+      });
     });
   };
 
@@ -287,9 +284,9 @@ export default function TrainingTypes() {
         </div>
         
         <div className="flex gap-2">
-          <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} />
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}><Upload className="w-4 h-4 mr-2" />Import</Button>
-          <Button variant="outline" size="sm" onClick={handleExport}><Download className="w-4 h-4 mr-2" />Export CSV</Button>
+          <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelect} />
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} title="Formát: CSV (středník, UTF-8)"><Upload className="w-4 h-4 mr-2" />Import</Button>
+          <Button variant="outline" size="sm" onClick={handleExport} title="Formát: CSV (středník, UTF-8)"><Download className="w-4 h-4 mr-2" />Export</Button>
           <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>
               <Button><Plus className="mr-2 h-4 w-4" />Přidat nový typ</Button>

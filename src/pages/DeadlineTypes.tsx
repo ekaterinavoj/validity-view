@@ -32,7 +32,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { exportToCSV } from "@/lib/csvExport";
 import { supabase } from "@/integrations/supabase/client";
-import * as XLSX from "xlsx";
+import Papa from "papaparse";
 import { useToast } from "@/hooks/use-toast";
 
 export default function DeadlineTypes() {
@@ -115,16 +115,13 @@ export default function DeadlineTypes() {
   // ---- Import ----
   const parseFile = (file: File): Promise<any[]> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const data = new Uint8Array(event.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          resolve(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]));
-        } catch (error) { reject(error); }
-      };
-      reader.onerror = () => reject(new Error("Chyba čtení souboru"));
-      reader.readAsArrayBuffer(file);
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        delimiter: "",
+        complete: (results) => resolve(results.data as any[]),
+        error: (error) => reject(error),
+      });
     });
   };
 
@@ -219,8 +216,8 @@ export default function DeadlineTypes() {
           <p className="text-muted-foreground">Celkem {filteredTypes.length} typů</p>
         </div>
         <div className="flex items-center gap-2">
-          <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} />
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+          <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelect} />
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} title="Formát: CSV (středník, UTF-8)">
             <Upload className="w-4 h-4 mr-2" />Import
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
