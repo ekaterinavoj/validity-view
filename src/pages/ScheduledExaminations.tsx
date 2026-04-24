@@ -343,7 +343,7 @@ export default function ScheduledExaminations() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" size="sm" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

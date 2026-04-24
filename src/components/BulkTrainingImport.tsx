@@ -1316,7 +1316,7 @@ export const BulkTrainingImport = () => {
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <Label className="font-semibold text-destructive">Chybné záznamy ({preview.errorRows.length})</Label>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={exportErrors} title="Formát: CSV (středník, UTF-8)">
+                      <Button variant="outline" size="sm" onClick={exportErrors} title={CSV_FORMAT_TOOLTIP}>
                         <FileDown className="w-4 h-4 mr-1" />
                         Export chyb
                       </Button>

@@ -635,9 +635,9 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
 
             {invalidCount > 0 && (
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={exportErrors}>
+                <Button variant="outline" size="sm" onClick={exportErrors} title={CSV_FORMAT_TOOLTIP}>
                   <FileDown className="w-4 h-4 mr-2" />
-                  Exportovat chyby
+                  Export chyb
                 </Button>
                 <input
                   type="file"

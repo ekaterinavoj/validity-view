@@ -258,7 +258,7 @@ export default function ScheduledDeadlines() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-foreground">Naplánované události</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" size="sm" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

@@ -281,8 +281,8 @@ export default function MedicalExaminationTypes() {
 
         <div className="flex gap-2">
           <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelect} />
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} title="Formát: CSV (středník, UTF-8)"><Upload className="w-4 h-4 mr-2" />Import</Button>
-          <Button variant="outline" size="sm" onClick={handleExport} title="Formát: CSV (středník, UTF-8)"><Download className="w-4 h-4 mr-2" />Export</Button>
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} title={CSV_IMPORT_TOOLTIP}><Upload className="w-4 h-4 mr-2" />Import</Button>
+          <Button variant="outline" size="sm" onClick={handleExport} title={CSV_FORMAT_TOOLTIP}><Download className="w-4 h-4 mr-2" />Export</Button>
           <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>
               <Button><Plus className="mr-2 h-4 w-4" />Přidat nový typ</Button>

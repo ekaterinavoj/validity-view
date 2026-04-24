@@ -150,8 +150,8 @@ export function SecurityAuditPanel() {
                 />
               </div>
             )}
-            <Button onClick={handleExport} variant="outline" size="sm" className="gap-2">
-              <Download className="h-4 w-4" /> Export CSV ({rows.length})
+            <Button onClick={handleExport} variant="outline" size="sm" className="gap-2" title={CSV_FORMAT_TOOLTIP}>
+              <Download className="h-4 w-4" /> Export ({rows.length})
             </Button>
           </div>
         </div>

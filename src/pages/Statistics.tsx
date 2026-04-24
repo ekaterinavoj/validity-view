@@ -516,7 +516,7 @@ export default function Statistics() {
               {years.map(year => <SelectItem key={year} value={year}>{year === "all" ? "Všechny roky" : year}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleExportCSV} disabled={trainingsLoading || typesLoading || totalTrainings === 0} title="Formát: CSV (středník, UTF-8)">
+          <Button variant="outline" onClick={handleExportCSV} disabled={trainingsLoading || typesLoading || totalTrainings === 0} title={CSV_FORMAT_TOOLTIP}>
             <Download className="w-4 h-4 mr-2" />
             {trainingsLoading ? "Načítám..." : "Export"}
           </Button>

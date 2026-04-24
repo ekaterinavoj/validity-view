@@ -471,7 +471,7 @@ export default function ScheduledTrainings() {
               <CalendarClock className="w-4 h-4 mr-2" />
               Vybrat expirující (30 dní)
             </Button>
-            <Button variant="outline" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
+            <Button variant="outline" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
               <Download className="w-4 h-4 mr-2" />
               {selectedTrainings.size > 0 
                 ? `Export (${selectedTrainings.size})`
