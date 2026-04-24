@@ -657,6 +657,7 @@ export function FilePreviewDialog({
                 <ImageViewer
                   url={getFileUrl(currentFile)}
                   fileName={currentFile.name}
+                  scale={scale}
                   showHeader={false}
                   onMeta={(m) => setMediaMeta(m)}
                 />
