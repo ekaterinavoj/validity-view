@@ -31,11 +31,12 @@ export default function ChangePassword() {
   const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const { policy } = usePasswordPolicy();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({ password: "", confirmPassword: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const evaluation = evaluatePassword(formData.password);
+  const evaluation = evaluatePassword(formData.password, policy);
   const canSubmit =
     evaluation.meetsMinimum &&
     formData.password.length > 0 &&
@@ -46,7 +47,7 @@ export default function ChangePassword() {
     setErrors({});
 
     try {
-      passwordSchema.parse(formData);
+      buildPasswordSchema(policy).parse(formData);
     } catch (error) {
       if (error instanceof z.ZodError) {
         const newErrors: Record<string, string> = {};
