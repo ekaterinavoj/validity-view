@@ -24,6 +24,7 @@ export type Database = {
           old_data: Json | null
           record_id: string
           table_name: string
+          target_user_id: string | null
           user_email: string | null
           user_id: string | null
           user_name: string | null
@@ -37,6 +38,7 @@ export type Database = {
           old_data?: Json | null
           record_id: string
           table_name: string
+          target_user_id?: string | null
           user_email?: string | null
           user_id?: string | null
           user_name?: string | null
@@ -50,6 +52,7 @@ export type Database = {
           old_data?: Json | null
           record_id?: string
           table_name?: string
+          target_user_id?: string | null
           user_email?: string | null
           user_id?: string | null
           user_name?: string | null
@@ -1776,6 +1779,46 @@ export type Database = {
           reason: string
         }[]
       }
+      debug_medical_document_access: {
+        Args: { _target_user_id: string }
+        Returns: {
+          document_id: string
+          examination_id: string
+          file_name: string
+          file_path: string
+          policy_branch: string
+          policy_name: string
+          reason: string
+          uploaded_by: string
+        }[]
+      }
+      get_filtered_audit_logs: {
+        Args: {
+          _action?: string
+          _from?: string
+          _limit?: number
+          _offset?: number
+          _role?: string
+          _table_name?: string
+          _target_user_id?: string
+          _to?: string
+          _user_id?: string
+        }
+        Returns: {
+          action: string
+          actor_role: string
+          changed_fields: string[]
+          created_at: string
+          id: string
+          record_id: string
+          table_name: string
+          target_user_id: string
+          total_count: number
+          user_email: string
+          user_id: string
+          user_name: string
+        }[]
+      }
       get_registration_mode: { Args: never; Returns: string }
       get_subordinate_employee_ids: {
         Args: { root_employee_id: string }
@@ -1809,6 +1852,10 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      log_realtime_denied: {
+        Args: { _reason: string; _topic: string }
+        Returns: undefined
+      }
       recalculate_all_statuses: { Args: never; Returns: Json }
       set_user_role: {
         Args: {

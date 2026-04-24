@@ -31,6 +31,11 @@ import { NextSendPreview } from "@/components/NextSendPreview";
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { OnboardingSettings } from "@/components/OnboardingSettings";
 import { EmployeeAccessDebug } from "@/components/EmployeeAccessDebug";
+import { MedicalDocsAccessDebug } from "@/components/MedicalDocsAccessDebug";
+import { MigrationsStatus } from "@/components/MigrationsStatus";
+import { SecurityFindings } from "@/components/SecurityFindings";
+import { SecurityAuditPanel } from "@/components/SecurityAuditPanel";
+import { ShieldAlert } from "lucide-react";
 
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { ModuleRecipientsSelector } from "@/components/ModuleRecipientsSelector";
@@ -62,7 +67,7 @@ export default function AdminSettings() {
   
   // Get initial tab from URL query param, default to "onboarding"
   const tabParam = searchParams.get("tab");
-  const validTabs = ["onboarding", "user-management", "reminders", "email", "history", "audit"];
+  const validTabs = ["onboarding", "user-management", "reminders", "email", "history", "audit", "security"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
   const [activeTab, setActiveTab] = useState(initialTab);
   
@@ -467,7 +472,7 @@ export default function AdminSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
             Onboarding
@@ -491,6 +496,10 @@ export default function AdminSettings() {
           <TabsTrigger value="audit" className="flex items-center gap-2">
             <Eye className="w-4 h-4" />
             Audit
+          </TabsTrigger>
+          <TabsTrigger value="security" className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4" />
+            Security
           </TabsTrigger>
         </TabsList>
 
@@ -1352,6 +1361,14 @@ export default function AdminSettings() {
         {/* Audit Tab */}
         <TabsContent value="audit" className="space-y-6">
           <EmployeeAccessDebug />
+          <MedicalDocsAccessDebug />
+          <SecurityAuditPanel />
+        </TabsContent>
+
+        {/* Security Tab */}
+        <TabsContent value="security" className="space-y-6">
+          <SecurityFindings />
+          <MigrationsStatus />
         </TabsContent>
 
       </Tabs>
