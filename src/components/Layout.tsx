@@ -443,7 +443,7 @@ export const Layout = ({
                       </DropdownMenuItem>
                     </>}
                   </DropdownMenuContent>
-                </DropdownMenu>}
+                </DropdownMenu>
             </div>
           </div>
         </nav>
