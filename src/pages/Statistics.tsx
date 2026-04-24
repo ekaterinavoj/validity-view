@@ -15,6 +15,12 @@ import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import html2canvas from "html2canvas";
 import { useFacilities } from "@/hooks/useFacilities";
+import {
+  parseYearFromISO,
+  isInYear,
+  buildDepartmentLabel,
+  formatStatCount,
+} from "@/lib/statisticsHelpers";
 
 export default function Statistics() {
   const {
@@ -49,13 +55,12 @@ export default function Statistics() {
   const allTrainings = useMemo(() => [...activeTrainings, ...inactiveTrainings], [activeTrainings, inactiveTrainings]);
 
   // Filter trainings by selected year (based on next_training_date).
-  // Parse year directly from ISO string to avoid timezone shifts.
+  // Uses isInYear() helper to parse the year directly from the ISO prefix
+  // and avoid timezone drift on dates near midnight (regression test:
+  // src/test/statistics-regressions.test.ts — Bug 1).
   const yearFilteredTrainings = useMemo(() => {
     if (selectedYear === "all") return activeTrainings;
-    return activeTrainings.filter(t => {
-      if (!t.date) return false;
-      return String(t.date).slice(0, 4) === selectedYear;
-    });
+    return activeTrainings.filter(t => isInYear(t.date, selectedYear));
   }, [activeTrainings, selectedYear]);
 
   // Basic training statistics - filtered by year
@@ -91,15 +96,13 @@ export default function Statistics() {
   }).length, [activeTrainings, today]);
 
   // Department statistics - filtered by year
-  // Use the human-readable department name (with code as suffix only if available)
-  // so the chart X axis doesn't show raw inventory-style codes (e.g. "2002000001").
+  // Use the buildDepartmentLabel() helper so the chart X axis shows the
+  // human-readable name (with the inventory-style code in parentheses)
+  // instead of raw codes like "2002000001". Regression test:
+  // src/test/statistics-regressions.test.ts — Bug 2.
   const departmentStats = useMemo(() => {
     return yearFilteredTrainings.reduce((acc, training) => {
-      const code = training.department || "";
-      const name = training.departmentName || "";
-      const label = name
-        ? (code ? `${name} (${code})` : name)
-        : (code || "Nezařazeno");
+      const label = buildDepartmentLabel(training.department, training.departmentName);
       if (!acc[label]) {
         acc[label] = {
           valid: 0,
@@ -202,12 +205,10 @@ export default function Statistics() {
     }> = {};
     
     allTrainings.forEach(training => {
-      if (!training.lastTrainingDate) return;
-      // Parse year directly from ISO date string ("YYYY-MM-DD...") to avoid
-      // timezone shifts that can move dates near midnight into the wrong year.
-      const yearStr = String(training.lastTrainingDate).slice(0, 4);
-      const year = parseInt(yearStr, 10);
-      if (!Number.isFinite(year)) return;
+      // Use parseYearFromISO so years near midnight don't drift into the
+      // wrong bucket due to timezone (regression: missing 2025 row).
+      const year = parseYearFromISO(training.lastTrainingDate);
+      if (year == null) return;
 
       if (!yearStats[year]) {
         yearStats[year] = {
@@ -330,13 +331,13 @@ export default function Statistics() {
       color: "hsl(var(--status-expired))"
     }
   };
-  // Dynamic year list from actual data — parse year from ISO string to avoid TZ drift.
+  // Dynamic year list from actual data — uses parseYearFromISO so the
+  // dropdown is consistent with all the other date groupings on the page.
   const years = useMemo(() => {
     const yearSet = new Set<string>();
     const addYear = (value?: string | null) => {
-      if (!value) return;
-      const y = String(value).slice(0, 4);
-      if (/^\d{4}$/.test(y)) yearSet.add(y);
+      const y = parseYearFromISO(value);
+      if (y != null) yearSet.add(String(y));
     };
     allTrainings.forEach(t => {
       addYear(t.date);
