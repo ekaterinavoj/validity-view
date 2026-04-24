@@ -41,12 +41,16 @@ const actionLabels = {
   DELETE: "Smazáno",
 };
 
-const tableLabels = {
+const tableLabels: Record<string, string> = {
   trainings: "Školení",
   user_roles: "Role uživatelů",
   training_types: "Typy školení",
   employees: "Zaměstnanci",
+  employees_probation: "Zkušební doba",
+  probation_obstacles: "Překážky v ZD",
   departments: "Oddělení",
+  deadlines: "Technické události",
+  medical_examinations: "PLP",
 };
 
 export default function AuditLog() {
@@ -155,6 +159,14 @@ export default function AuditLog() {
       is_active: "Aktivní",
       role: "Role",
       deleted_at: "Archivováno",
+      // Probation
+      start_date: "Datum nástupu",
+      probation_months: "Délka ZD (měs.)",
+      probation_end_date: "Konec ZD",
+      probation_override_reason: "Důvod úpravy ZD",
+      date_from: "Od",
+      date_to: "Do",
+      reason: "Důvod překážky",
     };
 
     return fields.map((f) => fieldLabels[f] || f).join(", ");
