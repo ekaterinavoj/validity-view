@@ -209,8 +209,8 @@ export function ReminderSimulationPreview() {
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const { data, error } = await supabase
-        .from(config.templatesTable)
+      const { data, error } = await (supabase
+        .from(config.templatesTable as any) as any)
         .select("id, name, remind_days_before, repeat_interval_days, email_subject, email_body")
         .eq("is_active", true)
         .order("name");
