@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { buildExportFilename } from "@/lib/exportFilename";
 import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { format } from "date-fns";
 import { formatDisplayDate } from "@/lib/dateFormat";

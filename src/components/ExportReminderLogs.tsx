@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { buildExportFilename } from "@/lib/exportFilename";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";

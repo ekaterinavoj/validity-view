@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { buildExportFilename } from "@/lib/exportFilename";
 import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { Link } from "react-router-dom";
 import { useSortable } from "@/hooks/useSortable";

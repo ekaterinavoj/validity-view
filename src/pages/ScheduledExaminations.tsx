@@ -1,4 +1,5 @@
 import { StatusBadge } from "@/components/StatusBadge";
+import { buildExportFilename } from "@/lib/exportFilename";
 import { AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypePeriodicityCell, formatPeriodicityDual } from "@/components/TypePeriodicityCell";

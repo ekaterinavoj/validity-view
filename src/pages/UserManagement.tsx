@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { buildExportFilename } from "@/lib/exportFilename";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

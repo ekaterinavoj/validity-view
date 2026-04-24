@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { buildExportFilename } from "@/lib/exportFilename";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
