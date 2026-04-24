@@ -634,31 +634,6 @@ export function UserManagementPanel() {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          <div className="flex flex-col gap-1">
-                            {user.password_updated_at ? (
-                              <span title={new Date(user.password_updated_at).toLocaleString("cs-CZ")}>
-                                {new Date(user.password_updated_at).toLocaleDateString("cs-CZ")}
-                              </span>
-                            ) : user.updated_at ? (
-                              <span title={new Date(user.updated_at).toLocaleString("cs-CZ")}>
-                                {new Date(user.updated_at).toLocaleDateString("cs-CZ")}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground/50">—</span>
-                            )}
-                            {user.must_review_password && (
-                              <Badge
-                                variant="outline"
-                                className="w-fit text-xs border-warning text-warning"
-                                title="Heslo nesplňuje aktuální bezpečnostní pravidla. Uživatel byl vyzván ke změně."
-                              >
-                                <AlertTriangle className="w-3 h-3 mr-1" />
-                                Doporučeno změnit
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
                         <TableCell>
                           {isAdmin ? (
                             <Badge variant="secondary" className="text-xs">
@@ -676,6 +651,40 @@ export function UserManagementPanel() {
                           <Badge className={roleColors[currentRole]}>
                             {roleLabels[currentRole] || currentRole}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {user.must_review_password ? (
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-warning text-warning bg-warning/10"
+                              title="Heslo nesplňuje aktuální bezpečnostní pravidla. Uživatel byl vyzván ke změně."
+                            >
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              Nutno zkontrolovat
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-[hsl(var(--status-valid))] text-[hsl(var(--status-valid))] bg-[hsl(var(--status-valid))]/10"
+                              title="Heslo splňuje aktuální pravidla."
+                            >
+                              <Shield className="w-3 h-3 mr-1" />
+                              V pořádku
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {user.password_updated_at ? (
+                            <span title={new Date(user.password_updated_at).toLocaleString("cs-CZ")}>
+                              {new Date(user.password_updated_at).toLocaleDateString("cs-CZ")}
+                            </span>
+                          ) : user.updated_at ? (
+                            <span title={new Date(user.updated_at).toLocaleString("cs-CZ")}>
+                              {new Date(user.updated_at).toLocaleDateString("cs-CZ")}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/50">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Select
