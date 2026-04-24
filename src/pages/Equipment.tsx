@@ -75,6 +75,20 @@ export default function Equipment() {
   const { toast } = useToast();
   const { equipment, isLoading, error, refetch, createEquipment, updateEquipment, deleteEquipment, checkDependencies, isCreating, isUpdating, isDeleting } = useEquipment();
   const { facilities } = useFacilities();
+  const { allResponsibles } = useAllEquipmentResponsibles();
+
+  // Mapování equipment_id → seznam e-mailů odpovědných osob (oddělené ; pro round-trip s importem).
+  const responsibleEmailsMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    allResponsibles.forEach((r: any) => {
+      const email = r.profile?.email;
+      if (!email) return;
+      const arr = map.get(r.equipment_id) ?? [];
+      if (!arr.includes(email)) arr.push(email);
+      map.set(r.equipment_id, arr);
+    });
+    return map;
+  }, [allResponsibles]);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -269,6 +283,7 @@ export default function Equipment() {
       "Sériové č.": eq.serial_number || "",
       "Umístění": eq.location || "",
       "Odpovědná osoba": eq.responsible_person || "",
+      "Odpovědné osoby": (responsibleEmailsMap.get(eq.id) ?? []).join("; "),
       "Stav": equipmentStatusLabels[eq.status] || "",
     }));
 
