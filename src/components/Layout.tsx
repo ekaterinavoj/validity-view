@@ -650,5 +650,6 @@ export const Layout = ({
         )}
         <main>{children}</main>
       </div>
+      <PasswordReviewModal />
     </div>;
 };
