@@ -792,8 +792,15 @@ export default function Employees() {
                     );
                   })()}
                   <p className="text-xs text-muted-foreground mt-2">
-                    Default: 4 měsíce (běžní), 8 měsíců (vedoucí). Konec ZD se vypočte automaticky z data nástupu. Při ručním přepsání je nutné uvést důvod (např. překážky v práci dle ZP 2026).
+                    Default: 4 měsíce (běžní), 8 měsíců (vedoucí). Konec ZD se vypočte automaticky z data nástupu plus součet dnů celodenních překážek. Při ručním přepsání je nutné uvést důvod.
                   </p>
+
+                  {editingEmployee?.id && (
+                    <div className="mt-4 border-t pt-4">
+                      <p className="text-sm font-medium text-muted-foreground mb-2">Celodenní překážky v práci</p>
+                      <ProbationObstaclesSection employeeId={editingEmployee.id} canEdit={true} />
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t pt-4 mt-4">
