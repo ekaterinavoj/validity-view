@@ -111,6 +111,28 @@ export default function ScheduledExaminations() {
     return Array.from(docSet).sort();
   }, [examinations]);
 
+  // Result options jsou převzaty z lib/medicalExaminationResults — všechny role
+  // používají stejné názvy a vidí stejné filtry (RLS pak omezí obsah).
+  const resultOptions = useMemo(
+    () => [
+      { value: "passed", label: "Zdravotně způsobilý/á" },
+      { value: "passed_with_reservations", label: "Způsobilý/á s podmínkou" },
+      { value: "failed", label: "Není způsobilý/á" },
+      { value: "lost_long_term", label: "Pozbyl(a) dlouhodobě způsobilosti" },
+    ],
+    [],
+  );
+
+  const workCategoryOptions = useMemo(() => {
+    const cats = new Set<string>();
+    examinations.forEach((e) => {
+      if (e.employeeWorkCategory) cats.add(e.employeeWorkCategory);
+    });
+    return Array.from(cats)
+      .sort()
+      .map((c) => ({ value: c, label: `Kategorie ${c}` }));
+  }, [examinations]);
+
   const filteredExaminations = useMemo(() => {
     return examinations.filter((exam) => {
       const searchLower = filters.searchQuery.toLowerCase();
