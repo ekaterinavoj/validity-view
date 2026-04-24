@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Papa from 'papaparse';
 import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
 
 const employeeSchema = z.object({
   firstName: z.string().min(1, "Jméno je povinné").max(100),

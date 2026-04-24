@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import Papa from "papaparse";
 // XLSX removed — bulk import accepts only CSV

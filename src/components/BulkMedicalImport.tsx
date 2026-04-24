@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
 import { HEALTH_RISK_FIELDS, HEALTH_RISK_VALUES, type HealthRiskValue, toDbHealthRisks, createEmptyHealthRisks, type HealthRisks } from "@/lib/healthRisks";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import { medicalExaminationResultOptions } from "@/lib/medicalExaminationResults";
