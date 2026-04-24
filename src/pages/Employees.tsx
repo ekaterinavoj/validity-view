@@ -140,6 +140,7 @@ export default function Employees() {
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "tree">("table");
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch } = useEmployees();
   const { departments, loading: departmentsLoading } = useDepartments();
