@@ -47,6 +47,7 @@ import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { RefreshButton } from "@/components/RefreshButton";
 
 // Helper: detect managerial position by keywords (mirrors DB function is_managerial_position)
 const isManagerialPosition = (position: string | undefined | null): boolean => {

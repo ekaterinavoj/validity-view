@@ -54,6 +54,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
+import { RefreshButton } from "@/components/RefreshButton";
 
 export default function ScheduledDeadlines() {
   const { toast } = useToast();

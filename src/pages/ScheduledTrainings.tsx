@@ -52,6 +52,7 @@ import { downloadTrainingMatrixXLSX, type CellState, type MatrixEmployee, type M
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { Grid3x3 } from "lucide-react";
+import { RefreshButton } from "@/components/RefreshButton";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();

@@ -50,6 +50,7 @@ import { downloadPLPDetailXLSX, type PLPDetailRow } from "@/lib/matrixExport";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useMedicalExaminationTypes } from "@/hooks/useMedicalExaminationTypes";
 import { Grid3x3 } from "lucide-react";
+import { RefreshButton } from "@/components/RefreshButton";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();

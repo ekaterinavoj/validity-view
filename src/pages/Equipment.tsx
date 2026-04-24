@@ -69,6 +69,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { RefreshButton } from "@/components/RefreshButton";
 
 export default function Equipment() {
   const { toast } = useToast();
