@@ -9,14 +9,23 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { z } from "zod";
+import { PasswordStrengthMeter } from "@/components/PasswordStrengthMeter";
+import { evaluatePassword, PASSWORD_MIN_LENGTH } from "@/lib/passwordStrength";
 
-const passwordSchema = z.object({
-  password: z.string().min(6, "Heslo musí mít alespoň 6 znaků"),
-  confirmPassword: z.string(),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Hesla se neshodují",
-  path: ["confirmPassword"],
-});
+const passwordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH, `Heslo musí mít alespoň ${PASSWORD_MIN_LENGTH} znaků`)
+      .regex(/[A-Z]/, "Heslo musí obsahovat alespoň jedno velké písmeno")
+      .regex(/\d/, "Heslo musí obsahovat alespoň jednu číslici")
+      .regex(/[^A-Za-z0-9]/, "Heslo musí obsahovat alespoň jeden speciální znak"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Hesla se neshodují",
+    path: ["confirmPassword"],
+  });
 
 export default function ChangePassword() {
   const navigate = useNavigate();
@@ -25,6 +34,12 @@ export default function ChangePassword() {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({ password: "", confirmPassword: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const evaluation = evaluatePassword(formData.password);
+  const canSubmit =
+    evaluation.meetsMinimum &&
+    formData.password.length > 0 &&
+    formData.password === formData.confirmPassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,12 +60,21 @@ export default function ChangePassword() {
 
     setIsLoading(true);
     try {
-      // Update password via Supabase Auth
+      // Update password via Supabase Auth (HIBP check enforced server-side)
       const { error: updateError } = await supabase.auth.updateUser({
         password: formData.password,
       });
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        // Surface friendlier message for HIBP / weak-password rejection
+        const msg = updateError.message ?? "";
+        if (/pwned|breach|leaked|weak/i.test(msg)) {
+          throw new Error(
+            "Toto heslo bylo nalezeno v databázi uniklých hesel. Zvolte prosím jiné, silnější heslo."
+          );
+        }
+        throw updateError;
+      }
 
       // Clear must_change_password flag
       if (user) {
@@ -101,9 +125,11 @@ export default function ChangePassword() {
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              autoComplete="new-password"
               required
             />
             {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+            <PasswordStrengthMeter password={formData.password} />
           </div>
 
           <div className="space-y-2">
@@ -114,12 +140,15 @@ export default function ChangePassword() {
               placeholder="••••••••"
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              autoComplete="new-password"
               required
             />
-            {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
+            {errors.confirmPassword && (
+              <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+            )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || !canSubmit}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Změnit heslo
           </Button>
