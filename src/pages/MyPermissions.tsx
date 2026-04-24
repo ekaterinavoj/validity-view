@@ -5,75 +5,7 @@ import { RolePermissionsInfo } from "@/components/RolePermissionsInfo";
 import { Button } from "@/components/ui/button";
 import { Shield, Users, User, Check, X, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
-
-type AppRole = "admin" | "manager" | "user";
-type AppModule = "trainings" | "deadlines" | "plp";
-
-interface RouteEntry {
-  path: string;
-  label: string;
-  group: string;
-  requiredRoles?: AppRole[];
-  requiredModule?: AppModule;
-}
-
-/**
- * Mirror of routes defined in App.tsx — single source of truth for the audit page.
- * Keep in sync when adding new routes.
- */
-const ROUTES: RouteEntry[] = [
-  // Modules
-  { path: "/trainings", label: "Naplánovaná školení", group: "Školení", requiredModule: "trainings" },
-  { path: "/trainings/history", label: "Historie školení", group: "Školení", requiredRoles: ["admin", "manager"], requiredModule: "trainings" },
-  { path: "/trainings/new", label: "Nové školení", group: "Školení", requiredModule: "trainings" },
-
-  { path: "/deadlines", label: "Naplánované technické události", group: "Technické události", requiredModule: "deadlines" },
-  { path: "/deadlines/history", label: "Historie tech. událostí", group: "Technické události", requiredRoles: ["admin", "manager"], requiredModule: "deadlines" },
-  { path: "/deadlines/new", label: "Nová tech. událost", group: "Technické události", requiredModule: "deadlines" },
-  { path: "/deadlines/equipment", label: "Zařízení", group: "Technické události", requiredModule: "deadlines" },
-  { path: "/deadlines/types", label: "Typy tech. událostí", group: "Technické události", requiredModule: "deadlines" },
-  { path: "/deadlines/groups", label: "Skupiny odpovědných", group: "Technické události", requiredRoles: ["admin", "manager"], requiredModule: "deadlines" },
-
-  { path: "/plp", label: "Naplánované prohlídky (PLP)", group: "PLP", requiredModule: "plp" },
-  { path: "/plp/new", label: "Nová prohlídka", group: "PLP", requiredRoles: ["admin"], requiredModule: "plp" },
-  { path: "/plp/types", label: "Typy prohlídek", group: "PLP", requiredRoles: ["admin", "manager"], requiredModule: "plp" },
-  { path: "/plp/history", label: "Historie prohlídek", group: "PLP", requiredRoles: ["admin", "manager"], requiredModule: "plp" },
-
-  // Data management
-  { path: "/employees", label: "Zaměstnanci", group: "Správa dat", requiredRoles: ["admin", "manager"] },
-  { path: "/departments", label: "Střediska", group: "Správa dat", requiredRoles: ["admin", "manager"] },
-  { path: "/facilities", label: "Provozovny", group: "Správa dat", requiredRoles: ["admin", "manager"] },
-  { path: "/training-types", label: "Typy školení", group: "Správa dat", requiredRoles: ["admin", "manager"] },
-  { path: "/event-types", label: "Přehled typů událostí", group: "Správa dat", requiredRoles: ["admin", "manager"] },
-  { path: "/statistics", label: "Statistiky", group: "Správa dat", requiredRoles: ["admin", "manager"] },
-  { path: "/inactive", label: "Pozastavená školení", group: "Správa dat", requiredRoles: ["admin", "manager"] },
-
-  // Documents & profile (open to all approved users)
-  { path: "/documents", label: "Dokumenty", group: "Dokumenty a profil" },
-  { path: "/profile", label: "Můj profil", group: "Dokumenty a profil" },
-
-  // System
-  { path: "/audit-log", label: "Audit log", group: "Systém", requiredRoles: ["admin"] },
-  { path: "/admin/settings", label: "Administrace", group: "Systém", requiredRoles: ["admin"] },
-  { path: "/admin/status", label: "Stav systému", group: "Systém", requiredRoles: ["admin"] },
-  { path: "/admin/migrations", label: "Migrace databáze", group: "Systém", requiredRoles: ["admin"] },
-];
-
-/**
- * Pure helper — also used by route-access tests. Mirrors ProtectedRoute logic.
- */
-export function canAccessRoute(
-  entry: RouteEntry,
-  ctx: { isAdmin: boolean; roles: AppRole[]; modules: AppModule[] }
-): boolean {
-  if (entry.requiredRoles && entry.requiredRoles.length > 0) {
-    if (!entry.requiredRoles.some((r) => ctx.roles.includes(r))) return false;
-  }
-  if (entry.requiredModule) {
-    if (!ctx.isAdmin && !ctx.modules.includes(entry.requiredModule)) return false;
-  }
-  return true;
-}
+import { ROUTE_CATALOG, canAccessRoute, type AppModule, type RouteEntry } from "@/lib/routeAccess";
 
 const MyPermissions = () => {
   const { roles, moduleAccess, isAdmin, profile } = useAuth();
