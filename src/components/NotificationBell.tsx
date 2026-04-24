@@ -310,7 +310,8 @@ export function NotificationBell() {
           ) : (
             <div className="divide-y">
               {filtered.map((notification) => {
-                const link = getNotificationLink(notification);
+                const target = getNotificationTarget(notification);
+                const link = target?.href ?? null;
                 return (
                 <div
                   key={notification.id}
@@ -342,6 +343,7 @@ export function NotificationBell() {
                                 e.stopPropagation();
                                 markAsRead(notification.id);
                               }}
+                              title="Označit jako přečtené"
                             >
                               <Check className="h-3 w-3" />
                             </Button>
@@ -354,6 +356,7 @@ export function NotificationBell() {
                               e.stopPropagation();
                               deleteNotification(notification.id);
                             }}
+                            title="Smazat oznámení"
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -362,12 +365,28 @@ export function NotificationBell() {
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {formatDistanceToNow(new Date(notification.created_at), {
-                          addSuffix: true,
-                          locale: cs,
-                        })}
-                      </p>
+                      <div className="flex items-center justify-between gap-2 mt-2">
+                        <p className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(notification.created_at), {
+                            addSuffix: true,
+                            locale: cs,
+                          })}
+                        </p>
+                        {target && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-7 px-2 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNotificationClick(notification);
+                            }}
+                          >
+                            {target.label}
+                            <ArrowRight className="h-3 w-3 ml-1" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
