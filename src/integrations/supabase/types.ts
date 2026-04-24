@@ -1764,6 +1764,10 @@ export type Database = {
         Args: { next_date: string }
         Returns: string
       }
+      can_access_deadline_file: {
+        Args: { _file_path: string; _user_id: string }
+        Returns: boolean
+      }
       can_access_medical_examination: {
         Args: { _examination_id: string; _user_id: string }
         Returns: boolean
