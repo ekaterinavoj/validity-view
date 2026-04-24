@@ -145,7 +145,9 @@ export default function Employees() {
   const { employees, loading: employeesLoading, error: employeesError, refetch } = useEmployees();
   const { departments, loading: departmentsLoading } = useDepartments();
 
-  // Deep-link: ?edit=<employeeId>&focus=probation otevře dialog a scrollne na ZD sekci
+  // Deep-link: ?edit=<employeeId>&focus=probation otevře dialog, scrollne na ZD sekci
+  // a re-scrollne i při změně šířky okna (responsivní layout přesouvá obsah).
+  // Highlight ringu se v takovém případě obnoví, aby uživatel sekci nezmeškal.
   useEffect(() => {
     const editId = searchParams.get("edit");
     const focus = searchParams.get("focus");
@@ -153,26 +155,59 @@ export default function Employees() {
     const target = employees.find((e) => e.id === editId);
     if (!target) return;
     handleEdit(target);
+
+    let cleanupFns: Array<() => void> = [];
+
     if (focus === "probation") {
-      // Po vykreslení dialogu (~2 frames) scrollni na sekci ZD
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const el = document.getElementById("probation-section");
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "start" });
-            el.classList.add("ring-2", "ring-primary/40", "rounded-md");
-            setTimeout(() => {
-              el.classList.remove("ring-2", "ring-primary/40", "rounded-md");
-            }, 2200);
-          }
-        });
+      const HIGHLIGHT_CLASSES = ["ring-2", "ring-primary/50", "rounded-md"];
+      const scrollAndHighlight = () => {
+        const el = document.getElementById("probation-section");
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.classList.add(...HIGHLIGHT_CLASSES);
+        window.setTimeout(() => el.classList.remove(...HIGHLIGHT_CLASSES), 2200);
+      };
+
+      // Iniciální scroll po 2 frames (dialog content musí být v DOM)
+      requestAnimationFrame(() => requestAnimationFrame(scrollAndHighlight));
+
+      // Re-scroll při změně velikosti okna nebo dialogu (responsive layout shifts)
+      let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+      const onResize = () => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(scrollAndHighlight, 150);
+      };
+      window.addEventListener("resize", onResize);
+
+      // ResizeObserver pro samotný dialog – chytí i vnitřní rozložení
+      let observer: ResizeObserver | null = null;
+      const observeWhenReady = (attempt = 0) => {
+        const el = document.getElementById("probation-section");
+        if (!el) {
+          if (attempt < 10) requestAnimationFrame(() => observeWhenReady(attempt + 1));
+          return;
+        }
+        observer = new ResizeObserver(onResize);
+        observer.observe(el);
+      };
+      observeWhenReady();
+
+      cleanupFns.push(() => {
+        window.removeEventListener("resize", onResize);
+        if (resizeTimer) clearTimeout(resizeTimer);
+        if (observer) observer.disconnect();
       });
     }
-    // Ucistit URL params, ať se to nespouští znovu
+
+    // Vyčistit URL params, ať se to nespouští znovu
     const next = new URLSearchParams(searchParams);
     next.delete("edit");
     next.delete("focus");
     setSearchParams(next, { replace: true });
+
+    return () => {
+      cleanupFns.forEach((fn) => fn());
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employees, searchParams]);
 

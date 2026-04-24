@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronDown, ChevronRight, User, Users } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronDown, ChevronRight, User, Users, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeStatusBadge, EmployeeStatus } from "./EmployeeStatusBadge";
 
@@ -154,7 +154,7 @@ export function EmployeeHierarchyTree({ employees, className }: EmployeeHierarch
   // Aktivní + mateřská + nemocenská se zobrazují normálně.
   // Pokud má ukončený zaměstnanec podřízené, jeho přímí podřízení se „povýší"
   // pod jeho původního manažera (skutečný strom hierarchie pro aktivní lidi).
-  const visibleEmployees = (() => {
+  const { visibleEmployees, hiddenCount } = useMemo(() => {
     const byId = new Map(employees.map((e) => [e.id, e]));
     const isHidden = (e: Employee) => e.status === "terminated";
 
@@ -173,10 +173,13 @@ export function EmployeeHierarchyTree({ employees, className }: EmployeeHierarch
       return null;
     };
 
-    return employees
+    const hidden = employees.filter(isHidden).length;
+    const visible = employees
       .filter((e) => !isHidden(e))
       .map((e) => ({ ...e, managerEmployeeId: resolveManager(e.managerEmployeeId) }));
-  })();
+
+    return { visibleEmployees: visible, hiddenCount: hidden };
+  }, [employees]);
 
   const tree = buildTree(visibleEmployees);
 
@@ -189,12 +192,25 @@ export function EmployeeHierarchyTree({ employees, className }: EmployeeHierarch
   }
 
   return (
-    <div className={cn("space-y-0.5", className)}>
-      {tree
-        .sort((a, b) => a.employee.lastName.localeCompare(b.employee.lastName))
-        .map((node) => (
-          <TreeNodeComponent key={node.employee.id} node={node} />
-        ))}
+    <div className={cn("space-y-2", className)}>
+      {hiddenCount > 0 && (
+        <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 border border-border rounded-md px-3 py-2">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+          <p>
+            Ve stromu je <strong>skryto {hiddenCount}</strong>{" "}
+            {hiddenCount === 1 ? "ukončený zaměstnanec" : hiddenCount < 5 ? "ukončení zaměstnanci" : "ukončených zaměstnanců"}.
+            Bývalý nadřízený je vidí v <strong>tabulkovém zobrazení</strong> po nastavení filtru
+            stavu na <em>„Ukončený"</em> nebo <em>„Všichni"</em>.
+          </p>
+        </div>
+      )}
+      <div className="space-y-0.5">
+        {tree
+          .sort((a, b) => a.employee.lastName.localeCompare(b.employee.lastName))
+          .map((node) => (
+            <TreeNodeComponent key={node.employee.id} node={node} />
+          ))}
+      </div>
     </div>
   );
 }
