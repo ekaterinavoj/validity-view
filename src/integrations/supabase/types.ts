@@ -1167,6 +1167,8 @@ export type Database = {
           id: string
           last_name: string
           must_change_password: boolean
+          must_review_password: boolean
+          password_updated_at: string | null
           position: string | null
           updated_at: string
         }
@@ -1182,6 +1184,8 @@ export type Database = {
           id: string
           last_name: string
           must_change_password?: boolean
+          must_review_password?: boolean
+          password_updated_at?: string | null
           position?: string | null
           updated_at?: string
         }
@@ -1197,6 +1201,8 @@ export type Database = {
           id?: string
           last_name?: string
           must_change_password?: boolean
+          must_review_password?: boolean
+          password_updated_at?: string | null
           position?: string | null
           updated_at?: string
         }
@@ -1902,6 +1908,17 @@ export type Database = {
           user_name: string
         }[]
       }
+      get_password_review_summary: {
+        Args: never
+        Returns: {
+          email: string
+          first_name: string
+          last_name: string
+          must_review_password: boolean
+          password_updated_at: string
+          user_id: string
+        }[]
+      }
       get_registration_mode: { Args: never; Returns: string }
       get_subordinate_employee_ids: {
         Args: { root_employee_id: string }
@@ -1940,6 +1957,7 @@ export type Database = {
         Args: { _reason: string; _topic: string }
         Returns: undefined
       }
+      mark_password_reviewed: { Args: never; Returns: undefined }
       recalculate_all_statuses: { Args: never; Returns: Json }
       security_scan_rls_coverage: {
         Args: never
