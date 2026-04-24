@@ -708,7 +708,7 @@ export default function Employees() {
                 />
 
                 {/* Probation period section (Zákoník práce 2026) */}
-                <div className="border-t pt-4 mt-4">
+                <div id="probation-section" className="border-t pt-4 mt-4 scroll-mt-4">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Zkušební doba</p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <FormField
