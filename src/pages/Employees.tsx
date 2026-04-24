@@ -942,6 +942,7 @@ export default function Employees() {
               <SortableTableHead label="Dat. narození" sortKey="birthDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead>Věk</TableHead>
               <TableHead>Nadřízený</TableHead>
+              <SortableTableHead label="Konec ZD" sortKey="probationEndDate" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <SortableTableHead label="Stav" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={requestSort} />
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
@@ -949,7 +950,7 @@ export default function Employees() {
           <TableBody>
             {sortedEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                   Žádní zaměstnanci nenalezeni
                 </TableCell>
               </TableRow>
@@ -978,6 +979,13 @@ export default function Employees() {
                         : employee.managerEmail || '-'}
                     </span>
                   ) : '-'}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {employee.probationEndDate ? (
+                    <ProbationBadge endDate={employee.probationEndDate} />
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <EmployeeStatusBadge 
