@@ -1767,6 +1767,8 @@ export type Database = {
           employee_email: string
           employee_id: string
           employee_name: string
+          policy_branch: string
+          policy_name: string
           reason: string
         }[]
       }
