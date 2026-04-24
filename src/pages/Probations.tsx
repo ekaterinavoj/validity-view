@@ -115,6 +115,9 @@ export default function Probations() {
       .sort((a, b) => daysUntil(a.probationEndDate!) - daysUntil(b.probationEndDate!));
   }, [employees, windowFilter, search]);
 
+  const PAGE_SIZE = 25;
+  const { currentPage, setCurrentPage, totalPages, paginatedItems, totalItems } = usePagination(filtered, PAGE_SIZE);
+
   const hasFilters = search !== "" || windowFilter !== "ending_30";
 
   // Build employee lookup for history tab (audit logs reference employee_id via record_id for employees_probation)
@@ -410,7 +413,7 @@ export default function Probations() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((e) => (
+                  paginatedItems.map((e) => (
                     <TableRow
                       key={e.id}
                       className="cursor-pointer hover:bg-muted/40"
