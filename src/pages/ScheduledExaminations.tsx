@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Plus, Download, RefreshCw, Eye, Upload } from "lucide-react";
+import { Edit, Plus, Download, Eye, Upload } from "lucide-react";
 import { ResultBadge } from "@/components/ResultBadge";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";

@@ -39,7 +39,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
-import { RefreshCw } from "lucide-react";
+
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";

@@ -5,7 +5,6 @@ import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { format } from "date-fns";
 import {
-  RefreshCw,
   Download,
   PlusCircle,
   Edit,
