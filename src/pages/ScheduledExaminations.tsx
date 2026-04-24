@@ -400,6 +400,8 @@ export default function ScheduledExaminations() {
         trainingTypes={examinationTypes}
         trainers={doctors}
         trainerLabel="doctors"
+        resultOptions={resultOptions}
+        workCategoryOptions={workCategoryOptions}
       />
 
       {canEdit && (
