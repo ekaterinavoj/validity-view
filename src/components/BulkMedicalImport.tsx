@@ -693,10 +693,10 @@ export const BulkMedicalImport = () => {
             size="sm"
             onClick={() => document.getElementById('medical-import-file')?.click()}
             disabled={parsing}
-            title="Formát: CSV (středník, UTF-8)"
+            title={CSV_IMPORT_TOOLTIP}
           >
             <Upload className="w-4 h-4 mr-2" />
-            {parsing ? "Zpracovávám..." : "Vybrat soubor"}
+            {parsing ? "Zpracovávám..." : "Import"}
           </Button>
         </div>
 

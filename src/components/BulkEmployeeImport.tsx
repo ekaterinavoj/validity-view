@@ -461,7 +461,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `chyby_import_zamestnanci_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = buildExportFilename("zamestnanci-chyby");
     link.click();
 
     toast({ title: "Export dokončen", description: `Exportováno ${errorData.length} chybných záznamů.` });
@@ -530,7 +530,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
           variant="outline"
           onClick={() => document.getElementById('employee-import')?.click()}
           disabled={isProcessing}
-          title="Podporované formáty: XLSX, XLS, CSV (středník, UTF-8)"
+          title={CSV_IMPORT_TOOLTIP}
         >
           <Upload className="w-4 h-4 mr-2" />
           {isProcessing ? "Zpracovávám..." : "Import"}

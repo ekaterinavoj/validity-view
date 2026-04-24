@@ -898,14 +898,12 @@ export const BulkTrainingImport = () => {
       note: item.data.note || '',
     }));
 
-    const timestamp = new Date().toISOString().split('T')[0];
-
     const csv = Papa.unparse(errorData, { delimiter: ";" });
     const BOM = "\uFEFF";
     const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `chyby_import_skoleni_${timestamp}.csv`;
+    link.download = buildExportFilename("skoleni-chyby");
     link.click();
 
     toast({
