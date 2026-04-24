@@ -1761,6 +1761,10 @@ export type Database = {
         Args: { next_date: string }
         Returns: string
       }
+      can_access_medical_examination: {
+        Args: { _examination_id: string; _user_id: string }
+        Returns: boolean
+      }
       debug_employee_visibility: {
         Args: { _target_user_id: string }
         Returns: {
