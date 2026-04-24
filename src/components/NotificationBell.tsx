@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Check, Trash2 } from "lucide-react";
+import { Bell, Check, Trash2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -63,28 +63,36 @@ export function NotificationBell() {
   const [category, setCategory] = useState<FilterCategory>("all");
   const [onlyUnread, setOnlyUnread] = useState(false);
 
-  // Mapování notifikací na cílové URL podle related_entity_type
-  const getNotificationLink = (n: Notification): string | null => {
+  // Mapování notifikací na cílové URL podle related_entity_type.
+  // Vrací i lidský label pro tlačítko, aby uživatel věděl, kam ho to pošle.
+  const getNotificationTarget = (n: Notification): { href: string; label: string } | null => {
     const t = n.related_entity_type;
     const id = n.related_entity_id;
     if (!t) return null;
     switch (t) {
       case "probation_period":
       case "probation_ending":
-        return id ? `/employees?edit=${id}&focus=probation` : "/probations";
+        return id
+          ? { href: `/employees?edit=${id}&focus=probation`, label: "Otevřít ZD zaměstnance" }
+          : { href: "/probations", label: "Otevřít přehled ZD" };
       case "employee_age_50":
-        return id ? `/employees?edit=${id}` : "/employees";
+        return id
+          ? { href: `/employees?edit=${id}`, label: "Otevřít zaměstnance" }
+          : { href: "/employees", label: "Otevřít zaměstnance" };
       case "training":
-        return "/trainings";
+        return { href: "/trainings", label: "Otevřít školení" };
       case "deadline":
-        return "/deadlines";
+        return { href: "/deadlines", label: "Otevřít lhůtu" };
       case "medical_examination":
       case "plp":
-        return "/medical-examinations";
+        return { href: "/medical-examinations", label: "Otevřít PLP" };
       default:
         return null;
     }
   };
+
+  const getNotificationLink = (n: Notification): string | null =>
+    getNotificationTarget(n)?.href ?? null;
 
   const handleNotificationClick = async (n: Notification) => {
     const link = getNotificationLink(n);
