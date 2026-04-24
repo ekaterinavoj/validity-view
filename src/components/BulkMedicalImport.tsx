@@ -682,7 +682,7 @@ export const BulkMedicalImport = () => {
         <div className="flex gap-2">
           <input
             type="file"
-            accept=".csv,.xlsx,.xls"
+            accept=".csv"
             onChange={handleFileUpload}
             className="hidden"
             id="medical-import-file"
@@ -693,7 +693,7 @@ export const BulkMedicalImport = () => {
             size="sm"
             onClick={() => document.getElementById('medical-import-file')?.click()}
             disabled={parsing}
-            title="Podporované formáty: XLSX, XLS, CSV (středník, UTF-8)"
+            title="Formát: CSV (středník, UTF-8)"
           >
             <Upload className="w-4 h-4 mr-2" />
             {parsing ? "Zpracovávám..." : "Vybrat soubor"}
