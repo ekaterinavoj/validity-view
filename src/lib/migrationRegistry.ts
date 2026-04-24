@@ -3491,6 +3491,29 @@ SELECT 1;`,
 -- Žádná změna databázového schématu.
 SELECT 1;`,
   },
+  {
+    version: "20260424230000",
+    name: "notification_action_button_and_tree_hint",
+    sql: `-- UI-only změny:
+--   • NotificationBell: explicitní akční tlačítko ("Otevřít ZD zaměstnance" /
+--     "Otevřít školení" / "Otevřít lhůtu" / "Otevřít PLP") v každé notifikaci
+--     vedle časového razítka. Stav nepřečtených je persistovaný v notifications.is_read
+--     (server-side, cross-device přes existující RLS).
+--   • EmployeeHierarchyTree: info banner "Skryto N ukončených" + nápověda,
+--     jak je dohledat v tabulkovém zobrazení (filtr stavu = Ukončený / Všichni).
+--     RLS is_manager_of zachovává přístup bývalého nadřízeného.
+--   • Employees deep-link (?edit=<id>&focus=probation):
+--     - ResizeObserver na #probation-section + window resize listener,
+--     - re-scroll a obnova ring-highlight při změně velikosti / responsivního layoutu.
+--   • Validace override "Konec ZD": probíhá přes superRefine v zod schema +
+--     existující DB trigger trg_audit_employee_probation zapisuje JEDEN konzistentní
+--     audit_logs záznam (table_name='employees_probation') s old/new pro všechna
+--     4 ZD pole (start_date, probation_months, probation_end_date, probation_override_reason)
+--     a polem changed_fields. Žádná schema změna není potřeba.
+--   • Export ZD do CSV/PDF (vč. sloupců Datum nástupu, Konec ZD, Důvod úpravy)
+--     je již implementován na /probations.
+SELECT 1;`,
+  },
 ];
 
 /**
