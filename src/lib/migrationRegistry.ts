@@ -3529,6 +3529,30 @@ SELECT 1;`,
 --     manažera, s deduplikací per den. Žádná změna není potřeba.
 SELECT 1;`,
   },
+  {
+    version: "20260424240000",
+    name: "auditlog_probation_labels_and_filters",
+    sql: `-- UI-only změna (žádné DB schema):
+--   • AuditLog.tsx: přidány lokalizované labely pro tabulky 'employees_probation',
+--     'probation_obstacles', 'deadlines', 'medical_examinations'.
+--   • Field labels rozšířeny o ZD pole: start_date, probation_months,
+--     probation_end_date, probation_override_reason, date_from, date_to, reason.
+--   • formatChangeDetails formátuje datumová pole dd.MM.yyyy a override reason
+--     se zobrazuje plně (i prázdná hodnota "—") pro tři scénáře:
+--       (1) ruční úprava end_date,
+--       (2) zadání/změna probation_override_reason,
+--       (3) změna start_date / probation_months → trigger zachytí všechna
+--           změněná pole v jednom audit_logs záznamu (changed_fields).
+--   • Filtr "Tabulka" v AuditLogu nyní zahrnuje Zkušební dobu, Překážky v ZD,
+--     Technické události, PLP — admin si může vyfiltrovat jen ZD audit.
+--   • Historie ZD je dohledatelná na třech místech:
+--       (a) /probations záložka "Historie" (filtr na 'employees_probation' a 'probation_obstacles'),
+--       (b) /audit-log s filtrem tabulky,
+--       (c) DB triggery trg_audit_employee_probation + trg_audit_probation_obstacles
+--           zapisují JEDEN konzistentní záznam per UPDATE napříč všemi vstupy
+--           (formulář editace zaměstnance, hromadné úpravy, override end_date).
+SELECT 1;`,
+  },
 ];
 
 /**
