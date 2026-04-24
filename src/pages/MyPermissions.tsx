@@ -11,7 +11,7 @@ const MyPermissions = () => {
   const { roles, moduleAccess, isAdmin, profile } = useAuth();
 
   const ctx = { isAdmin, roles, modules: moduleAccess };
-  const grouped = ROUTES.reduce<Record<string, RouteEntry[]>>((acc, r) => {
+  const grouped = ROUTE_CATALOG.reduce<Record<string, RouteEntry[]>>((acc, r) => {
     (acc[r.group] ||= []).push(r);
     return acc;
   }, {});
@@ -131,6 +131,3 @@ const MyPermissions = () => {
 };
 
 export default MyPermissions;
-
-// Exported route catalog for tests
-export const ROUTE_CATALOG = ROUTES;
