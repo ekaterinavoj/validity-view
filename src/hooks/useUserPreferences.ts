@@ -188,8 +188,8 @@ export function useUserPreferences() {
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
-      const { error } = await supabase
-        .from("user_preferences")
+      const { error } = await (supabase
+        .from("user_preferences") as any)
         .upsert(
           { user_id: userId, preferences: preferences as unknown as Record<string, unknown> },
           { onConflict: "user_id" },
