@@ -3057,6 +3057,26 @@ SELECT 1;`,
 -- pomocí policy 'only admins can write medical_examinations'.
 SELECT 1;`,
   },
+  {
+    version: "20260424140000",
+    name: "ui_statistics_page_bugfixes",
+    sql: `-- UI-only: oprava 3 bugů na stránce /statistics.
+-- 1) Tabulka "Odškolené hodiny podle roků" — rok se nyní parsuje přímo z ISO
+--    řetězce (lastTrainingDate.slice(0,4)) místo new Date(...).getFullYear(),
+--    aby se data ze začátku/konce roku nepřesouvala do sousedního roku kvůli
+--    časovému pásmu (typicky chyběl rok 2025 v záporných TZ).
+--    Stejné parsování bylo aplikováno i na filtr roku (yearFilteredTrainings)
+--    a na seznam dostupných roků v <Select>.
+-- 2) Graf "Školení podle oddělení" — popisek na ose X už nezobrazuje surový
+--    kód střediska (např. "2002000001 - LOG"), ale lidsky čitelný název
+--    s kódem v závorce ("LOG (2002000001)"). Nezařazené záznamy zůstávají
+--    pod popiskem "Nezařazeno".
+-- 3) Statistiky doručování emailů — "Průměr pokusů" ukazoval 1.0 i při
+--    nulovém datasetu. Default 1 byl nahrazen 0 a v UI se při 0 odeslaných
+--    + 0 neúspěšných emailech zobrazí pomlčka "—".
+-- Žádné databázové změny nejsou potřeba.
+SELECT 1;`,
+  },
 ];
 
 /**

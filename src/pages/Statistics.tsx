@@ -48,12 +48,13 @@ export default function Statistics() {
   // Combine all trainings for complete statistics
   const allTrainings = useMemo(() => [...activeTrainings, ...inactiveTrainings], [activeTrainings, inactiveTrainings]);
 
-  // Filter trainings by selected year (based on next_training_date)
+  // Filter trainings by selected year (based on next_training_date).
+  // Parse year directly from ISO string to avoid timezone shifts.
   const yearFilteredTrainings = useMemo(() => {
     if (selectedYear === "all") return activeTrainings;
     return activeTrainings.filter(t => {
-      const date = new Date(t.date);
-      return date.getFullYear().toString() === selectedYear;
+      if (!t.date) return false;
+      return String(t.date).slice(0, 4) === selectedYear;
     });
   }, [activeTrainings, selectedYear]);
 
@@ -90,18 +91,23 @@ export default function Statistics() {
   }).length, [activeTrainings, today]);
 
   // Department statistics - filtered by year
+  // Use the human-readable department name (with code as suffix only if available)
+  // so the chart X axis doesn't show raw inventory-style codes (e.g. "2002000001").
   const departmentStats = useMemo(() => {
     return yearFilteredTrainings.reduce((acc, training) => {
-      const deptCode = training.department || "Nezařazeno";
-      const dept = training.departmentName ? `${deptCode} - ${training.departmentName}` : deptCode;
-      if (!acc[dept]) {
-        acc[dept] = {
+      const code = training.department || "";
+      const name = training.departmentName || "";
+      const label = name
+        ? (code ? `${name} (${code})` : name)
+        : (code || "Nezařazeno");
+      if (!acc[label]) {
+        acc[label] = {
           valid: 0,
           warning: 0,
           expired: 0
         };
       }
-      acc[dept][training.status]++;
+      acc[label][training.status]++;
       return acc;
     }, {} as Record<string, {
       valid: number;
@@ -196,9 +202,13 @@ export default function Statistics() {
     }> = {};
     
     allTrainings.forEach(training => {
-      const trainingDate = new Date(training.lastTrainingDate);
-      const year = trainingDate.getFullYear();
-      
+      if (!training.lastTrainingDate) return;
+      // Parse year directly from ISO date string ("YYYY-MM-DD...") to avoid
+      // timezone shifts that can move dates near midnight into the wrong year.
+      const yearStr = String(training.lastTrainingDate).slice(0, 4);
+      const year = parseInt(yearStr, 10);
+      if (!Number.isFinite(year)) return;
+
       if (!yearStats[year]) {
         yearStats[year] = {
           uniqueSessions: new Set(),
@@ -206,11 +216,11 @@ export default function Statistics() {
           totalPeople: 0
         };
       }
-      
+
       // Create unique session key: date + training type
       const sessionKey = `${training.lastTrainingDate}|${training.trainingTypeId}`;
       const hours = typeHoursMap.get(training.trainingTypeId) || 1;
-      
+
       yearStats[year].uniqueSessions.add(sessionKey);
       yearStats[year].sessionHours.set(sessionKey, hours);
       yearStats[year].totalPeople++;
@@ -320,12 +330,17 @@ export default function Statistics() {
       color: "hsl(var(--status-expired))"
     }
   };
-  // Dynamic year list from actual data
+  // Dynamic year list from actual data — parse year from ISO string to avoid TZ drift.
   const years = useMemo(() => {
     const yearSet = new Set<string>();
+    const addYear = (value?: string | null) => {
+      if (!value) return;
+      const y = String(value).slice(0, 4);
+      if (/^\d{4}$/.test(y)) yearSet.add(y);
+    };
     allTrainings.forEach(t => {
-      if (t.date) yearSet.add(new Date(t.date).getFullYear().toString());
-      if (t.lastTrainingDate) yearSet.add(new Date(t.lastTrainingDate).getFullYear().toString());
+      addYear(t.date);
+      addYear(t.lastTrainingDate);
     });
     const sorted = Array.from(yearSet).sort((a, b) => Number(b) - Number(a));
     return ["all", ...sorted];
