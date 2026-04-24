@@ -12,6 +12,7 @@ import { cs } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { computeAvgAttempts, formatAvgAttempts } from "@/lib/statisticsHelpers";
 
 interface EmailStats {
   totalSent: number;
@@ -118,14 +119,13 @@ export function EmailDeliveryStats() {
       const total = totalSent + totalFailed;
       const successRate = total > 0 ? (totalSent / total) * 100 : 0;
 
-      // Calculate average attempts for successful deliveries
-      const successfulWithAttempts = logs?.filter(l => 
+      // Calculate average attempts for successful deliveries.
+      // Uses computeAvgAttempts() helper which returns 0 (not 1) for empty
+      // datasets — see src/test/statistics-regressions.test.ts (Bug 3).
+      const successfulWithAttempts = logs?.filter(l =>
         (l.status === "sent" || l.status === "resent") && l.attempt_number
       ) || [];
-      // When no successful deliveries, average is 0 (not 1) to avoid misleading UI on empty datasets.
-      const avgAttempts = successfulWithAttempts.length > 0
-        ? successfulWithAttempts.reduce((sum, l) => sum + (l.attempt_number || 1), 0) / successfulWithAttempts.length
-        : 0;
+      const avgAttempts = computeAvgAttempts(successfulWithAttempts);
 
       // Daily stats
       const dailyMap = new Map<string, DailyStats>();
@@ -511,7 +511,7 @@ export function EmailDeliveryStats() {
             <div>
               <p className="text-sm text-muted-foreground">Průměr pokusů</p>
               <p className="text-2xl font-bold">
-                {stats.totalSent + stats.totalFailed === 0 ? "—" : stats.avgAttempts.toFixed(1)}
+                {formatAvgAttempts(stats.avgAttempts, stats.totalSent, stats.totalFailed)}
               </p>
             </div>
           </div>
