@@ -115,13 +115,13 @@ const App = () => (
             <Route path="/plp/types" element={<ProtectedLayout requiredModule="plp"><MedicalExaminationTypes /></ProtectedLayout>} />
             <Route path="/plp/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="plp"><MedicalExaminationHistory /></ProtectedLayout>} />
             
-            {/* ============ SHARED / SETTINGS ============ */}
+            {/* ============ SHARED / SETTINGS — admin/manager only ============ */}
             <Route path="/statistics" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Statistics /></ProtectedLayout>} />
-            <Route path="/employees" element={<ProtectedLayout><Employees /></ProtectedLayout>} />
-            <Route path="/training-types" element={<ProtectedLayout><TrainingTypes /></ProtectedLayout>} />
-            <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
-            <Route path="/facilities" element={<ProtectedLayout><Facilities /></ProtectedLayout>} />
-            <Route path="/inactive" element={<ProtectedLayout><InactiveEmployeesReport /></ProtectedLayout>} />
+            <Route path="/employees" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Employees /></ProtectedLayout>} />
+            <Route path="/training-types" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><TrainingTypes /></ProtectedLayout>} />
+            <Route path="/departments" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Departments /></ProtectedLayout>} />
+            <Route path="/facilities" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Facilities /></ProtectedLayout>} />
+            <Route path="/inactive" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><InactiveEmployeesReport /></ProtectedLayout>} />
             
             {/* Audit log - admin only */}
             <Route path="/audit-log" element={<ProtectedLayout requiredRoles={["admin"]}><AuditLog /></ProtectedLayout>} />
