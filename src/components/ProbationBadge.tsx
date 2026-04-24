@@ -27,13 +27,13 @@ export function ProbationBadge({ endDate }: { endDate: string | Date | null | un
     );
   }
   if (daysLeft === 0) {
-    return <Badge className="bg-destructive text-destructive-foreground">{formatted} (DNES)</Badge>;
+    return <Badge className="bg-status-expired text-status-expired-foreground">{formatted} (DNES)</Badge>;
   }
   if (daysLeft <= 14) {
-    return <Badge className="bg-warning text-warning-foreground">{formatted} ({daysLeft} dní)</Badge>;
+    return <Badge className="bg-status-warning text-status-warning-foreground">{formatted} ({daysLeft} dní)</Badge>;
   }
   if (daysLeft <= 60) {
-    return <Badge variant="secondary">{formatted} ({daysLeft} dní)</Badge>;
+    return <Badge className="bg-status-valid text-status-valid-foreground">{formatted} ({daysLeft} dní)</Badge>;
   }
   return <span className="text-sm text-muted-foreground">{formatted}</span>;
 }
