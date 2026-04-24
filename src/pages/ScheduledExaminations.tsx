@@ -318,11 +318,11 @@ export default function ScheduledExaminations() {
             variant="outline"
             size="sm"
             onClick={exportMatrix}
-            disabled={exportingMatrix || allEmployees.length === 0 || allExamTypes.length === 0}
-            title="Souhrnná matice: zaměstnanci × typy prohlídek (XLSX s ✓/⚠/✗)"
+            disabled={exportingMatrix || examinations.length === 0}
+            title="Formát: XLSX — jméno, datum, konec, typ, kategorie, rizika, výsledek, poznámka"
           >
             <Grid3x3 className="w-4 h-4 mr-2" />
-            {exportingMatrix ? "Generuji…" : "Matice PLP"}
+            {exportingMatrix ? "Generuji…" : "Přehled"}
           </Button>
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
