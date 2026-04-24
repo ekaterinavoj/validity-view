@@ -7,6 +7,7 @@
 import { describe, it, expect } from "vitest";
 import {
   parseYearFromISO,
+  parseMonthFromISO,
   isInYear,
   buildDepartmentLabel,
   computeAvgAttempts,
@@ -50,6 +51,28 @@ describe("Statistics regression — Bug 1: year parsing must be timezone-safe", 
   });
 });
 
+describe("Statistics — month parsing must be timezone-safe", () => {
+  it("returns 0-indexed month from ISO string", () => {
+    expect(parseMonthFromISO("2025-01-15")).toBe(0);
+    expect(parseMonthFromISO("2025-12-31")).toBe(11);
+    expect(parseMonthFromISO("2025-06-15T00:00:00.000Z")).toBe(5);
+  });
+
+  it("does not drift across month boundaries", () => {
+    // First minute of February — a naive Date.getMonth() in negative TZ
+    // would yield 0 (January). We must stay on month 1 (February).
+    expect(parseMonthFromISO("2025-02-01T00:00:00.000Z")).toBe(1);
+  });
+
+  it("returns null for invalid input", () => {
+    expect(parseMonthFromISO(null)).toBeNull();
+    expect(parseMonthFromISO("")).toBeNull();
+    expect(parseMonthFromISO("2025")).toBeNull();
+    expect(parseMonthFromISO("2025/01/01")).toBeNull();
+    expect(parseMonthFromISO("2025-13-01")).toBeNull();
+    expect(parseMonthFromISO("2025-00-01")).toBeNull();
+  });
+});
 describe("Statistics regression — Bug 2: department label mapping", () => {
   it("renders human-readable name with code in parentheses", () => {
     expect(buildDepartmentLabel("2002000001", "LOG")).toBe("LOG (2002000001)");
