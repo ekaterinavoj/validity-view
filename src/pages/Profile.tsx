@@ -87,7 +87,7 @@ const Profile = () => {
     if (!passwordEval.meetsMinimum) {
       toast({
         title: "Heslo nesplňuje požadavky",
-        description: passwordEval.firstError || `Heslo musí mít alespoň ${PASSWORD_MIN_LENGTH} znaků, velké písmeno, číslici a speciální znak.`,
+        description: passwordEval.firstError || `Heslo musí mít alespoň ${policy.min_length} znaků a splňovat aktuální pravidla.`,
         variant: "destructive",
       });
       return;
@@ -206,7 +206,7 @@ const Profile = () => {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Změna hesla</h3>
                 <p className="text-sm text-muted-foreground">
-                  Heslo musí mít minimálně {PASSWORD_MIN_LENGTH} znaků, velké písmeno, číslici a speciální znak.
+                  Heslo musí mít minimálně {policy.min_length} znaků a splňovat aktuální pravidla nastavená administrátorem.
                 </p>
                 <Button variant="outline" onClick={() => setChangePasswordDialog(true)}>
                   <KeyRound className="w-4 h-4 mr-2" />
@@ -257,7 +257,7 @@ const Profile = () => {
           <DialogHeader>
             <DialogTitle>Změnit heslo</DialogTitle>
             <DialogDescription>
-              Heslo musí mít alespoň {PASSWORD_MIN_LENGTH} znaků a obsahovat velké písmeno, číslici a speciální znak.
+              Heslo musí mít alespoň {policy.min_length} znaků a splňovat aktuální pravidla.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
