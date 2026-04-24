@@ -107,6 +107,96 @@ async function runScan(): Promise<ScanFinding[]> {
     });
   }
 
+  // === 1b) RLS coverage — kontrola, zda všechny tabulky mají RLS politiky ===
+  try {
+    const { data: coverage, error: covErr } = await supabase.rpc(
+      "security_scan_rls_coverage" as never
+    );
+
+    if (covErr) {
+      if (covErr.message?.includes("admin role required")) {
+        findings.push({
+          id: "rls_coverage_no_admin",
+          category: "rls",
+          title: "RLS coverage check vyžaduje admin roli",
+          description:
+            "Pro plnou kontrolu pokrytí RLS politikami se přihlaste jako administrátor a spusťte sken znovu.",
+          severity: "info",
+        });
+      } else {
+        findings.push({
+          id: "rls_coverage_rpc_missing",
+          category: "rls",
+          title: "RPC security_scan_rls_coverage není dostupné",
+          description: `Migrace nemusí být aplikovaná. Detail: ${covErr.message}`,
+          severity: "medium",
+          remediation:
+            "V Administraci → Migrace databáze aplikujte migraci 'security_scan_rls_coverage_rpc'.",
+        });
+      }
+    } else if (Array.isArray(coverage)) {
+      type CoverageRow = {
+        table_name: string;
+        rls_enabled: boolean;
+        policy_count: number;
+        status: "rls_disabled" | "no_policies" | "ok";
+      };
+      const rows = coverage as CoverageRow[];
+      const disabled = rows.filter((r) => r.status === "rls_disabled");
+      const noPolicies = rows.filter((r) => r.status === "no_policies");
+      const totalTables = rows.length;
+      const okCount = rows.filter((r) => r.status === "ok").length;
+
+      if (disabled.length > 0) {
+        findings.push({
+          id: "rls_disabled_tables",
+          category: "rls",
+          title: `${disabled.length} tabulek má vypnutou ochranu řádků (RLS)`,
+          description: `Konkrétní tabulky bez RLS: ${disabled
+            .map((d) => d.table_name)
+            .join(", ")}. Bez RLS může každý přihlášený uživatel číst i měnit jejich data.`,
+          severity: "critical",
+          remediation:
+            "Pro každou tabulku spusťte: ALTER TABLE public.<nazev> ENABLE ROW LEVEL SECURITY; a doplňte odpovídající policies.",
+        });
+      }
+
+      if (noPolicies.length > 0) {
+        findings.push({
+          id: "rls_no_policies_tables",
+          category: "rls",
+          title: `${noPolicies.length} tabulek má RLS zapnutou, ale žádnou politiku`,
+          description: `Tyto tabulky efektivně blokují veškerý přístup pro běžné role: ${noPolicies
+            .map((d) => d.table_name)
+            .join(
+              ", "
+            )}. Pravděpodobně chybí explicitní policies pro čtení/zápis/úpravu/mazání.`,
+          severity: "high",
+          remediation:
+            "Doplňte RLS policies podle vzoru ostatních tabulek (admin/manager/approved user).",
+        });
+      }
+
+      if (disabled.length === 0 && noPolicies.length === 0) {
+        findings.push({
+          id: "rls_coverage_ok",
+          category: "rls",
+          title: `RLS pokrývá všech ${totalTables} tabulek aplikace`,
+          description: `Všech ${okCount} tabulek v public schématu má zapnutou RLS a alespoň jednu politiku.`,
+          severity: "info",
+        });
+      }
+    }
+  } catch (e) {
+    findings.push({
+      id: "rls_coverage_error",
+      category: "rls",
+      title: "Chyba při kontrole RLS pokrytí",
+      description: String(e),
+      severity: "medium",
+    });
+  }
+
   // === 2) HTTP Security Headers ===
   try {
     const res = await fetch(window.location.origin + "/", { method: "HEAD" });
