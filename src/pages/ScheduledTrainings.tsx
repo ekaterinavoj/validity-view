@@ -341,8 +341,106 @@ export default function ScheduledTrainings() {
     }
   };
 
-  // expand + checkbox? + stav + platnost + typ + os.č. + jméno + středisko + datum + školitel + výsledek + poznámka + protokol + akce = 13 or 12
-  const totalColumns = canEdit ? 13 : 12;
+  /**
+   * Export matrix XLSX: employees × training types with ✓/⚠/✗ cells.
+   * Uses ALL trainings (active only) and currently visible employee scope from RLS.
+   */
+  const exportMatrix = async () => {
+    setExportingMatrix(true);
+    try {
+      // Build employee rows from RLS-filtered employee list (manager sees subordinates only)
+      const empRows: MatrixEmployee[] = allEmployees
+        .filter((e) => e.status !== "terminated")
+        .map((e) => ({
+          id: e.id,
+          department: e.department
+            ? `${e.department}${e.departmentName ? ` - ${e.departmentName}` : ""}`
+            : "—",
+          lastName: e.lastName,
+          firstName: e.firstName,
+          position: e.position,
+          statusLabel:
+            e.status === "employed"
+              ? "Aktivní"
+              : e.status === "parental_leave"
+                ? "Mateřská"
+                : e.status === "sick_leave"
+                  ? "Nemocenská"
+                  : "Ukončen",
+          managerName:
+            e.managerFirstName || e.managerLastName
+              ? `${e.managerFirstName ?? ""} ${e.managerLastName ?? ""}`.trim()
+              : "",
+        }));
+
+      const typeRows: MatrixEventType[] = allTrainingTypes.map((t) => ({
+        id: t.id,
+        name: t.name,
+        facility: t.facility,
+      }));
+
+      // Build per-employee × per-type state
+      const today = new Date();
+      const warningCutoff = new Date();
+      warningCutoff.setDate(warningCutoff.getDate() + 30);
+
+      // Group trainings by (employeeId|typeId) — keep newest next_training_date
+      const latest = new Map<string, { date: Date; status: string }>();
+      for (const t of trainings) {
+        if (!t.is_active) continue;
+        const key = `${t.employeeId}|${t.trainingTypeId}`;
+        const date = new Date(t.date);
+        const prev = latest.get(key);
+        if (!prev || date > prev.date) {
+          latest.set(key, { date, status: t.status });
+        }
+      }
+
+      const entries: MatrixEntry[] = [];
+      for (const emp of empRows) {
+        for (const type of typeRows) {
+          const key = `${emp.id}|${type.id}`;
+          const found = latest.get(key);
+          let state: CellState;
+          if (!found) {
+            state = "na"; // not assigned to this employee
+          } else if (found.date < today) {
+            state = "expired";
+          } else if (found.date <= warningCutoff) {
+            state = "warning";
+          } else {
+            state = "ok";
+          }
+          entries.push({ employeeId: emp.id, eventTypeId: type.id, state });
+        }
+      }
+
+      const timestamp = format(new Date(), "yyyy-MM-dd");
+      downloadMatrixXLSX({
+        title: "Matice školení",
+        filename: `matice_skoleni_${timestamp}`,
+        employees: empRows,
+        eventTypes: typeRows,
+        entries,
+        eventsLabel: "Školení",
+      });
+
+      toast({
+        title: "Matice exportována",
+        description: `${empRows.length} zaměstnanců × ${typeRows.length} typů školení`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Chyba při exportu matice",
+        description: error?.message ?? "Nepodařilo se vygenerovat matici.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingMatrix(false);
+    }
+  };
+
+
 
   if (trainingsError) {
     return (
