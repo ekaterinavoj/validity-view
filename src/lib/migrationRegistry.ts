@@ -2039,6 +2039,241 @@ ALTER TABLE public.deadlines
   ALTER COLUMN equipment_id DROP NOT NULL;
 `.trim(),
   },
+  {
+    version: "20260424092039",
+    name: "auth_admin_grants",
+    sql: `
+-- Grant supabase_auth_admin permissions on public schema so that
+-- handle_new_user / assign_default_role triggers don't fail with
+-- "Database error granting user" during signIn / token refresh.
+GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO supabase_auth_admin;
+
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'profiles', 'user_roles', 'user_module_access',
+    'user_invites', 'audit_logs', 'system_settings'
+  ]
+  LOOP
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = t) THEN
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO supabase_auth_admin', t);
+    END IF;
+  END LOOP;
+END $$;
+
+DO $$
+DECLARE
+  fn text;
+BEGIN
+  FOREACH fn IN ARRAY ARRAY[
+    'handle_new_user()', 'assign_default_role()', 'grant_default_modules()',
+    'get_registration_mode()', 'is_email_allowed(text)'
+  ]
+  LOOP
+    BEGIN
+      EXECUTE format('GRANT EXECUTE ON FUNCTION public.%s TO supabase_auth_admin', fn);
+    EXCEPTION WHEN undefined_function THEN
+      NULL;
+    END;
+  END LOOP;
+END $$;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO supabase_auth_admin;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT USAGE ON SEQUENCES TO supabase_auth_admin;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT EXECUTE ON FUNCTIONS TO supabase_auth_admin;
+`.trim(),
+  },
+  {
+    version: "20260424092509",
+    name: "harden_assign_default_role_trigger",
+    sql: `
+-- Wrap each step of assign_default_role in its own EXCEPTION block so a single
+-- failure (e.g. audit log insert) cannot block user creation / token grant.
+-- Also fix search_path on doc-number trigger functions.
+
+CREATE OR REPLACE FUNCTION public.assign_default_role()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $func$
+DECLARE
+  admin_exists BOOLEAN;
+  reg_mode text;
+  invite_record RECORD;
+BEGIN
+  BEGIN
+    SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE role = 'admin') INTO admin_exists;
+  EXCEPTION WHEN others THEN
+    RAISE WARNING 'assign_default_role: admin check failed for %: %', NEW.id, SQLERRM;
+    admin_exists := true;
+  END;
+
+  IF NOT admin_exists THEN
+    BEGIN
+      INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'admin') ON CONFLICT DO NOTHING;
+      UPDATE public.profiles SET approval_status = 'approved', approved_at = now() WHERE id = NEW.id;
+    EXCEPTION WHEN others THEN
+      RAISE WARNING 'assign_default_role: first-admin assign failed for %: %', NEW.id, SQLERRM;
+    END;
+    RETURN NEW;
+  END IF;
+
+  BEGIN
+    reg_mode := public.get_registration_mode();
+  EXCEPTION WHEN others THEN
+    reg_mode := 'self_signup_approval';
+  END;
+
+  BEGIN
+    SELECT * INTO invite_record FROM public.user_invites
+      WHERE email = NEW.email AND status = 'pending' AND expires_at > now()
+      ORDER BY created_at DESC LIMIT 1;
+  EXCEPTION WHEN others THEN
+    invite_record := NULL;
+  END;
+
+  IF invite_record.id IS NOT NULL THEN
+    BEGIN
+      INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, invite_record.role) ON CONFLICT DO NOTHING;
+      UPDATE public.user_invites SET status = 'used', used_at = now(), used_by = NEW.id WHERE id = invite_record.id;
+      UPDATE public.profiles SET approval_status = 'approved', approved_at = now(), approved_by = invite_record.invited_by WHERE id = NEW.id;
+    EXCEPTION WHEN others THEN
+      RAISE WARNING 'assign_default_role: invite apply failed for %: %', NEW.id, SQLERRM;
+    END;
+    RETURN NEW;
+  END IF;
+
+  IF reg_mode != 'invite_only' THEN
+    BEGIN
+      INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'user') ON CONFLICT DO NOTHING;
+    EXCEPTION WHEN others THEN
+      RAISE WARNING 'assign_default_role: default user role failed for %: %', NEW.id, SQLERRM;
+    END;
+  END IF;
+
+  RETURN NEW;
+EXCEPTION WHEN others THEN
+  RAISE WARNING 'assign_default_role: unexpected error for %: %', NEW.id, SQLERRM;
+  RETURN NEW;
+END;
+$func$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'generate_training_doc_number') THEN
+    EXECUTE 'ALTER FUNCTION public.generate_training_doc_number() SET search_path = public';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'generate_deadline_doc_number') THEN
+    EXECUTE 'ALTER FUNCTION public.generate_deadline_doc_number() SET search_path = public';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'generate_medical_doc_number') THEN
+    EXECUTE 'ALTER FUNCTION public.generate_medical_doc_number() SET search_path = public';
+  END IF;
+END $$;
+`.trim(),
+  },
+  {
+    version: "20260424093646",
+    name: "security_hardening_extension_rls_diagnostics",
+    sql: `
+-- Move pg_net out of public + tighten RLS on system tables + add signin diagnostics
+CREATE SCHEMA IF NOT EXISTS extensions;
+GRANT USAGE ON SCHEMA extensions TO postgres, anon, authenticated, service_role;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace
+    WHERE e.extname = 'pg_net' AND n.nspname = 'public'
+  ) THEN
+    EXECUTE 'DROP EXTENSION pg_net CASCADE';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net') THEN
+    EXECUTE 'CREATE EXTENSION pg_net WITH SCHEMA extensions';
+  END IF;
+END $$;
+
+DROP POLICY IF EXISTS "System can insert reminder logs" ON public.reminder_logs;
+CREATE POLICY "Admins or service can insert reminder logs"
+ON public.reminder_logs FOR INSERT TO authenticated
+WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+
+DROP POLICY IF EXISTS "System can insert deadline reminder logs" ON public.deadline_reminder_logs;
+CREATE POLICY "Admins or service can insert deadline reminder logs"
+ON public.deadline_reminder_logs FOR INSERT TO authenticated
+WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+
+DROP POLICY IF EXISTS "System can insert medical reminder logs" ON public.medical_reminder_logs;
+CREATE POLICY "Admins or service can insert medical reminder logs"
+ON public.medical_reminder_logs FOR INSERT TO authenticated
+WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+
+DROP POLICY IF EXISTS "System can insert reminder runs" ON public.reminder_runs;
+CREATE POLICY "Admins or service can insert reminder runs"
+ON public.reminder_runs FOR INSERT TO authenticated
+WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+
+DROP POLICY IF EXISTS "System can update reminder runs" ON public.reminder_runs;
+CREATE POLICY "Admins or service can update reminder runs"
+ON public.reminder_runs FOR UPDATE TO authenticated
+USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+
+DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
+CREATE POLICY "Admins or service can insert notifications"
+ON public.notifications FOR INSERT TO authenticated
+WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+
+CREATE TABLE IF NOT EXISTS public.auth_signin_attempts (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  email text NOT NULL,
+  attempt_number integer NOT NULL DEFAULT 1,
+  status text NOT NULL,
+  http_status integer,
+  error_code text,
+  error_message text,
+  request_id text,
+  user_agent text,
+  ip_address text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_auth_signin_attempts_email_created
+  ON public.auth_signin_attempts(email, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_auth_signin_attempts_request
+  ON public.auth_signin_attempts(request_id);
+
+ALTER TABLE public.auth_signin_attempts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Validated signin attempt logging" ON public.auth_signin_attempts;
+CREATE POLICY "Validated signin attempt logging"
+ON public.auth_signin_attempts FOR INSERT TO anon, authenticated
+WITH CHECK (
+  email IS NOT NULL
+  AND length(email) BETWEEN 3 AND 320
+  AND email ~* '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'
+  AND status IN ('success', 'failure', 'retry')
+  AND (error_message IS NULL OR length(error_message) <= 2000)
+  AND attempt_number BETWEEN 1 AND 10
+);
+
+DROP POLICY IF EXISTS "Admins can read signin attempts" ON public.auth_signin_attempts;
+CREATE POLICY "Admins can read signin attempts"
+ON public.auth_signin_attempts FOR SELECT TO authenticated
+USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+
+DROP POLICY IF EXISTS "Admins can delete signin attempts" ON public.auth_signin_attempts;
+CREATE POLICY "Admins can delete signin attempts"
+ON public.auth_signin_attempts FOR DELETE TO authenticated
+USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+`.trim(),
+  },
 ];
 
 /**
