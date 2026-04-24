@@ -1109,6 +1109,13 @@ export const BulkTrainingImport = () => {
             </DialogDescription>
           </DialogHeader>
 
+          {headerError && (
+            <MissingHeadersAlert
+              missing={headerError.missing}
+              detected={headerError.detected}
+            />
+          )}
+
           {preview && (
             <div className="space-y-4">
               {/* Large dataset warning */}
