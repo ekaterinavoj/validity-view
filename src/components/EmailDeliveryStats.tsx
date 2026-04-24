@@ -122,9 +122,10 @@ export function EmailDeliveryStats() {
       const successfulWithAttempts = logs?.filter(l => 
         (l.status === "sent" || l.status === "resent") && l.attempt_number
       ) || [];
+      // When no successful deliveries, average is 0 (not 1) to avoid misleading UI on empty datasets.
       const avgAttempts = successfulWithAttempts.length > 0
         ? successfulWithAttempts.reduce((sum, l) => sum + (l.attempt_number || 1), 0) / successfulWithAttempts.length
-        : 1;
+        : 0;
 
       // Daily stats
       const dailyMap = new Map<string, DailyStats>();
