@@ -3026,6 +3026,18 @@ BEGIN
   END LOOP;
 END $do$;`,
   },
+  {
+    version: "20260424120000",
+    name: "ui_unify_role_based_navigation_guards",
+    sql: `-- UI-only: sjednocení role-based přístupu napříč záložkami.
+-- Přidány ProtectedRoute guards (admin/manager) na stránky Správa dat
+-- (/employees, /training-types, /departments, /facilities, /inactive),
+-- aktualizována matice oprávnění (RolePermissionsInfo) a text stránky NoAccess.
+-- Žádné databázové změny nejsou potřeba — RLS politiky už striktně vynucují
+-- role na úrovni databáze; tato migrace pouze ladí UI tak, aby odpovídalo
+-- skutečným oprávněním a uživatelé nedostávali prázdné stránky / chyby RLS.
+SELECT 1;`,
+  },
 ];
 
 /**
