@@ -3075,7 +3075,7 @@ SELECT 1;`,
 --    nulovém datasetu. Default 1 byl nahrazen 0 a v UI se při 0 odeslaných
 --    + 0 neúspěšných emailech zobrazí pomlčka "—".
 -- Žádné databázové změny nejsou potřeba.
-SELECT 1;\`,
+SELECT 1;`,
   },
 ];
 
