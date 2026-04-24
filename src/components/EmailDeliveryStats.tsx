@@ -510,7 +510,9 @@ export function EmailDeliveryStats() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Průměr pokusů</p>
-              <p className="text-2xl font-bold">{stats.avgAttempts.toFixed(1)}</p>
+              <p className="text-2xl font-bold">
+                {stats.totalSent + stats.totalFailed === 0 ? "—" : stats.avgAttempts.toFixed(1)}
+              </p>
             </div>
           </div>
         </Card>
