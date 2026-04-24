@@ -154,7 +154,7 @@ export default function Probations() {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Info className="h-3.5 w-3.5 text-warning cursor-help" />
+                              <Info className="h-3.5 w-3.5 text-status-warning cursor-help" />
                             </TooltipTrigger>
                             <TooltipContent className="max-w-xs">
                               <p className="text-xs font-medium mb-1">Ručně upraveno – důvod:</p>
