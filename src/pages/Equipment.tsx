@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import Papa from "papaparse";
 import {
   Plus,
-  RefreshCw,
   Download,
   Edit,
   Trash2,
