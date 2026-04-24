@@ -250,7 +250,7 @@ export default function ScheduledExaminations() {
       };
 
       const rows: PLPDetailRow[] = examinations.map((ex) => ({
-        fullName: `${ex.employeeLastName ?? ""} ${ex.employeeFirstName ?? ""}`.trim(),
+        fullName: ex.employeeName ?? "",
         examinationDate: ex.lastExaminationDate ? formatDisplayDate(ex.lastExaminationDate) : "",
         expiryDate: ex.nextExaminationDate ? formatDisplayDate(ex.nextExaminationDate) : "",
         examinationType: ex.type ?? "",
