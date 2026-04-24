@@ -233,17 +233,43 @@ export default function Probations() {
             nadřízeného.
           </>
         }
+        actions={
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Toggle
+                  pressed={compactMode}
+                  onPressedChange={toggleCompact}
+                  aria-label="Přepnout zobrazení bez záložek"
+                  size="sm"
+                  variant="outline"
+                  className="h-9"
+                >
+                  {compactMode ? <LayoutList className="h-4 w-4 mr-1" /> : <Layers className="h-4 w-4 mr-1" />}
+                  <span className="text-xs">{compactMode ? "Jen přehled" : "S historií"}</span>
+                </Toggle>
+              </TooltipTrigger>
+              <TooltipContent>
+                {compactMode
+                  ? "Záložka Historie změn je skrytá. Klikněte pro obnovení obou záložek."
+                  : "Skrýt záložku Historie změn pro rychlé použití."}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        }
       />
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "list" | "history")}>
-        <TabsList>
-          <TabsTrigger value="list">
-            <ClipboardList className="h-4 w-4 mr-1" /> Přehled
-          </TabsTrigger>
-          <TabsTrigger value="history">
-            <History className="h-4 w-4 mr-1" /> Historie změn
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={compactMode ? "list" : tab} onValueChange={(v) => setTab(v as "list" | "history")}>
+        {!compactMode && (
+          <TabsList>
+            <TabsTrigger value="list">
+              <ClipboardList className="h-4 w-4 mr-1" /> Přehled
+            </TabsTrigger>
+            <TabsTrigger value="history">
+              <History className="h-4 w-4 mr-1" /> Historie změn
+            </TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value="list" className="space-y-4">
           <Card className="p-4">
