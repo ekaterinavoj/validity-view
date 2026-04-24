@@ -131,7 +131,12 @@ export function ExportReminderLogs() {
     }
   };
   return (
-    <Button variant="outline" disabled={exporting} onClick={exportToCSV}>
+    <Button
+      variant="outline"
+      disabled={exporting}
+      onClick={exportToCSV}
+      title="Formát: CSV (oddělovač středník, kódování UTF-8 s BOM, kompatibilní s Excelem)"
+    >
       {exporting ? (
         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
       ) : (

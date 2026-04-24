@@ -22,6 +22,8 @@ import { exportToCSV } from "@/lib/csvExport";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { TablePagination } from "@/components/TablePagination";
+import { usePagination } from "@/hooks/usePagination";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
@@ -112,6 +114,9 @@ export default function Probations() {
       })
       .sort((a, b) => daysUntil(a.probationEndDate!) - daysUntil(b.probationEndDate!));
   }, [employees, windowFilter, search]);
+
+  const PAGE_SIZE = 25;
+  const { currentPage, setCurrentPage, totalPages, paginatedItems, totalItems } = usePagination(filtered, PAGE_SIZE);
 
   const hasFilters = search !== "" || windowFilter !== "ending_30";
 
@@ -408,7 +413,7 @@ export default function Probations() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((e) => (
+                  paginatedItems.map((e) => (
                     <TableRow
                       key={e.id}
                       className="cursor-pointer hover:bg-muted/40"
@@ -470,6 +475,14 @@ export default function Probations() {
               </TableBody>
             </Table>
           </Card>
+
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4">
