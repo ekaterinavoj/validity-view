@@ -1166,7 +1166,8 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
-          {/* Email Templates with Tabs for both modules */}
+          {/* Email Templates with Tabs for both modules – skryto, souhrny vypnuty */}
+          {false && (
           <Card>
             <CardHeader>
               <CardTitle>Souhrnné emaily podle modulu</CardTitle>
@@ -1331,6 +1332,7 @@ export default function AdminSettings() {
               </Tabs>
             </CardContent>
           </Card>
+          )}
 
           {/* Šablony individuálních připomínek */}
           <Separator />
