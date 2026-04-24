@@ -63,6 +63,7 @@ import { EquipmentResponsiblesBadges } from "@/components/EquipmentResponsiblesB
 import { ResponsiblePersonsPicker } from "@/components/ResponsiblePersonsPicker";
 import { BulkEquipmentImport } from "@/components/BulkEquipmentImport";
 import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColors } from "@/types/equipment";
+import { useAllEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
