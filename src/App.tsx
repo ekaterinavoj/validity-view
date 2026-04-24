@@ -143,6 +143,7 @@ const App = () => (
             <Route path="/admin/security-checklist" element={<ProtectedLayout requiredRoles={["admin"]}><SecurityChecklist /></ProtectedLayout>} />
             
             <Route path="/documents" element={<ProtectedLayout><Documents /></ProtectedLayout>} />
+            <Route path="/guides" element={<ProtectedLayout><Guides /></ProtectedLayout>} />
             <Route path="/event-types" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><EventTypesOverview /></ProtectedLayout>} />
             <Route path="/no-access" element={<ProtectedRoute><NoAccess /></ProtectedRoute>} />
             
