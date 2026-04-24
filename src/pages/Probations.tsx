@@ -392,12 +392,13 @@ export default function Probations() {
                   <TableHead>Délka (měs.)</TableHead>
                   <TableHead>Konec ZD</TableHead>
                   <TableHead>Nadřízený</TableHead>
+                  <TableHead className="text-right w-[1%]">Akce</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="p-0">
+                    <TableCell colSpan={9} className="p-0">
                       <EmptyState
                         icon={ClipboardList}
                         title="Žádní zaměstnanci v tomto okně"
@@ -407,7 +408,11 @@ export default function Probations() {
                   </TableRow>
                 ) : (
                   filtered.map((e) => (
-                    <TableRow key={e.id}>
+                    <TableRow
+                      key={e.id}
+                      className="cursor-pointer hover:bg-muted/40"
+                      onClick={() => goToEmployeeProbation(e.id)}
+                    >
                       <TableCell className="font-medium">{e.employeeNumber || "-"}</TableCell>
                       <TableCell>
                         {e.firstName} {e.lastName}
@@ -442,6 +447,21 @@ export default function Probations() {
                         {e.managerFirstName || e.managerLastName
                           ? `${e.managerFirstName || ""} ${e.managerLastName || ""}`.trim()
                           : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            goToEmployeeProbation(e.id);
+                          }}
+                          title="Upravit zkušební dobu"
+                        >
+                          <Edit className="h-3.5 w-3.5 mr-1" />
+                          <span className="text-xs">Upravit ZD</span>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
