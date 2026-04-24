@@ -68,6 +68,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [headerError, setHeaderError] = useState<{ missing: import("@/lib/importValidation").MissingHeader[]; detected: string[] } | null>(null);
   const abortRef = useRef(false);
   const { toast } = useToast();
 
