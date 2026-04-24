@@ -22,6 +22,7 @@ import { Search, X, Save, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { FilterState, SavedFilter } from "@/hooks/useAdvancedFilters";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ResponsiblePerson {
   id: string;
@@ -35,6 +36,8 @@ interface AdvancedFiltersProps {
   onSaveFilters: (name: string) => void;
   onLoadFilter: (filterId: string) => void;
   onDeleteFilter: (filterId: string) => void;
+  /** Toggle a saved filter as the user's default (auto-loaded on page open). */
+  onSetDefaultFilter?: (filterId: string | null) => void;
   savedFilters: SavedFilter[];
   hasActiveFilters: boolean;
   departments: string[];
@@ -59,6 +62,7 @@ export function AdvancedFilters({
   onSaveFilters,
   onLoadFilter,
   onDeleteFilter,
+  onSetDefaultFilter,
   savedFilters,
   hasActiveFilters,
   departments,
@@ -91,24 +95,56 @@ export function AdvancedFilters({
               <Star className="w-4 h-4" />
               Oblíbené filtry:
             </span>
-            {savedFilters.map((saved) => (
-              <Badge
-                key={saved.id}
-                variant="secondary"
-                className="cursor-pointer hover:bg-accent group flex items-center gap-1"
-              >
-                <span onClick={() => onLoadFilter(saved.id)}>{saved.name}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteFilter(saved.id);
-                  }}
-                  className="ml-1 hover:text-destructive"
+            <TooltipProvider>
+              {savedFilters.map((saved) => (
+                <Badge
+                  key={saved.id}
+                  variant={saved.isDefault ? "default" : "secondary"}
+                  className="cursor-pointer hover:bg-accent group flex items-center gap-1"
                 >
-                  <X className="w-3 h-3" />
-                </button>
-              </Badge>
-            ))}
+                  <span onClick={() => onLoadFilter(saved.id)}>
+                    {saved.isDefault && "★ "}
+                    {saved.name}
+                  </span>
+                  {onSetDefaultFilter && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSetDefaultFilter(saved.id);
+                          }}
+                          className="ml-1 hover:text-primary"
+                          aria-label={saved.isDefault ? "Zrušit jako výchozí" : "Nastavit jako výchozí"}
+                        >
+                          <Star className={`w-3 h-3 ${saved.isDefault ? "fill-current" : ""}`} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {saved.isDefault
+                          ? "Zrušit jako výchozí filtr"
+                          : "Nastavit jako výchozí (automaticky se načte)"}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteFilter(saved.id);
+                        }}
+                        className="ml-1 hover:text-destructive"
+                        aria-label="Smazat filtr"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Smazat filtr</TooltipContent>
+                  </Tooltip>
+                </Badge>
+              ))}
+            </TooltipProvider>
           </div>
         )}
 

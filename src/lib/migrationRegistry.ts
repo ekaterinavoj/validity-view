@@ -3612,6 +3612,32 @@ SELECT 1;`,
 --     automaticky při INSERT/UPDATE/DELETE bez nutnosti manuálního refresh.
 SELECT 1;`,
   },
+  {
+    version: "20260424280000",
+    name: "ui_unified_filename_filters_legend_refresh",
+    sql: `-- UI-only změna (žádné DB schema):
+--   • Nový helper src/lib/exportFilename.ts (buildExportFilename) — všechny
+--     CSV exporty/chybové soubory napříč moduly nyní používají jednotný
+--     název ve formátu "{modul}_{YYYY-MM-DD}.csv" (UTF-8 BOM, ; delimiter).
+--   • Bulk importy (Employees, Equipment, Trainings, Medical) sjednoceny:
+--     tlačítko jen "Import" + tooltip CSV_IMPORT_TOOLTIP, chybové soubory
+--     pojmenovány "{modul}-chyby_{YYYY-MM-DD}.csv".
+--   • Maticové exporty (Trainings, PLP) doplněny o LEGENDU symbolů přímo
+--     do hlavního CSV listu: ✓ platné, ⚠ brzy vyprší, ✗ prošlé, — chybí.
+--     Symbol "warning" v matici nyní rozlišen od "ok" (dříve oba ✓).
+--   • Sdílený helper src/lib/importValidation.ts (checkRequiredHeaders,
+--     downloadErrorCSV, ImportErrorRow) pro per-řádkové chyby s odkazem.
+--   • Nová komponenta src/components/RefreshButton.tsx (záložní mechanismus
+--     k Realtime, použitelný napříč všemi přehledy).
+--   • useAdvancedFilters rozšířen o setDefaultFilter (★ označení výchozího
+--     filtru) + auto-perzistenci posledního stavu filtrů (per-user, localStorage).
+--     AdvancedFilters UI: hvězdička pro toggle výchozího, tooltips na
+--     akčních ikonách badge.
+--   • Souhrnné (weekly) připomínky se v UI skryjí — zůstává jen per-záznam
+--     (alert) konfigurace; edge funkce a logy zachovány pro historii,
+--     pg_cron joby uživatel deaktivuje samostatně přes Cloud.
+SELECT 1;`,
+  },
 ];
 
 /**

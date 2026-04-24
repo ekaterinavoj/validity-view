@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import Papa from "papaparse";
 // XLSX removed — bulk import accepts only CSV
@@ -898,14 +899,12 @@ export const BulkTrainingImport = () => {
       note: item.data.note || '',
     }));
 
-    const timestamp = new Date().toISOString().split('T')[0];
-
     const csv = Papa.unparse(errorData, { delimiter: ";" });
     const BOM = "\uFEFF";
     const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `chyby_import_skoleni_${timestamp}.csv`;
+    link.download = buildExportFilename("skoleni-chyby");
     link.click();
 
     toast({

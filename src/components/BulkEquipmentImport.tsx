@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Papa from 'papaparse';
 import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
+import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
 import { ImportDescription } from "@/components/ImportDescription";
 
 const equipmentSchema = z.object({
@@ -469,7 +470,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
     const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `chyby_import_zarizeni_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = buildExportFilename("zarizeni-chyby");
     link.click();
   };
 
@@ -526,10 +527,10 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
           size="sm"
           onClick={() => document.getElementById('equipment-import')?.click()}
           disabled={isProcessing}
-          title="Podporované formáty: XLSX, XLS, CSV (středník, UTF-8)"
+          title={CSV_IMPORT_TOOLTIP}
         >
           <Upload className="w-4 h-4 mr-2" />
-          {isProcessing ? "Zpracovávám..." : "Import zařízení"}
+          {isProcessing ? "Zpracovávám..." : "Import"}
         </Button>
       </div>
 

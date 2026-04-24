@@ -32,11 +32,21 @@ export interface MatrixEntry {
 
 const STATE_GLYPH: Record<CellState, string> = {
   ok: "✓",
-  warning: "✓",
+  warning: "⚠",
   expired: "✗",
-  missing: "",
+  missing: "—",
   na: "",
 };
+
+/** Legend rows prepended to every matrix export so the symbols are self-explanatory. */
+const LEGEND_ROWS: string[][] = [
+  ["LEGENDA SYMBOLŮ"],
+  ["✓", "Platné — záznam existuje a je v pořádku"],
+  ["⚠", "Brzy vyprší — končí platnost do 30 dní"],
+  ["✗", "Prošlé — platnost vypršela"],
+  ["—", "Chybí — záznam pro tuto kombinaci neexistuje"],
+  [""], // blank separator row before header
+];
 
 interface BuildTrainingMatrixArgs {
   filename: string;
@@ -92,7 +102,8 @@ export function downloadTrainingMatrixCSV({
     return row;
   });
 
-  const csv = Papa.unparse([headerRow, ...dataRows], { delimiter: ";" });
+  // Prepend legend so users immediately understand symbols, then header + data.
+  const csv = Papa.unparse([...LEGEND_ROWS, headerRow, ...dataRows], { delimiter: ";" });
   downloadCsv(filename, csv);
 }
 
