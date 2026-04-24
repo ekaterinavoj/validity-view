@@ -478,6 +478,40 @@ export function ModuleRecipientsSelector({
           
           return null;
         })()}
+
+        {/* Diagnostika přepínačů: vedoucí / odpovědní osoby */}
+        {(() => {
+          const managersCount = users.filter(u => u.role === "manager").length;
+          const showManagerWarning =
+            (module === "training" && trainingManagerNotifications.enabled && managersCount === 0) ||
+            (module === "medical" && medicalManagerNotifications.enabled && managersCount === 0);
+
+          const showResponsibleWarning =
+            module === "deadlines" &&
+            deadlineResponsibleNotifications.enabled &&
+            (deadlineRecipients.group_ids || []).length === 0;
+
+          if (!showManagerWarning && !showResponsibleWarning) return null;
+
+          return (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                <p className="font-medium">Diagnostika nastavení příjemců</p>
+                {showManagerWarning && (
+                  <p>
+                    Notifikace nadřízeným je zapnutá, ale v systému není žádný uživatel s rolí <strong>Manažer</strong>. E-maily nadřízeným nebudou odeslány.
+                  </p>
+                )}
+                {showResponsibleWarning && (
+                  <p>
+                    Notifikace odpovědným osobám je zapnutá, ale není vybraná žádná <strong>skupina odpovědných osob</strong>. Doporučujeme přidat skupinu nebo individuální příjemce.
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   };
