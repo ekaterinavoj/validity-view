@@ -475,6 +475,14 @@ export default function Probations() {
               </TableBody>
             </Table>
           </Card>
+
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4">
