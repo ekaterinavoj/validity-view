@@ -3638,6 +3638,27 @@ SELECT 1;`,
 --     pg_cron joby uživatel deaktivuje samostatně přes Cloud.
 SELECT 1;`,
   },
+  {
+    version: "20260424300000",
+    name: "ui_summary_reminders_hidden_and_refresh_button",
+    sql: `-- UI-only změny – databázové schéma se neupravuje.
+-- 
+-- Tato migrace dokumentuje:
+--   • Skrytí UI souhrnných (weekly) připomínek v Administraci → Připomínky
+--     a v Administraci → Emaily & Šablony. Edge funkce (run-reminders,
+--     run-deadline-reminders, run-medical-reminders) zůstávají nasazené
+--     pro historii, ale uživatel je v UI nevidí. Per-záznam (alert)
+--     připomínky zůstávají plně funkční.
+--   • Tlačítko „Znovu načíst" (RefreshButton) přidáno do hlavních přehledů
+--     (Equipment, ScheduledTrainings, ScheduledExaminations,
+--     ScheduledDeadlines, Employees) jako záložní mechanismus k Realtime.
+--   • Propagace volby výchozího filtru (★) napříč všemi stránkami
+--     používajícími AdvancedFilters: DeadlineHistory, History,
+--     ScheduledDeadlines, ScheduledExaminations, ScheduledTrainings.
+--     Hook useAdvancedFilters již obsahuje setDefaultFilter +
+--     auto-perzistenci posledního stavu (per-user localStorage).
+SELECT 1;`,
+  },
 ];
 
 /**
