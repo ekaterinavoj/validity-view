@@ -9,11 +9,20 @@
 import Papa from "papaparse";
 import { buildExportFilename } from "./exportFilename";
 
+export interface MissingHeader {
+  /** Canonical (display) name of the missing column. */
+  canonical: string;
+  /** All accepted alias names the user can use in the CSV. */
+  expected: string[];
+}
+
 export interface HeaderCheckResult {
   /** True when all required columns (or one of their aliases) are present. */
   ok: boolean;
-  /** Headers that are missing from the file. */
+  /** Canonical names of headers that are missing (legacy field). */
   missing: string[];
+  /** Detailed missing headers with their accepted alias names. */
+  missingDetailed: MissingHeader[];
   /** All raw headers detected in the file. */
   detected: string[];
 }
@@ -31,15 +40,38 @@ export function checkRequiredHeaders(
 ): HeaderCheckResult {
   const normalized = headers.map((h) => h.trim());
   const missing: string[] = [];
+  const missingDetailed: MissingHeader[] = [];
 
   for (const [canonical, aliases] of Object.entries(required)) {
     const found = aliases.some((alias) =>
       normalized.some((h) => h.toLowerCase() === alias.toLowerCase()),
     );
-    if (!found) missing.push(canonical);
+    if (!found) {
+      missing.push(canonical);
+      missingDetailed.push({ canonical, expected: aliases });
+    }
   }
 
-  return { ok: missing.length === 0, missing, detected: normalized };
+  return {
+    ok: missing.length === 0,
+    missing,
+    missingDetailed,
+    detected: normalized,
+  };
+}
+
+/**
+ * Format a missing-headers error for display in toasts/alerts.
+ * Shows the canonical name and the accepted alias names.
+ */
+export function formatMissingHeadersMessage(missing: MissingHeader[]): string {
+  if (missing.length === 0) return "";
+  return missing
+    .map(
+      (m) =>
+        `• "${m.canonical}" (akceptované názvy: ${m.expected.map((a) => `"${a}"`).join(", ")})`,
+    )
+    .join("\n");
 }
 
 /**
