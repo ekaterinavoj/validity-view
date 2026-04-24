@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronDown, ChevronRight, User, Users } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronDown, ChevronRight, User, Users, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeStatusBadge, EmployeeStatus } from "./EmployeeStatusBadge";
 
