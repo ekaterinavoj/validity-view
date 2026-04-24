@@ -3862,6 +3862,44 @@ $func$;
 REVOKE ALL ON FUNCTION public.security_scan_rls_coverage() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.security_scan_rls_coverage() TO authenticated;`,
   },
+  {
+    version: "20260424160000",
+    name: "session_timeout_settings_and_security_ux",
+    sql: `-- Konfigurovatelný auto-logout po neaktivitě + read policy pro klienta.
+INSERT INTO public.system_settings (key, value, description)
+VALUES
+  ('session_timeout',
+   '{"enabled": true, "idle_minutes": 60, "warn_seconds_before": 300}'::jsonb,
+   'Auto-logout uživatelů po neaktivitě. idle_minutes = doba neaktivity v minutách, warn_seconds_before = sekundy před vypršením pro varování.')
+ON CONFLICT (key) DO NOTHING;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'system_settings'
+      AND policyname = 'session_timeout_readable_by_authenticated'
+  ) THEN
+    CREATE POLICY "session_timeout_readable_by_authenticated"
+      ON public.system_settings
+      FOR SELECT
+      TO authenticated
+      USING (key = 'session_timeout');
+  END IF;
+END $$;
+
+-- Souhrn UI změn (žádný další zásah do schématu):
+--  • useSessionTimeout hook + Layout integrace (auto-logout, varování, prodloužení).
+--  • Auth: zobrazení toastu po idle redirectu (?reason=idle).
+--  • AuditLog: tlačítko Export (CSV s aktivními filtry, soubor audit-log_YYYY-MM-DD.csv).
+--  • Profile: sekce „Aktivní přihlášení" s tlačítkem signOut(scope:'others')
+--    + posílená validace změny hesla (10+ znaků, velké písmeno, číslice, speciální znak)
+--    a indikátor síly hesla (PasswordStrengthMeter).
+--  • ChangePassword: stejná silnější validace + indikátor síly + HIBP zpětná hláška.
+--  • AdminSettings → Bezpečnost: SessionTimeoutSettings (enabled / idle_minutes / warn_seconds_before).
+--  • Supabase Auth: zapnut password_hibp_enabled (kontrola uniklých hesel přes HIBP).
+SELECT 1;`,
+  },
 ];
 
 /**

@@ -5,15 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, Search, Filter } from "lucide-react";
+import { Loader2, FileText, Search, Filter, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { exportToCSV } from "@/lib/csvExport";
+import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 interface AuditLog {
   id: string;
@@ -263,13 +267,57 @@ export default function AuditLog() {
     return details;
   };
 
+  const handleExport = () => {
+    if (filteredLogs.length === 0) {
+      toast({
+        title: "Žádná data",
+        description: "Není co exportovat – žádné záznamy odpovídající filtrům.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const rows = filteredLogs.map((log) => ({
+        "Datum a čas": format(new Date(log.created_at), "yyyy-MM-dd HH:mm:ss"),
+        Akce: actionLabels[log.action] ?? log.action,
+        Tabulka: tableLabels[log.table_name] ?? log.table_name,
+        "ID záznamu": log.record_id,
+        Uživatel: log.user_name ?? "",
+        Email: log.user_email ?? "",
+        "Změněná pole": (log.changed_fields ?? []).join(", "),
+        Detail: (formatChangeDetails(log) ?? []).join(" | "),
+      }));
+
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, "0");
+      const d = String(today.getDate()).padStart(2, "0");
+      exportToCSV({
+        filename: `audit-log_${y}-${m}-${d}.csv`,
+        data: rows,
+      });
+
+      toast({
+        title: "Export hotov",
+        description: `Exportováno ${rows.length} záznamů.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Chyba exportu",
+        description: err?.message ?? "Nepodařilo se vyexportovat audit log.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!isAdmin && !isManager) {
     return null;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-3xl font-bold text-foreground flex items-center gap-2">
             <FileText className="w-8 h-8" />
@@ -279,6 +327,22 @@ export default function AuditLog() {
             Kompletní záznam všech změn provedených v systému
           </p>
         </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={isLoading || filteredLogs.length === 0}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{CSV_FORMAT_TOOLTIP}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <Card className="p-6">
