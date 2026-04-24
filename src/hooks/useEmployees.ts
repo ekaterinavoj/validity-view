@@ -20,7 +20,7 @@ async function logEmployeeAccess(
     });
     const role = Array.isArray(rolesData) && rolesData.length > 0 ? rolesData[0] : "user";
 
-    await supabase.from("employee_access_logs").insert({
+    await supabase.from("employee_access_logs" as never).insert({
       user_id: user.id,
       user_email: user.email ?? null,
       user_role: role,
@@ -28,7 +28,7 @@ async function logEmployeeAccess(
       rows_returned: rowsReturned,
       filters,
       source: "web",
-    });
+    } as never);
   } catch (err) {
     // Never block the UI on audit failure
     console.warn("employee_access_logs insert failed", err);
