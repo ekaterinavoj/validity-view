@@ -54,6 +54,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
+import { RefreshButton } from "@/components/RefreshButton";
 
 export default function ScheduledDeadlines() {
   const { toast } = useToast();
@@ -112,6 +113,7 @@ export default function ScheduledDeadlines() {
     saveCurrentFilters,
     loadSavedFilter,
     deleteSavedFilter,
+    setDefaultFilter,
     savedFilters
   } = useAdvancedFilters("deadline-filters");
 
@@ -266,6 +268,7 @@ export default function ScheduledDeadlines() {
               Import
             </Button>
           )}
+          <RefreshButton onRefresh={async () => { await refetch(); }} loading={isLoading} />
           {canEdit && (
             <Link to="/deadlines/new">
               <Button size="sm">
@@ -288,6 +291,7 @@ export default function ScheduledDeadlines() {
         onSaveFilters={saveCurrentFilters}
         onLoadFilter={loadSavedFilter}
         onDeleteFilter={deleteSavedFilter}
+        onSetDefaultFilter={setDefaultFilter}
         savedFilters={savedFilters}
         hasActiveFilters={hasActiveFilters}
         departments={[]}

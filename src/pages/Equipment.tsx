@@ -69,6 +69,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { RefreshButton } from "@/components/RefreshButton";
 
 export default function Equipment() {
   const { toast } = useToast();
@@ -317,6 +318,7 @@ export default function Equipment() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <RefreshButton onRefresh={async () => { await refetch(); }} loading={isLoading} />
           <BulkEquipmentImport onImportComplete={() => refetch()} />
           <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
             <Download className="w-4 h-4 mr-2" />

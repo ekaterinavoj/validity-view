@@ -47,6 +47,7 @@ import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { RefreshButton } from "@/components/RefreshButton";
 
 // Helper: detect managerial position by keywords (mirrors DB function is_managerial_position)
 const isManagerialPosition = (position: string | undefined | null): boolean => {
@@ -601,6 +602,7 @@ export default function Employees() {
         <h2 className="text-3xl font-bold text-foreground">Zaměstnanci</h2>
 
         <div className="flex gap-2">
+          <RefreshButton onRefresh={() => refetch()} loading={employeesLoading} />
           <BulkEmployeeImport />
           <Button variant="outline" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
             <Download className="w-4 h-4 mr-2" />

@@ -50,6 +50,7 @@ import { downloadPLPDetailXLSX, type PLPDetailRow } from "@/lib/matrixExport";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useMedicalExaminationTypes } from "@/hooks/useMedicalExaminationTypes";
 import { Grid3x3 } from "lucide-react";
+import { RefreshButton } from "@/components/RefreshButton";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -81,7 +82,7 @@ export default function ScheduledExaminations() {
     return facilityNameMap[code] || code;
   };
 
-  const { filters, updateFilter, clearFilters, hasActiveFilters, saveCurrentFilters, loadSavedFilter, deleteSavedFilter, savedFilters } = useAdvancedFilters("scheduled-examinations-filters");
+  const { filters, updateFilter, clearFilters, hasActiveFilters, saveCurrentFilters, loadSavedFilter, deleteSavedFilter, setDefaultFilter, savedFilters } = useAdvancedFilters("scheduled-examinations-filters");
 
   const departments = useMemo(() => {
     const deptMap = new Map<string, string>();
@@ -362,6 +363,7 @@ export default function ScheduledExaminations() {
               Import
             </Button>
           )}
+          <RefreshButton onRefresh={() => refetch()} loading={examinationsLoading} />
           {canEdit && (
             <Button onClick={() => navigate("/plp/new")}>
               <Plus className="w-4 h-4 mr-2" />
@@ -391,6 +393,7 @@ export default function ScheduledExaminations() {
         onSaveFilters={saveCurrentFilters}
         onLoadFilter={loadSavedFilter}
         onDeleteFilter={deleteSavedFilter}
+        onSetDefaultFilter={setDefaultFilter}
         facilities={facilities}
         departments={departments}
         trainingTypes={examinationTypes}

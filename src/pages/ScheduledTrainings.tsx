@@ -52,6 +52,7 @@ import { downloadTrainingMatrixXLSX, type CellState, type MatrixEmployee, type M
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { Grid3x3 } from "lucide-react";
+import { RefreshButton } from "@/components/RefreshButton";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
@@ -92,6 +93,7 @@ export default function ScheduledTrainings() {
     saveCurrentFilters,
     loadSavedFilter,
     deleteSavedFilter,
+    setDefaultFilter,
     savedFilters,
   } = useAdvancedFilters("scheduled-trainings-filters");
 
@@ -491,6 +493,7 @@ export default function ScheduledTrainings() {
                 Import
               </Button>
             )}
+            <RefreshButton onRefresh={() => refetch()} loading={trainingsLoading} />
             {canEdit && (
               <Button onClick={() => navigate("/new-training")}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -540,6 +543,7 @@ export default function ScheduledTrainings() {
           onSaveFilters={saveCurrentFilters}
           onLoadFilter={loadSavedFilter}
           onDeleteFilter={deleteSavedFilter}
+        onSetDefaultFilter={setDefaultFilter}
           savedFilters={savedFilters}
           hasActiveFilters={hasActiveFilters}
           departments={departments}

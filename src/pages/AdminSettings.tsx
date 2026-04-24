@@ -516,6 +516,13 @@ export default function AdminSettings() {
             onDeadlineRecipientsChange={(r) => setDeadlineRecipients(r)}
           />
 
+          {/*
+            ⚠️ Souhrnné (weekly) připomínky byly skryty.
+            Aplikace nyní používá pouze per-záznam připomínky podle modulu.
+            Edge funkce (run-reminders, run-deadline-reminders, run-medical-reminders)
+            zůstávají v kódu pro historickou kompatibilitu, ale jejich UI a cron jsou vypnuté.
+          */}
+          {false && (<>
           {/* Training Frequency Card – simplified */}
           <Card>
             <CardHeader>
@@ -726,6 +733,7 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
+          </>)}
 
           {/* Test & History Actions */}
           <Card>
@@ -740,42 +748,24 @@ export default function AdminSettings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Školení</Label>
+                <Label className="text-sm font-medium">Školení (per-záznam test)</Label>
                 <div className="flex gap-2">
                   <SendSingleTestEmail isEnabled={reminderFrequency.enabled} />
-                  <SendTestSummaryEmail 
-                    hasRecipients={reminderRecipients.user_ids.length > 0}
-                    isEnabled={reminderFrequency.enabled}
-                  />
                 </div>
               </div>
-               <Separator />
-               <div className="space-y-2">
-                 <Label className="text-sm font-medium">Technické lhůty</Label>
-                 <SendTestDeadlineEmail 
-                   hasRecipients={deadlineRecipients.user_ids.length > 0}
-                   isEnabled={deadlineReminderFrequency.enabled}
-                 />
-               </div>
-               <Separator />
-               <div className="space-y-2">
-                 <Label className="text-sm font-medium">PLP (Lékařské prohlídky)</Label>
-                 <SendTestMedicalEmail 
-                   hasRecipients={medicalRecipients.user_ids.length > 0}
-                   isEnabled={medicalReminderFrequency.enabled}
-                 />
-               </div>
                <Separator />
                <EmailHistory />
             </CardContent>
           </Card>
 
-          {/* Next Scheduled Send Preview */}
-          <NextSendPreview 
-            schedule={reminderSchedule}
-            frequency={reminderFrequency}
-            hasRecipients={reminderRecipients.user_ids.length > 0}
-          />
+          {/* Next Scheduled Send Preview – skryto, souhrny vypnuty */}
+          {false && (
+            <NextSendPreview 
+              schedule={reminderSchedule}
+              frequency={reminderFrequency}
+              hasRecipients={reminderRecipients.user_ids.length > 0}
+            />
+          )}
         </TabsContent>
 
         {/* Email Tab */}
@@ -1176,7 +1166,8 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
-          {/* Email Templates with Tabs for both modules */}
+          {/* Email Templates with Tabs for both modules – skryto, souhrny vypnuty */}
+          {false && (
           <Card>
             <CardHeader>
               <CardTitle>Souhrnné emaily podle modulu</CardTitle>
@@ -1341,6 +1332,7 @@ export default function AdminSettings() {
               </Tabs>
             </CardContent>
           </Card>
+          )}
 
           {/* Šablony individuálních připomínek */}
           <Separator />
