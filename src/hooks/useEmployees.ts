@@ -145,10 +145,16 @@ export function useEmployees(statusFilter?: string) {
         const isManager = roles.includes("manager");
 
         if (!isAdmin && isManager) {
-          const { data: subs } = await supabase.rpc("get_subordinate_employee_ids", {
-            root_employee_id: (await supabase.rpc("get_user_employee_id", { _user_id: userId })).data,
-          });
-          allowedIds = (subs ?? []).map((r: { employee_id: string }) => r.employee_id);
+          const ownEmpRes = await supabase.rpc("get_user_employee_id", { _user_id: userId });
+          const rootId = ownEmpRes.data as string | null;
+          if (!rootId) {
+            allowedIds = [];
+          } else {
+            const { data: subs } = await supabase.rpc("get_subordinate_employee_ids", {
+              root_employee_id: rootId,
+            });
+            allowedIds = (subs ?? []).map((r: { employee_id: string }) => r.employee_id);
+          }
         } else if (!isAdmin && !isManager) {
           const ownEmpRes = await supabase.rpc("get_user_employee_id", { _user_id: userId });
           allowedIds = ownEmpRes.data ? [ownEmpRes.data as string] : [];
