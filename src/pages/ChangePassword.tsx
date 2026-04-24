@@ -10,22 +10,22 @@ import { Label } from "@/components/ui/label";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { z } from "zod";
 import { PasswordStrengthMeter } from "@/components/PasswordStrengthMeter";
-import { evaluatePassword, PASSWORD_MIN_LENGTH } from "@/lib/passwordStrength";
+import { evaluatePassword, type PasswordPolicy } from "@/lib/passwordStrength";
+import { usePasswordPolicy } from "@/hooks/usePasswordPolicy";
 
-const passwordSchema = z
-  .object({
-    password: z
-      .string()
-      .min(PASSWORD_MIN_LENGTH, `Heslo musí mít alespoň ${PASSWORD_MIN_LENGTH} znaků`)
-      .regex(/[A-Z]/, "Heslo musí obsahovat alespoň jedno velké písmeno")
-      .regex(/\d/, "Heslo musí obsahovat alespoň jednu číslici")
-      .regex(/[^A-Za-z0-9]/, "Heslo musí obsahovat alespoň jeden speciální znak"),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Hesla se neshodují",
-    path: ["confirmPassword"],
-  });
+const buildPasswordSchema = (policy: PasswordPolicy) => {
+  let pw = z.string().min(policy.min_length, `Heslo musí mít alespoň ${policy.min_length} znaků`);
+  if (policy.require_uppercase) pw = pw.regex(/[A-Z]/, "Heslo musí obsahovat alespoň jedno velké písmeno");
+  if (policy.require_lowercase) pw = pw.regex(/[a-z]/, "Heslo musí obsahovat alespoň jedno malé písmeno");
+  if (policy.require_digit) pw = pw.regex(/\d/, "Heslo musí obsahovat alespoň jednu číslici");
+  if (policy.require_special) pw = pw.regex(/[^A-Za-z0-9]/, "Heslo musí obsahovat alespoň jeden speciální znak");
+  return z
+    .object({ password: pw, confirmPassword: z.string() })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: "Hesla se neshodují",
+      path: ["confirmPassword"],
+    });
+};
 
 export default function ChangePassword() {
   const navigate = useNavigate();
