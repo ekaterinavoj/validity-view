@@ -3734,6 +3734,28 @@ ON CONFLICT (key) DO NOTHING;`,
 -- 3) Bulk import komponenty resetují stav MissingHeadersAlert při novém uploadu.
 -- Žádné změny DB schématu.
 SELECT 1;`,
+  {
+    version: "20260424370000",
+    name: "unified_import_export_tooltips_and_recipient_toggles_audit",
+    sql: `-- UI-only změny (žádný zásah do DB schématu):
+-- 1) Sjednoceno UI tlačítek Import/Export napříč celou aplikací – konzistentní
+--    text "Import" / "Export" (případně "Export chyb") s tooltipy přes konstanty
+--    CSV_FORMAT_TOOLTIP a CSV_IMPORT_TOOLTIP ze src/lib/exportFilename.ts.
+--    Dotčené stránky: Departments, Facilities, DeadlineTypes, MedicalExaminationTypes,
+--    TrainingTypes, Statistics, ScheduledTrainings, ScheduledExaminations,
+--    ScheduledDeadlines, Equipment, InactiveEmployeesReport, Employees, History,
+--    DeadlineHistory, UserManagement, Probations + komponenty SecurityAuditPanel,
+--    EmployeeAccessDebug, EmailDeliveryStats, BulkEmployeeImport, BulkEquipmentImport,
+--    BulkTrainingImport.
+-- 2) Audit nastavení příjemců per modul – ModuleRecipientsSelector ukládá tři klíče
+--    'reminder_recipients' (školení), 'deadline_reminder_recipients' (lhůty),
+--    'medical_reminder_recipients' (PLP) a tři toggles
+--    'training_manager_notifications', 'medical_manager_notifications',
+--    'deadline_responsible_notifications'. Všechny edge funkce
+--    (send-training-reminders, run-medical-reminders, run-deadline-reminders)
+--    už tato nastavení respektují – pokud je toggle vypnutý, vedoucím /
+--    odpovědným osobám se neposílá nic.
+SELECT 1;`,
   },
 ];
 
