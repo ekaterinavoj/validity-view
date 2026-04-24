@@ -10,6 +10,10 @@ export interface FilterState {
   typeFilter: string;
   trainerFilter: string;
   responsibleFilter: string;
+  /** Filtr výsledku události (PLP/školení/lhůty). "all" = bez filtru. */
+  resultFilter: string;
+  /** Filtr pracovní kategorie zaměstnance (PLP). "all" = bez filtru. */
+  workCategoryFilter: string;
   dateFrom: Date | undefined;
   dateTo: Date | undefined;
 }
@@ -29,6 +33,8 @@ const DEFAULT_FILTERS: FilterState = {
   typeFilter: "all",
   trainerFilter: "all",
   responsibleFilter: "all",
+  resultFilter: "all",
+  workCategoryFilter: "all",
   dateFrom: undefined,
   dateTo: undefined,
 };
@@ -118,6 +124,8 @@ export function useAdvancedFilters(storageKey: string = "training-filters") {
       filters.typeFilter !== "all" ||
       filters.trainerFilter !== "all" ||
       filters.responsibleFilter !== "all" ||
+      filters.resultFilter !== "all" ||
+      filters.workCategoryFilter !== "all" ||
       filters.dateFrom !== undefined ||
       filters.dateTo !== undefined
     );
