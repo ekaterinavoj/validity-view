@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { buildExportFilename, CSV_IMPORT_TOOLTIP } from "@/lib/exportFilename";
 import { checkRequiredHeaders } from "@/lib/importValidation";
+import { MissingHeadersAlert } from "@/components/MissingHeadersAlert";
 import { ImportDescription } from "@/components/ImportDescription";
 
 const REQUIRED_EQUIPMENT_HEADERS: Record<string, string[]> = {
@@ -67,6 +68,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [headerError, setHeaderError] = useState<{ missing: import("@/lib/importValidation").MissingHeader[]; detected: string[] } | null>(null);
   const abortRef = useRef(false);
   const { toast } = useToast();
 
@@ -235,15 +237,19 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
       const headerCheck = checkRequiredHeaders(headers, REQUIRED_EQUIPMENT_HEADERS);
       if (!headerCheck.ok) {
+        setHeaderError({ missing: headerCheck.missingDetailed, detected: headerCheck.detected });
+        setImportedData([]);
+        setDialogOpen(true);
         toast({
           title: "Chybí povinné sloupce",
-          description: `V CSV chybí: ${headerCheck.missing.join(", ")}. Stáhněte si vzorovou šablonu.`,
+          description: `V CSV chybí: ${headerCheck.missing.join(", ")}. Detail v dialogu.`,
           variant: "destructive",
         });
         setIsProcessing(false);
         e.target.value = '';
         return;
       }
+      setHeaderError(null);
 
       if (jsonData.length > 5000) {
         toast({ title: "Příliš mnoho řádků", description: "Maximální počet řádků je 5000.", variant: "destructive" });
@@ -564,6 +570,10 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Header validation error */}
+            {headerError && (
+              <MissingHeadersAlert missing={headerError.missing} detected={headerError.detected} />
+            )}
             <ImportDescription
               requiredColumns={[
                 { name: "Inv. číslo", description: "inventární číslo zařízení (unikátní identifikátor)" },

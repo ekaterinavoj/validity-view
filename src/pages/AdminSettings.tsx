@@ -39,6 +39,7 @@ import { ShieldAlert } from "lucide-react";
 
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { ModuleRecipientsSelector } from "@/components/ModuleRecipientsSelector";
+import { ModuleReminderSettings } from "@/components/ModuleReminderSettings";
 
 interface SystemSetting {
   id: string;
@@ -515,6 +516,9 @@ export default function AdminSettings() {
             onTrainingRecipientsChange={(r) => setReminderRecipients(r)}
             onDeadlineRecipientsChange={(r) => setDeadlineRecipients(r)}
           />
+
+          {/* Per-module per-record alert defaults */}
+          <ModuleReminderSettings />
 
           {/*
             ⚠️ Souhrnné (weekly) připomínky byly skryty.

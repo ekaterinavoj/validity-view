@@ -718,6 +718,8 @@ export const ReminderTemplates = () => {
                 <ul className="list-disc list-inside space-y-1">
                   <li><code>{'{{training_name}}'}</code> - název školení</li>
                   <li><code>{'{{days_remaining}}'}</code> - počet dní do vypršení</li>
+                  <li><code>{'{{employee_name}}'}</code> - jméno zaměstnance</li>
+                  <li><code>{'{{records_table}}'}</code> - HTML tabulka všech školení příjemce v okně připomínky</li>
                 </ul>
               ) : activeModule === "deadlines" ? (
                 <ul className="list-disc list-inside space-y-1">
@@ -726,14 +728,19 @@ export const ReminderTemplates = () => {
                   <li><code>{'{{daysLeft}}'}</code> - počet dní do vypršení</li>
                   <li><code>{'{{inventoryNumber}}'}</code> - inventární číslo</li>
                   <li><code>{'{{nextDue}}'}</code> - datum další kontroly</li>
+                  <li><code>{'{{records_table}}'}</code> - HTML tabulka všech lhůt příjemce v okně připomínky</li>
                 </ul>
               ) : (
                 <ul className="list-disc list-inside space-y-1">
                   <li><code>{'{{employeeName}}'}</code> - jméno zaměstnance</li>
                   <li><code>{'{{examinationType}}'}</code> - typ prohlídky</li>
                   <li><code>{'{{daysLeft}}'}</code> - počet dní do vypršení</li>
+                  <li><code>{'{{records_table}}'}</code> - HTML tabulka všech PLP příjemce v okně připomínky</li>
                 </ul>
               )}
+              <p className="mt-2 pt-2 border-t border-border/40">
+                <strong>Tip:</strong> Vložte <code>{'{{records_table}}'}</code> do těla, pokud chcete jeden e-mail s tabulkou všech nadcházejících záznamů místo jedné připomínky na záznam.
+              </p>
             </div>
           </div>
           <DialogFooter>
