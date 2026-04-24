@@ -440,9 +440,10 @@ export default function ScheduledTrainings() {
     }
   };
 
+  // expand + checkbox? + stav + platnost + typ + os.č. + jméno + středisko + datum + školitel + výsledek + poznámka + protokol + akce = 13 or 12
+  const totalColumns = canEdit ? 13 : 12;
 
 
-  if (trainingsError) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
