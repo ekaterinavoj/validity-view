@@ -524,13 +524,15 @@ export default function Statistics() {
         </div>
       </div>
 
-      {/* Empty state */}
+      {/* Empty state — distinguish "no data at all" from "no data in selected year" */}
       {totalTrainings === 0 && <Card className="p-8">
           <div className="flex flex-col items-center justify-center text-center">
             <AlertTriangle className="w-12 h-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Žádná data k zobrazení</h3>
             <p className="text-muted-foreground">
-              Zatím nejsou k dispozici žádná aktivní školení. Přidejte školení pro zobrazení statistik.
+              {selectedYear !== "all" && allTrainings.length > 0
+                ? `Pro vybraný rok ${selectedYear} nejsou žádná školení. Zkuste vybrat jiný rok nebo „Všechny roky".`
+                : "Zatím nejsou k dispozici žádná aktivní školení. Přidejte školení pro zobrazení statistik."}
             </p>
           </div>
         </Card>}
