@@ -60,6 +60,8 @@ export default function ScheduledTrainings() {
   const canEdit = isAdmin || isManager;
   const { trainings, loading: trainingsLoading, error: trainingsError, refetch } = useTrainings(true);
   const { facilities: facilitiesData } = useFacilities();
+  const { employees: allEmployees } = useEmployees(false);
+  const { trainingTypes } = useTrainingTypes();
   const [selectedTrainings, setSelectedTrainings] = useState<Set<string>>(new Set());
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -67,6 +69,7 @@ export default function ScheduledTrainings() {
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [exportingMatrix, setExportingMatrix] = useState(false);
   const [fixDialogTarget, setFixDialogTarget] = useState<{ id: string; label: string } | null>(null);
 
   const facilityNameMap = useMemo(() => {
