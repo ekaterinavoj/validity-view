@@ -577,8 +577,8 @@ export function FilePreviewDialog({
                 </div>
               )}
               
-              {/* Zoom Controls */}
-              {hasPDFs && !loading && (
+              {/* Zoom Controls (PDF + Images) */}
+              {hasZoomable && !loading && (
                 <>
                   <Separator orientation="vertical" className="h-6" />
                   <div className="flex items-center gap-1">
