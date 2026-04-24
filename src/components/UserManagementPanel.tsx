@@ -517,13 +517,23 @@ export function UserManagementPanel() {
               <RefreshCw className="w-4 h-4 mr-2" />
               Obnovit
             </Button>
-            <Button variant="outline" size="sm" onClick={exportToCSV}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportToCSV}
+              title="Formát: CSV (oddělovač středník, kódování UTF-8 s BOM, kompatibilní s Excelem)"
+            >
               <Download className="w-4 h-4 mr-2" />
-              CSV
+              Export
             </Button>
-            <Button variant="outline" size="sm" onClick={exportToPDF}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportToPDF}
+              title="Formát: PDF (přehled uživatelů včetně rolí a kontaktů)"
+            >
               <FileDown className="w-4 h-4 mr-2" />
-              PDF
+              Export PDF
             </Button>
           </div>
 
