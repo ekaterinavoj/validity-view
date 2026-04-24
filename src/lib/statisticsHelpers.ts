@@ -45,6 +45,25 @@ export function isInYear(
 }
 
 /**
+ * Extract the calendar month (0-11, Jan = 0) from an ISO-like date string,
+ * without going through `new Date(...)` so the bucket cannot drift across
+ * a month boundary in negative timezones. Returns null on bad input.
+ */
+export function parseMonthFromISO(
+  value: string | Date | null | undefined,
+): number | null {
+  if (value == null) return null;
+  const raw = value instanceof Date ? value.toISOString() : String(value);
+  // Expect "YYYY-MM..." — characters 5..7 hold the 2-digit month.
+  if (raw.length < 7 || raw[4] !== "-") return null;
+  const head = raw.slice(5, 7);
+  if (!/^\d{2}$/.test(head)) return null;
+  const m = Number(head);
+  if (!Number.isFinite(m) || m < 1 || m > 12) return null;
+  return m - 1;
+}
+
+/**
  * Build a stable, user-facing department label for charts and groupings.
  * Prefers the human name and appends the code (which is often a long
  * inventory-style number) only as secondary context.

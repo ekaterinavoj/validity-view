@@ -17,6 +17,7 @@ import html2canvas from "html2canvas";
 import { useFacilities } from "@/hooks/useFacilities";
 import {
   parseYearFromISO,
+  parseMonthFromISO,
   isInYear,
   buildDepartmentLabel,
   formatStatCount,
@@ -284,6 +285,8 @@ export default function Statistics() {
   })).filter(t => t.name !== "Neurčeno" || t.total > 0).sort((a, b) => b.total - a.total), [trainerStats]);
 
   // Monthly distribution - based on next_training_date (already filtered by year)
+  // Uses parseMonthFromISO to keep month bucketing consistent with the year
+  // bucketing above (no timezone drift across month boundaries).
   const monthlyDistribution = useMemo(() => {
     const months = ["Led", "Úno", "Bře", "Dub", "Kvě", "Čvn", "Čvc", "Srp", "Zář", "Říj", "Lis", "Pro"];
     const distribution = months.map(m => ({
@@ -292,8 +295,8 @@ export default function Statistics() {
       prošlé: 0
     }));
     yearFilteredTrainings.forEach(training => {
-      const date = new Date(training.date);
-      const monthIndex = date.getMonth();
+      const monthIndex = parseMonthFromISO(training.date);
+      if (monthIndex == null) return;
       if (training.status === "expired") {
         distribution[monthIndex].prošlé++;
       } else {
