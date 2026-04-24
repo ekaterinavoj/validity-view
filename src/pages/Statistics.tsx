@@ -20,7 +20,6 @@ import {
   parseMonthFromISO,
   isInYear,
   buildDepartmentLabel,
-  formatStatCount,
 } from "@/lib/statisticsHelpers";
 
 export default function Statistics() {
