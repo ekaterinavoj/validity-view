@@ -516,6 +516,13 @@ export default function AdminSettings() {
             onDeadlineRecipientsChange={(r) => setDeadlineRecipients(r)}
           />
 
+          {/*
+            ⚠️ Souhrnné (weekly) připomínky byly skryty.
+            Aplikace nyní používá pouze per-záznam připomínky podle modulu.
+            Edge funkce (run-reminders, run-deadline-reminders, run-medical-reminders)
+            zůstávají v kódu pro historickou kompatibilitu, ale jejich UI a cron jsou vypnuté.
+          */}
+          {false && (<>
           {/* Training Frequency Card – simplified */}
           <Card>
             <CardHeader>
