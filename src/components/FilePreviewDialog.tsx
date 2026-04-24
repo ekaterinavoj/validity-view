@@ -267,6 +267,13 @@ export function FilePreviewDialog({
     );
   }, [allFiles]);
 
+  const hasImages = useMemo(() => {
+    return allFiles.some(f =>
+      f.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f.name)
+    );
+  }, [allFiles]);
+
+  const hasZoomable = hasPDFs || hasImages;
   const showMultipleFiles = allFiles.length > 1;
 
   // Sync viewMode with user preference
