@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface UserPreferences {
@@ -8,21 +8,24 @@ export interface UserPreferences {
   itemsPerPage: number;
   showExpiredFirst: boolean;
   animationsEnabled: boolean;
-  
+
   // PDF Preview
   pdfViewMode: "single" | "scroll";
-  
+
   // Notifications
   soundEnabled: boolean;
   desktopNotifications: boolean;
   showStatusBadges: boolean;
   highlightUrgent: boolean;
-  
+
   // Dashboard
   defaultView: "table" | "cards";
   showQuickStats: boolean;
   autoRefresh: boolean;
   autoRefreshInterval: number; // in seconds
+
+  // Page-specific (synced cross-device)
+  probationsCompactMode: boolean; // /probations: hide history tab entirely (no audit query)
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -40,6 +43,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   showQuickStats: true,
   autoRefresh: false,
   autoRefreshInterval: 60,
+  probationsCompactMode: false,
 };
 
 const getStorageKey = (userId: string | null) => {
@@ -50,6 +54,10 @@ export function useUserPreferences() {
   const [userId, setUserId] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
   const [isLoaded, setIsLoaded] = useState(false);
+  // Avoid persisting back to DB while we are still hydrating from DB
+  const isHydratingRef = useRef(true);
+  // Debounce DB writes
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get current user ID on mount and auth changes
   useEffect(() => {
@@ -60,21 +68,26 @@ export function useUserPreferences() {
 
     getCurrentUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.user?.id ?? null);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Load preferences when userId changes
+  // Load preferences when userId changes:
+  // 1) hydrate immediately from localStorage (fast, prevents UI flash)
+  // 2) then fetch the DB row and merge — DB is the source of truth across devices
   useEffect(() => {
     if (userId === null && !isLoaded) {
-      // Wait for auth to initialize
+      // Wait for auth to initialize (anonymous case still resolves below)
       return;
     }
 
+    isHydratingRef.current = true;
     const storageKey = getStorageKey(userId);
+
+    // 1) localStorage cache
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
@@ -87,74 +100,110 @@ export function useUserPreferences() {
       setPreferences(DEFAULT_PREFERENCES);
     }
     setIsLoaded(true);
+
+    // 2) DB sync (only for authenticated users)
+    if (!userId) {
+      isHydratingRef.current = false;
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await (supabase
+          .from("user_preferences") as any)
+          .select("preferences")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error) {
+          console.warn("[useUserPreferences] DB fetch failed, using localStorage only:", error.message);
+        } else if (data?.preferences && typeof data.preferences === "object") {
+          const merged = { ...DEFAULT_PREFERENCES, ...(data.preferences as Partial<UserPreferences>) };
+          setPreferences(merged);
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(merged));
+          } catch {/* ignore */}
+        }
+      } finally {
+        if (!cancelled) isHydratingRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
   // Apply theme effect with smooth transition
   useEffect(() => {
     if (!isLoaded) return;
-    
+
     const root = document.documentElement;
-    
-    // Determine if dark mode should be applied
     const shouldBeDark = preferences.theme === "system"
       ? window.matchMedia("(prefers-color-scheme: dark)").matches
       : preferences.theme === "dark";
-    
-    // Apply the theme change
     root.classList.toggle("dark", shouldBeDark);
   }, [preferences.theme, isLoaded]);
 
-  // Listen for system theme changes
   useEffect(() => {
     if (preferences.theme !== "system") return;
-    
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e: MediaQueryListEvent) => {
       document.documentElement.classList.toggle("dark", e.matches);
     };
-    
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);
   }, [preferences.theme]);
 
-  // Disable transitions on initial load to prevent flash
   useEffect(() => {
     const root = document.documentElement;
     root.classList.add("no-transitions");
-    
-    // Re-enable transitions after initial render
     const timeout = setTimeout(() => {
       root.classList.remove("no-transitions");
     }, 100);
-    
     return () => clearTimeout(timeout);
   }, []);
 
-  // Apply compact mode
   useEffect(() => {
     if (!isLoaded) return;
     document.documentElement.classList.toggle("compact-mode", preferences.compactMode);
   }, [preferences.compactMode, isLoaded]);
 
-  // Apply animations setting
   useEffect(() => {
     if (!isLoaded) return;
     document.documentElement.classList.toggle("no-animations", !preferences.animationsEnabled);
   }, [preferences.animationsEnabled, isLoaded]);
 
-  // Save preferences
-  const savePreferences = useCallback((newPrefs: Partial<UserPreferences>) => {
-    setPreferences(prev => {
-      const updated = { ...prev, ...newPrefs };
-      try {
-        const storageKey = getStorageKey(userId);
-        localStorage.setItem(storageKey, JSON.stringify(updated));
-      } catch (e) {
-        console.error("Failed to save preferences:", e);
+  // Persist preferences whenever they change: localStorage immediately, DB debounced.
+  useEffect(() => {
+    if (!isLoaded || isHydratingRef.current) return;
+    const storageKey = getStorageKey(userId);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(preferences));
+    } catch (e) {
+      console.error("Failed to persist preferences to localStorage:", e);
+    }
+    if (!userId) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      const { error } = await (supabase
+        .from("user_preferences") as any)
+        .upsert(
+          { user_id: userId, preferences: preferences as unknown as Record<string, unknown> },
+          { onConflict: "user_id" },
+        );
+      if (error) {
+        console.warn("[useUserPreferences] DB upsert failed:", error.message);
       }
-      return updated;
-    });
-  }, [userId]);
+    }, 500);
+  }, [preferences, userId, isLoaded]);
+
+  // Save preferences (state update only — persistence is handled by the effect above)
+  const savePreferences = useCallback((newPrefs: Partial<UserPreferences>) => {
+    setPreferences(prev => ({ ...prev, ...newPrefs }));
+  }, []);
 
   const updatePreference = useCallback(<K extends keyof UserPreferences>(
     key: K,

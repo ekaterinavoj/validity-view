@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,9 +9,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEmployees } from "@/hooks/useEmployees";
 import { ProbationBadge } from "@/components/ProbationBadge";
 import { DepartmentCell } from "@/components/DepartmentCell";
-import { Search, X, ClipboardList, Bell, Info, Download, FileText, History, LayoutList, Layers } from "lucide-react";
+import { Search, X, ClipboardList, Bell, Info, Download, FileText, History, LayoutList, Layers, HelpCircle, ExternalLink } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { formatDisplayDate } from "@/lib/dateFormat";
@@ -19,6 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { exportToCSV } from "@/lib/csvExport";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -64,21 +67,19 @@ interface AuditEntry {
 export default function Probations() {
   const { employees, loading, error } = useEmployees();
   const { toast } = useToast();
+  const { preferences, updatePreference, isLoaded: prefsLoaded } = useUserPreferences();
   const [windowFilter, setWindowFilter] = useState<WindowFilter>("ending_30");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"list" | "history">("list");
-  // Compact mode = jen přehled bez záložek (uloženo v localStorage)
-  const [compactMode, setCompactMode] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("probations-compact-mode") === "1";
-  });
+
+  // Compact mode = jen přehled bez záložek. Source of truth: user_preferences (DB),
+  // s localStorage cache pro rychlou hydrataci. Synced napříč zařízeními.
+  const compactMode = preferences.probationsCompactMode;
   const toggleCompact = (next: boolean) => {
-    setCompactMode(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("probations-compact-mode", next ? "1" : "0");
-    }
-    if (next) setTab("list");
+    updatePreference("probationsCompactMode", next);
+    if (next) setTab("list"); // vynuť přehled, abychom neviseli na skryté záložce
   };
+
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
@@ -115,8 +116,14 @@ export default function Probations() {
     return m;
   }, [employees]);
 
-  // Load audit history when switching tab
+  // Load audit history ONLY when:
+  //   • user prefs are loaded (we know whether compact mode is on),
+  //   • compact mode is OFF (history tab is rendered),
+  //   • the active tab is "history".
+  // → V kompaktním režimu se dotaz na audit_logs vůbec neprovede (úspora backendu).
   useEffect(() => {
+    if (!prefsLoaded) return;
+    if (compactMode) return;
     if (tab !== "history") return;
     let cancelled = false;
     (async () => {
@@ -140,7 +147,15 @@ export default function Probations() {
     return () => {
       cancelled = true;
     };
-  }, [tab]);
+  }, [tab, compactMode, prefsLoaded]);
+
+  // Když uživatel přepne do compact módu po načtení historie, vyčistíme stav, aby
+  // se v paměti netáhly už nepotřebné záznamy.
+  useEffect(() => {
+    if (compactMode && auditEntries.length > 0) {
+      setAuditEntries([]);
+    }
+  }, [compactMode, auditEntries.length]);
 
   const exportRows = filtered.map((e) => ({
     "Os. číslo": e.employeeNumber || "",
@@ -235,26 +250,63 @@ export default function Probations() {
         }
         actions={
           <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Toggle
-                  pressed={compactMode}
-                  onPressedChange={toggleCompact}
-                  aria-label="Přepnout zobrazení bez záložek"
-                  size="sm"
-                  variant="outline"
-                  className="h-9"
-                >
-                  {compactMode ? <LayoutList className="h-4 w-4 mr-1" /> : <Layers className="h-4 w-4 mr-1" />}
-                  <span className="text-xs">{compactMode ? "Jen přehled" : "S historií"}</span>
-                </Toggle>
-              </TooltipTrigger>
-              <TooltipContent>
-                {compactMode
-                  ? "Záložka Historie změn je skrytá. Klikněte pro obnovení obou záložek."
-                  : "Skrýt záložku Historie změn pro rychlé použití."}
-              </TooltipContent>
-            </Tooltip>
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">
+                    <HelpCircle className="h-4 w-4 mr-1" />
+                    <span className="text-xs">Kde najdu ZD?</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 text-sm">
+                  <p className="font-medium mb-2">Kde se nastavuje zkušební doba</p>
+                  <ol className="space-y-1.5 list-decimal list-inside text-muted-foreground">
+                    <li>
+                      Otevřete <strong>Správa dat → Zaměstnanci</strong>.
+                    </li>
+                    <li>
+                      U konkrétního zaměstnance klikněte na ikonu <strong>úpravy</strong>.
+                    </li>
+                    <li>
+                      Najděte sekci <strong>„Zkušební doba“</strong> – pole{" "}
+                      <em>Datum nástupu</em>, <em>Délka (měsíce)</em> a <em>Konec ZD (přepsat)</em>.
+                    </li>
+                    <li>
+                      Při ručním přepsání se objeví povinné pole{" "}
+                      <strong>„Důvod úpravy konce ZD“</strong>.
+                    </li>
+                    <li>
+                      Sekce <strong>„Celodenní překážky v práci“</strong> automaticky prodlužuje konec ZD.
+                    </li>
+                  </ol>
+                  <Button asChild size="sm" className="w-full mt-3">
+                    <Link to="/employees">
+                      <ExternalLink className="h-4 w-4 mr-1" /> Otevřít Zaměstnance
+                    </Link>
+                  </Button>
+                </PopoverContent>
+              </Popover>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    pressed={compactMode}
+                    onPressedChange={toggleCompact}
+                    aria-label="Přepnout zobrazení bez záložek"
+                    size="sm"
+                    variant="outline"
+                    className="h-9"
+                  >
+                    {compactMode ? <LayoutList className="h-4 w-4 mr-1" /> : <Layers className="h-4 w-4 mr-1" />}
+                    <span className="text-xs">{compactMode ? "Jen přehled" : "S historií"}</span>
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {compactMode
+                    ? "Záložka Historie změn je skrytá (a backend dotaz se neprovádí). Kliknutím obnovíte."
+                    : "Skrýt Historii změn – v compact módu se vůbec nedotazuje audit log."}
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </TooltipProvider>
         }
       />
