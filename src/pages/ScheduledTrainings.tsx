@@ -48,7 +48,7 @@ import { BulkEditTrainingsDialog } from "@/components/BulkEditTrainingsDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
-import { downloadMatrixXLSX, type CellState, type MatrixEmployee, type MatrixEventType, type MatrixEntry } from "@/lib/matrixExport";
+import { downloadTrainingMatrixXLSX, type CellState, type MatrixEmployee, type MatrixEventType, type MatrixEntry } from "@/lib/matrixExport";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
 import { Grid3x3 } from "lucide-react";
@@ -353,30 +353,12 @@ export default function ScheduledTrainings() {
         .filter((e) => e.status !== "terminated")
         .map((e) => ({
           id: e.id,
-          department: e.department
-            ? `${e.department}${e.departmentName ? ` - ${e.departmentName}` : ""}`
-            : "—",
-          lastName: e.lastName,
-          firstName: e.firstName,
-          position: e.position,
-          statusLabel:
-            e.status === "employed"
-              ? "Aktivní"
-              : e.status === "parental_leave"
-                ? "Mateřská"
-                : e.status === "sick_leave"
-                  ? "Nemocenská"
-                  : "Ukončen",
-          managerName:
-            e.managerFirstName || e.managerLastName
-              ? `${e.managerFirstName ?? ""} ${e.managerLastName ?? ""}`.trim()
-              : "",
+          fullName: `${e.lastName} ${e.firstName}`.trim(),
         }));
 
       const typeRows: MatrixEventType[] = allTrainingTypes.map((t) => ({
         id: t.id,
         name: t.name,
-        facility: t.facility,
       }));
 
       // Build per-employee × per-type state
@@ -416,13 +398,11 @@ export default function ScheduledTrainings() {
       }
 
       const timestamp = format(new Date(), "yyyy-MM-dd");
-      downloadMatrixXLSX({
-        title: "Matice školení",
+      downloadTrainingMatrixXLSX({
         filename: `matice_skoleni_${timestamp}`,
         employees: empRows,
         eventTypes: typeRows,
         entries,
-        eventsLabel: "Školení",
       });
 
       toast({
