@@ -72,11 +72,11 @@ export function MigrationsStatus() {
                 <div className="flex items-center gap-2 text-lg font-semibold">
                   {missing.length === 0 ? (
                     <>
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" /> 0
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle className="h-4 w-4 text-amber-600" /> {missing.length}
+                    <CheckCircle2 className="h-4 w-4 text-primary" /> 0
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-4 w-4 text-destructive" /> {missing.length}
                     </>
                   )}
                 </div>
