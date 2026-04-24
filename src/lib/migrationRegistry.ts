@@ -3553,6 +3553,23 @@ SELECT 1;`,
 --           (formulář editace zaměstnance, hromadné úpravy, override end_date).
 SELECT 1;`,
   },
+  {
+    version: "20260424250000",
+    name: "ui_simplified_matrix_export_and_import_buttons",
+    sql: `-- UI-only změna (žádné DB schema):
+--   • Maticový export školení (ScheduledTrainings → "Matice") nyní obsahuje pouze
+--     sloupec "Zaměstnanec" + sloupce typů školení s ✓ (má) / prázdné (nemá).
+--     Odstraněny sloupce Středisko, Pozice, Stav, Nadřízený a souhrnný řádek.
+--   • PLP přehled (ScheduledExaminations → "Přehled") nyní obsahuje pouze:
+--     Zaměstnanec | Datum prohlídky | Konec platnosti | Typ prohlídky |
+--     Kategorie práce | Zdravotní rizika | Výsledek | Poznámka.
+--   • Z tlačítek Export/Import odstraněn suffix s formátem (CSV/XLSX).
+--     Formát se nyní zobrazuje pouze jako tooltip při najetí myší (HTML title attr).
+--   • Z bulk importů (Školení, PLP, Zařízení, Tech. lhůty, Zaměstnanci) odstraněna
+--     tlačítka "Šablona CSV / XLSX" — uživatelé používají export jako šablonu
+--     díky obousměrné kompatibilitě hlaviček (export → editace → import).
+SELECT 1;`,
+  },
 ];
 
 /**
