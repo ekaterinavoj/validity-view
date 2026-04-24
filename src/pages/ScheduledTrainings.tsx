@@ -39,7 +39,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
-import { RefreshCw } from "lucide-react";
+
 import { DepartmentCell, formatDepartment } from "@/components/DepartmentCell";
 import { useAuth } from "@/contexts/AuthContext";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
@@ -461,10 +461,6 @@ export default function ScheduledTrainings() {
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold text-foreground">Naplánovaná školení</h2>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={refetch}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Obnovit
-            </Button>
             <Button 
               variant="outline" 
               onClick={() => selectExpiringTrainings(30)}

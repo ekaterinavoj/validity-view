@@ -46,6 +46,10 @@ interface AdvancedFiltersProps {
   totalCount?: number;
   /** Label for trainers/doctors/performers filter - defaults to "školitelé" */
   trainerLabel?: "trainers" | "doctors" | "performers";
+  /** Pokud zadáno, zobrazí filtr výsledku ({ value, label }[]) */
+  resultOptions?: { value: string; label: string }[];
+  /** Pokud zadáno, zobrazí filtr pracovní kategorie zaměstnance */
+  workCategoryOptions?: { value: string; label: string }[];
 }
 
 export function AdvancedFilters({
@@ -65,6 +69,8 @@ export function AdvancedFilters({
   resultCount,
   totalCount,
   trainerLabel = "trainers",
+  resultOptions,
+  workCategoryOptions,
 }: AdvancedFiltersProps) {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [filterName, setFilterName] = useState("");
@@ -223,6 +229,46 @@ export function AdvancedFilters({
                 {responsiblePersons.map((person) => (
                   <SelectItem key={person.id} value={person.id}>
                     {person.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Result Filter (volitelně, např. pro PLP) */}
+          {resultOptions && resultOptions.length > 0 && (
+            <Select
+              value={filters.resultFilter}
+              onValueChange={(value) => onFilterChange("resultFilter", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Výsledek" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všechny výsledky</SelectItem>
+                {resultOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Work Category Filter (volitelně, např. pro PLP) */}
+          {workCategoryOptions && workCategoryOptions.length > 0 && (
+            <Select
+              value={filters.workCategoryFilter}
+              onValueChange={(value) => onFilterChange("workCategoryFilter", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Kategorie práce" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všechny kategorie</SelectItem>
+                {workCategoryOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
                   </SelectItem>
                 ))}
               </SelectContent>

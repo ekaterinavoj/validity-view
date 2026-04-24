@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Plus, Download, RefreshCw, Eye, Upload } from "lucide-react";
+import { Edit, Plus, Download, Eye, Upload } from "lucide-react";
 import { ResultBadge } from "@/components/ResultBadge";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
@@ -111,6 +111,28 @@ export default function ScheduledExaminations() {
     return Array.from(docSet).sort();
   }, [examinations]);
 
+  // Result options jsou převzaty z lib/medicalExaminationResults — všechny role
+  // používají stejné názvy a vidí stejné filtry (RLS pak omezí obsah).
+  const resultOptions = useMemo(
+    () => [
+      { value: "passed", label: "Zdravotně způsobilý/á" },
+      { value: "passed_with_reservations", label: "Způsobilý/á s podmínkou" },
+      { value: "failed", label: "Není způsobilý/á" },
+      { value: "lost_long_term", label: "Pozbyl(a) dlouhodobě způsobilosti" },
+    ],
+    [],
+  );
+
+  const workCategoryOptions = useMemo(() => {
+    const cats = new Set<string>();
+    examinations.forEach((e) => {
+      if (e.employeeWorkCategory) cats.add(e.employeeWorkCategory);
+    });
+    return Array.from(cats)
+      .sort()
+      .map((c) => ({ value: c, label: `Kategorie ${c}` }));
+  }, [examinations]);
+
   const filteredExaminations = useMemo(() => {
     return examinations.filter((exam) => {
       const searchLower = filters.searchQuery.toLowerCase();
@@ -130,12 +152,26 @@ export default function ScheduledExaminations() {
       const matchesDepartment = filters.departmentFilter === "all" || deptFormatted === filters.departmentFilter;
       const matchesType = filters.typeFilter === "all" || exam.type === filters.typeFilter;
       const matchesDoctor = filters.trainerFilter === "all" || exam.doctor === filters.trainerFilter;
+      const matchesResult = filters.resultFilter === "all" || (exam.result ?? "") === filters.resultFilter;
+      const matchesWorkCategory =
+        filters.workCategoryFilter === "all" || (exam.employeeWorkCategory ?? "") === filters.workCategoryFilter;
 
       const examDate = new Date(exam.nextExaminationDate);
       const matchesDateFrom = !filters.dateFrom || examDate >= filters.dateFrom;
       const matchesDateTo = !filters.dateTo || examDate <= filters.dateTo;
 
-      return matchesSearch && matchesStatus && matchesFacility && matchesDepartment && matchesType && matchesDoctor && matchesDateFrom && matchesDateTo;
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesFacility &&
+        matchesDepartment &&
+        matchesType &&
+        matchesDoctor &&
+        matchesResult &&
+        matchesWorkCategory &&
+        matchesDateFrom &&
+        matchesDateTo
+      );
     });
   }, [filters, examinations, facilityNameMap]);
 
@@ -306,10 +342,6 @@ export default function ScheduledExaminations() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={refetch}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Obnovit
-          </Button>
           <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
             <Download className="w-4 h-4 mr-2" />
             Export
@@ -364,6 +396,8 @@ export default function ScheduledExaminations() {
         trainingTypes={examinationTypes}
         trainers={doctors}
         trainerLabel="doctors"
+        resultOptions={resultOptions}
+        workCategoryOptions={workCategoryOptions}
       />
 
       {canEdit && (

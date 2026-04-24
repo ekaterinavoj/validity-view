@@ -3570,6 +3570,26 @@ SELECT 1;`,
 --     díky obousměrné kompatibilitě hlaviček (export → editace → import).
 SELECT 1;`,
   },
+  {
+    version: "20260424260000",
+    name: "ui_unified_filters_and_equipment_export_responsibles",
+    sql: `-- UI-only změna (žádné DB schema):
+--   • PLP filtry (ScheduledExaminations) rozšířeny o "Výsledek" a "Kategorie práce".
+--     Sjednocené filtry napříč rolemi: stejné UI, různý obsah dle RLS
+--     (admin = vše, manager = podřízení, user = vlastní).
+--   • Export Zařízení (Equipment) obsahuje nový sloupec "Odpovědné osoby"
+--     jako e-maily oddělené středníkem (";") pro round-trip kompatibilitu
+--     s BulkEquipmentImport (který tyto e-maily mapuje na profily).
+--     Sloupec "Odpovědná osoba" zůstává zachován (volný text — legacy).
+--   • Z hlavních seznamů (Equipment, ScheduledTrainings, ScheduledDeadlines,
+--     ScheduledExaminations) odstraněna manuální tlačítka "Obnovit" — všechny
+--     hooky využívají Supabase realtime kanály a aktualizují se automaticky
+--     při INSERT/UPDATE/DELETE. Tlačítka zůstávají v sekcích bez realtime
+--     (Historie, Administrace migrací, SystemStatus, PendingUsersPanel).
+--   • useAdvancedFilters: backward-compatible — uložené filtry z localStorage
+--     se doplní o nová pole resultFilter/workCategoryFilter s hodnotou "all".
+SELECT 1;`,
+  },
 ];
 
 /**

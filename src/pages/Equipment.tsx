@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import Papa from "papaparse";
 import {
   Plus,
-  RefreshCw,
   Download,
   Edit,
   Trash2,
@@ -63,6 +62,7 @@ import { EquipmentResponsiblesBadges } from "@/components/EquipmentResponsiblesB
 import { ResponsiblePersonsPicker } from "@/components/ResponsiblePersonsPicker";
 import { BulkEquipmentImport } from "@/components/BulkEquipmentImport";
 import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColors } from "@/types/equipment";
+import { useAllEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
@@ -74,6 +74,20 @@ export default function Equipment() {
   const { toast } = useToast();
   const { equipment, isLoading, error, refetch, createEquipment, updateEquipment, deleteEquipment, checkDependencies, isCreating, isUpdating, isDeleting } = useEquipment();
   const { facilities } = useFacilities();
+  const { allResponsibles } = useAllEquipmentResponsibles();
+
+  // Mapování equipment_id → seznam e-mailů odpovědných osob (oddělené ; pro round-trip s importem).
+  const responsibleEmailsMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    allResponsibles.forEach((r: any) => {
+      const email = r.profile?.email;
+      if (!email) return;
+      const arr = map.get(r.equipment_id) ?? [];
+      if (!arr.includes(email)) arr.push(email);
+      map.set(r.equipment_id, arr);
+    });
+    return map;
+  }, [allResponsibles]);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -268,6 +282,7 @@ export default function Equipment() {
       "Sériové č.": eq.serial_number || "",
       "Umístění": eq.location || "",
       "Odpovědná osoba": eq.responsible_person || "",
+      "Odpovědné osoby": (responsibleEmailsMap.get(eq.id) ?? []).join("; "),
       "Stav": equipmentStatusLabels[eq.status] || "",
     }));
 
@@ -302,10 +317,6 @@ export default function Equipment() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Obnovit
-          </Button>
           <BulkEquipmentImport onImportComplete={() => refetch()} />
           <Button variant="outline" size="sm" onClick={exportToCSV} title="Formát: CSV (středník, UTF-8)">
             <Download className="w-4 h-4 mr-2" />
