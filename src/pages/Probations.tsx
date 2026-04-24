@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEmployees } from "@/hooks/useEmployees";
 import { ProbationBadge } from "@/components/ProbationBadge";
 import { DepartmentCell } from "@/components/DepartmentCell";
-import { Search, X, ClipboardList, Bell, Info, Download, FileText, History, LayoutList, Layers, HelpCircle, ExternalLink } from "lucide-react";
+import { Search, X, ClipboardList, Bell, Info, Download, FileText, History, LayoutList, Layers, HelpCircle, ExternalLink, Edit } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
