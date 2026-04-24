@@ -267,6 +267,7 @@ export function FilePreviewDialog({
   useEffect(() => {
     if (open) {
       setScale(1.0);
+      setAutoFit(true);
       setError(null);
       setCurrentDocIndex(0);
       setViewMode(preferences.pdfViewMode || "scroll");
