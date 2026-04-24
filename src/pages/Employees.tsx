@@ -24,7 +24,8 @@ import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
@@ -139,9 +140,41 @@ export default function Employees() {
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "tree">("table");
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch } = useEmployees();
   const { departments, loading: departmentsLoading } = useDepartments();
+
+  // Deep-link: ?edit=<employeeId>&focus=probation otevře dialog a scrollne na ZD sekci
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    const focus = searchParams.get("focus");
+    if (!editId || employees.length === 0 || dialogOpen) return;
+    const target = employees.find((e) => e.id === editId);
+    if (!target) return;
+    handleEdit(target);
+    if (focus === "probation") {
+      // Po vykreslení dialogu (~2 frames) scrollni na sekci ZD
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const el = document.getElementById("probation-section");
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+            el.classList.add("ring-2", "ring-primary/40", "rounded-md");
+            setTimeout(() => {
+              el.classList.remove("ring-2", "ring-primary/40", "rounded-md");
+            }, 2200);
+          }
+        });
+      });
+    }
+    // Ucistit URL params, ať se to nespouští znovu
+    const next = new URLSearchParams(searchParams);
+    next.delete("edit");
+    next.delete("focus");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employees, searchParams]);
 
   const uniqueDepartments = useMemo(() => {
     const deptMap = new Map<string, string>();
@@ -706,7 +739,7 @@ export default function Employees() {
                 />
 
                 {/* Probation period section (Zákoník práce 2026) */}
-                <div className="border-t pt-4 mt-4">
+                <div id="probation-section" className="border-t pt-4 mt-4 scroll-mt-4">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Zkušební doba</p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <FormField

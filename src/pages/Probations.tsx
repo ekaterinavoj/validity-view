@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEmployees } from "@/hooks/useEmployees";
 import { ProbationBadge } from "@/components/ProbationBadge";
 import { DepartmentCell } from "@/components/DepartmentCell";
-import { Search, X, ClipboardList, Bell, Info, Download, FileText, History, LayoutList, Layers, HelpCircle, ExternalLink } from "lucide-react";
+import { Search, X, ClipboardList, Bell, Info, Download, FileText, History, LayoutList, Layers, HelpCircle, ExternalLink, Edit } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -67,10 +67,15 @@ interface AuditEntry {
 export default function Probations() {
   const { employees, loading, error } = useEmployees();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { preferences, updatePreference, isLoaded: prefsLoaded } = useUserPreferences();
   const [windowFilter, setWindowFilter] = useState<WindowFilter>("ending_30");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"list" | "history">("list");
+
+  const goToEmployeeProbation = (employeeId: string) => {
+    navigate(`/employees?edit=${employeeId}&focus=probation`);
+  };
 
   // Compact mode = jen přehled bez záložek. Source of truth: user_preferences (DB),
   // s localStorage cache pro rychlou hydrataci. Synced napříč zařízeními.
@@ -279,7 +284,10 @@ export default function Probations() {
                       Sekce <strong>„Celodenní překážky v práci“</strong> automaticky prodlužuje konec ZD.
                     </li>
                   </ol>
-                  <Button asChild size="sm" className="w-full mt-3">
+                  <p className="text-[11px] text-muted-foreground mt-2 mb-2 italic">
+                    Tip: Klikněte na řádek v přehledu níže – otevře se editace zaměstnance přímo na sekci ZD.
+                  </p>
+                  <Button asChild size="sm" className="w-full">
                     <Link to="/employees">
                       <ExternalLink className="h-4 w-4 mr-1" /> Otevřít Zaměstnance
                     </Link>
@@ -384,12 +392,13 @@ export default function Probations() {
                   <TableHead>Délka (měs.)</TableHead>
                   <TableHead>Konec ZD</TableHead>
                   <TableHead>Nadřízený</TableHead>
+                  <TableHead className="text-right w-[1%]">Akce</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="p-0">
+                    <TableCell colSpan={9} className="p-0">
                       <EmptyState
                         icon={ClipboardList}
                         title="Žádní zaměstnanci v tomto okně"
@@ -399,7 +408,11 @@ export default function Probations() {
                   </TableRow>
                 ) : (
                   filtered.map((e) => (
-                    <TableRow key={e.id}>
+                    <TableRow
+                      key={e.id}
+                      className="cursor-pointer hover:bg-muted/40"
+                      onClick={() => goToEmployeeProbation(e.id)}
+                    >
                       <TableCell className="font-medium">{e.employeeNumber || "-"}</TableCell>
                       <TableCell>
                         {e.firstName} {e.lastName}
@@ -434,6 +447,21 @@ export default function Probations() {
                         {e.managerFirstName || e.managerLastName
                           ? `${e.managerFirstName || ""} ${e.managerLastName || ""}`.trim()
                           : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            goToEmployeeProbation(e.id);
+                          }}
+                          title="Upravit zkušební dobu"
+                        >
+                          <Edit className="h-3.5 w-3.5 mr-1" />
+                          <span className="text-xs">Upravit ZD</span>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
