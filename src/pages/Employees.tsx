@@ -745,15 +745,37 @@ export default function Employees() {
                     <FormField
                       control={form.control}
                       name="probationEndDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Konec ZD (přepsat)</FormLabel>
-                          <FormControl>
-                            <DateInput value={field.value} onChange={field.onChange} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      render={({ field }) => {
+                        const startDate = form.watch("startDate");
+                        const probationMonths = form.watch("probationMonths");
+                        const positionVal = form.watch("position");
+                        let overrideDelta: number | null = null;
+                        if (startDate && field.value) {
+                          const months = probationMonths ?? (isManagerialPosition(positionVal) ? 8 : 4);
+                          const autoEnd = addMonths(startDate, months);
+                          if (!sameDay(field.value, autoEnd)) {
+                            overrideDelta = Math.round(
+                              (field.value.getTime() - autoEnd.getTime()) / 86400000,
+                            );
+                          }
+                        }
+                        return (
+                          <FormItem className="flex flex-col">
+                            <FormLabel className="flex items-center gap-2">
+                              Konec ZD (přepsat)
+                              {overrideDelta !== null && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-status-warning/15 text-status-warning border border-status-warning/30">
+                                  Přepsáno {overrideDelta >= 0 ? "+" : ""}{overrideDelta} dní
+                                </span>
+                              )}
+                            </FormLabel>
+                            <FormControl>
+                              <DateInput value={field.value} onChange={field.onChange} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                   </div>
                   {(() => {
@@ -768,13 +790,14 @@ export default function Employees() {
                     const isOverride = !sameDay(probationEndDate, autoEnd);
                     if (!isOverride) return null;
                     return (
-                      <div className="mt-3">
+                      <div className="mt-3 p-3 rounded-md border border-status-warning/30 bg-status-warning/5">
                         <FormField
                           control={form.control}
                           name="probationOverrideReason"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>
+                              <FormLabel className="flex items-center gap-1.5">
+                                <span className="inline-block h-2 w-2 rounded-full bg-status-warning" />
                                 Důvod úpravy konce ZD <span className="text-destructive">*</span>
                               </FormLabel>
                               <FormControl>
@@ -784,6 +807,10 @@ export default function Employees() {
                                   onChange={field.onChange}
                                 />
                               </FormControl>
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                Změna se uloží jako jeden konzistentní záznam do <strong>Historie ZD</strong> a{" "}
+                                <strong>audit logu</strong> (změněná pole + důvod).
+                              </p>
                               <FormMessage />
                             </FormItem>
                           )}
