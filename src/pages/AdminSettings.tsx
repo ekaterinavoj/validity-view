@@ -30,6 +30,7 @@ import { NextSendPreview } from "@/components/NextSendPreview";
 
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { OnboardingSettings } from "@/components/OnboardingSettings";
+import { EmployeeAccessDebug } from "@/components/EmployeeAccessDebug";
 
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { ModuleRecipientsSelector } from "@/components/ModuleRecipientsSelector";
@@ -61,7 +62,7 @@ export default function AdminSettings() {
   
   // Get initial tab from URL query param, default to "onboarding"
   const tabParam = searchParams.get("tab");
-  const validTabs = ["onboarding", "user-management", "reminders", "email", "history"];
+  const validTabs = ["onboarding", "user-management", "reminders", "email", "history", "audit"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
   const [activeTab, setActiveTab] = useState(initialTab);
   
@@ -466,7 +467,7 @@ export default function AdminSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
             Onboarding
@@ -486,6 +487,10 @@ export default function AdminSettings() {
           <TabsTrigger value="history" className="flex items-center gap-2">
             <History className="w-4 h-4" />
             Historie
+          </TabsTrigger>
+          <TabsTrigger value="audit" className="flex items-center gap-2">
+            <Eye className="w-4 h-4" />
+            Audit
           </TabsTrigger>
         </TabsList>
 
@@ -1342,6 +1347,11 @@ export default function AdminSettings() {
         {/* History Tab */}
         <TabsContent value="history" className="space-y-6">
           <ReminderLogs />
+        </TabsContent>
+
+        {/* Audit Tab */}
+        <TabsContent value="audit" className="space-y-6">
+          <EmployeeAccessDebug />
         </TabsContent>
 
       </Tabs>
