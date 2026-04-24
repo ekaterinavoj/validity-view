@@ -228,6 +228,8 @@ export function FilePreviewDialog({
   const [scale, setScale] = useState<number>(1.0);
   const [viewMode, setViewMode] = useState<ViewMode>(preferences.pdfViewMode || "scroll");
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
+  // Native dimensions of currently shown media – used to adapt dialog size.
+  const [mediaMeta, setMediaMeta] = useState<{ width: number; height: number } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Determine files to show
