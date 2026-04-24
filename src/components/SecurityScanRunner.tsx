@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, ShieldCheck, AlertTriangle, CheckCircle2, Play, History as HistoryIcon, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateTime } from "@/lib/dateFormat";
+import { formatDisplayDateTime } from "@/lib/dateFormat";
 import { useToast } from "@/hooks/use-toast";
 
 type Severity = "critical" | "high" | "medium" | "info";
@@ -358,7 +358,7 @@ export function SecurityScanRunner() {
               <div>
                 <CardTitle className="text-lg">Poslední běh</CardTitle>
                 <CardDescription>
-                  {formatDateTime(selectedRun.startedAt)} · trvání {selectedRun.durationMs} ms
+                  {formatDisplayDateTime(selectedRun.startedAt)} · trvání {selectedRun.durationMs} ms
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -432,7 +432,7 @@ export function SecurityScanRunner() {
               <TableBody>
                 {history.map((run) => (
                   <TableRow key={run.id} className={run.id === selectedRun?.id ? "bg-accent/30" : ""}>
-                    <TableCell className="text-sm">{formatDateTime(run.startedAt)}</TableCell>
+                    <TableCell className="text-sm">{formatDisplayDateTime(run.startedAt)}</TableCell>
                     <TableCell className="text-sm">{run.durationMs} ms</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={severityColor("critical")}>
