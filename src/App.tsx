@@ -109,11 +109,13 @@ const App = () => (
             
             
             {/* ============ PLP MODULE (Medical Examinations) ============ */}
+            {/* List/scheduled — všichni s přístupem k PLP modulu */}
             <Route path="/plp" element={<ProtectedLayout requiredModule="plp"><ScheduledExaminations /></ProtectedLayout>} />
             <Route path="/plp/scheduled" element={<ProtectedLayout requiredModule="plp"><ScheduledExaminations /></ProtectedLayout>} />
-            <Route path="/plp/new" element={<ProtectedLayout requiredModule="plp"><NewMedicalExamination /></ProtectedLayout>} />
-            <Route path="/plp/edit/:id" element={<ProtectedLayout requiredModule="plp"><EditMedicalExamination /></ProtectedLayout>} />
-            <Route path="/plp/types" element={<ProtectedLayout requiredModule="plp"><MedicalExaminationTypes /></ProtectedLayout>} />
+            {/* Vytváření / úprava / typy / historie — pouze admin (PLP je citlivé, uživatel ani manažer nesmí přes URL) */}
+            <Route path="/plp/new" element={<ProtectedLayout requiredRoles={["admin"]} requiredModule="plp"><NewMedicalExamination /></ProtectedLayout>} />
+            <Route path="/plp/edit/:id" element={<ProtectedLayout requiredRoles={["admin"]} requiredModule="plp"><EditMedicalExamination /></ProtectedLayout>} />
+            <Route path="/plp/types" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="plp"><MedicalExaminationTypes /></ProtectedLayout>} />
             <Route path="/plp/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="plp"><MedicalExaminationHistory /></ProtectedLayout>} />
             
             {/* ============ SHARED / SETTINGS — admin/manager only ============ */}
@@ -128,6 +130,8 @@ const App = () => (
             <Route path="/audit-log" element={<ProtectedLayout requiredRoles={["admin"]}><AuditLog /></ProtectedLayout>} />
             {/* Profile - all approved users */}
             <Route path="/profile" element={<ProtectedLayout><Profile /></ProtectedLayout>} />
+            {/* Moje oprávnění — pro každou roli, ukáže matici a její dostupné odkazy */}
+            <Route path="/my-permissions" element={<ProtectedLayout><MyPermissions /></ProtectedLayout>} />
             {/* Admin-only routes */}
             <Route path="/admin/settings" element={<ProtectedLayout requiredRoles={["admin"]}><AdminSettings /></ProtectedLayout>} />
             <Route path="/admin/status" element={<ProtectedLayout requiredRoles={["admin"]}><SystemStatus /></ProtectedLayout>} />
@@ -138,7 +142,8 @@ const App = () => (
             <Route path="/no-access" element={<ProtectedRoute><NoAccess /></ProtectedRoute>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            {/* Catch-all je chráněný — uživatel musí být přihlášen, aby viděl 404 (jinak přesměrování na /auth) */}
+            <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
           </Routes>
         </AuthProvider>
         </BrowserRouter>
