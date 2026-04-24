@@ -3210,6 +3210,55 @@ DO $f$ BEGIN
   END IF;
 END $f$;`,
   },
+  {
+    version: "20260424170000",
+    name: "probation_override_reason",
+    sql: `-- Důvod ručního přepsání data konce zkušební doby
+ALTER TABLE public.employees
+  ADD COLUMN IF NOT EXISTS probation_override_reason text;
+
+COMMENT ON COLUMN public.employees.probation_override_reason IS
+  'Důvod ručního přepsání data konce zkušební doby (povinné při manuální úpravě, např. překážky v práci dle ZP 2026)';
+
+-- Aktualizace triggeru: vyčistí důvod při auto-přepočtu
+CREATE OR REPLACE FUNCTION public.calculate_probation_end_date()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $f$
+DECLARE
+  v_months integer;
+  v_auto_end date;
+BEGIN
+  IF NEW.start_date IS NULL THEN
+    NEW.probation_end_date := NULL;
+    NEW.probation_override_reason := NULL;
+    RETURN NEW;
+  END IF;
+
+  IF NEW.probation_months IS NOT NULL THEN v_months := NEW.probation_months;
+  ELSIF public.is_managerial_position(NEW.position) THEN v_months := 8; NEW.probation_months := 8;
+  ELSE v_months := 4; NEW.probation_months := 4; END IF;
+
+  v_auto_end := NEW.start_date + (v_months || ' months')::interval;
+
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.probation_end_date IS NULL THEN
+      NEW.probation_end_date := v_auto_end;
+      NEW.probation_override_reason := NULL;
+    ELSIF NEW.probation_end_date = v_auto_end THEN
+      NEW.probation_override_reason := NULL;
+    END IF;
+  ELSIF TG_OP = 'UPDATE' THEN
+    IF (OLD.start_date IS DISTINCT FROM NEW.start_date OR OLD.probation_months IS DISTINCT FROM NEW.probation_months)
+       AND (NEW.probation_end_date IS NULL OR NEW.probation_end_date = OLD.probation_end_date) THEN
+      NEW.probation_end_date := v_auto_end;
+      NEW.probation_override_reason := NULL;
+    ELSIF NEW.probation_end_date = v_auto_end THEN
+      NEW.probation_override_reason := NULL;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END; $f$;`,
+  },
 ];
 
 /**

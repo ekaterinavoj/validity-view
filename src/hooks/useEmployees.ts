@@ -55,6 +55,7 @@ export interface EmployeeWithDepartment {
   startDate?: string | null;
   probationEndDate?: string | null;
   probationMonths?: number | null;
+  probationOverrideReason?: string | null;
   // Manager hierarchy – resolved via JOIN
   managerEmployeeId?: string | null;
   managerFirstName?: string | null;
@@ -82,6 +83,7 @@ function mapEmployee(e: any): EmployeeWithDepartment {
     startDate: e.start_date,
     probationEndDate: e.probation_end_date,
     probationMonths: e.probation_months,
+    probationOverrideReason: e.probation_override_reason,
     managerEmployeeId: e.manager_employee_id,
     // Will be resolved after fetch from the employee list itself
     managerFirstName: null,
@@ -123,6 +125,7 @@ const EMPLOYEE_SELECT = `
   start_date,
   probation_end_date,
   probation_months,
+  probation_override_reason,
   manager_employee_id,
   departments (
     id,
