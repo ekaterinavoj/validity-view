@@ -18,7 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import Papa from "papaparse";
-import * as XLSX from "xlsx";
+// XLSX removed — bulk import accepts only CSV
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 
 // ============ EQUIPMENT IMPORT ============
@@ -296,10 +296,8 @@ export const BulkDeadlineImport = () => {
       }
     ];
 
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Zařízení");
-    XLSX.writeFile(wb, "sablona_import_zarizeni.xlsx");
+    // Template removed — round-trip is via existing data export.
+    return;
 
     toast({
       title: "Šablona stažena",
@@ -352,14 +350,8 @@ export const BulkDeadlineImport = () => {
           error: (error) => reject(error),
         });
       });
-    } else if (fileExtension === "xlsx" || fileExtension === "xls") {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { cellDates: true });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      rawData = XLSX.utils.sheet_to_json(worksheet) as Record<string, any>[];
     } else {
-      throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
+      throw new Error("Nepodporovaný formát souboru. Použijte CSV.");
     }
 
     // Map Czech column names from exports to English import names
@@ -642,10 +634,8 @@ export const BulkDeadlineImport = () => {
       }
     ];
 
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Lhůty");
-    XLSX.writeFile(wb, "sablona_import_lhut.xlsx");
+    // Template removed — round-trip is via existing data export.
+    return;
 
     toast({
       title: "Šablona stažena",
@@ -694,14 +684,8 @@ export const BulkDeadlineImport = () => {
           error: (error) => reject(error),
         });
       });
-    } else if (fileExtension === "xlsx" || fileExtension === "xls") {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { cellDates: true });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      rawData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as Record<string, any>[];
     } else {
-      throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
+      throw new Error("Nepodporovaný formát souboru. Použijte CSV.");
     }
 
     // Map Czech column names from exports to English import names
@@ -1081,7 +1065,7 @@ export const BulkDeadlineImport = () => {
                 <input
                   id="equipment-file-upload"
                   type="file"
-                  accept=".csv,.xlsx,.xls"
+                  accept=".csv"
                   onChange={handleEquipmentFileSelect}
                   className="hidden"
                   disabled={parsingEquipment}
@@ -1127,7 +1111,7 @@ export const BulkDeadlineImport = () => {
                 <input
                   id="deadline-file-upload"
                   type="file"
-                  accept=".csv,.xlsx,.xls"
+                  accept=".csv"
                   onChange={handleDeadlineFileSelect}
                   className="hidden"
                   disabled={parsingDeadline}

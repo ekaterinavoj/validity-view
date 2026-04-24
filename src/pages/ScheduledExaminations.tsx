@@ -351,7 +351,7 @@ export default function ScheduledExaminations() {
             size="sm"
             onClick={exportMatrix}
             disabled={exportingMatrix || examinations.length === 0}
-            title="Formát: XLSX — jméno, datum, konec, typ, kategorie, rizika, výsledek, poznámka"
+            title="Formát: CSV — jméno, datum, konec, typ, kategorie, rizika, výsledek, poznámka"
           >
             <Grid3x3 className="w-4 h-4 mr-2" />
             {exportingMatrix ? "Generuji…" : "Přehled"}

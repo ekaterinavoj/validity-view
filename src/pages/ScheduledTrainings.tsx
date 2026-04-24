@@ -29,7 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import * as XLSX from 'xlsx';
+// XLSX removed — all exports use CSV via Papa
 import Papa from 'papaparse';
 // formatPeriodicity replaced by formatPeriodicityDual from TypePeriodicityCell
 import { formatDisplayDate } from "@/lib/dateFormat";
@@ -480,7 +480,7 @@ export default function ScheduledTrainings() {
               variant="outline"
               onClick={exportMatrix}
               disabled={exportingMatrix || allEmployees.length === 0 || allTrainingTypes.length === 0}
-              title="Formát: XLSX — zaměstnanci × typy školení (✓ má / prázdné nemá)"
+              title="Formát: CSV — zaměstnanci × typy školení (✓ má / prázdné nemá)"
             >
               <Grid3x3 className="w-4 h-4 mr-2" />
               {exportingMatrix ? "Generuji…" : "Matice"}

@@ -18,7 +18,7 @@ import { HEALTH_RISK_FIELDS, HEALTH_RISK_VALUES, type HealthRiskValue, toDbHealt
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import { medicalExaminationResultOptions } from "@/lib/medicalExaminationResults";
 import Papa from "papaparse";
-import * as XLSX from "xlsx";
+// XLSX removed — bulk import accepts only CSV
 
 interface ImportRow {
   employee_number?: string;
@@ -186,10 +186,8 @@ export const BulkMedicalImport = () => {
       }
     ];
 
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Prohlídky");
-    XLSX.writeFile(wb, "sablona_import_prohlidky.xlsx");
+    // Template removed — round-trip is via existing data export.
+    return;
 
     toast({
       title: "Šablona stažena",
@@ -276,14 +274,8 @@ export const BulkMedicalImport = () => {
           error: (error) => reject(error),
         });
       });
-    } else if (fileExtension === "xlsx" || fileExtension === "xls") {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { cellDates: true });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      rawData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as Record<string, any>[];
     } else {
-      throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
+      throw new Error("Nepodporovaný formát souboru. Použijte CSV.");
     }
 
     // Map Czech column names from exports to English import names
@@ -690,7 +682,7 @@ export const BulkMedicalImport = () => {
         <div className="flex gap-2">
           <input
             type="file"
-            accept=".csv,.xlsx,.xls"
+            accept=".csv"
             onChange={handleFileUpload}
             className="hidden"
             id="medical-import-file"
@@ -701,7 +693,7 @@ export const BulkMedicalImport = () => {
             size="sm"
             onClick={() => document.getElementById('medical-import-file')?.click()}
             disabled={parsing}
-            title="Podporované formáty: XLSX, XLS, CSV (středník, UTF-8)"
+            title="Formát: CSV (středník, UTF-8)"
           >
             <Upload className="w-4 h-4 mr-2" />
             {parsing ? "Zpracovávám..." : "Vybrat soubor"}

@@ -3590,6 +3590,28 @@ SELECT 1;`,
 --     se doplní o nová pole resultFilter/workCategoryFilter s hodnotou "all".
 SELECT 1;`,
   },
+  {
+    version: "20260424270000",
+    name: "ui_unified_csv_only_import_export",
+    sql: `-- UI-only změna (žádné DB schema):
+--   • Sjednocení formátu souborů pro import i export napříč všemi moduly:
+--     POUZE CSV (středník ";", UTF-8 s BOM, Excel-kompatibilní).
+--   • Odstraněna podpora XLSX/XLS pro vstup u všech bulk importů
+--     (Employees, Equipment, Trainings, Medical, Deadlines, Types).
+--   • Maticový export (ScheduledTrainings = "Matice", ScheduledExaminations
+--     = "Přehled") převeden z XLSX na CSV. Funkce v src/lib/matrixExport.ts
+--     nyní používají Papa.unparse; aliasy downloadTrainingMatrixXLSX a
+--     downloadPLPDetailXLSX zachovány pro zpětnou kompatibilitu volání.
+--   • Chybové exporty z bulk importů (chyby_import_*.csv) sjednoceny na CSV.
+--   • Tlačítka "Export XLSX" odstraněna; zůstává jen jediné "Export chyb".
+--   • Tooltipy ("title") všech import/export tlačítek nyní popisují formát:
+--     "Formát: CSV (středník, UTF-8)".
+--   • Realtime aktualizace ověřeny — všechny hlavní hooky (useEmployees,
+--     useTrainings, useMedicalExaminations, useDeadlines, useEquipment)
+--     mají aktivní postgres_changes subscriptions a invalidují cache
+--     automaticky při INSERT/UPDATE/DELETE bez nutnosti manuálního refresh.
+SELECT 1;`,
+  },
 ];
 
 /**

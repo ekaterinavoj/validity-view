@@ -19,7 +19,7 @@ import { ImportDescription } from "@/components/ImportDescription";
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { calculateNextDateFromPeriodDays } from "@/lib/effectivePeriod";
 import Papa from "papaparse";
-import * as XLSX from "xlsx";
+// XLSX removed — bulk import accepts only CSV
 
 interface ImportRow {
   employee_number?: string;
@@ -271,40 +271,7 @@ export const BulkTrainingImport = () => {
   // Only admin and manager can import
   const canImport = isAdmin || isManager;
 
-  const downloadTemplateXLSX = () => {
-    const template = [
-      {
-        "Osobní číslo": "EMP001",
-        "Email": "jan.novak@example.com",
-        "Typ školení": "BOZP",
-        "Provozovna": "qlar-jenec-dc3",
-        "Datum školení": "15.01.2024",
-        "Školitel": "Jan Novák",
-        "Firma": "Bezpečnostní akademie",
-        "Poznámka": "Poznámka k školení"
-      },
-      {
-        "Osobní číslo": "EMP002",
-        "Email": "petr.svoboda@example.com",
-        "Typ školení": "ATEX",
-        "Provozovna": "qlar-jenec-dc3",
-        "Datum školení": "20.02.2024",
-        "Školitel": "",
-        "Firma": "",
-        "Poznámka": ""
-      }
-    ];
-
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Školení");
-    XLSX.writeFile(wb, "sablona_import_skoleni.xlsx");
-
-    toast({
-      title: "Šablona stažena",
-      description: "Excel šablona pro import školení byla stažena.",
-    });
-  };
+  // Template download was removed — round-trip is via existing data export.
 
   const downloadTemplateCSV = () => {
     const template = [
@@ -384,14 +351,8 @@ export const BulkTrainingImport = () => {
           error: (error) => reject(error),
         });
       });
-    } else if (fileExtension === "xlsx" || fileExtension === "xls") {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { cellDates: true });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      rawData = XLSX.utils.sheet_to_json(worksheet, { dateNF: 'yyyy-mm-dd' }) as Record<string, any>[];
     } else {
-      throw new Error("Nepodporovaný formát souboru. Použijte CSV nebo Excel.");
+      throw new Error("Nepodporovaný formát souboru. Použijte CSV.");
     }
 
     // Map Czech column names from exports to English import names
@@ -915,7 +876,7 @@ export const BulkTrainingImport = () => {
     }
   };
 
-  const exportErrors = (format: 'xlsx' | 'csv') => {
+  const exportErrors = () => {
     if (!preview || preview.errorRows.length === 0) {
       toast({
         title: "Žádné chyby",
@@ -939,20 +900,13 @@ export const BulkTrainingImport = () => {
 
     const timestamp = new Date().toISOString().split('T')[0];
 
-    if (format === 'xlsx') {
-      const ws = XLSX.utils.json_to_sheet(errorData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Chyby");
-      XLSX.writeFile(wb, `chyby_import_skoleni_${timestamp}.xlsx`);
-    } else {
-      const csv = Papa.unparse(errorData, { delimiter: ";" });
-      const BOM = "\uFEFF";
-      const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `chyby_import_skoleni_${timestamp}.csv`;
-      link.click();
-    }
+    const csv = Papa.unparse(errorData, { delimiter: ";" });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `chyby_import_skoleni_${timestamp}.csv`;
+    link.click();
 
     toast({
       title: "Export dokončen",
@@ -1109,7 +1063,7 @@ export const BulkTrainingImport = () => {
               <input
                 id="file-upload"
                 type="file"
-                accept=".csv,.xlsx,.xls"
+                accept=".csv"
                 onChange={handleFileUpload}
                 className="hidden"
                 disabled={parsing}
@@ -1326,13 +1280,9 @@ export const BulkTrainingImport = () => {
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <Label className="font-semibold text-destructive">Chybné záznamy ({preview.errorRows.length})</Label>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => exportErrors('xlsx')}>
+                      <Button variant="outline" size="sm" onClick={exportErrors} title="Formát: CSV (středník, UTF-8)">
                         <FileDown className="w-4 h-4 mr-1" />
-                        Export XLSX
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => exportErrors('csv')}>
-                        <FileDown className="w-4 h-4 mr-1" />
-                        Export CSV
+                        Export chyb
                       </Button>
                     </div>
                   </div>

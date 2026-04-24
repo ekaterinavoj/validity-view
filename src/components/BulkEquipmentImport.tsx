@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Upload, AlertCircle, CheckCircle, CheckCircle2, X, FileDown, RefreshCw, AlertTriangle, StopCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
 import { ImportDescription } from "@/components/ImportDescription";
@@ -63,20 +63,13 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
 
   const parseFile = (file: File): Promise<any[]> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const data = new Uint8Array(event.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-          resolve(jsonData);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = () => reject(new Error("Chyba čtení souboru"));
-      reader.readAsArrayBuffer(file);
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        delimiter: "",
+        complete: (results) => resolve(results.data as any[]),
+        error: (error) => reject(error),
+      });
     });
   };
 
@@ -471,10 +464,13 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
 
     if (errorData.length === 0) return;
 
-    const ws = XLSX.utils.json_to_sheet(errorData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Chyby");
-    XLSX.writeFile(wb, `chyby_import_zarizeni_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const csv = Papa.unparse(errorData, { delimiter: ";" });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `chyby_import_zarizeni_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
   };
 
   const validCount = importedData.filter(d => d.isValid).length;
@@ -520,7 +516,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       <input
         type="file"
         id="equipment-import"
-        accept=".xlsx,.xls,.csv"
+        accept=".csv"
         onChange={handleFileUpload}
         className="hidden"
       />
@@ -621,7 +617,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
                 <input
                   type="file"
                   id="equipment-reimport"
-                  accept=".xlsx,.xls,.csv"
+                  accept=".csv"
                   onChange={handleReImport}
                   className="hidden"
                 />
