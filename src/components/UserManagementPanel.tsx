@@ -360,12 +360,16 @@ export function UserManagementPanel() {
     doc.text(`Vygenerováno: ${new Date().toLocaleDateString("cs-CZ")}`, 14, 22);
 
     autoTable(doc, {
-      head: [["Jméno", "Email", "Pozice", "Role"]],
+      head: [["Jméno", "Email", "Pozice", "Role", "Stav hesla", "Poslední změna hesla"]],
       body: filteredUsers.map((u) => [
         `${u.first_name} ${u.last_name}`,
         u.email,
         u.position || "",
         u.roles.map(r => roleLabels[r] || r).join(", "),
+        u.must_review_password ? "Nutno zkontrolovat" : "V pořádku",
+        u.password_updated_at
+          ? new Date(u.password_updated_at).toLocaleDateString("cs-CZ")
+          : (u.updated_at ? new Date(u.updated_at).toLocaleDateString("cs-CZ") : ""),
       ]),
       startY: 28,
       styles: { fontSize: 9 },
