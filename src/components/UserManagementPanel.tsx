@@ -380,6 +380,11 @@ export function UserManagementPanel() {
     return { total, admins, managers, users: regularUsers };
   }, [users]);
 
+  const passwordsToReviewCount = useMemo(
+    () => users.filter((u) => u.must_review_password).length,
+    [users]
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
