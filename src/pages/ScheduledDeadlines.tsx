@@ -239,7 +239,7 @@ export default function ScheduledDeadlines() {
     const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `technicke-udalosti-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.download = buildExportFilename("technicke-udalosti");
     link.click();
   };
 

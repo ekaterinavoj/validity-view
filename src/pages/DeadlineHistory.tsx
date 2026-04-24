@@ -270,7 +270,7 @@ export default function DeadlineHistory() {
     const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `historie-udalosti-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.download = buildExportFilename("historie-technickych-udalosti");
     link.click();
   };
 

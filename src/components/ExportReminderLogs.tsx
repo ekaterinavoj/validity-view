@@ -110,7 +110,7 @@ export function ExportReminderLogs() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `reminder-logs-${format(new Date(), "yyyy-MM-dd")}.csv`;
+      link.download = buildExportFilename("logy-pripominek-skoleni");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
