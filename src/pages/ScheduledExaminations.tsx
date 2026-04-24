@@ -229,6 +229,49 @@ export default function ScheduledExaminations() {
     link.click();
   };
 
+  const exportMatrix = async () => {
+    setExportingMatrix(true);
+    try {
+      const empRows: MatrixEmployee[] = allEmployees
+        .filter((e) => e.status !== "terminated")
+        .map((e) => ({
+          id: e.id,
+          department: e.department ? `${e.department}${e.departmentName ? ` - ${e.departmentName}` : ""}` : "—",
+          lastName: e.lastName,
+          firstName: e.firstName,
+          position: e.position,
+          statusLabel: e.status === "employed" ? "Aktivní" : e.status === "parental_leave" ? "Mateřská" : e.status === "sick_leave" ? "Nemocenská" : "Ukončen",
+          managerName: e.managerFirstName || e.managerLastName ? `${e.managerFirstName ?? ""} ${e.managerLastName ?? ""}`.trim() : "",
+        }));
+      const typeRows: MatrixEventType[] = allExamTypes.map((t) => ({ id: t.id, name: t.name, facility: t.facility }));
+      const today = new Date();
+      const warn = new Date(); warn.setDate(warn.getDate() + 30);
+      const latest = new Map<string, { date: Date }>();
+      for (const ex of examinations) {
+        const key = `${ex.employeeId}|${ex.examinationTypeId}`;
+        const d = new Date(ex.nextExaminationDate);
+        const prev = latest.get(key);
+        if (!prev || d > prev.date) latest.set(key, { date: d });
+      }
+      const entries: MatrixEntry[] = [];
+      for (const emp of empRows) for (const t of typeRows) {
+        const f = latest.get(`${emp.id}|${t.id}`);
+        let state: CellState = !f ? "na" : f.date < today ? "expired" : f.date <= warn ? "warning" : "ok";
+        entries.push({ employeeId: emp.id, eventTypeId: t.id, state });
+      }
+      downloadMatrixXLSX({
+        title: "Matice prohlídek",
+        filename: `matice_plp_${format(new Date(), "yyyy-MM-dd")}`,
+        employees: empRows, eventTypes: typeRows, entries, eventsLabel: "Prohlídka",
+      });
+      toast({ title: "Matice exportována", description: `${empRows.length} zam. × ${typeRows.length} typů prohlídek` });
+    } catch (err: any) {
+      toast({ title: "Chyba", description: err?.message ?? "Nepodařilo se vygenerovat matici.", variant: "destructive" });
+    } finally {
+      setExportingMatrix(false);
+    }
+  };
+
   // Total columns: expand + (checkbox?) + status + platnost + typ + os.č. + jméno + středisko + datum + kategorie + zdr.rizika + výsledek + poznámka + protokol + akce = 14 or 15
   const totalColumns = canEdit ? 15 : 14;
 
