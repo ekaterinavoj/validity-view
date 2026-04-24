@@ -1089,16 +1089,6 @@ export const BulkTrainingImport = () => {
           />
 
           <div className="flex flex-wrap gap-4">
-            <div className="flex gap-2">
-              <Button onClick={downloadTemplateXLSX} variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Šablona XLSX
-              </Button>
-              <Button onClick={downloadTemplateCSV} variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Šablona CSV
-              </Button>
-            </div>
 
             <div className="flex-1">
               <label htmlFor="file-upload" className="cursor-pointer">

@@ -525,15 +525,12 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         className="hidden"
       />
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
-          <FileDown className="w-4 h-4 mr-2" />
-          Šablona CSV
-        </Button>
         <Button
           variant="outline"
           size="sm"
           onClick={() => document.getElementById('equipment-import')?.click()}
           disabled={isProcessing}
+          title="Podporované formáty: XLSX, XLS, CSV (středník, UTF-8)"
         >
           <Upload className="w-4 h-4 mr-2" />
           {isProcessing ? "Zpracovávám..." : "Import zařízení"}

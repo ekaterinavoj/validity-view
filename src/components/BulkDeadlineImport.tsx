@@ -1061,16 +1061,6 @@ export const BulkDeadlineImport = () => {
             />
 
             <div className="flex flex-wrap gap-4">
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={downloadEquipmentTemplateXLSX}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Šablona XLSX
-                </Button>
-                <Button variant="outline" size="sm" onClick={downloadEquipmentTemplateCSV}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Šablona CSV
-                </Button>
-              </div>
 
               <div className="flex-1">
                 <label htmlFor="equipment-file-upload" className="cursor-pointer">
@@ -1117,16 +1107,6 @@ export const BulkDeadlineImport = () => {
             />
 
             <div className="flex flex-wrap gap-4">
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={downloadDeadlineTemplateXLSX}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Šablona XLSX
-                </Button>
-                <Button variant="outline" size="sm" onClick={downloadDeadlineTemplateCSV}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Šablona CSV
-                </Button>
-              </div>
 
               <div className="flex-1">
                 <label htmlFor="deadline-file-upload" className="cursor-pointer">
