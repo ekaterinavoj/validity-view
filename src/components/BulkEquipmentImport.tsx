@@ -224,6 +224,12 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset stale state on re-upload
+    setHeaderError(null);
+    setImportedData([]);
+    setImportResult(null);
+    setImportErrors([]);
+
     if (file.size > 5 * 1024 * 1024) {
       toast({ title: "Soubor je příliš velký", description: "Maximální velikost je 5MB.", variant: "destructive" });
       return;

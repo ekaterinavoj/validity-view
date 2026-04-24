@@ -621,6 +621,12 @@ export const BulkTrainingImport = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Reset previous header validation state so re-upload doesn't show stale errors
+    setHeaderError(null);
+    setPreview(null);
+    setImportResult(null);
+    setImportErrors([]);
+
     // Validate file size
     const MAX_SIZE = 5 * 1024 * 1024; // 5MB
     if (file.size > MAX_SIZE) {
