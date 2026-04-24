@@ -12,6 +12,8 @@ interface Profile {
   department_id: string | null;
   approval_status: string;
   must_change_password: boolean;
+  must_review_password?: boolean;
+  password_updated_at?: string | null;
   employee_id: string | null;
   approved_at: string | null;
   approved_by: string | null;
