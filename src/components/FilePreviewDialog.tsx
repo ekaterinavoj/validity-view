@@ -172,15 +172,18 @@ function PDFViewer({
 function ImageViewer({
   url,
   fileName,
+  scale = 1,
   showHeader = false,
   onMeta,
 }: {
   url: string;
   fileName: string;
+  scale?: number;
   showHeader?: boolean;
   onMeta?: (meta: { width: number; height: number }) => void;
 }) {
   const [error, setError] = useState(false);
+  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
 
   if (error) {
     return (
@@ -189,6 +192,14 @@ function ImageViewer({
       </div>
     );
   }
+
+  const imgStyle: React.CSSProperties = naturalSize
+    ? {
+        width: `${naturalSize.width * scale}px`,
+        height: `${naturalSize.height * scale}px`,
+        maxWidth: "none",
+      }
+    : { maxWidth: "100%", maxHeight: "80vh", objectFit: "contain" };
 
   return (
     <div className="space-y-2">
@@ -202,10 +213,12 @@ function ImageViewer({
         <img
           src={url}
           alt={fileName}
-          className="max-w-full max-h-[80vh] object-contain rounded"
+          style={imgStyle}
+          className="rounded"
           onError={() => setError(true)}
           onLoad={(e) => {
             const img = e.currentTarget;
+            setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
             onMeta?.({ width: img.naturalWidth, height: img.naturalHeight });
           }}
         />
