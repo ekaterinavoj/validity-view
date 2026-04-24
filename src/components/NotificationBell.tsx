@@ -246,13 +246,18 @@ export function NotificationBell() {
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map((notification) => (
+              {notifications.map((notification) => {
+                const link = getNotificationLink(notification);
+                return (
                 <div
                   key={notification.id}
                   className={cn(
                     "p-4 hover:bg-accent/50 transition-colors relative group",
-                    !notification.is_read && "bg-primary/5"
+                    !notification.is_read && "bg-primary/5",
+                    link && "cursor-pointer"
                   )}
+                  onClick={() => link && handleNotificationClick(notification)}
+                  role={link ? "button" : undefined}
                 >
                   <div className="flex items-start gap-3">
                     <div
@@ -270,7 +275,10 @@ export function NotificationBell() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
-                              onClick={() => markAsRead(notification.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markAsRead(notification.id);
+                              }}
                             >
                               <Check className="h-3 w-3" />
                             </Button>
@@ -279,7 +287,10 @@ export function NotificationBell() {
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6 text-destructive"
-                            onClick={() => deleteNotification(notification.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteNotification(notification.id);
+                            }}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -297,7 +308,8 @@ export function NotificationBell() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>
