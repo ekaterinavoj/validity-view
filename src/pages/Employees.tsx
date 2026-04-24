@@ -755,8 +755,43 @@ export default function Employees() {
                       )}
                     />
                   </div>
+                  {(() => {
+                    // Show override-reason field only when end date differs from auto-computed
+                    const startDate = form.watch("startDate");
+                    const probationMonths = form.watch("probationMonths");
+                    const probationEndDate = form.watch("probationEndDate");
+                    const positionVal = form.watch("position");
+                    if (!startDate || !probationEndDate) return null;
+                    const months = probationMonths ?? (isManagerialPosition(positionVal) ? 8 : 4);
+                    const autoEnd = addMonths(startDate, months);
+                    const isOverride = !sameDay(probationEndDate, autoEnd);
+                    if (!isOverride) return null;
+                    return (
+                      <div className="mt-3">
+                        <FormField
+                          control={form.control}
+                          name="probationOverrideReason"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                Důvod úpravy konce ZD <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Např. překážka v práci – nemoc 5 dní (dle ZP 2026)"
+                                  value={field.value ?? ""}
+                                  onChange={field.onChange}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    );
+                  })()}
                   <p className="text-xs text-muted-foreground mt-2">
-                    Default: 4 měsíce (běžní), 8 měsíců (vedoucí). Konec ZD se vypočte automaticky z data nástupu, ale lze ho ručně přepsat (např. kvůli překážkám v práci dle ZP 2026).
+                    Default: 4 měsíce (běžní), 8 měsíců (vedoucí). Konec ZD se vypočte automaticky z data nástupu. Při ručním přepsání je nutné uvést důvod (např. překážky v práci dle ZP 2026).
                   </p>
                 </div>
 
