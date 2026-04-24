@@ -39,6 +39,7 @@ import { ShieldAlert } from "lucide-react";
 
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { ModuleRecipientsSelector } from "@/components/ModuleRecipientsSelector";
+import { ModuleReminderSettings } from "@/components/ModuleReminderSettings";
 
 interface SystemSetting {
   id: string;
