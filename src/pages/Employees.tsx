@@ -46,6 +46,29 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 
+// Helper: detect managerial position by keywords (mirrors DB function is_managerial_position)
+const isManagerialPosition = (position: string | undefined | null): boolean => {
+  if (!position) return false;
+  const p = position.toLowerCase();
+  return ["vedouc", "manaž", "manag", "ředitel", "reditel", "head", "chief", "director"]
+    .some((kw) => p.includes(kw));
+};
+
+// Helper: add N months to a date and return a new Date (mirrors DB interval arithmetic)
+const addMonths = (date: Date, months: number): Date => {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+};
+
+// Helper: same calendar day comparison (ignore time)
+const sameDay = (a: Date | undefined, b: Date | undefined): boolean => {
+  if (!a || !b) return false;
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+};
+
 const formSchema = z.object({
   firstName: z.string().min(1, "Zadejte jméno"),
   lastName: z.string().min(1, "Zadejte příjmení"),
@@ -65,6 +88,21 @@ const formSchema = z.object({
   startDate: z.date().optional(),
   probationMonths: z.coerce.number().int().min(1).max(8).optional(),
   probationEndDate: z.date().optional(),
+  probationOverrideReason: z.string().optional().default(""),
+}).superRefine((data, ctx) => {
+  // If probation_end_date is manually set to something OTHER than the auto-computed value,
+  // a written reason is required.
+  if (!data.startDate || !data.probationEndDate) return;
+  const months = data.probationMonths ?? (isManagerialPosition(data.position) ? 8 : 4);
+  const autoEnd = addMonths(data.startDate, months);
+  const isOverride = !sameDay(data.probationEndDate, autoEnd);
+  if (isOverride && (!data.probationOverrideReason || data.probationOverrideReason.trim().length < 3)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["probationOverrideReason"],
+      message: "Zadejte důvod úpravy konce ZD (min. 3 znaky)",
+    });
+  }
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -227,6 +265,7 @@ export default function Employees() {
       startDate: employee.startDate ? new Date(employee.startDate) : undefined,
       probationMonths: employee.probationMonths ?? undefined,
       probationEndDate: employee.probationEndDate ? new Date(employee.probationEndDate) : undefined,
+      probationOverrideReason: employee.probationOverrideReason || "",
     });
     setDialogOpen(true);
   };
@@ -415,6 +454,14 @@ export default function Employees() {
         start_date: data.startDate ? format(data.startDate, "yyyy-MM-dd") : null,
         probation_months: data.probationMonths ?? null,
         probation_end_date: data.probationEndDate ? format(data.probationEndDate, "yyyy-MM-dd") : null,
+        probation_override_reason: (() => {
+          // Only persist a reason when end date is actually overridden vs. auto-computed
+          if (!data.startDate || !data.probationEndDate) return null;
+          const months = data.probationMonths ?? (isManagerialPosition(data.position) ? 8 : 4);
+          const autoEnd = addMonths(data.startDate, months);
+          const isOverride = !sameDay(data.probationEndDate, autoEnd);
+          return isOverride ? (data.probationOverrideReason?.trim() || null) : null;
+        })(),
       };
 
       if (editingEmployee) {
