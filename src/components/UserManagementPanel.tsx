@@ -52,6 +52,8 @@ interface UserProfile {
   approval_status?: string;
   updated_at?: string; // From auth - indicates last password change
   created_at?: string; // From auth
+  must_review_password?: boolean;
+  password_updated_at?: string | null;
 }
 
 const roleLabels: Record<string, string> = {
@@ -167,12 +169,14 @@ export function UserManagementPanel() {
         }
       }
 
-      const usersWithRoles: UserProfile[] = (profilesData || []).map((p) => ({
+      const usersWithRoles: UserProfile[] = (profilesData || []).map((p: any) => ({
         ...p,
         roles: rolesMap.get(p.id) || [],
         approval_status: p.approval_status,
         updated_at: authUsersMap[p.id]?.updated_at,
         created_at: authUsersMap[p.id]?.created_at,
+        must_review_password: p.must_review_password ?? false,
+        password_updated_at: p.password_updated_at ?? null,
       }));
 
       setUsers(usersWithRoles);
@@ -589,13 +593,29 @@ export function UserManagementPanel() {
                           )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {user.updated_at ? (
-                            <span title={new Date(user.updated_at).toLocaleString("cs-CZ")}>
-                              {new Date(user.updated_at).toLocaleDateString("cs-CZ")}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground/50">—</span>
-                          )}
+                          <div className="flex flex-col gap-1">
+                            {user.password_updated_at ? (
+                              <span title={new Date(user.password_updated_at).toLocaleString("cs-CZ")}>
+                                {new Date(user.password_updated_at).toLocaleDateString("cs-CZ")}
+                              </span>
+                            ) : user.updated_at ? (
+                              <span title={new Date(user.updated_at).toLocaleString("cs-CZ")}>
+                                {new Date(user.updated_at).toLocaleDateString("cs-CZ")}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/50">—</span>
+                            )}
+                            {user.must_review_password && (
+                              <Badge
+                                variant="outline"
+                                className="w-fit text-xs border-warning text-warning"
+                                title="Heslo nesplňuje aktuální bezpečnostní pravidla. Uživatel byl vyzván ke změně."
+                              >
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                Doporučeno změnit
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {isAdmin ? (
