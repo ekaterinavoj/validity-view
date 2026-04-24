@@ -268,8 +268,8 @@ export function ReminderSimulationPreview() {
       const recordIds = records.map((r) => r.id);
       const earliestCutoff = new Date();
       earliestCutoff.setDate(earliestCutoff.getDate() - 365); // anything within last year is enough
-      const { data: recentLogs } = await supabase
-        .from(config.logsTable)
+      const { data: recentLogs } = await (supabase
+        .from(config.logsTable as any) as any)
         .select(`id, ${config.recordIdColumn}, created_at, status`)
         .in(config.recordIdColumn, recordIds.length > 0 ? recordIds : ["00000000-0000-0000-0000-000000000000"])
         .eq("status", "sent")

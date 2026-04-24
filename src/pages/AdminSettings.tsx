@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Settings, Mail, Clock, Users, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope } from "lucide-react";
 import { ReminderTemplates } from "@/components/ReminderTemplates";
+import { ReminderSimulationPreview } from "@/components/ReminderSimulationPreview";
 import { ReminderLogs } from "@/components/ReminderLogs";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
 import { SendTestDeadlineEmail } from "@/components/SendTestDeadlineEmail";
@@ -1340,6 +1341,7 @@ export default function AdminSettings() {
 
           {/* Šablony individuálních připomínek */}
           <Separator />
+          <ReminderSimulationPreview />
           <ReminderTemplates />
         </TabsContent>
 
