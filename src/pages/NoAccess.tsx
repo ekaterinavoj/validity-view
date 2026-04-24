@@ -41,11 +41,13 @@ const NoAccess = () => {
         <ShieldX className="h-16 w-16 text-destructive mx-auto mb-6" />
         <h1 className="text-2xl font-bold mb-2">Žádný přístup k modulům</h1>
         <p className="text-muted-foreground mb-4">
-          Váš účet nemá přiřazený přístup k žádnému modulu. Kontaktujte administrátora systému pro přidělení oprávnění.
+          Váš účet zatím nemá přiřazený přístup k žádnému z modulů událostí
+          (Školení, Technické události, PLP). Kontaktujte prosím administrátora
+          systému, který vám oprávnění přidělí.
         </p>
         {missingModules.length > 0 && (
-          <div className="bg-muted rounded-lg p-3 mb-6 text-sm text-left">
-            <p className="font-medium mb-1">Chybějící přístupy:</p>
+          <div className="bg-muted rounded-lg p-3 mb-4 text-sm text-left">
+            <p className="font-medium mb-1">Chybějící přístup k modulům:</p>
             <ul className="list-disc list-inside text-muted-foreground">
               {missingModules.map((m) => (
                 <li key={m}>{MODULE_LABELS[m] || m}</li>
@@ -53,7 +55,14 @@ const NoAccess = () => {
             </ul>
           </div>
         )}
-        <div className="flex gap-3 justify-center">
+        <p className="text-xs text-muted-foreground mb-6">
+          Mezitím můžete prohlížet firemní <strong>Dokumenty</strong> nebo
+          upravit svůj <strong>Profil</strong>.
+        </p>
+        <div className="flex flex-wrap gap-3 justify-center">
+          <Button variant="outline" onClick={() => navigate("/documents")}>
+            Dokumenty
+          </Button>
           <Button variant="outline" onClick={() => navigate("/profile")}>
             Můj profil
           </Button>
