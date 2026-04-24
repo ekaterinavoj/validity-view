@@ -8,7 +8,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEmployees } from "@/hooks/useEmployees";
 import { ProbationBadge } from "@/components/ProbationBadge";
 import { DepartmentCell } from "@/components/DepartmentCell";
-import { Search, X, ClipboardList, Bell, Info, Download, FileText, History } from "lucide-react";
+import { Search, X, ClipboardList, Bell, Info, Download, FileText, History, LayoutList, Layers } from "lucide-react";
+import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
@@ -66,6 +67,18 @@ export default function Probations() {
   const [windowFilter, setWindowFilter] = useState<WindowFilter>("ending_30");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"list" | "history">("list");
+  // Compact mode = jen přehled bez záložek (uloženo v localStorage)
+  const [compactMode, setCompactMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("probations-compact-mode") === "1";
+  });
+  const toggleCompact = (next: boolean) => {
+    setCompactMode(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("probations-compact-mode", next ? "1" : "0");
+    }
+    if (next) setTab("list");
+  };
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
