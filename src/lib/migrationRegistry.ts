@@ -3038,6 +3038,25 @@ END $do$;`,
 -- skutečným oprávněním a uživatelé nedostávali prázdné stránky / chyby RLS.
 SELECT 1;`,
   },
+  {
+    version: "20260424130000",
+    name: "ui_role_audit_and_plp_write_lock",
+    sql: `-- UI-only: další zpřísnění role guardů a transparentnost oprávnění.
+-- 1) PLP zápis (/plp/new, /plp/edit/:id) je nyní v App.tsx omezen na admin
+--    (manažeři ani s modulovým přístupem nemohou vytvářet/upravovat prohlídky).
+-- 2) Catch-all 404 route je obalena ProtectedRoute, takže nepřihlášený uživatel
+--    je přesměrován na /auth místo zobrazení interní 404 stránky.
+-- 3) Přidána stránka /my-permissions (MyPermissions), která uživateli ukazuje
+--    aktuální role, přiřazené moduly a kompletní seznam stránek s indikací
+--    přístupu (mirror logiky ProtectedRoute v helperu canAccessRoute).
+-- 4) Stránka NoAccess nyní nabízí konkrétní dostupné odkazy podle role
+--    (Dokumenty, Profil, Moje oprávnění; manažer + Zaměstnanci/Statistiky).
+-- 5) Přidány vitest unit testy (src/test/route-access.test.ts) pokrývající
+--    matici Admin/Manager/User × klíčové stránky, včetně PLP write-locku.
+-- Databázové změny nejsou potřeba — RLS na DB úrovni už zápis PLP omezuje
+-- pomocí policy 'only admins can write medical_examinations'.
+SELECT 1;`,
+  },
 ];
 
 /**

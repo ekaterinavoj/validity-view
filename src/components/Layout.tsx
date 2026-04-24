@@ -607,6 +607,10 @@ export const Layout = ({
                 Profil
                 {getRoleBadge()}
               </Link>
+              <Link to="/my-permissions" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/my-permissions" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                <User className="w-4 h-4" />
+                Moje oprávnění
+              </Link>
               <button onClick={() => {
             closeMobileMenu();
             signOut();

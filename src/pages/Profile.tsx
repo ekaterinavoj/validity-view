@@ -108,9 +108,14 @@ const Profile = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <User className="w-8 h-8 text-primary" />
-        <h2 className="text-3xl font-bold text-foreground">Profil a nastavení</h2>
+      <div className="flex items-center gap-3 justify-between flex-wrap">
+        <div className="flex items-center gap-3">
+          <User className="w-8 h-8 text-primary" />
+          <h2 className="text-3xl font-bold text-foreground">Profil a nastavení</h2>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <a href="/my-permissions">Moje oprávnění</a>
+        </Button>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
