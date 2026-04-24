@@ -43,7 +43,7 @@ export function PasswordPolicySettings() {
       };
       const { error } = await supabase
         .from("system_settings")
-        .upsert({ key: "password_policy", value }, { onConflict: "key" });
+        .upsert({ key: "password_policy", value: value as any }, { onConflict: "key" });
       if (error) throw error;
       setCfg(value);
       toast({ title: "Uloženo", description: "Pravidla pro hesla byla aktualizována." });
