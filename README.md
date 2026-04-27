@@ -1502,34 +1502,47 @@ echo "Nový X_CRON_SECRET: $NEW_SECRET"
 
 ```
 ├── src/
-│   ├── components/     # React komponenty
-│   ├── contexts/       # React contexts (Auth, AppMode)
-│   ├── hooks/          # Custom hooks
-│   ├── pages/          # Stránky aplikace
-│   ├── lib/            # Utility funkce
-│   └── integrations/   # Supabase client a typy
+│   ├── components/     # React komponenty (vč. ReminderTemplateEditor, LockoutMonitorPanel,
+│   │                   #   AuditLogPanel, SecurityScanRunner, SecurityFindings, …)
+│   ├── contexts/       # React contexts (AuthContext, AppModeContext)
+│   ├── hooks/          # Custom hooks (useDeadlines, useTrainings, useSessionTimeout, …)
+│   ├── pages/          # Stránky aplikace (Dashboard, AdminSettings, SecurityChecklist,
+│   │                   #   Guides, Probations, InactiveEmployeesReport, …)
+│   ├── lib/            # Utility funkce (migrationRegistry, dateFormat, csvExport,
+│   │                   #   routeAccess, healthRisks, …)
+│   └── integrations/   # Supabase client a auto-generované typy
 ├── supabase/
-│   ├── functions/      # Edge funkce
+│   ├── functions/      # Edge funkce (Deno)
 │   │   ├── send-training-reminders/  # Připomínky školení (SMTP)
 │   │   ├── run-reminders/            # Sumární připomínky školení (SMTP)
 │   │   ├── run-deadline-reminders/   # Připomínky technických událostí (SMTP)
 │   │   ├── run-medical-reminders/    # Připomínky lékařských prohlídek (SMTP)
 │   │   ├── send-test-email/          # Testovací SMTP email
 │   │   ├── seed-initial-admin/       # Inicializace prvního admina
+│   │   ├── apply-migrations/         # Aplikace migrací z migrationRegistry
 │   │   ├── admin-create-user/        # Vytvoření uživatele (admin)
 │   │   ├── admin-reset-password/     # Reset hesla (admin)
 │   │   ├── admin-change-email/       # Změna emailu (admin)
 │   │   ├── admin-deactivate-user/    # Deaktivace uživatele (admin)
-│   │   ├── admin-delete-user/        # Smazání uživatele (admin)
+│   │   ├── admin-delete-user/        # Smazání uživatele + cascade cleanup
 │   │   ├── admin-link-employee/      # Propojení profilu se zaměstnancem
 │   │   └── list-users/               # Seznam uživatelů
-│   └── migrations/     # DB migrace (inkrementální aktualizace schématu)
+│   └── migrations/     # DB migrace (inkrementální, registrované v migrationRegistry.ts)
 ├── docker/
-│   └── .env.example    # Příklad ENV proměnných
-├── Dockerfile          # Frontend Docker image
+│   ├── .env.example    # Příklad ENV proměnných
+│   ├── init-db.sql     # Bootstrap schéma pro self-hosted (NEEDITUJTE — generováno)
+│   └── volumes/        # Konfigurace Supabase stacku (Kong, Realtime, …)
+├── selfhosted-resources/
+│   ├── env-example                  # Produkční .env šablona s hardening proměnnými
+│   ├── README-selfhosted.md         # Návod pro self-hosted nasazení
+│   └── nginx-reverseproxy/          # Vzorové konfigurace reverse proxy (HTTPS, CSP, HSTS)
+├── Dockerfile          # Frontend Docker image (Nginx + bezpečnostní hlavičky)
 ├── Dockerfile.db       # PostgreSQL Docker image
-├── docker-compose.yml  # Docker orchestrace
-└── nginx.conf          # Nginx konfigurace
+├── docker-compose.yml                  # Režim A — Frontend + externí Supabase
+├── docker-compose.supabase.yml         # Režim B — Self-hosted Supabase stack
+├── docker-compose-production.yml       # Produkční overlay
+├── docker-compose-selfhosted.yml       # Alternativní self-hosted compose
+└── nginx.conf          # Nginx konfigurace (CSP, HSTS, X-Frame-Options, rate limiting)
 ```
 
 ## ❓ FAQ — Nejčastější problémy po nasazení
