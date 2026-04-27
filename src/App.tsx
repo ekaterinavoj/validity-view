@@ -28,6 +28,7 @@ import NotFound from "./pages/NotFound";
 import NoAccess from "./pages/NoAccess";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ModuleRedirect } from "./components/ModuleRedirect";
+import Dashboard from "./pages/Dashboard";
 
 // Deadline module pages
 import ScheduledDeadlines from "./pages/ScheduledDeadlines";
@@ -88,7 +89,7 @@ const App = () => (
             <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
             
             {/* ============ TRAININGS MODULE ============ */}
-            <Route path="/" element={<ProtectedRoute><ModuleRedirect /></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
             <Route path="/trainings" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
             <Route path="/trainings/scheduled" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
             <Route path="/trainings/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="trainings"><History /></ProtectedLayout>} />
