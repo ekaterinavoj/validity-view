@@ -18,7 +18,7 @@ import Facilities from "./pages/Facilities";
 import InactiveEmployeesReport from "./pages/InactiveEmployeesReport";
 import Auth from "./pages/Auth";
 import ChangePassword from "./pages/ChangePassword";
-import AuditLog from "./pages/AuditLog";
+import { Navigate } from "react-router-dom";
 import Profile from "./pages/Profile";
 import AdminSettings from "./pages/AdminSettings";
 import SystemStatus from "./pages/SystemStatus";
@@ -28,6 +28,7 @@ import NotFound from "./pages/NotFound";
 import NoAccess from "./pages/NoAccess";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ModuleRedirect } from "./components/ModuleRedirect";
+import Dashboard from "./pages/Dashboard";
 
 // Deadline module pages
 import ScheduledDeadlines from "./pages/ScheduledDeadlines";
@@ -47,7 +48,7 @@ import MedicalExaminationHistory from "./pages/MedicalExaminationHistory";
 import DatabaseMigrations from "./pages/DatabaseMigrations";
 import Documents from "./pages/Documents";
 import EventTypesOverview from "./pages/EventTypesOverview";
-import MyPermissions from "./pages/MyPermissions";
+// MyPermissions sloučeno do Profile.tsx
 import Probations from "./pages/Probations";
 import Guides from "./pages/Guides";
 const queryClient = new QueryClient({
@@ -88,7 +89,7 @@ const App = () => (
             <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
             
             {/* ============ TRAININGS MODULE ============ */}
-            <Route path="/" element={<ProtectedRoute><ModuleRedirect /></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
             <Route path="/trainings" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
             <Route path="/trainings/scheduled" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
             <Route path="/trainings/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="trainings"><History /></ProtectedLayout>} />
@@ -130,12 +131,12 @@ const App = () => (
             <Route path="/inactive" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><InactiveEmployeesReport /></ProtectedLayout>} />
             <Route path="/probations" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Probations /></ProtectedLayout>} />
             
-            {/* Audit log - admin only */}
-            <Route path="/audit-log" element={<ProtectedLayout requiredRoles={["admin"]}><AuditLog /></ProtectedLayout>} />
+            {/* Audit log byl sloučen do Administrace → tab "audit-log" */}
+            <Route path="/audit-log" element={<Navigate to="/admin/settings?tab=audit-log" replace />} />
             {/* Profile - all approved users */}
             <Route path="/profile" element={<ProtectedLayout><Profile /></ProtectedLayout>} />
-            {/* Moje oprávnění — pro každou roli, ukáže matici a její dostupné odkazy */}
-            <Route path="/my-permissions" element={<ProtectedLayout><MyPermissions /></ProtectedLayout>} />
+            {/* Moje oprávnění bylo sloučeno do Profilu (tab "permissions") */}
+            <Route path="/my-permissions" element={<Navigate to="/profile?tab=permissions" replace />} />
             {/* Admin-only routes */}
             <Route path="/admin/settings" element={<ProtectedLayout requiredRoles={["admin"]}><AdminSettings /></ProtectedLayout>} />
             <Route path="/admin/status" element={<ProtectedLayout requiredRoles={["admin"]}><SystemStatus /></ProtectedLayout>} />

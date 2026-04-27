@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, KeyRound, Palette, ShieldCheck, LogOut } from "lucide-react";
+import { User, Save, KeyRound, Palette, ShieldCheck, LogOut, Shield } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DisplaySettings } from "@/components/DisplaySettings";
@@ -14,12 +15,33 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { PasswordStrengthMeter } from "@/components/PasswordStrengthMeter";
 import { evaluatePassword } from "@/lib/passwordStrength";
 import { usePasswordPolicy } from "@/hooks/usePasswordPolicy";
+import { MyPermissionsPanel } from "@/components/MyPermissionsPanel";
 
 const Profile = () => {
   const { toast } = useToast();
   const { profile, refreshProfile } = useAuth();
   const { policy } = usePasswordPolicy();
   const [loading, setLoading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validTabs = ["profile", "display", "permissions"];
+  const tabParam = searchParams.get("tab");
+  const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "profile";
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const handleTabChange = (v: string) => {
+    setActiveTab(v);
+    if (v === "profile") {
+      searchParams.delete("tab");
+      setSearchParams(searchParams, { replace: true });
+    } else {
+      searchParams.set("tab", v);
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && validTabs.includes(t) && t !== activeTab) setActiveTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Změna hesla
   const [changePasswordDialog, setChangePasswordDialog] = useState(false);
@@ -159,17 +181,18 @@ const Profile = () => {
           <User className="w-8 h-8 text-primary" />
           <h2 className="text-3xl font-bold text-foreground">Profil a nastavení</h2>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <a href="/my-permissions">Moje oprávnění</a>
-        </Button>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile">Můj profil</TabsTrigger>
           <TabsTrigger value="display" className="flex items-center gap-2">
             <Palette className="w-4 h-4" />
             Zobrazení
+          </TabsTrigger>
+          <TabsTrigger value="permissions" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Moje oprávnění
           </TabsTrigger>
         </TabsList>
 
@@ -248,6 +271,10 @@ const Profile = () => {
 
         <TabsContent value="display" className="space-y-6">
           <DisplaySettings />
+        </TabsContent>
+
+        <TabsContent value="permissions" className="space-y-6">
+          <MyPermissionsPanel />
         </TabsContent>
       </Tabs>
 

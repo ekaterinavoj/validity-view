@@ -4,7 +4,7 @@ import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound, Stethoscope, FolderOpen, AlertTriangle, ClipboardList } from "lucide-react";
+import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound, Stethoscope, FolderOpen, AlertTriangle, ClipboardList, Home } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
@@ -97,7 +97,7 @@ export const Layout = ({
   // Správa dat dropdown active state
   const isDataManagementActive = ["/facilities", "/employees", "/departments", "/event-types", "/statistics"].includes(location.pathname);
   // Systém dropdown active state  
-  const isSystemActive = location.pathname === "/audit-log" || location.pathname === "/guides" || location.pathname.startsWith("/admin");
+  const isSystemActive = location.pathname === "/guides" || location.pathname.startsWith("/admin");
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   // Always navigate when clicking a module tab (even if already active)
@@ -118,6 +118,19 @@ export const Layout = ({
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
+              <Link
+                to="/"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                  location.pathname === "/"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                )}
+                title="Přehled"
+              >
+                <Home className="w-4 h-4" />
+                <span className="hidden sm:inline">Přehled</span>
+              </Link>
               
               {/* Mode Switcher Tabs - Only show accessible modules */}
               {accessibleModulesCount > 0 && (
@@ -412,7 +425,7 @@ export const Layout = ({
                     </DropdownMenuItem>
                     {isAdmin && <>
                       <DropdownMenuItem asChild>
-                        <Link to="/audit-log" className="flex items-center gap-2 cursor-pointer">
+                        <Link to="/admin/settings?tab=audit-log" className="flex items-center gap-2 cursor-pointer">
                           <FileText className="w-4 h-4" />
                           Audit log
                         </Link>
@@ -606,7 +619,7 @@ export const Layout = ({
                   Návody
                 </Link>
                 {isAdmin && <>
-                  <Link to="/audit-log" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/audit-log" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Link to="/admin/settings?tab=audit-log" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <FileText className="w-4 h-4" />
                     Audit log
                   </Link>
@@ -638,7 +651,7 @@ export const Layout = ({
                 Profil
                 {getRoleBadge()}
               </Link>
-              <Link to="/my-permissions" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/my-permissions" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+              <Link to="/profile?tab=permissions" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                 <User className="w-4 h-4" />
                 Moje oprávnění
               </Link>

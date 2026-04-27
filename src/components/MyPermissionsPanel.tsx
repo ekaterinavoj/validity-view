@@ -7,7 +7,11 @@ import { Shield, Users, User, Check, X, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ROUTE_CATALOG, canAccessRoute, type AppModule, type RouteEntry } from "@/lib/routeAccess";
 
-const MyPermissions = () => {
+/**
+ * Embeddable "Moje oprávnění" panel — used as a tab inside Profile.
+ * (The previously standalone /my-permissions page was merged here.)
+ */
+export function MyPermissionsPanel() {
   const { roles, moduleAccess, isAdmin, profile } = useAuth();
 
   const ctx = { isAdmin, roles, modules: moduleAccess };
@@ -24,7 +28,7 @@ const MyPermissions = () => {
   const RoleIcon = isAdmin ? Shield : roles.includes("manager") ? Users : User;
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -32,9 +36,8 @@ const MyPermissions = () => {
             Moje oprávnění
           </CardTitle>
           <CardDescription>
-            Přehled vaší aktuální role, přiřazených modulů a stránek, ke kterým
-            máte (či nemáte) přístup. Přístupy upravuje administrátor v sekci
-            Administrace.
+            Přehled vaší aktuální role, přiřazených modulů a stránek, ke kterým máte (či nemáte)
+            přístup. Přístupy upravuje administrátor v sekci Administrace.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -49,11 +52,12 @@ const MyPermissions = () => {
               <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
                 {primaryRoleLabel}
               </Badge>
-              {roles.length > 1 && roles.map((r) => (
-                <Badge key={r} variant="outline" className="text-xs">
-                  {r}
-                </Badge>
-              ))}
+              {roles.length > 1 &&
+                roles.map((r) => (
+                  <Badge key={r} variant="outline" className="text-xs">
+                    {r}
+                  </Badge>
+                ))}
             </div>
           </div>
 
@@ -67,7 +71,11 @@ const MyPermissions = () => {
                   <Badge
                     key={m}
                     variant="outline"
-                    className={has ? "bg-success/10 text-success border-success/30" : "text-muted-foreground"}
+                    className={
+                      has
+                        ? "bg-success/10 text-success border-success/30"
+                        : "text-muted-foreground"
+                    }
                   >
                     {has ? <Check className="w-3 h-3 mr-1" /> : <X className="w-3 h-3 mr-1" />}
                     {label}
@@ -128,6 +136,4 @@ const MyPermissions = () => {
       <RolePermissionsInfo />
     </div>
   );
-};
-
-export default MyPermissions;
+}

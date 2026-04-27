@@ -4022,6 +4022,18 @@ UPDATE public.system_settings
 SET description = 'Sdílený stav Security Hardening Checklistu (zaškrtnutí jsou viditelná všem administrátorům, ukládá se do DB).'
 WHERE key = 'security_checklist_state';`,
   },
+  {
+    version: "20260427090000",
+    name: "ux_consolidation_dashboard_and_merged_pages",
+    // Čistě UI/routing change – žádná změna v DB schématu.
+    // Provádí se NOOP, aby byla migrace evidovaná v registru.
+    //  • /audit-log → sloučeno do Administrace (nový tab "audit-log")
+    //  • /my-permissions → sloučeno do Profile (nový tab "permissions")
+    //  • EmployeeAccessDebug + MedicalDocsAccessDebug schovány za přepínač v záložce Diagnostika
+    //  • Úvodní stránka "/" nahrazena Dashboardem se souhrnem napříč moduly (prošlé / dnes / do 30 dnů)
+    //  • V hlavičce přidán odkaz "Přehled" (Home) pro rychlý návrat na dashboard
+    sql: `SELECT 1; -- noop migration, viz komentář výše`,
+  },
 ];
 
 /**

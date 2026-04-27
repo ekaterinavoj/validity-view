@@ -10,7 +10,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, FileText, Search, Filter, Download } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -19,7 +18,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { exportToCSV } from "@/lib/csvExport";
 import { buildExportFilename, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
-interface AuditLog {
+interface AuditLogRow {
   id: string;
   table_name: string;
   record_id: string;
@@ -57,45 +56,37 @@ const tableLabels: Record<string, string> = {
   medical_examinations: "PLP",
 };
 
-export default function AuditLog() {
+/**
+ * Embeddable audit log panel — used as a tab inside Administrace.
+ * (The previously standalone /audit-log page was merged here.)
+ */
+export function AuditLogPanel() {
   const { isAdmin, isManager } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [logs, setLogs] = useState<AuditLogRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [tableFilter, setTableFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    if (!isAdmin && !isManager) {
-      toast({
-        title: "Přístup odepřen",
-        description: "Nemáte oprávnění k této stránce.",
-        variant: "destructive",
-      });
-      navigate("/");
-      return;
-    }
-
+    if (!isAdmin && !isManager) return;
     loadLogs();
-    subscribeToChanges();
-  }, [isAdmin, isManager, navigate]);
+    const cleanup = subscribeToChanges();
+    return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, isManager]);
 
   const loadLogs = async () => {
     setIsLoading(true);
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from("audit_logs")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(100);
-
-      const { data, error } = await query;
-
       if (error) throw error;
-
-      setLogs((data || []) as AuditLog[]);
+      setLogs((data || []) as AuditLogRow[]);
     } catch (error: any) {
       console.error("Error loading audit logs:", error);
       toast({
@@ -113,21 +104,16 @@ export default function AuditLog() {
       .channel("audit-log-changes")
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "audit_logs",
-        },
+        { event: "INSERT", schema: "public", table: "audit_logs" },
         (payload) => {
-          setLogs((prev) => [payload.new as AuditLog, ...prev]);
+          setLogs((prev) => [payload.new as AuditLogRow, ...prev]);
           toast({
             title: "Nová změna zaznamenána",
-            description: `${actionLabels[payload.new.action as keyof typeof actionLabels]} - ${payload.new.user_name}`,
+            description: `${actionLabels[(payload.new as any).action as keyof typeof actionLabels]} - ${(payload.new as any).user_name}`,
           });
         }
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -138,18 +124,17 @@ export default function AuditLog() {
     const matchesTable = tableFilter === "all" || log.table_name === tableFilter;
     const matchesSearch =
       searchQuery === "" ||
-      log.user_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.user_email.toLowerCase().includes(searchQuery.toLowerCase());
-
+      log.user_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      log.user_email?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesAction && matchesTable && matchesSearch;
   });
 
   const { preferences } = useUserPreferences();
-  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedLogs, totalItems } = usePagination(filteredLogs, preferences.itemsPerPage);
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedLogs, totalItems } =
+    usePagination(filteredLogs, preferences.itemsPerPage);
 
   const formatChangedFields = (fields: string[]) => {
     if (!fields || fields.length === 0) return "-";
-    
     const fieldLabels: Record<string, string> = {
       facility: "Provozovna",
       employee_id: "Zaměstnanec",
@@ -163,7 +148,6 @@ export default function AuditLog() {
       is_active: "Aktivní",
       role: "Role",
       deleted_at: "Archivováno",
-      // Probation
       start_date: "Datum nástupu",
       probation_months: "Délka ZD (měs.)",
       probation_end_date: "Konec ZD",
@@ -172,67 +156,50 @@ export default function AuditLog() {
       date_to: "Do",
       reason: "Důvod překážky",
     };
-
     return fields.map((f) => fieldLabels[f] || f).join(", ");
   };
 
-  const formatChangeDetails = (log: AuditLog) => {
+  const formatChangeDetails = (log: AuditLogRow) => {
     if (!log.changed_fields || log.changed_fields.length === 0) return null;
-
     const fieldLabels: Record<string, string> = {
       role: "Role",
       status: "Stav",
       is_active: "Aktivní",
       deleted_at: "Archivováno",
     };
-
     const roleLabels: Record<string, string> = {
       admin: "Administrátor",
       manager: "Manažer",
       user: "Uživatel",
     };
-
     const statusLabels: Record<string, string> = {
       employed: "Zaměstnaný",
       parental_leave: "Mateřská/rodičovská",
       sick_leave: "Nemocenská",
       terminated: "Ukončený",
     };
-
     const details: string[] = [];
-
     for (const field of log.changed_fields) {
       const oldVal = log.old_data?.[field];
       const newVal = log.new_data?.[field];
-
-      let oldDisplay = oldVal;
-      let newDisplay = newVal;
-
-      // Format role changes
+      let oldDisplay: any = oldVal;
+      let newDisplay: any = newVal;
       if (field === "role") {
         oldDisplay = roleLabels[oldVal] || oldVal;
         newDisplay = roleLabels[newVal] || newVal;
       }
-
-      // Format status changes
       if (field === "status") {
         oldDisplay = statusLabels[oldVal] || oldVal;
         newDisplay = statusLabels[newVal] || newVal;
       }
-
-      // Format is_active changes
       if (field === "is_active") {
         oldDisplay = oldVal ? "Aktivní" : "Neaktivní";
         newDisplay = newVal ? "Aktivní" : "Neaktivní";
       }
-
-      // Format deleted_at (archive)
       if (field === "deleted_at") {
         oldDisplay = oldVal ? "Archivováno" : "Aktivní";
         newDisplay = newVal ? "Archivováno" : "Aktivní";
       }
-
-      // Format probation date fields → dd.MM.yyyy
       if (
         field === "start_date" ||
         field === "probation_end_date" ||
@@ -241,20 +208,20 @@ export default function AuditLog() {
       ) {
         const fmt = (v: any) => {
           if (!v) return "—";
-          try { return format(new Date(v), "dd.MM.yyyy"); } catch { return String(v); }
+          try {
+            return format(new Date(v), "dd.MM.yyyy");
+          } catch {
+            return String(v);
+          }
         };
         oldDisplay = fmt(oldVal);
         newDisplay = fmt(newVal);
       }
-
-      // Probation override reason: empty → "—"
       if (field === "probation_override_reason" || field === "reason") {
         oldDisplay = oldVal ? String(oldVal) : "—";
         newDisplay = newVal ? String(newVal) : "—";
       }
-
       const label = fieldLabels[field] || field;
-      
       if (log.action === "INSERT") {
         details.push(`${label}: ${newDisplay || "—"}`);
       } else if (log.action === "DELETE") {
@@ -263,7 +230,6 @@ export default function AuditLog() {
         details.push(`${label}: ${oldDisplay ?? "—"} → ${newDisplay ?? "—"}`);
       }
     }
-
     return details;
   };
 
@@ -276,7 +242,6 @@ export default function AuditLog() {
       });
       return;
     }
-
     try {
       const rows = filteredLogs.map((log) => ({
         "Datum a čas": format(new Date(log.created_at), "yyyy-MM-dd HH:mm:ss"),
@@ -288,16 +253,8 @@ export default function AuditLog() {
         "Změněná pole": (log.changed_fields ?? []).join(", "),
         Detail: (formatChangeDetails(log) ?? []).join(" | "),
       }));
-
-      exportToCSV({
-        filename: buildExportFilename("audit-log"),
-        data: rows,
-      });
-
-      toast({
-        title: "Export hotov",
-        description: `Exportováno ${rows.length} záznamů.`,
-      });
+      exportToCSV({ filename: buildExportFilename("audit-log"), data: rows });
+      toast({ title: "Export hotov", description: `Exportováno ${rows.length} záznamů.` });
     } catch (err: any) {
       toast({
         title: "Chyba exportu",
@@ -308,19 +265,23 @@ export default function AuditLog() {
   };
 
   if (!isAdmin && !isManager) {
-    return null;
+    return (
+      <Card className="p-6">
+        <p className="text-sm text-muted-foreground">Pro zobrazení audit logu potřebujete roli administrátor nebo manažer.</p>
+      </Card>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            <FileText className="w-8 h-8" />
-            Audit log
-          </h2>
-          <p className="text-muted-foreground mt-2">
-            Kompletní záznam všech změn provedených v systému
+          <h3 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <FileText className="w-6 h-6" />
+            Audit log – záznamy změn
+          </h3>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Kompletní záznam <em>kdo co kdy změnil</em> v datech (školení, lhůty, PLP, zaměstnanci, role).
           </p>
         </div>
         <TooltipProvider>
@@ -433,25 +394,18 @@ export default function AuditLog() {
                   {paginatedLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="whitespace-nowrap">
-                        {format(new Date(log.created_at), "d. M. yyyy HH:mm:ss", {
-                          locale: cs,
-                        })}
+                        {format(new Date(log.created_at), "d. M. yyyy HH:mm:ss", { locale: cs })}
                       </TableCell>
                       <TableCell>
-                        <Badge className={actionColors[log.action]}>
-                          {actionLabels[log.action]}
-                        </Badge>
+                        <Badge className={actionColors[log.action]}>{actionLabels[log.action]}</Badge>
                       </TableCell>
                       <TableCell>
-                        {tableLabels[log.table_name as keyof typeof tableLabels] ||
-                          log.table_name}
+                        {tableLabels[log.table_name as keyof typeof tableLabels] || log.table_name}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium">{log.user_name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {log.user_email}
-                          </span>
+                          <span className="text-xs text-muted-foreground">{log.user_email}</span>
                         </div>
                       </TableCell>
                       <TableCell className="max-w-md">
@@ -476,28 +430,24 @@ export default function AuditLog() {
               </Table>
             </div>
           )}
-          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={preferences.itemsPerPage} onPageChange={setCurrentPage} />
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={preferences.itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
         </div>
       </Card>
 
       <Card className="p-6 bg-muted/50">
         <h3 className="text-lg font-semibold mb-4">O audit logu</h3>
         <div className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            • Audit log automaticky zaznamenává všechny změny provedené v systému
-          </p>
-          <p>
-            • Zobrazuje se posledních 100 záznamů seřazených od nejnovějších
-          </p>
-          <p>
-            • Změny jsou zobrazovány v reálném čase díky live aktualizacím
-          </p>
-          <p>
-            • Přístup k audit logu mají pouze administrátoři a manažeři
-          </p>
-          <p>
-            • Audit logy nelze upravovat ani mazat (zajištěno databázovými politikami)
-          </p>
+          <p>• Audit log automaticky zaznamenává všechny změny provedené v systému</p>
+          <p>• Zobrazuje se posledních 100 záznamů seřazených od nejnovějších</p>
+          <p>• Změny jsou zobrazovány v reálném čase díky live aktualizacím</p>
+          <p>• Přístup k audit logu mají pouze administrátoři a manažeři</p>
+          <p>• Audit logy nelze upravovat ani mazat (zajištěno databázovými politikami)</p>
         </div>
       </Card>
     </div>
