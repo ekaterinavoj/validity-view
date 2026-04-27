@@ -1369,46 +1369,68 @@ export default function AdminSettings() {
           <ReminderLogs />
         </TabsContent>
 
-        {/* Audit Log Tab — kompletní log změn (přesunuto ze samostatné stránky /audit-log) */}
+        {/* Audit log Tab — sloučeno: jednoduchý log + pokročilý filtr + RLS diagnostika */}
         <TabsContent value="audit-log" className="space-y-6">
-          <AuditLogPanel />
-        </TabsContent>
+          <Tabs defaultValue="basic" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="basic" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Přehled změn
+              </TabsTrigger>
+              <TabsTrigger value="advanced" className="flex items-center gap-2">
+                <History className="w-4 h-4" />
+                Pokročilý filtr
+              </TabsTrigger>
+              <TabsTrigger value="rls" className="flex items-center gap-2">
+                <Eye className="w-4 h-4" />
+                Diagnostika RLS
+              </TabsTrigger>
+            </TabsList>
 
-        {/* Diagnostika Tab — RLS / přístupové diagnostiky (debug panely defaultně skryté) */}
-        <TabsContent value="diagnostics" className="space-y-6">
-          <Card className="border-primary/40 bg-primary/5">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Eye className="w-4 h-4 text-primary" />
-                Diagnostika přístupových oprávnění
-              </CardTitle>
-              <CardDescription>
-                Diagnostické nástroje pro ověření, zda RLS politiky správně omezují viditelnost dat. Pro přehled <em>kdo co kdy změnil</em> použijte záložku <strong>Audit log</strong>.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <div>
-                  <Label htmlFor="show-debug" className="font-medium">Zobrazit debug panely přístupů</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Zaměstnanci a lékařské dokumenty – kdo na co vidí. Defaultně skryto kvůli přehlednosti.
-                  </p>
-                </div>
-                <Switch
-                  id="show-debug"
-                  checked={showAccessDebug}
-                  onCheckedChange={setShowAccessDebug}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          {showAccessDebug && (
-            <>
-              <EmployeeAccessDebug />
-              <MedicalDocsAccessDebug />
-            </>
-          )}
-          <SecurityAuditPanel />
+            <TabsContent value="basic" className="space-y-6">
+              <AuditLogPanel />
+            </TabsContent>
+
+            <TabsContent value="advanced" className="space-y-6">
+              <SecurityAuditPanel />
+            </TabsContent>
+
+            <TabsContent value="rls" className="space-y-6">
+              <Card className="border-primary/40 bg-primary/5">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-primary" />
+                    Diagnostika přístupových oprávnění (RLS)
+                  </CardTitle>
+                  <CardDescription>
+                    Vývojářské nástroje pro ověření, zda RLS politiky správně omezují viditelnost dat.
+                    Defaultně skryto kvůli přehlednosti.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <Label htmlFor="show-debug" className="font-medium">Zobrazit debug panely přístupů</Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Zaměstnanci a lékařské dokumenty – kdo na co vidí.
+                      </p>
+                    </div>
+                    <Switch
+                      id="show-debug"
+                      checked={showAccessDebug}
+                      onCheckedChange={setShowAccessDebug}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+              {showAccessDebug && (
+                <>
+                  <EmployeeAccessDebug />
+                  <MedicalDocsAccessDebug />
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         {/* Security Tab */}
