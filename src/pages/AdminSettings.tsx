@@ -17,6 +17,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Settings, Mail, Clock, Users, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope } from "lucide-react";
 import { ReminderTemplates } from "@/components/ReminderTemplates";
+import { AuditLogPanel } from "@/components/AuditLogPanel";
+import { FileText } from "lucide-react";
 import { ReminderSimulationPreview } from "@/components/ReminderSimulationPreview";
 import { ReminderLogs } from "@/components/ReminderLogs";
 import { SendTestSummaryEmail } from "@/components/SendTestSummaryEmail";
@@ -72,7 +74,7 @@ export default function AdminSettings() {
   
   // Get initial tab from URL query param, default to "onboarding"
   const tabParam = searchParams.get("tab");
-  const validTabs = ["onboarding", "user-management", "reminders", "email", "history", "audit", "security"];
+  const validTabs = ["onboarding", "user-management", "reminders", "email", "history", "audit-log", "diagnostics", "security"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
   const [activeTab, setActiveTab] = useState(initialTab);
   
@@ -477,7 +479,7 @@ export default function AdminSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
             Onboarding
@@ -498,9 +500,13 @@ export default function AdminSettings() {
             <History className="w-4 h-4" />
             Historie
           </TabsTrigger>
-          <TabsTrigger value="audit" className="flex items-center gap-2">
+          <TabsTrigger value="audit-log" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Audit log
+          </TabsTrigger>
+          <TabsTrigger value="diagnostics" className="flex items-center gap-2">
             <Eye className="w-4 h-4" />
-            Diagnostika přístupů
+            Diagnostika
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
             <ShieldAlert className="w-4 h-4" />
@@ -1359,8 +1365,13 @@ export default function AdminSettings() {
           <ReminderLogs />
         </TabsContent>
 
-        {/* Audit Tab */}
-        <TabsContent value="audit" className="space-y-6">
+        {/* Audit Log Tab — kompletní log změn (přesunuto ze samostatné stránky /audit-log) */}
+        <TabsContent value="audit-log" className="space-y-6">
+          <AuditLogPanel />
+        </TabsContent>
+
+        {/* Diagnostika Tab — RLS / přístupové diagnostiky (debug panely defaultně skryté) */}
+        <TabsContent value="diagnostics" className="space-y-6">
           <Card className="border-primary/40 bg-primary/5">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
@@ -1368,21 +1379,31 @@ export default function AdminSettings() {
                 Diagnostika přístupových oprávnění
               </CardTitle>
               <CardDescription>
-                Tato záložka obsahuje <strong>diagnostické nástroje</strong> pro ověření, zda RLS politiky správně omezují viditelnost dat (kdo na koho vidí, kdo má přístup k dokumentům, výsledky bezpečnostních scanů). Není to plný audit log změn — pro přehled <em>kdo co kdy změnil</em> v datech (školení, lhůty, PLP, zaměstnanci) použijte samostatnou stránku{" "}
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0 inline align-baseline"
-                  onClick={() => navigate("/audit-log")}
-                >
-                  Audit log →
-                </Button>
-                .
+                Diagnostické nástroje pro ověření, zda RLS politiky správně omezují viditelnost dat. Pro přehled <em>kdo co kdy změnil</em> použijte záložku <strong>Audit log</strong>.
               </CardDescription>
             </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <Label htmlFor="show-debug" className="font-medium">Zobrazit debug panely přístupů</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Zaměstnanci a lékařské dokumenty – kdo na co vidí. Defaultně skryto kvůli přehlednosti.
+                  </p>
+                </div>
+                <Switch
+                  id="show-debug"
+                  checked={showAccessDebug}
+                  onCheckedChange={setShowAccessDebug}
+                />
+              </div>
+            </CardContent>
           </Card>
-          <EmployeeAccessDebug />
-          <MedicalDocsAccessDebug />
+          {showAccessDebug && (
+            <>
+              <EmployeeAccessDebug />
+              <MedicalDocsAccessDebug />
+            </>
+          )}
           <SecurityAuditPanel />
         </TabsContent>
 
