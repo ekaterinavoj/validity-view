@@ -70,6 +70,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { RefreshButton } from "@/components/RefreshButton";
+import { HelpButton } from "@/components/HelpButton";
 import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function Equipment() {

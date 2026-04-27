@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { GraduationCap, Wrench, Stethoscope, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
+import { HelpButton } from "@/components/HelpButton";
 import { useFacilities } from "@/hooks/useFacilities";
 
 interface TypeRow {

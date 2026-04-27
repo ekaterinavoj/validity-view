@@ -52,6 +52,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { useMedicalExaminationTypes } from "@/hooks/useMedicalExaminationTypes";
 import { Grid3x3 } from "lucide-react";
 import { RefreshButton } from "@/components/RefreshButton";
+import { HelpButton } from "@/components/HelpButton";
 import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function ScheduledExaminations() {

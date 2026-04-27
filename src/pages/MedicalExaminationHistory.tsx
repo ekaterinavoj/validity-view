@@ -34,6 +34,7 @@ import { formatDisplayDate } from "@/lib/dateFormat";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { HelpButton } from "@/components/HelpButton";
 
 
 export default function MedicalExaminationHistory() {
