@@ -5,16 +5,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2, Lock, ShieldAlert } from "lucide-react";
 import { z } from "zod";
 import companyLogo from "@/assets/company-logo.png";
 import { consumeIdleLogoutFlag } from "@/hooks/useSessionTimeout";
+import { supabase } from "@/integrations/supabase/client";
 
 const loginSchema = z.object({
   email: z.string().email("Neplatný email"),
   password: z.string().min(6, "Heslo musí mít alespoň 6 znaků"),
 });
+
+interface LockoutInfo {
+  is_locked: boolean;
+  unlock_at?: string | null;
+  failed_attempts: number;
+  max_attempts: number;
+  window_minutes: number;
+  lock_minutes: number;
+}
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -25,6 +36,31 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [lockout, setLockout] = useState<LockoutInfo | null>(null);
+  const [unlockCountdown, setUnlockCountdown] = useState<string>("");
+
+  // Live countdown if account is locked
+  useEffect(() => {
+    if (!lockout?.is_locked || !lockout.unlock_at) {
+      setUnlockCountdown("");
+      return;
+    }
+    const update = () => {
+      const ms = new Date(lockout.unlock_at!).getTime() - Date.now();
+      if (ms <= 0) {
+        setUnlockCountdown("");
+        setLockout(null);
+        return;
+      }
+      const totalSec = Math.floor(ms / 1000);
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      setUnlockCountdown(`${min}m ${sec.toString().padStart(2, "0")}s`);
+    };
+    update();
+    const intv = setInterval(update, 1000);
+    return () => clearInterval(intv);
+  }, [lockout]);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -48,6 +84,7 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    setLockout(null);
 
     try {
       loginSchema.parse(loginData);
@@ -68,15 +105,41 @@ export default function Auth() {
 
     const { error } = await signIn(loginData.email, loginData.password);
 
+    // After sign-in attempt, fetch detailed lockout status (works even if not locked yet)
+    let lockInfo: LockoutInfo | null = null;
+    try {
+      const { data } = await supabase.rpc("get_account_lockout_status", {
+        _email: loginData.email.trim().toLowerCase(),
+      });
+      if (data) lockInfo = data as unknown as LockoutInfo;
+    } catch {
+      // ignore — RPC unavailable on older DBs
+    }
+
     setIsLoading(false);
 
     if (error) {
+      // Account locked → show structured banner with exact unlock time
+      if (lockInfo?.is_locked || error.name === "AccountLocked") {
+        setLockout(lockInfo);
+        return;
+      }
+
       let errorMessage = "Přihlášení se nezdařilo. Zkontrolujte email a heslo.";
 
       if (error.message?.includes("Invalid login credentials")) {
         errorMessage = "Nesprávný email nebo heslo.";
       } else if (error.message?.includes("Email not confirmed")) {
         errorMessage = "Email nebyl potvrzen. Zkontrolujte svou emailovou schránku.";
+      }
+
+      // If user is approaching lockout, append warning
+      if (lockInfo && lockInfo.failed_attempts >= Math.max(1, lockInfo.max_attempts - 2)) {
+        const remaining = Math.max(0, lockInfo.max_attempts - lockInfo.failed_attempts);
+        errorMessage +=
+          remaining > 0
+            ? ` Zbývá ${remaining} ${remaining === 1 ? "pokus" : remaining < 5 ? "pokusy" : "pokusů"} do uzamčení účtu.`
+            : "";
       }
 
       toast({
@@ -102,6 +165,30 @@ export default function Auth() {
           <img src={companyLogo} alt="Engel Gematex" className="h-14 w-auto" />
           <h1 className="text-2xl font-bold text-primary">Lhůtník</h1>
         </div>
+
+        {/* Lockout banner */}
+        {lockout?.is_locked && (
+          <Alert variant="destructive" className="mb-4">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle>Účet je dočasně uzamčen</AlertTitle>
+            <AlertDescription className="space-y-1">
+              <p>
+                Po {lockout.failed_attempts} neúspěšných pokusech byl tento účet uzamčen na{" "}
+                {lockout.lock_minutes} minut.
+              </p>
+              {unlockCountdown && (
+                <p className="font-medium">
+                  Odemčení za: <span className="font-mono">{unlockCountdown}</span>
+                </p>
+              )}
+              {lockout.unlock_at && (
+                <p className="text-xs opacity-80">
+                  Odemčení v {new Date(lockout.unlock_at).toLocaleTimeString("cs-CZ")}
+                </p>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Info about admin-only mode */}
         <div className="mb-4 p-3 bg-muted/50 border border-muted rounded-lg flex items-start gap-2">

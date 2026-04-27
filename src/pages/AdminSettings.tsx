@@ -38,6 +38,7 @@ import { MedicalDocsAccessDebug } from "@/components/MedicalDocsAccessDebug";
 import { MigrationsStatus } from "@/components/MigrationsStatus";
 import { SecurityFindings } from "@/components/SecurityFindings";
 import { SecurityAuditPanel } from "@/components/SecurityAuditPanel";
+import { LockoutMonitorPanel } from "@/components/LockoutMonitorPanel";
 import { SecurityScanRunner } from "@/components/SecurityScanRunner";
 import { SessionTimeoutSettings } from "@/components/SessionTimeoutSettings";
 import { PasswordPolicySettings } from "@/components/PasswordPolicySettings";
@@ -1218,6 +1219,7 @@ export default function AdminSettings() {
         <TabsContent value="security" className="space-y-6">
           <SessionTimeoutSettings />
           <PasswordPolicySettings />
+          <LockoutMonitorPanel />
           <SecurityScanRunner />
           <SecurityFindings />
           <MigrationsStatus />

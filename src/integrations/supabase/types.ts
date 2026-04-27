@@ -1882,6 +1882,7 @@ export type Database = {
           uploaded_by: string
         }[]
       }
+      get_account_lockout_status: { Args: { _email: string }; Returns: Json }
       get_filtered_audit_logs: {
         Args: {
           _action?: string
@@ -1907,6 +1908,16 @@ export type Database = {
           user_email: string
           user_id: string
           user_name: string
+        }[]
+      }
+      get_high_risk_signin_attempts: {
+        Args: { _hours?: number; _threshold?: number }
+        Returns: {
+          distinct_user_agents: number
+          email: string
+          failed_attempts: number
+          first_attempt: string
+          last_attempt: string
         }[]
       }
       get_locked_accounts: {
