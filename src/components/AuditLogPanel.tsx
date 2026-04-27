@@ -84,7 +84,7 @@ export function AuditLogPanel() {
         .from("audit_logs")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(1000);
       if (error) throw error;
       setLogs((data || []) as AuditLogRow[]);
     } catch (error: any) {
@@ -444,7 +444,7 @@ export function AuditLogPanel() {
         <h3 className="text-lg font-semibold mb-4">O audit logu</h3>
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>• Audit log automaticky zaznamenává všechny změny provedené v systému</p>
-          <p>• Zobrazuje se posledních 100 záznamů seřazených od nejnovějších</p>
+          <p>• Zobrazuje se posledních 1000 záznamů seřazených od nejnovějších, stránkování dle nastavení (Profil → Zobrazení)</p>
           <p>• Změny jsou zobrazovány v reálném čase díky live aktualizacím</p>
           <p>• Přístup k audit logu mají pouze administrátoři a manažeři</p>
           <p>• Audit logy nelze upravovat ani mazat (zajištěno databázovými politikami)</p>
