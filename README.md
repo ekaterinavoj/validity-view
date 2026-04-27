@@ -720,12 +720,63 @@ Parametry na každém záznamu:
 
 ## 🔒 Bezpečnost
 
-- **RLS politiky** na všech tabulkách
-- **Role**: admin, manager, user
-- **Moduly**: trainings, deadlines, plp
-- **JWT verifikace** v Edge funkcích
-- **x-cron-secret** hlavička pro CRON automatizaci (env: `X_CRON_SECRET`)
-- **Modulový přístup**: trainings, deadlines, plp — admin má přístup ke všem, ostatní dle nastavení
+### Autentizace a autorizace
+- **Role**: `admin`, `manager`, `user` (uloženo v separátní tabulce `user_roles` — žádná eskalace přes `profiles`)
+- **Modulový přístup**: per-uživatel granularita pro `trainings`, `deadlines`, `plp` (admin má vždy vše)
+- **RLS politiky** na všech tabulkách + `SECURITY DEFINER` funkce (`has_role`, `is_admin_safe`) bez rekurze
+- **JWT verifikace** v Edge funkcích + `x-cron-secret` hlavička pro automatizaci
+- **Samoregistrace zakázána** — účty vytváří pouze administrátor
+
+### Politika hesel a relací
+- **Password policy**: konfigurovatelná délka, velká/malá písmena, číslice, speciální znaky (Administrace → Bezpečnost)
+- **Vynucená změna hesla** při: prvním přihlášení seed admina, ručním resetu adminem, vytvoření uživatele
+- **Idle timeout**: konfigurovatelný (Administrace → Bezpečnost → Časový limit relace)
+- **HIBP (Have I Been Pwned)**: doporučeno zapnout pro detekci kompromitovaných hesel
+
+### Brute-force ochrana (account lockout)
+- Po **N neúspěšných pokusech v X minutách** se účet automaticky uzamkne na **Y minut** (defaultně 5 / 15 / 15)
+- Pre-check v `signIn` před voláním GoTrue (`is_account_locked` RPC) — nesnižuje GoTrue rate limit
+- Login stránka zobrazí jasné upozornění **"Účet je dočasně uzamčen"** s živým odpočtem do odemčení
+- Pokud zbývá málo pokusů, toast varuje **"Zbývá X pokusů do uzamčení"**
+- Admin dashboard (Administrace → Bezpečnost → Monitorování přihlašování):
+  - tabulka aktuálně uzamčených účtů s odpočtem do odemčení
+  - upozornění na účty, jejichž zámek brzy vyprší
+  - přehled opakovaných selhání bez uzamčení (early warning)
+  - auto-refresh každých 30 s
+
+### Audit a retence logů
+- Veškeré změny v hlavních tabulkách jsou logovány do `audit_logs` (kdo, co, kdy, jaká pole)
+- Sekce **Administrace → Audit log** se třemi záložkami: **Basic** (denní přehled), **Advanced** (detailní filtrace + export), **RLS Diagnostics**
+- Automatický `pg_cron` job `cleanup_old_security_logs_daily` (denně 03:30 UTC) maže staré záznamy:
+  - `audit_logs`: 365 dní
+  - `reminder_logs`: 90 dní
+  - `auth_signin_attempts`: 180 dní
+  - retence je konfigurovatelná v `system_settings`
+
+### Bezpečnostní hlavičky (nginx)
+Frontend kontejner i reverse-proxy konfigurace nastavují:
+- **Content-Security-Policy** s `default-src 'self'`, povolenými Supabase endpointy a `frame-ancestors 'none'`
+- **X-Frame-Options: SAMEORIGIN** (clickjacking)
+- **X-Content-Type-Options: nosniff**
+- **Strict-Transport-Security** (HSTS — pouze přes HTTPS reverse proxy)
+- **Referrer-Policy: strict-origin-when-cross-origin**
+- **Permissions-Policy** — vypnuté kamera/mikrofon/geolokace/FLoC
+
+### Rate limiting (nginx)
+- `auth_zone`: 5 r/s pro `/auth/*` (brute-force)
+- `api_zone`: 30 r/s s burst 60 pro obecné API
+- `conn_per_ip`: max 50 souběžných spojení na IP
+
+### Self-hosted hardening checklist
+Aplikace obsahuje interaktivní **Security Checklist** (Administrace → Bezpečnost → Security Findings) pokrývající:
+- vypnutí veřejné registrace (`DISABLE_SIGNUP=true`)
+- změna výchozího Studio hesla (`DASHBOARD_PASSWORD`)
+- firewall na interní porty (5432, 3000, 8091, 4000)
+- HIBP a MFA/TOTP
+- zkrácení OTP/recovery na 1 h
+- DB SSL, restriktivní CORS, non-root kontejnery
+- aktualizace PostgreSQL verze
+
 
 ---
 
