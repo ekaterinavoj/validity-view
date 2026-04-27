@@ -56,9 +56,26 @@ Webová aplikace **Lhůtník** pro evidenci školení zaměstnanců, technickýc
 
 ---
 
+## 🚦 Jak nasadit aplikaci — Cloud vs. Self-hosted
+
+Aplikaci lze provozovat **dvěma způsoby**. Než budete pokračovat dál, vyberte si jednu cestu — sekce níže jsou rozdělené podle toho, který scénář používáte.
+
+| Scénář | Pro koho | Co potřebujete | Kam pokračovat |
+|--------|----------|----------------|----------------|
+| ☁️ **Lovable Cloud** (doporučeno) | Většina uživatelů — bez správy serveru | Pouze účet Lovable. Backend (databáze, auth, edge funkce, storage) běží automaticky. | 👉 [Lokální vývoj](#-lokální-vývoj) pro úpravy kódu, jinak rovnou [První přihlášení](#8-první-přihlášení) a [Checklist prvního administrátora](#11-checklist-prvního-administrátora-konfigurace-aplikace) |
+| 🖥️ **Self-hosted** (vlastní server) | Firmy s vlastní infrastrukturou, on-premise nasazení | Linux server, Docker, doména, znalost správy serveru | 👉 [Instalace pro administrátory serveru](#-instalace-pro-administrátory-serveru) → [Docker nasazení](#-docker-nasazení) → [Bezpečnostní hardening](#-bezpečnostní-hardening-self-hosted) |
+
+> **💡 Tip:** Sekce **„Lokální vývoj"** a **„Checklist prvního administrátora"** platí pro **oba** scénáře — liší se pouze způsob, jakým běží backend a nastavení serveru/Nginxu/CRON.
+>
+> **🔒 Bezpečnostní funkce v aplikaci** (RBAC, account lockout, audit log, RLS, retence logů) fungují **stejně v obou scénářích** — viz [Bezpečnost](#-bezpečnost). Self-hosted navíc vyžaduje konfiguraci na úrovni serveru (firewall, Nginx headers, SSL).
+
+---
+
 ## 🔧 Instalace pro administrátory serveru
 
-Tato sekce obsahuje kompletní pokyny pro nasazení aplikace na produkční server.
+> **⚠️ Tato sekce je určena pouze pro self-hosted nasazení.** Pokud používáte Lovable Cloud, tuto sekci přeskočte a pokračujte na [Lokální vývoj](#-lokální-vývoj) nebo [Checklist prvního administrátora](#11-checklist-prvního-administrátora-konfigurace-aplikace).
+
+Tato sekce obsahuje kompletní pokyny pro nasazení aplikace na produkční server ve vlastní infrastruktuře.
 
 ### 1. Požadavky na server
 
