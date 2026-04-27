@@ -84,6 +84,7 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    setLockout(null);
 
     try {
       loginSchema.parse(loginData);
@@ -104,15 +105,41 @@ export default function Auth() {
 
     const { error } = await signIn(loginData.email, loginData.password);
 
+    // After sign-in attempt, fetch detailed lockout status (works even if not locked yet)
+    let lockInfo: LockoutInfo | null = null;
+    try {
+      const { data } = await supabase.rpc("get_account_lockout_status", {
+        _email: loginData.email.trim().toLowerCase(),
+      });
+      if (data) lockInfo = data as unknown as LockoutInfo;
+    } catch {
+      // ignore — RPC unavailable on older DBs
+    }
+
     setIsLoading(false);
 
     if (error) {
+      // Account locked → show structured banner with exact unlock time
+      if (lockInfo?.is_locked || error.name === "AccountLocked") {
+        setLockout(lockInfo);
+        return;
+      }
+
       let errorMessage = "Přihlášení se nezdařilo. Zkontrolujte email a heslo.";
 
       if (error.message?.includes("Invalid login credentials")) {
         errorMessage = "Nesprávný email nebo heslo.";
       } else if (error.message?.includes("Email not confirmed")) {
         errorMessage = "Email nebyl potvrzen. Zkontrolujte svou emailovou schránku.";
+      }
+
+      // If user is approaching lockout, append warning
+      if (lockInfo && lockInfo.failed_attempts >= Math.max(1, lockInfo.max_attempts - 2)) {
+        const remaining = Math.max(0, lockInfo.max_attempts - lockInfo.failed_attempts);
+        errorMessage +=
+          remaining > 0
+            ? ` Zbývá ${remaining} ${remaining === 1 ? "pokus" : remaining < 5 ? "pokusy" : "pokusů"} do uzamčení účtu.`
+            : "";
       }
 
       toast({
@@ -138,6 +165,30 @@ export default function Auth() {
           <img src={companyLogo} alt="Engel Gematex" className="h-14 w-auto" />
           <h1 className="text-2xl font-bold text-primary">Lhůtník</h1>
         </div>
+
+        {/* Lockout banner */}
+        {lockout?.is_locked && (
+          <Alert variant="destructive" className="mb-4">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle>Účet je dočasně uzamčen</AlertTitle>
+            <AlertDescription className="space-y-1">
+              <p>
+                Po {lockout.failed_attempts} neúspěšných pokusech byl tento účet uzamčen na{" "}
+                {lockout.lock_minutes} minut.
+              </p>
+              {unlockCountdown && (
+                <p className="font-medium">
+                  Odemčení za: <span className="font-mono">{unlockCountdown}</span>
+                </p>
+              )}
+              {lockout.unlock_at && (
+                <p className="text-xs opacity-80">
+                  Odemčení v {new Date(lockout.unlock_at).toLocaleTimeString("cs-CZ")}
+                </p>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Info about admin-only mode */}
         <div className="mb-4 p-3 bg-muted/50 border border-muted rounded-lg flex items-start gap-2">
