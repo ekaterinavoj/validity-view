@@ -49,7 +49,7 @@ export const ReminderTemplates = () => {
     is_active: true,
   });
 
-  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [runningCheck2, _unused] = [false, () => {}]; // legacy placeholder removed
   const [runningCheck, setRunningCheck] = useState(false);
   const [checkResult, setCheckResult] = useState<{ total_emails_sent: number; results: any[]; info?: string; message?: string } | null>(null);
 
