@@ -81,6 +81,12 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+  const [showAccessDebug, setShowAccessDebug] = useState<boolean>(() => {
+    return localStorage.getItem("admin-show-access-debug") === "1";
+  });
+  useEffect(() => {
+    localStorage.setItem("admin-show-access-debug", showAccessDebug ? "1" : "0");
+  }, [showAccessDebug]);
   
   // Settings state
   const [reminderSchedule, setReminderSchedule] = useState({
