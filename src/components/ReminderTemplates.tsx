@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatDaysBeforeExpiry, formatDays } from "@/lib/czechGrammar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReminderTemplateEditor } from "./ReminderTemplateEditor";
 
 interface ReminderTemplate {
   id: string;
