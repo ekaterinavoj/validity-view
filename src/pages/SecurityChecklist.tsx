@@ -182,6 +182,133 @@ const CHECKLIST: ChecklistItem[] = [
     selfHostedAction:
       "Administrace → Bezpečnost → Spustit security scan. Spouští DB linter, kontroluje CSP/HSTS hlavičky a auditujev secrets.",
   },
+  // ============== NOVÉ POLOŽKY ==============
+  {
+    id: "hibp",
+    category: "auth",
+    title: "Ochrana proti uniklým heslům (HIBP)",
+    description:
+      "Supabase GoTrue umí kontrolovat hesla proti databázi Have I Been Pwned a odmítnout dříve uniklá hesla. Bez této kontroly mohou uživatelé používat hesla z známých leakových databází.",
+    severity: "high",
+    selfHostedAction:
+      "V docker/.env (resp. selfhosted-resources/env-example) nastavte: GOTRUE_PASSWORD_HIBP_ENABLED=true. Po změně restartujte kontejner auth (gotrue). Bezpečnostní efekt: blokuje top 1B uniklých hesel během signupu i změny hesla.",
+    cloudAction:
+      "Cloud → Users → Auth Settings → aktivujte „Password HIBP Check\" (Lovable Cloud i připojený Supabase).",
+    docsLink: "https://docs.lovable.dev/features/security",
+  },
+  {
+    id: "mfa",
+    category: "auth",
+    title: "Vícefaktorová autentizace (MFA / TOTP)",
+    description:
+      "Aplikace pracuje s osobními údaji zaměstnanců (PLP, zdravotní data) – GDPR doporučuje MFA pro administrátorské účty. Supabase nativně podporuje TOTP (Google Authenticator, 1Password atd.).",
+    severity: "high",
+    selfHostedAction:
+      "V docker/.env zapněte: GOTRUE_MFA_ENABLED=true a GOTRUE_MFA_MAX_ENROLLED_FACTORS=2. Implementujte enrollment v Profilu uživatele (volání supabase.auth.mfa.enroll/challenge/verify). Vynuťte alespoň pro role admin/manager.",
+    cloudAction: "Cloud → Users → Auth Settings → aktivujte MFA (TOTP).",
+  },
+  {
+    id: "otp-expiry",
+    category: "auth",
+    title: "Krátká platnost OTP / recovery odkazů",
+    description:
+      "Výchozí platnost magických odkazů a OTP kódů je často 24 hodin. Pro citlivé aplikace zkraťte na 1 hodinu, aby se snížilo okno pro zneužití zachyceného odkazu.",
+    severity: "medium",
+    selfHostedAction:
+      "V docker/.env: GOTRUE_MAILER_OTP_EXP=3600 (1 h pro reset hesla / magic link). Pro session zvažte JWT_EXPIRY=3600 (default je obvykle vyhovující).",
+    cloudAction: "Cloud → Users → Auth Settings → snižte OTP/Recovery expiry na 1 h.",
+  },
+  {
+    id: "disable-signup",
+    category: "auth",
+    title: "Vypnutí veřejné registrace (DISABLE_SIGNUP)",
+    description:
+      "Aplikace je interní – nikdo by se neměl registrovat sám. Účty zakládá výhradně administrátor přes Onboarding. Bez tohoto vypnutí může kdokoli s URL aplikace vytvořit účet (i když pak čeká na schválení).",
+    severity: "critical",
+    selfHostedAction:
+      "V docker/.env nastavte DISABLE_SIGNUP=true. Po restartu auth kontejneru jsou registrace přes /auth/v1/signup odmítnuty. Onboarding edge funkce (admin-create-user) toto omezení obchází – funguje dál.",
+    cloudAction: "Cloud → Users → Auth Settings → zakažte „Allow new users to sign up\".",
+  },
+  {
+    id: "studio-password",
+    category: "secrets",
+    title: "Změna výchozího hesla Supabase Studia",
+    description:
+      "Self-hosted Studio (port 3000 / 8000) chrání pouze basic-auth z DASHBOARD_USERNAME/DASHBOARD_PASSWORD. Výchozí hodnota „this_password_is_insecure_and_should_be_updated\" je veřejně známá.",
+    severity: "critical",
+    selfHostedAction:
+      "V docker/.env změňte DASHBOARD_PASSWORD na silné heslo (min. 24 znaků, openssl rand -base64 24). Ideálně ponechte Studio dostupné jen z VPN / interní sítě (firewall / nginx allow/deny).",
+  },
+  {
+    id: "firewall-ports",
+    category: "transport",
+    title: "Firewall – nevystavovat interní porty na internet",
+    description:
+      "Postgres (5432), Studio (3000/8000), Kong (8091), Realtime (4000) NESMÍ být dostupné z veřejného internetu. Útočník by obešel rate-limit i auth a získal přímý přístup k DB.",
+    severity: "critical",
+    selfHostedAction:
+      "ufw allow 22,80,443/tcp; ufw deny 5432,3000,8000,8091,4000 from any. Pokud potřebujete vzdálený přístup k DB pro zálohy, povolte jen z konkrétní IP. Ověřte: nmap -Pn váš.server.cz – mělo by ukázat jen 80/443.",
+  },
+  {
+    id: "audit-retention",
+    category: "monitoring",
+    title: "Retence audit logu a tabulky reminder_logs",
+    description:
+      "Tabulky audit_logs, reminder_logs, deadline_reminder_logs, medical_reminder_logs a auth_signin_attempts rostou donekonečna. Po roce mohou mít stovky MB a zpomalovat dotazy. Také obsahují PII (e-maily, IP) – GDPR vyžaduje retenci.",
+    severity: "medium",
+    selfHostedAction:
+      "Vytvořte cron migraci, která maže záznamy starší než N dní (doporučeně 365 dní pro audit, 90 dní pro reminder logy). Příklad: pg_cron job DELETE FROM audit_logs WHERE created_at < NOW() - INTERVAL '365 days'. Před smazáním exportujte do dlouhodobého archivu (S3, NAS).",
+  },
+  {
+    id: "db-ssl",
+    category: "transport",
+    title: "TLS mezi PostgREST/GoTrue a PostgreSQL",
+    description:
+      "Pokud běží PostgREST/GoTrue v jiném kontejneru/hostu než Postgres, hesla a data tečou po síti v plain textu. V docker compose stack na jednom hostu je riziko nízké, při rozdělení vysoké.",
+    severity: "medium",
+    selfHostedAction:
+      "Pokud DB běží mimo localhost, v PostgREST nastavte ?sslmode=require v DB_URI. V Postgres povolte ssl=on s vlastním certifikátem (postgresql.conf). Na jednom hostu (loopback) lze ignorovat.",
+  },
+  {
+    id: "edge-cors",
+    category: "auth",
+    title: "Restriktivní CORS na edge funkcích",
+    description:
+      "Edge funkce s Access-Control-Allow-Origin: * mohou být zneužity z cizích webů přes přihlášeného uživatele (CSRF s tokenem v storage). Doporučeno omezit na konkrétní origin produkční domény.",
+    severity: "medium",
+    selfHostedAction:
+      "V supabase/functions/_shared (pokud existuje) nahraďte Access-Control-Allow-Origin: * konkrétní doménou aplikace (např. https://lhutnik.gematex.cz). Pro vývoj použijte env proměnnou. Pozn.: většina Lovable šablon má dnes wildcard – ručně upravte před produkcí.",
+  },
+  {
+    id: "realtime-encryption",
+    category: "secrets",
+    title: "Realtime šifrovací klíče (DB_ENC_KEY, API_JWT_SECRET)",
+    description:
+      "Realtime služba má vlastní šifrovací klíče pro broadcast / presence. Při úniku může útočník dešifrovat realtime kanály.",
+    severity: "medium",
+    selfHostedAction:
+      "V docker/.env: DB_ENC_KEY (32 znaků, openssl rand -hex 16) a SECRET_KEY_BASE (64+ znaků). Při rotaci JWT_SECRET rotujte i tyto. Po rotaci restartujte kontejner realtime.",
+  },
+  {
+    id: "container-non-root",
+    category: "secrets",
+    title: "Kontejnery běží pod neprivilegovaným uživatelem",
+    description:
+      "Pokud nginx / app kontejner běží pod root, escape z kontejneru = root na hostu. Standardní docker images supabase už neprivilegovaného uživatele používají, vlastní (frontend Dockerfile) ale nemusí.",
+    severity: "medium",
+    selfHostedAction:
+      "V Dockerfile přidejte před CMD: RUN adduser -D appuser && chown -R appuser /usr/share/nginx/html && USER appuser. Nikdy nemontujte /var/run/docker.sock do kontejneru aplikace.",
+  },
+  {
+    id: "session-timeout",
+    category: "auth",
+    title: "Auto-logout po nečinnosti (session timeout)",
+    description:
+      "Aplikace má vestavěný hook useSessionTimeout, který odhlásí uživatele po nastavené době nečinnosti. Důležité pro sdílené stanice (kanceláře, výroba).",
+    severity: "medium",
+    selfHostedAction:
+      "V Administrace → Bezpečnost → Session timeout nastavte rozumnou hodnotu (typicky 30–60 min). Hodnota se ukládá do system_settings.session_timeout. Doporučeno kratší pro admin role.",
+  },
 ];
 
 const severityColor = (s: Severity) => {
