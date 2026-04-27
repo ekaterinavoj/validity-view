@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Eye, Download, Filter, X, History } from "lucide-react";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
 import { formatDisplayDateTime } from "@/lib/dateFormat";
 import { exportToCSV } from "@/lib/csvExport";
