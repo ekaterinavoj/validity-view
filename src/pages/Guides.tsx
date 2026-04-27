@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import {
   BookOpen,
   Search,
@@ -20,7 +22,10 @@ import {
   Mail,
   Database,
   UserCog,
-  CalendarClock,
+  Layers,
+  AlertCircle,
+  Lightbulb,
+  X,
 } from "lucide-react";
 
 import imgStatusLegend from "@/assets/guide-status-legend.jpg";
@@ -34,6 +39,8 @@ interface GuideItem {
   q: string;
   a: string | string[];
   image?: { src: string; alt: string; caption?: string };
+  /** Volitelné scénáře typu „Když X, udělej Y“. */
+  scenarios?: { when: string; then: string[] }[];
 }
 
 interface GuideSection {
@@ -42,6 +49,8 @@ interface GuideSection {
   icon: any;
   description: string;
   adminOnly?: boolean;
+  /** Klíčová slova pro lepší fulltext (mimo q/a). */
+  keywords?: string[];
   items: GuideItem[];
 }
 
@@ -51,6 +60,7 @@ const sections: GuideSection[] = [
     title: "Začínáme",
     icon: BookOpen,
     description: "Základní orientace v aplikaci pro nové uživatele.",
+    keywords: ["úvod", "začátek", "přihlášení", "menu", "navigace", "hesla"],
     items: [
       {
         q: "Co je tato aplikace?",
@@ -75,35 +85,6 @@ const sections: GuideSection[] = [
         ],
       },
       {
-        q: "Co znamenají barevné stavy v seznamech?",
-        a: [
-          "🟢 Zelená (Platné) – do termínu zbývá více než 30 dní, vše v pořádku.",
-          "🟠 Oranžová (Vyprší brzy) – termín spadá do nejbližších 30 dní, je čas plánovat.",
-          "🔴 Červená (Po termínu) – termín již vypršel NEBO byl výsledek poslední kontroly negativní (Nevyhovuje). Vyžaduje okamžitou akci.",
-          "⚪️ Šedá (Archivováno) – záznam byl archivován (např. ukončený pracovní poměr) a negeneruje další upozornění.",
-          "Stav se počítá automaticky každý den 00:30 přes naplánovaný cron (synchronizace databáze a UI).",
-        ],
-        image: { src: imgStatusLegend, alt: "Tři stavové barvy: zelená, oranžová, červená", caption: "Barevná legenda stavů používaná napříč všemi moduly" },
-      },
-      {
-        q: "Co je to Provozovna a Středisko?",
-        a: [
-          "Provozovna (Facility) – organizační jednotka nejvyšší úrovně, např. konkrétní závod nebo lokalita. Spravuje admin v Administrace → Správa dat → Provozovny.",
-          "Středisko (Department) – dílčí útvar v rámci provozovny (kód + název, např. „VYR-01 - Výroba“). Zaměstnanci a zařízení se přiřazují ke středisku. Středisko je nepovinné pole.",
-          "V seznamech se středisko zobrazuje jednotně ve formátu „Kód - Název“.",
-        ],
-      },
-      {
-        q: "Jak funguje vyhledávání a filtry v seznamech?",
-        a: [
-          "Každý hlavní seznam (Školení, PLP, Lhůty, Zaměstnanci) má v horní části:",
-          "• Globální vyhledávací pole – prohledává jména, názvy, e-maily, čísla.",
-          "• Pokročilé filtry – stav, středisko, typ, datum od-do, odpovědná osoba.",
-          "• Filtry zůstávají uložené v URL – odkaz lze sdílet kolegovi.",
-          "• Tlačítko „Vyčistit filtry“ je vždy vpravo nahoře.",
-        ],
-      },
-      {
         q: "Jak fungují záložky/dropdowny v hlavním menu?",
         a: [
           "Správa dat – provozní číselníky (Zaměstnanci, Provozovny, Střediska, Zařízení).",
@@ -115,11 +96,146 @@ const sections: GuideSection[] = [
       },
     ],
   },
+
+  // ========== NOVÁ SEKCE: STAVY A FILTRY ==========
+  {
+    id: "stavy-filtry",
+    title: "Stavy, barvy a filtry – vysvětlivky",
+    icon: AlertCircle,
+    description: "Kompletní legenda barevných stavů, archivu, limbo stavů a kdo co řeší.",
+    keywords: ["stav", "barva", "zelená", "oranžová", "červená", "limbo", "archiv", "filtr", "vyřízeno"],
+    items: [
+      {
+        q: "Co znamenají barevné stavy v seznamech?",
+        a: [
+          "🟢 Zelená (Platné) – do termínu zbývá více než 30 dní. Vše v pořádku.",
+          "🟠 Oranžová (Vyprší brzy) – termín spadá do nejbližších 30 dní. Je čas plánovat.",
+          "🔴 Červená (Po termínu) – termín už vypršel NEBO byl výsledek poslední kontroly negativní (Nevyhovuje). Vyžaduje okamžitou akci.",
+          "⚪️ Šedá (Archivováno) – záznam byl archivován (např. ukončený pracovní poměr) a negeneruje další upozornění.",
+          "Stav se počítá automaticky každý den 00:30 přes naplánovaný cron (synchronizace databáze a UI).",
+        ],
+        image: { src: imgStatusLegend, alt: "Tři stavové barvy: zelená, oranžová, červená", caption: "Barevná legenda stavů používaná napříč všemi moduly" },
+      },
+      {
+        q: "Kdy se stav přepne automaticky a kdy ručně?",
+        a: [
+          "AUTOMATICKY (cron 00:30 + funkce calculate_*_status):",
+          "• 🟢 → 🟠 – v okamžiku, kdy do termínu zbývá ≤ 30 dnů.",
+          "• 🟠 → 🔴 – v okamžiku, kdy termín vyprší.",
+          "• Po nahrání nového záznamu (nová kontrola) → vrátí se na 🟢.",
+          "RUČNĚ:",
+          "• Označit jako vyřízené – uzavře cyklus a otevře nový (typicky řeší autor nebo manažer).",
+          "• Archivace (soft-delete) – přesune do historie, nezobrazuje se v hlavním seznamu (admin/manažer).",
+          "• Trvalé smazání – jen administrátor v Historii.",
+        ],
+      },
+      {
+        q: "Co je „limbo“ stav a kdy se objeví?",
+        a: [
+          "LIMBO = záznam, který existuje v DB, ale je dočasně skrytý z hlavních seznamů, protože jeho zaměstnanec není aktivní.",
+          "Vzniká automaticky při změně stavu zaměstnance:",
+          "• Mateřská / Rodičovská / Nemocenská → PLP a školení do limbo (stop generování upozornění).",
+          "• Ukončení pracovního poměru → vše do limbo.",
+          "Jak limbo zobrazit: v Historii (PLP / Školení / Lhůty) zaškrtněte přepínač „Zobrazit i archivované“.",
+          "Návratem zaměstnance do práce (status = aktivní) se záznamy automaticky obnoví v hlavním seznamu.",
+          "Typicky řeší: HR / administrátor.",
+        ],
+      },
+      {
+        q: "Rozdíl: archiv × limbo × trvalé smazání",
+        a: [
+          "ARCHIV (deleted_at je vyplněno) – soft-delete, záznam zůstává v DB, lze obnovit. Skryto z hlavního seznamu, viditelné v Historii.",
+          "LIMBO (is_active = false kvůli stavu zaměstnance) – speciální podtyp archivu řízený triggerem. Po návratu zaměstnance se automaticky vrátí.",
+          "TRVALÉ SMAZÁNÍ – fyzické smazání řádku z DB. Nelze obnovit. Pouze admin v Historii s potvrzovacím dialogem.",
+        ],
+      },
+      {
+        q: "Filtry v hlavních seznamech – přehled",
+        a: [
+          "Standardní filtry napříč moduly:",
+          "• Hledání – fulltext nad jmény, čísly, e-maily, názvy.",
+          "• Stav – Vše / Platné / Vyprší brzy / Po termínu / Archivované.",
+          "• Středisko (Department) – výběr z číselníku.",
+          "• Provozovna (Facility) – výběr z číselníku.",
+          "• Typ – školení / kontroly / prohlídky.",
+          "• Datum od – do – pro plánovaný termín.",
+          "• Odpovědná osoba – jen v technických lhůtách.",
+          "Filtry se ukládají do URL → můžete sdílet odkaz s kolegou.",
+        ],
+      },
+    ],
+  },
+
+  // ========== NOVÁ SEKCE: ZÁLOŽKY PODLE MODULŮ ==========
+  {
+    id: "zalozky-prehled",
+    title: "Záložky podle modulů – kategorizovaný rejstřík",
+    icon: Layers,
+    description: "Přehled všech stránek v aplikaci s odkazy na konkrétní návody a typické úlohy.",
+    keywords: ["záložky", "menu", "stránky", "rejstřík", "navigace"],
+    items: [
+      {
+        q: "Modul Školení – všechny záložky",
+        a: [
+          "📋 Naplánovaná školení (/scheduled-trainings) – aktivní seznam k řešení. Filtr stavu, hromadné akce.",
+          "🕐 Historie školení (/trainings/history) – verzované snímky, archiv, limbo (s přepínačem).",
+          "👥 Školené osoby (Zaměstnanci, /employees) – evidence osob a jejich školení.",
+          "➕ Vytvoření školení (/trainings/new) – formulář pro nový záznam.",
+          "🏷️ Typy školení (/training-types) – číselník (BOZP, odborné…) s periodicitou.",
+          "🏢 Střediska (/departments) – číselník organizačních útvarů.",
+          "Detail viz sekce „Školení“ níže.",
+        ],
+      },
+      {
+        q: "Modul Technické lhůty – všechny záložky",
+        a: [
+          "📋 Naplánované technické lhůty (/scheduled-deadlines) – revize, inspekce, kontroly.",
+          "🕐 Historie technických lhůt (/deadlines/history) – snímky, archiv.",
+          "🔧 Zařízení (/equipment) – evidence techniky (inventární čísla, sériová, výrobce).",
+          "➕ Nová technická lhůta (/deadlines/new) – plánování kontroly.",
+          "🏷️ Typy technických lhůt (/deadline-types) – číselník (revize, inspekce, kalibrace…).",
+          "👥 Skupiny odpovědných osob (/responsibility-groups) – „BOZP tým“, „Elektrikáři“ apod.",
+        ],
+      },
+      {
+        q: "Modul PLP (lékařské prohlídky) – všechny záložky",
+        a: [
+          "📋 PLP – Naplánované prohlídky (/scheduled-examinations) – aktivní seznam.",
+          "🕐 PLP – Historie (/medical-examinations/history) – snímky, limbo (skrývá ukončené).",
+          "➕ Nová prohlídka (/medical-examinations/new) – formulář s kategorií práce a riziky.",
+          "🏷️ Typy prohlídek (/medical-examination-types) – vstupní, periodická, mimořádná, výstupní.",
+        ],
+      },
+      {
+        q: "Lidé a hierarchie – všechny záložky",
+        a: [
+          "👤 Zaměstnanci (/employees) – evidence osob, status, kategorie práce.",
+          "🌲 Hierarchie zaměstnanců – tlačítko „Zobrazit hierarchii“ v Zaměstnancích.",
+          "📅 Zkušební doby (/probations) – sledování konce ZD (4 / 8 měsíců).",
+          "📊 Statistiky (/statistics) – grafy (admin/manažer).",
+          "📁 Dokumenty (/documents) – centrální úložiště firemních souborů.",
+        ],
+      },
+      {
+        q: "Administrace – všechny záložky",
+        a: [
+          "🛠️ Administrace (/admin) – hub s kartami: Uživatelé, Bezpečnost, E-maily, Onboarding, Připomínky.",
+          "📜 Audit log (/audit-log) – kdo co kdy změnil.",
+          "📋 Návody (/guides) – tato stránka.",
+          "🩺 Stav systému (/system-status) – konektivita, počty záznamů.",
+          "🔄 Migrace DB (/database-migrations) – aplikované verze schématu.",
+          "🛡️ Security checklist (/security-checklist) – sdílený hardening checklist.",
+        ],
+      },
+    ],
+  },
+
   {
     id: "skoleni",
     title: "Školení",
     icon: GraduationCap,
     description: "Plánování, evidence a hromadné akce u školení zaměstnanců.",
+    keywords: ["školení", "BOZP", "kurz", "trenér", "import", "export", "csv", "hromadný"],
     items: [
       {
         q: "Jak přidat nové školení – krok za krokem?",
@@ -132,6 +248,24 @@ const sections: GuideSection[] = [
           "6. Datum příštího školení se vypočte automaticky (lze ručně přepsat – tím vznikne tzv. override).",
           "7. Volitelně doplňte: Trenéra, Firmu, Žadatele, Výsledek, Poznámku.",
           "8. Po uložení můžete v detailu nahrát dokumenty (osvědčení, prezenční listinu) – limit 40 MB / soubor.",
+        ],
+        scenarios: [
+          {
+            when: "Když školení vyprší (🔴) a zaměstnanec ho právě absolvoval",
+            then: [
+              "1. Otevřete řádek (rozbalovací detail) nebo klikněte na ⋮ → „Označit jako vyřízené“.",
+              "2. Zadejte datum absolvování + výsledek + nahrajte osvědčení.",
+              "3. Systém automaticky vytvoří snímek do Historie a otevře nový cyklus.",
+            ],
+          },
+          {
+            when: "Když zaměstnanec odejde nebo školení už nepotřebuje",
+            then: [
+              "1. ⋮ → „Označit jako vyřízené“ s poznámkou „Ukončen PP“ nebo důvodem.",
+              "2. Záznam přestane generovat upozornění.",
+              "3. Pro úplné skrytí: smažte zaměstnance (status = ukončen) – školení padne do limbo.",
+            ],
+          },
         ],
       },
       {
@@ -201,6 +335,7 @@ const sections: GuideSection[] = [
     title: "Technické lhůty",
     icon: Wrench,
     description: "Revize, inspekce a kontroly technických zařízení.",
+    keywords: ["zařízení", "revize", "inspekce", "kalibrace", "stroj", "lhůta"],
     items: [
       {
         q: "Jak přidat nové zařízení?",
@@ -220,6 +355,25 @@ const sections: GuideSection[] = [
           "3. Vyberte Typ lhůty (revize, inspekce, kalibrace…). Pole „Provádějící“ je terminologicky sjednocené.",
           "4. Datum poslední kontroly + automatický výpočet příštího termínu.",
           "5. Výsledek (Vyhovuje / S výhradami / Nevyhovuje) – při „Nevyhovuje“ systém vygeneruje varovnou notifikaci adminům.",
+        ],
+        scenarios: [
+          {
+            when: "Když revize dopadne „Nevyhovuje“",
+            then: [
+              "1. Záznam se okamžitě přepne na 🔴 (nezávisle na datu).",
+              "2. Adminům přijde in-app notifikace.",
+              "3. Doplňte poznámku s důvodem a nahrajte protokol.",
+              "4. Po opravě naplánujte mimořádnou kontrolu (Nová událost se stejným typem).",
+            ],
+          },
+          {
+            when: "Když zařízení odejde do odpisu",
+            then: [
+              "1. Správa dat → Zařízení → smažte zařízení (admin/manažer).",
+              "2. Všechny aktivní lhůty se přesunou do historie (limbo).",
+              "3. Generování upozornění se zastaví.",
+            ],
+          },
         ],
       },
       {
@@ -256,6 +410,7 @@ const sections: GuideSection[] = [
     title: "Pracovně-lékařské prohlídky (PLP)",
     icon: HeartPulse,
     description: "Sledování zdravotní způsobilosti dle vyhlášky 79/2013 Sb.",
+    keywords: ["PLP", "lékař", "zdravotní", "prohlídka", "kategorie práce", "rizika", "nemocenská"],
     items: [
       {
         q: "Jak přidat novou PLP?",
@@ -267,6 +422,26 @@ const sections: GuideSection[] = [
           "5. Výsledek: Vyhovuje / S výhradami / Nevyhovuje / Dlouhodobá ztráta zdravotní způsobilosti.",
           "6. Sekce „Zdravotní rizika“ – zaškrtněte konkrétní expozice (viz níže).",
           "7. Nahrajte lékařský posudek (PDF, JPG, PNG).",
+        ],
+        scenarios: [
+          {
+            when: "Když je zaměstnanec dlouhodobě nemocný (> 8 týdnů)",
+            then: [
+              "1. Status zaměstnance přepněte na „Nemocenská“ (Správa dat → Zaměstnanci).",
+              "2. PLP automaticky padne do limbo (skryto ze seznamu).",
+              "3. Po návratu zaměstnance (status = Aktivní) systém vygeneruje notifikaci „Nutná mimořádná prohlídka“ pro adminy.",
+              "4. Naplánujte mimořádnou PLP s typem „Mimořádná“ a předejte zaměstnance lékaři.",
+            ],
+          },
+          {
+            when: "Když lékař označí „Nevyhovuje“ nebo „Dlouhodobá ztráta“",
+            then: [
+              "1. Vyplňte výsledek + datum dlouhodobé ztráty (long_term_fitness_loss_date).",
+              "2. Adminové dostanou notifikaci.",
+              "3. HR řeší pracovněprávní kroky (převedení na jinou pozici, ukončení PP).",
+              "4. Záznam zůstane v historii pro audit.",
+            ],
+          },
         ],
       },
       {
@@ -318,6 +493,7 @@ const sections: GuideSection[] = [
     title: "Zaměstnanci a hierarchie",
     icon: Users,
     description: "Evidence zaměstnanců, organizační struktura, statusy.",
+    keywords: ["zaměstnanci", "osoby", "hierarchie", "manažer", "zkušební", "ZD", "nástup"],
     items: [
       {
         q: "Jak přidat nového zaměstnance?",
@@ -327,6 +503,24 @@ const sections: GuideSection[] = [
           "3. Volitelné: Osobní číslo, Středisko, Datum narození, Datum nástupu, Manažer (přímý nadřízený), Kategorie práce.",
           "4. Zkušební doba se vyplní automaticky podle pozice (vedoucí 8 měsíců, ostatní 4 měsíce).",
           "5. Po uložení můžete zaměstnance navázat na uživatelský účet v Administraci → Správa uživatelů.",
+        ],
+        scenarios: [
+          {
+            when: "Když končí zkušební doba a zaměstnanec měl překážky v práci",
+            then: [
+              "1. Zaměstnanci → detail osoby → karta „Překážky“.",
+              "2. Přidejte období nepřítomnosti (důvod, datum od – do).",
+              "3. Funkce sum_probation_obstacle_days() automaticky prodlouží konec ZD.",
+              "4. Modul „Zkušební doby“ vás upozorní 14 dní před novým termínem.",
+            ],
+          },
+          {
+            when: "Když zaměstnanec nastupuje na vedoucí pozici",
+            then: [
+              "1. Při vytvoření vyplňte pozici obsahující slova „vedoucí / ředitel / manažer / mistr…“ → systém automaticky nastaví ZD na 8 měsíců.",
+              "2. Pokud chcete jiné období, manuálně přepište pole „Délka ZD (měsíce)“ a doplňte důvod.",
+            ],
+          },
         ],
       },
       {
@@ -376,6 +570,7 @@ const sections: GuideSection[] = [
     title: "Dokumenty",
     icon: FolderOpen,
     description: "Centrální úložiště firemních dokumentů a souborů u záznamů.",
+    keywords: ["dokumenty", "soubor", "upload", "PDF", "limit", "evidenční číslo"],
     items: [
       {
         q: "Modul Dokumenty – co tam najdu?",
@@ -426,6 +621,7 @@ const sections: GuideSection[] = [
     title: "Notifikace a připomínky",
     icon: Bell,
     description: "Vnitroaplikační upozornění a e-mailové připomínky.",
+    keywords: ["notifikace", "připomínka", "e-mail", "zvonek", "upozornění", "cron"],
     items: [
       {
         q: "Kde najdu svá oznámení?",
@@ -486,6 +682,7 @@ const sections: GuideSection[] = [
     title: "Profil a bezpečnost hesla",
     icon: KeyRound,
     description: "Správa vlastního účtu, změna hesla, pravidla bezpečnosti.",
+    keywords: ["heslo", "profil", "bezpečnost", "rotace", "session", "odhlášení", "zapomenuté"],
     items: [
       {
         q: "Jak změnit heslo?",
@@ -508,6 +705,15 @@ const sections: GuideSection[] = [
           "• Po seedu prvního admina nebo resetu heslem od admina (must_change_password = true).",
           "Akce: „Změnit heslo nyní“ (přesun na /change-password) nebo „Odložit“ (na 7 dní u doporučení; u must_change_password nelze odložit).",
           "Texty a požadavky v dialogu jsou dynamické dle aktuální policy.",
+        ],
+      },
+      {
+        q: "Mohu si vypnout připomínání rotace hesla?",
+        a: [
+          "ANO – přímo v dialogu „Doporučujeme změnit heslo“ je tlačítko „Už mi to nepřipomínat“.",
+          "Nastavení se ukládá do vašich uživatelských preferencí (synchronizováno přes všechna zařízení).",
+          "Důležité: vypnutí platí POUZE pro doporučení rotace. Pokud admin nastaví explicitně must_review_password (např. po incidentu), modal se znovu objeví a opt-out nepomáhá.",
+          "Změnit zpět můžete v Profilu → karta „Bezpečnost a oznámení“.",
         ],
       },
       {
@@ -538,6 +744,7 @@ const sections: GuideSection[] = [
     icon: UserCog,
     adminOnly: true,
     description: "Vytváření, deaktivace, role a oprávnění uživatelských účtů.",
+    keywords: ["uživatel", "role", "admin", "manažer", "deaktivace", "reset"],
     items: [
       {
         q: "Jak vytvořit nového uživatele?",
@@ -611,10 +818,11 @@ const sections: GuideSection[] = [
   },
   {
     id: "admin-bezpecnost",
-    title: "Pravidla bezpečnosti hesel (Admin)",
+    title: "Pravidla bezpečnosti hesel a Security Checklist (Admin)",
     icon: ShieldAlert,
     adminOnly: true,
-    description: "Konfigurace policy, expirace a session timeoutu.",
+    description: "Konfigurace policy, expirace, session timeoutu a sdílený hardening checklist.",
+    keywords: ["bezpečnost", "heslo", "policy", "rotace", "checklist", "hardening", "RLS", "scan"],
     items: [
       {
         q: "Kde nastavím pravidla pro hesla?",
@@ -638,6 +846,19 @@ const sections: GuideSection[] = [
           "4. Uložte. Hook usePasswordPolicy() okamžitě reflektuje změnu.",
           "5. Při dalším přihlášení uživatelé se starým heslem dostanou PasswordReviewModal.",
           "Pokud přepínač vypnete: žádný uživatel nedostane modal kvůli stáří hesla. Modal se objeví jen u účtů s explicitním must_review_password = true (nastaveno adminem nebo migrací).",
+        ],
+      },
+      {
+        q: "K čemu slouží Security Hardening Checklist?",
+        a: [
+          "Administrace → Bezpečnost → tlačítko „Security checklist“ (nebo přímá routa /security-checklist).",
+          "Je to KONTROLNÍ SEZNAM mimoaplikačních úkonů, které musíte provést na infrastruktuře:",
+          "• HTTPS, HSTS, CSP, X-Frame-Options (reverse-proxy).",
+          "• Rate limiting (anti brute-force) – konfigurace nginx.",
+          "• Změna výchozího admin hesla, rotace SMTP / DB / JWT secrets.",
+          "• TLS pro SMTP, pravidelné zálohy, monitoring přihlášení.",
+          "Aplikace tyto věci NEUMÍ vynutit – musíte je nastavit ručně. Checklist slouží jako vodítko a evidence „co jsme už zkontrolovali“.",
+          "Stav je SDÍLENÝ mezi všemi administrátory (ukládá se v DB), takže vidíte i to, co zaškrtl kolega.",
         ],
       },
       {
@@ -687,6 +908,7 @@ const sections: GuideSection[] = [
     icon: Mail,
     adminOnly: true,
     description: "Konfigurace SMTP, šablon a sledování doručení.",
+    keywords: ["SMTP", "e-mail", "šablona", "M365", "Gmail", "OAuth"],
     items: [
       {
         q: "Jak nakonfigurovat SMTP?",
@@ -696,7 +918,6 @@ const sections: GuideSection[] = [
           "• Standardní SMTP (STARTTLS) – host, port (typicky 587), uživatel, heslo.",
           "• Microsoft 365 (OAuth2) – Tenant ID, Client ID, Client Secret. Bez nutnosti uchovávat heslo.",
           "• Gmail (OAuth2) – stejný princip jako M365.",
-          "Po uložení se heslo / secret nezobrazí (z bezpečnostních důvodů). Změna hesla = nové uložení.",
           "Tlačítko „Odeslat zkušební e-mail“ ověří funkčnost.",
         ],
       },
@@ -746,6 +967,7 @@ const sections: GuideSection[] = [
     icon: Settings,
     adminOnly: true,
     description: "Režimy registrace a schvalování nových účtů.",
+    keywords: ["onboarding", "registrace", "schválení", "pozvánka", "doména"],
     items: [
       {
         q: "Režimy registrace",
@@ -782,13 +1004,14 @@ const sections: GuideSection[] = [
     icon: Database,
     adminOnly: true,
     description: "Stav systému, databázové migrace a údržba.",
+    keywords: ["systém", "migrace", "databáze", "záloha", "cron"],
     items: [
       {
         q: "Stav systému",
         a: [
           "Hlavní menu → Systém → „Stav systému“ (/system-status).",
           "Zobrazuje:",
-          "• Stav backendu (Lovable Cloud / Supabase) – konektivita.",
+          "• Stav backendu (Lovable Cloud) – konektivita.",
           "• Počty záznamů per tabulka (zaměstnanci, školení, PLP, lhůty, dokumenty).",
           "• Poslední běh cronu připomínek (datum + počet odeslaných).",
           "• Poslední aplikovaná migrace.",
@@ -815,7 +1038,7 @@ const sections: GuideSection[] = [
       {
         q: "Záloha a obnova dat",
         a: [
-          "Lovable Cloud / Supabase poskytuje denní automatické zálohy.",
+          "Lovable Cloud poskytuje denní automatické zálohy.",
           "Pro export aplikačních dat: použijte Export CSV/PDF v jednotlivých modulech.",
           "Hromadný export přes psql / pg_dump je možný jen na úrovni infrastruktury (mimo aplikaci).",
           "Soft-delete (deleted_at): smazané záznamy zůstávají v DB a lze je obnovit z Historie (admin akce).",
@@ -828,8 +1051,10 @@ const sections: GuideSection[] = [
 export default function Guides() {
   const { profile } = useAuth();
   const [search, setSearch] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const isAdmin = useMemo(() => {
+    // Admin filter (kept lenient — actual admin gating je řešena ProtectedRoute mimo)
     return true;
   }, [profile]);
 
@@ -845,10 +1070,16 @@ export default function Guides() {
         ...s,
         items: s.items.filter((i) => {
           const ans = Array.isArray(i.a) ? i.a.join(" ") : i.a;
+          const scenarioText = (i.scenarios ?? [])
+            .map((sc) => `${sc.when} ${sc.then.join(" ")}`)
+            .join(" ");
+          const keywordText = (s.keywords ?? []).join(" ");
           return (
             i.q.toLowerCase().includes(q) ||
             ans.toLowerCase().includes(q) ||
-            s.title.toLowerCase().includes(q)
+            s.title.toLowerCase().includes(q) ||
+            keywordText.toLowerCase().includes(q) ||
+            scenarioText.toLowerCase().includes(q)
           );
         }),
       }))
@@ -858,70 +1089,176 @@ export default function Guides() {
   const userSections = filteredSections.filter((s) => !s.adminOnly);
   const adminSections = filteredSections.filter((s) => s.adminOnly);
 
+  // Auto-scroll na hash při příchodu z HelpButton (např. /guides#skoleni)
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    // Počkáme než se akordeon vyrenderuje
+    const t = setTimeout(() => {
+      const el = document.getElementById(`section-${hash}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        setActiveId(hash);
+      }
+    }, 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Sledování aktivní sekce při scrollu (sticky index highlight)
+  useEffect(() => {
+    const handler = () => {
+      const all = visibleSections
+        .map((s) => {
+          const el = document.getElementById(`section-${s.id}`);
+          if (!el) return null;
+          return { id: s.id, top: el.getBoundingClientRect().top };
+        })
+        .filter(Boolean) as { id: string; top: number }[];
+      const above = all.filter((x) => x.top < 200);
+      if (above.length) setActiveId(above[above.length - 1].id);
+    };
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, [visibleSections]);
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(`section-${id}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    setActiveId(id);
+    history.replaceState(null, "", `#${id}`);
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-6 max-w-5xl">
+    <div className="container mx-auto p-6 space-y-6 max-w-7xl">
       <div className="flex items-center gap-3">
         <BookOpen className="w-8 h-8 text-primary" />
         <div>
           <h1 className="text-3xl font-bold text-foreground">Návody a průvodce</h1>
           <p className="text-muted-foreground">
-            Podrobné krok-za-krokem návody. Vyhledejte nebo procházejte sekce.
+            Podrobné krok-za-krokem návody. Vyhledávejte, procházejte rejstřík nebo otevřete kapitolu z bočního indexu.
           </p>
         </div>
       </div>
 
+      {/* Vyhledávací pole */}
       <Card>
         <CardContent className="pt-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Hledat v návodech (např. „heslo“, „import“, „připomínka“, „zkušební doba“)…"
+              placeholder="Hledat (např. „export“, „hromadný import“, „historie“, „heslo“, „nemocenská“, „limbo“)…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 pr-9"
             />
+            {search && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setSearch("")}
+                aria-label="Vymazat hledání"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
+          {search && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Nalezeno: <strong>{filteredSections.reduce((acc, s) => acc + s.items.length, 0)}</strong> návodů v{" "}
+              <strong>{filteredSections.length}</strong> kapitolách.
+            </p>
+          )}
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="user" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="user" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Pro uživatele
-            <Badge variant="secondary" className="ml-1">{userSections.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="admin" className="flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4" />
-            Pro administrátory
-            <Badge variant="secondary" className="ml-1">{adminSections.length}</Badge>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="user" className="space-y-4">
-          {userSections.length === 0 ? (
+      {/* Layout s bočním stickym indexem */}
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+        {/* Sticky boční index */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-20">
             <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                Pro hledaný výraz nebyly nalezeny žádné návody.
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-primary" />
+                  Rejstřík kapitol
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[calc(100vh-220px)] px-3 pb-3">
+                  <nav className="space-y-1">
+                    {visibleSections.map((s) => {
+                      const Icon = s.icon;
+                      const isActive = activeId === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => scrollTo(s.id)}
+                          className={`w-full flex items-start gap-2 text-left px-2 py-1.5 rounded-md text-xs transition-colors ${
+                            isActive
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          }`}
+                        >
+                          <Icon className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                          <span className="leading-tight">{s.title}</span>
+                          {s.adminOnly && (
+                            <Badge variant="outline" className="ml-auto text-[10px] py-0 px-1 border-warning text-warning">
+                              A
+                            </Badge>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </ScrollArea>
               </CardContent>
             </Card>
-          ) : (
-            userSections.map((s) => <SectionCard key={s.id} section={s} />)
-          )}
-        </TabsContent>
+          </div>
+        </aside>
 
-        <TabsContent value="admin" className="space-y-4">
-          {adminSections.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                Pro hledaný výraz nebyly nalezeny žádné návody.
-              </CardContent>
-            </Card>
-          ) : (
-            adminSections.map((s) => <SectionCard key={s.id} section={s} />)
-          )}
-        </TabsContent>
-      </Tabs>
+        {/* Hlavní obsah */}
+        <main>
+          <Tabs defaultValue="user" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="user" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Pro uživatele
+                <Badge variant="secondary" className="ml-1">{userSections.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4" />
+                Pro administrátory
+                <Badge variant="secondary" className="ml-1">{adminSections.length}</Badge>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="user" className="space-y-4">
+              {userSections.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center text-muted-foreground">
+                    Pro hledaný výraz nebyly nalezeny žádné návody.
+                  </CardContent>
+                </Card>
+              ) : (
+                userSections.map((s) => <SectionCard key={s.id} section={s} />)
+              )}
+            </TabsContent>
+
+            <TabsContent value="admin" className="space-y-4">
+              {adminSections.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center text-muted-foreground">
+                    Pro hledaný výraz nebyly nalezeny žádné návody.
+                  </CardContent>
+                </Card>
+              ) : (
+                adminSections.map((s) => <SectionCard key={s.id} section={s} />)
+              )}
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
     </div>
   );
 }
@@ -929,7 +1266,7 @@ export default function Guides() {
 function SectionCard({ section }: { section: GuideSection }) {
   const Icon = section.icon;
   return (
-    <Card>
+    <Card id={`section-${section.id}`} className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Icon className="w-5 h-5 text-primary" />
@@ -959,6 +1296,26 @@ function SectionCard({ section }: { section: GuideSection }) {
                 ) : (
                   <p className="text-sm text-muted-foreground whitespace-pre-line">{item.a}</p>
                 )}
+
+                {/* Konkrétní scénáře "Když X, udělej Y" */}
+                {item.scenarios && item.scenarios.length > 0 && (
+                  <div className="mt-4 space-y-3">
+                    {item.scenarios.map((sc, i) => (
+                      <div key={i} className="rounded-md border bg-primary/5 border-primary/20 p-3">
+                        <div className="flex items-start gap-2 text-sm font-medium text-foreground mb-1">
+                          <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <span>{sc.when}</span>
+                        </div>
+                        <ul className="space-y-1 text-sm text-muted-foreground pl-6">
+                          {sc.then.map((step, j) => (
+                            <li key={j}>{step}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {item.image && (
                   <figure className="mt-4 rounded-lg overflow-hidden border bg-muted/30">
                     <img
