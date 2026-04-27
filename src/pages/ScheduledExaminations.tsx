@@ -336,7 +336,10 @@ export default function ScheduledExaminations() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="space-y-2">
-          <h2 className="text-3xl font-bold text-foreground">Naplánované prohlídky</h2>
+          <div className="flex items-center gap-1">
+            <h2 className="text-3xl font-bold text-foreground">Naplánované prohlídky</h2>
+            <HelpButton section="plp" label="Nápověda: Pracovně-lékařské prohlídky" />
+          </div>
           <div className="flex items-center gap-3">
             <Switch id="show-inactive-plp" checked={showInactiveEmployees} onCheckedChange={setShowInactiveEmployees} />
             <Label htmlFor="show-inactive-plp" className="text-sm text-muted-foreground">

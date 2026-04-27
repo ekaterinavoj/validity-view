@@ -258,7 +258,10 @@ export default function ScheduledDeadlines() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-foreground">Naplánované události</h1>
+        <div className="flex items-center gap-1">
+          <h1 className="text-3xl font-bold text-foreground">Naplánované události</h1>
+          <HelpButton section="technicke-lhuty" label="Nápověda: Technické lhůty" />
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
             <Download className="w-4 h-4 mr-2" />

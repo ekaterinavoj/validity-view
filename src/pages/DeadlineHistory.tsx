@@ -287,7 +287,10 @@ export default function DeadlineHistory() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Historie technických událostí</h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-bold text-foreground">Historie technických událostí</h1>
+            <HelpButton section="technicke-lhuty" label="Nápověda: Historie technických událostí" />
+          </div>
           <p className="text-muted-foreground">
             Celkem {filteredHistory.length} záznamů
           </p>

@@ -284,7 +284,10 @@ export default function Documents() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Dokumenty</h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-bold text-foreground">Dokumenty</h1>
+            <HelpButton section="dokumenty" label="Nápověda: Dokumenty" />
+          </div>
           <p className="text-muted-foreground">Firemní dokumenty rozdělené do přehledných složek podle skupin.</p>
         </div>
 
