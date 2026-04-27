@@ -34,7 +34,7 @@ interface Row {
   total_count: number;
 }
 
-const PAGE_SIZE = 200;
+const PAGE_SIZE = 1000;
 
 const maskEmail = (email: string | null | undefined): string => {
   if (!email) return "—";
