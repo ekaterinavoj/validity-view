@@ -8,7 +8,7 @@ import { ShieldCheck, AlertTriangle, CheckCircle2, ExternalLink, Download, Info 
 import { PageHeader } from "@/components/ui/page-header";
 import { HelpButton } from "@/components/HelpButton";
 import { useSecurityChecklistState } from "@/hooks/useSecurityChecklistState";
-import { formatDateTime } from "@/lib/dateFormat";
+import { formatDisplayDateTime } from "@/lib/dateFormat";
 
 type Severity = "critical" | "high" | "medium" | "info";
 
