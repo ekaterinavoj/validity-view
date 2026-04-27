@@ -58,6 +58,25 @@ ADDITIONAL_REDIRECT_URLS=
 JWT_EXPIRY=3600
 DISABLE_SIGNUP=true
 
+# -------------------------------------------
+# Hardening – DOPORUČENO PRO PRODUKCI
+# -------------------------------------------
+# Kontrola hesel proti databázi Have I Been Pwned (1B+ uniklých hesel).
+# Blokuje signup/změnu hesla, pokud heslo bylo v úniku.
+GOTRUE_PASSWORD_HIBP_ENABLED=true
+
+# Vícefaktorová autentizace (TOTP). Nutno pak doimplementovat enrollment v UI.
+GOTRUE_MFA_ENABLED=true
+GOTRUE_MFA_MAX_ENROLLED_FACTORS=2
+
+# Zkrácení platnosti magických odkazů a OTP kódů na 1 hodinu (default bývá 24h).
+GOTRUE_MAILER_OTP_EXP=3600
+
+# Maximální počet neúspěšných pokusů o přihlášení za sledované okno (rate-limit).
+# Doplňuje nginx rate-limit – chrání i před aplikační vrstvou.
+GOTRUE_RATE_LIMIT_HEADER=X-Forwarded-For
+
+
 # API_EXTERNAL_URL - DŮLEŽITÉ!
 # Tato proměnná ovlivňuje:
 #   1. GoTrue Auth (callback URL, ověřovací odkazy v emailech)
