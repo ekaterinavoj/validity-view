@@ -241,44 +241,7 @@ export const ReminderTemplates = () => {
     }
   };
 
-  const getPreviewEmail = () => {
-    // Use different placeholders based on module
-    if (activeModule === "trainings") {
-      const subject = formData.email_subject
-        .replace(/\{\{training_name\}\}/g, "Bezpečnost práce")
-        .replace(/\{\{days_remaining\}\}/g, "15");
-      
-      const body = formData.email_body
-        .replace(/\{\{training_name\}\}/g, "Bezpečnost práce")
-        .replace(/\{\{days_remaining\}\}/g, "15");
-      
-      return { subject, body };
-    } else if (activeModule === "deadlines") {
-      const subject = formData.email_subject
-        .replace(/\{\{equipmentName\}\}/g, "Hasící přístroj A1")
-        .replace(/\{\{deadlineType\}\}/g, "Revize")
-        .replace(/\{\{daysLeft\}\}/g, "15");
-      
-      const body = formData.email_body
-        .replace(/\{\{equipmentName\}\}/g, "Hasící přístroj A1")
-        .replace(/\{\{deadlineType\}\}/g, "Revize")
-        .replace(/\{\{daysLeft\}\}/g, "15");
-      
-      return { subject, body };
-    } else {
-      const subject = formData.email_subject
-        .replace(/\{\{employeeName\}\}/g, "Jan Novák")
-        .replace(/\{\{examinationType\}\}/g, "Vstupní prohlídka")
-        .replace(/\{\{daysLeft\}\}/g, "15");
-      
-      const body = formData.email_body
-        .replace(/\{\{employeeName\}\}/g, "Jan Novák")
-        .replace(/\{\{examinationType\}\}/g, "Vstupní prohlídka")
-        .replace(/\{\{daysLeft\}\}/g, "15");
-      
-      return { subject, body };
-    }
-  };
+  // (preview helper removed — now handled by ReminderTemplateEditor)
 
   const getModuleLabel = () => {
     switch (activeModule) {
