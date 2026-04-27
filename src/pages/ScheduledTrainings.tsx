@@ -48,6 +48,7 @@ import { BulkEditTrainingsDialog } from "@/components/BulkEditTrainingsDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
+import { HelpButton } from "@/components/HelpButton";
 import { downloadTrainingMatrixXLSX, type CellState, type MatrixEmployee, type MatrixEventType, type MatrixEntry } from "@/lib/matrixExport";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
