@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Shield, UserPlus, Lock, CheckCircle, Users, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PendingUsersPanel } from "@/components/PendingUsersPanel";
 
 const roleColors: Record<string, string> = {
   admin: "bg-role-admin/20 text-role-admin-foreground dark:text-role-admin",
