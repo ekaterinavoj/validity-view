@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { ShieldCheck, AlertTriangle, CheckCircle2, ExternalLink, Download } from "lucide-react";
+import { ShieldCheck, AlertTriangle, CheckCircle2, ExternalLink, Download, Info } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { HelpButton } from "@/components/HelpButton";
+import { useSecurityChecklistState } from "@/hooks/useSecurityChecklistState";
+import { formatDateTime } from "@/lib/dateFormat";
 
 type Severity = "critical" | "high" | "medium" | "info";
 
@@ -207,33 +210,14 @@ const severityLabel = (s: Severity) => {
   }
 };
 
-const STORAGE_KEY = "security-checklist-state-v1";
-
 export default function SecurityChecklist() {
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const { state, toggle } = useSecurityChecklistState();
+  const checked = state.items;
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setChecked(JSON.parse(raw));
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const toggle = (id: string) => {
-    setChecked((prev) => {
-      const next = { ...prev, [id]: !prev[id] };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  };
-
-  const totalCritical = CHECKLIST.filter((i) => i.severity === "critical").length;
+  const totalCritical = useMemo(
+    () => CHECKLIST.filter((i) => i.severity === "critical").length,
+    [],
+  );
   const completedCritical = CHECKLIST.filter((i) => i.severity === "critical" && checked[i.id]).length;
   const totalCompleted = CHECKLIST.filter((i) => checked[i.id]).length;
   const totalCount = CHECKLIST.length;
