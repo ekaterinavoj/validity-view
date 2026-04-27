@@ -70,6 +70,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { RefreshButton } from "@/components/RefreshButton";
+import { HelpButton } from "@/components/HelpButton";
 import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function Equipment() {
@@ -313,7 +314,10 @@ export default function Equipment() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Zařízení</h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-bold text-foreground">Zařízení</h1>
+            <HelpButton section="technicke-lhuty" label="Nápověda: Zařízení" />
+          </div>
           <p className="text-muted-foreground">
             Celkem {filteredEquipment.length} zařízení
           </p>

@@ -48,6 +48,7 @@ import { BulkEditTrainingsDialog } from "@/components/BulkEditTrainingsDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
+import { HelpButton } from "@/components/HelpButton";
 import { downloadTrainingMatrixXLSX, type CellState, type MatrixEmployee, type MatrixEventType, type MatrixEntry } from "@/lib/matrixExport";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTrainingTypes } from "@/hooks/useTrainingTypes";
@@ -461,7 +462,10 @@ export default function ScheduledTrainings() {
       
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold text-foreground">Naplánovaná školení</h2>
+          <div className="flex items-center gap-1">
+            <h2 className="text-3xl font-bold text-foreground">Naplánovaná školení</h2>
+            <HelpButton section="skoleni" label="Nápověda: Školení" />
+          </div>
           <div className="flex gap-2">
             <Button 
               variant="outline" 

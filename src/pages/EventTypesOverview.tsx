@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { GraduationCap, Wrench, Stethoscope, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
+import { HelpButton } from "@/components/HelpButton";
 import { useFacilities } from "@/hooks/useFacilities";
 
 interface TypeRow {
@@ -156,7 +157,10 @@ const EventTypesOverview = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Přehled typů událostí</h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-bold">Přehled typů událostí</h1>
+            <HelpButton section="zalozky-prehled" label="Nápověda: Typy událostí" />
+          </div>
           <p className="text-muted-foreground text-sm">
             Souhrnný přehled všech typů událostí napříč moduly (pouze pro čtení)
           </p>

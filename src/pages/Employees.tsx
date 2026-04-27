@@ -49,6 +49,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { RefreshButton } from "@/components/RefreshButton";
 import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { HelpButton } from "@/components/HelpButton";
 
 // Helper: detect managerial position by keywords (mirrors DB function is_managerial_position)
 const isManagerialPosition = (position: string | undefined | null): boolean => {
@@ -600,7 +601,10 @@ export default function Employees() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-foreground">Zaměstnanci</h2>
+        <div className="flex items-center gap-1">
+          <h2 className="text-3xl font-bold text-foreground">Zaměstnanci</h2>
+          <HelpButton section="zamestnanci" label="Nápověda: Školené osoby" />
+        </div>
 
         <div className="flex gap-2">
           <RefreshButton onRefresh={() => refetch()} loading={employeesLoading} />

@@ -37,6 +37,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { HelpButton } from "@/components/HelpButton";
 
 
 export default function History() {
@@ -364,7 +365,10 @@ export default function History() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-foreground">Historie školení</h2>
+        <div className="flex items-center gap-1">
+          <h2 className="text-3xl font-bold text-foreground">Historie školení</h2>
+          <HelpButton section="skoleni" label="Nápověda: Historie školení" />
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={refetch}>
             <RefreshCw className="w-4 h-4 mr-2" />
