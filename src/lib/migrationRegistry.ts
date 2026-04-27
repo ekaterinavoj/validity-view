@@ -4169,13 +4169,60 @@ BEGIN
   SELECT a.email::text, count(*)::bigint, max(a.created_at),
     max(a.created_at) + (v_lock_min || ' minutes')::interval
   FROM public.auth_signin_attempts a
-  WHERE a.status = 'failed' AND a.created_at > NOW() - (v_window_min || ' minutes')::interval
+  WHERE a.status = 'failure' AND a.created_at > NOW() - (v_window_min || ' minutes')::interval
   GROUP BY a.email
   HAVING count(*) >= v_max_attempts AND max(a.created_at) > NOW() - (v_lock_min || ' minutes')::interval;
 END;
 $fn$;
 REVOKE EXECUTE ON FUNCTION public.get_locked_accounts() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_locked_accounts() TO authenticated, service_role;
+`,
+  },
+  {
+    version: "20260427105517",
+    name: "security_lockout_status_fix",
+    // Oprava: auth_signin_attempts.status je 'failure' (ne 'failed').
+    // Předchozí verze is_account_locked / get_locked_accounts hledala neexistující hodnotu
+    // a nikdy by účet nezamkla. Tato migrace opravuje WHERE klauzuli.
+    sql: `
+CREATE OR REPLACE FUNCTION public.is_account_locked(_email text)
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
+DECLARE
+  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
+  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
+  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
+  v_failed_count int; v_last_failed timestamptz;
+BEGIN
+  IF _email IS NULL OR length(_email) = 0 THEN RETURN false; END IF;
+  SELECT count(*), max(created_at) INTO v_failed_count, v_last_failed
+  FROM public.auth_signin_attempts
+  WHERE lower(email) = lower(_email) AND status = 'failure'
+    AND created_at > NOW() - (v_window_min || ' minutes')::interval;
+  IF v_failed_count >= v_max_attempts AND v_last_failed > NOW() - (v_lock_min || ' minutes')::interval THEN
+    RETURN true;
+  END IF;
+  RETURN false;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.get_locked_accounts()
+RETURNS TABLE (email text, failed_attempts bigint, last_attempt timestamptz, unlock_at timestamptz)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
+DECLARE
+  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
+  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
+  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin'::app_role) THEN RAISE EXCEPTION 'Forbidden'; END IF;
+  RETURN QUERY
+  SELECT a.email::text, count(*)::bigint, max(a.created_at),
+    max(a.created_at) + (v_lock_min || ' minutes')::interval
+  FROM public.auth_signin_attempts a
+  WHERE a.status = 'failure' AND a.created_at > NOW() - (v_window_min || ' minutes')::interval
+  GROUP BY a.email
+  HAVING count(*) >= v_max_attempts AND max(a.created_at) > NOW() - (v_lock_min || ' minutes')::interval;
+END;
+$fn$;
 `,
   },
 ];
