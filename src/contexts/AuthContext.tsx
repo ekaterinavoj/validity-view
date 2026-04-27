@@ -282,11 +282,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Retry logic for transient server errors (500, network issues) — common on selfhosted
-    // after long idle periods or backend restarts.
+    // 1) Pre-check: brute-force lockout (DB funkce is_account_locked). Pokud je účet uzamčen,
+    //    nepokračujeme a ani nezkoušíme heslo proti GoTrue. Best-effort – při chybě RPC pokračujeme.
+    try {
+      const { data: locked, error: lockErr } = await supabase.rpc("is_account_locked", {
+        _email: email.trim().toLowerCase(),
+      });
+      if (!lockErr && locked === true) {
+        return {
+          error: {
+            message:
+              "Účet je dočasně zamčen po opakovaných neúspěšných pokusech. Zkuste to prosím za několik minut.",
+            name: "AccountLocked",
+          } as any,
+        };
+      }
+    } catch {
+      // RPC nedostupné (např. starší DB) – nepřerušujeme login.
+    }
+
+    // 2) Retry logic for transient server errors (500, network issues) — common on selfhosted
+    //    after long idle periods or backend restarts.
     const MAX_ATTEMPTS = 3;
     const BASE_DELAY_MS = 700;
     let lastError: any = null;
+
 
     // Correlation id to trace all attempts for one logical signIn in DB logs / console.
     const requestId =
