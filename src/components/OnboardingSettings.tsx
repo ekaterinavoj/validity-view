@@ -92,6 +92,9 @@ export function OnboardingSettings() {
 
   return (
     <div className="space-y-6">
+      {/* Pending users approval (safety net for legacy or future self-signup) */}
+      <PendingUsersPanel />
+
       {/* Admin-only provisioning info */}
       <Card className="border-primary/30 bg-primary/5">
         <CardHeader>
