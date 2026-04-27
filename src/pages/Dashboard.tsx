@@ -68,43 +68,30 @@ export default function Dashboard() {
     (async () => {
       setStatsLoading(true);
       try {
-        const tasks: Array<Promise<any>> = [];
-        if (canT) {
-          tasks.push(
-            supabase
-              .from("trainings")
-              .select("next_training_date")
-              .is("deleted_at", null)
-          );
-        } else tasks.push(Promise.resolve({ data: [] }));
-        if (canD) {
-          tasks.push(
-            supabase
-              .from("deadlines")
-              .select("next_check_date")
-              .is("deleted_at", null)
-          );
-        } else tasks.push(Promise.resolve({ data: [] }));
-        if (canP) {
-          tasks.push(
-            supabase
-              .from("medical_examinations")
-              .select("next_examination_date")
-              .is("deleted_at", null)
-          );
-        } else tasks.push(Promise.resolve({ data: [] }));
-
-        const [tRes, dRes, pRes] = await Promise.all(tasks);
+        const [tRes, dRes, pRes] = await Promise.all([
+          canT
+            ? supabase.from("trainings").select("next_training_date").is("deleted_at", null)
+            : Promise.resolve({ data: [] as any[] }),
+          canD
+            ? supabase.from("deadlines").select("next_check_date").is("deleted_at", null)
+            : Promise.resolve({ data: [] as any[] }),
+          canP
+            ? supabase
+                .from("medical_examinations")
+                .select("next_examination_date")
+                .is("deleted_at", null)
+            : Promise.resolve({ data: [] as any[] }),
+        ]);
         if (!mounted) return;
         setTrainings(
-          classify((tRes.data ?? []).map((r: any) => ({ date: r.next_training_date })))
+          classify(((tRes as any).data ?? []).map((r: any) => ({ date: r.next_training_date })))
         );
         setDeadlines(
-          classify((dRes.data ?? []).map((r: any) => ({ date: r.next_check_date })))
+          classify(((dRes as any).data ?? []).map((r: any) => ({ date: r.next_check_date })))
         );
         setPlp(
           classify(
-            (pRes.data ?? []).map((r: any) => ({ date: r.next_examination_date }))
+            ((pRes as any).data ?? []).map((r: any) => ({ date: r.next_examination_date }))
           )
         );
       } catch (e) {
