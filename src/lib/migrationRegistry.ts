@@ -4057,6 +4057,174 @@ WHERE key = 'security_checklist_state';`,
     //    run-medical-reminders, send-training-reminders
     sql: `SELECT 1; -- noop migration, viz komentář výše`,
   },
+  {
+    version: "20260427105248",
+    name: "security_log_retention_and_lockout",
+    // Doplnění zabezpečení pro self-hosted i cloud:
+    //  • system_settings: retence (audit 365d, reminder 90d, signin 180d) + lockout (5/15min/15min)
+    //  • get_security_setting_int(key, default) – helper pro načítání int z system_settings
+    //  • cleanup_old_security_logs() – maže staré záznamy z audit_logs, *_reminder_logs, auth_signin_attempts
+    //  • pg_cron job 'cleanup_old_security_logs_daily' – denně 03:30 UTC
+    //  • is_account_locked(email) – brute-force ochrana (callable i pro anon kvůli pre-login checku)
+    //  • get_locked_accounts() – admin přehled právě uzamčených účtů
+    sql: `
+-- 1) Výchozí nastavení (idempotentní)
+INSERT INTO public.system_settings (key, value)
+VALUES
+  ('security_retention_audit_days', '365'::jsonb),
+  ('security_retention_reminder_days', '90'::jsonb),
+  ('security_retention_signin_days', '180'::jsonb),
+  ('security_lockout_max_attempts', '5'::jsonb),
+  ('security_lockout_window_minutes', '15'::jsonb),
+  ('security_lockout_duration_minutes', '15'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+
+-- 2) Helper
+CREATE OR REPLACE FUNCTION public.get_security_setting_int(_key text, _default int)
+RETURNS int LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $fn$
+  SELECT COALESCE((SELECT (value)::text::int FROM public.system_settings WHERE key = _key), _default);
+$fn$;
+REVOKE EXECUTE ON FUNCTION public.get_security_setting_int(text, int) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_security_setting_int(text, int) TO authenticated, service_role;
+
+-- 3) Cleanup
+CREATE OR REPLACE FUNCTION public.cleanup_old_security_logs()
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $fn$
+DECLARE
+  v_audit_days int := public.get_security_setting_int('security_retention_audit_days', 365);
+  v_reminder_days int := public.get_security_setting_int('security_retention_reminder_days', 90);
+  v_signin_days int := public.get_security_setting_int('security_retention_signin_days', 180);
+  v_audit_deleted int := 0; v_rem_deleted int := 0; v_drem_deleted int := 0;
+  v_mrem_deleted int := 0; v_signin_deleted int := 0;
+BEGIN
+  DELETE FROM public.audit_logs WHERE created_at < NOW() - (v_audit_days || ' days')::interval;
+  GET DIAGNOSTICS v_audit_deleted = ROW_COUNT;
+  DELETE FROM public.reminder_logs WHERE sent_at < NOW() - (v_reminder_days || ' days')::interval;
+  GET DIAGNOSTICS v_rem_deleted = ROW_COUNT;
+  DELETE FROM public.deadline_reminder_logs WHERE sent_at < NOW() - (v_reminder_days || ' days')::interval;
+  GET DIAGNOSTICS v_drem_deleted = ROW_COUNT;
+  DELETE FROM public.medical_reminder_logs WHERE sent_at < NOW() - (v_reminder_days || ' days')::interval;
+  GET DIAGNOSTICS v_mrem_deleted = ROW_COUNT;
+  DELETE FROM public.auth_signin_attempts WHERE created_at < NOW() - (v_signin_days || ' days')::interval;
+  GET DIAGNOSTICS v_signin_deleted = ROW_COUNT;
+  BEGIN
+    INSERT INTO public.audit_logs (action, entity_type, details)
+    VALUES ('security_cleanup', 'system', jsonb_build_object(
+      'audit_deleted', v_audit_deleted, 'reminder_deleted', v_rem_deleted,
+      'deadline_reminder_deleted', v_drem_deleted, 'medical_reminder_deleted', v_mrem_deleted,
+      'signin_attempts_deleted', v_signin_deleted));
+  EXCEPTION WHEN OTHERS THEN NULL; END;
+  RETURN jsonb_build_object('audit_deleted', v_audit_deleted, 'reminder_deleted', v_rem_deleted,
+    'deadline_reminder_deleted', v_drem_deleted, 'medical_reminder_deleted', v_mrem_deleted,
+    'signin_attempts_deleted', v_signin_deleted);
+END;
+$fn$;
+REVOKE EXECUTE ON FUNCTION public.cleanup_old_security_logs() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cleanup_old_security_logs() TO service_role;
+
+-- 4) pg_cron job
+DO $do$
+DECLARE v_jobid int;
+BEGIN
+  SELECT jobid INTO v_jobid FROM cron.job WHERE jobname = 'cleanup_old_security_logs_daily';
+  IF v_jobid IS NOT NULL THEN PERFORM cron.unschedule(v_jobid); END IF;
+  PERFORM cron.schedule('cleanup_old_security_logs_daily', '30 3 * * *',
+    $cron$ SELECT public.cleanup_old_security_logs(); $cron$);
+END $do$;
+
+-- 5) Brute-force lockout
+CREATE OR REPLACE FUNCTION public.is_account_locked(_email text)
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
+DECLARE
+  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
+  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
+  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
+  v_failed_count int; v_last_failed timestamptz;
+BEGIN
+  IF _email IS NULL OR length(_email) = 0 THEN RETURN false; END IF;
+  SELECT count(*), max(created_at) INTO v_failed_count, v_last_failed
+  FROM public.auth_signin_attempts
+  WHERE lower(email) = lower(_email) AND status = 'failed'
+    AND created_at > NOW() - (v_window_min || ' minutes')::interval;
+  IF v_failed_count >= v_max_attempts AND v_last_failed > NOW() - (v_lock_min || ' minutes')::interval THEN
+    RETURN true;
+  END IF;
+  RETURN false;
+END;
+$fn$;
+REVOKE EXECUTE ON FUNCTION public.is_account_locked(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_account_locked(text) TO anon, authenticated, service_role;
+
+-- 6) Lockout přehled pro admina
+CREATE OR REPLACE FUNCTION public.get_locked_accounts()
+RETURNS TABLE (email text, failed_attempts bigint, last_attempt timestamptz, unlock_at timestamptz)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
+DECLARE
+  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
+  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
+  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin'::app_role) THEN RAISE EXCEPTION 'Forbidden'; END IF;
+  RETURN QUERY
+  SELECT a.email::text, count(*)::bigint, max(a.created_at),
+    max(a.created_at) + (v_lock_min || ' minutes')::interval
+  FROM public.auth_signin_attempts a
+  WHERE a.status = 'failure' AND a.created_at > NOW() - (v_window_min || ' minutes')::interval
+  GROUP BY a.email
+  HAVING count(*) >= v_max_attempts AND max(a.created_at) > NOW() - (v_lock_min || ' minutes')::interval;
+END;
+$fn$;
+REVOKE EXECUTE ON FUNCTION public.get_locked_accounts() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_locked_accounts() TO authenticated, service_role;
+`,
+  },
+  {
+    version: "20260427105517",
+    name: "security_lockout_status_fix",
+    // Oprava: auth_signin_attempts.status je 'failure' (ne 'failed').
+    // Předchozí verze is_account_locked / get_locked_accounts hledala neexistující hodnotu
+    // a nikdy by účet nezamkla. Tato migrace opravuje WHERE klauzuli.
+    sql: `
+CREATE OR REPLACE FUNCTION public.is_account_locked(_email text)
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
+DECLARE
+  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
+  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
+  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
+  v_failed_count int; v_last_failed timestamptz;
+BEGIN
+  IF _email IS NULL OR length(_email) = 0 THEN RETURN false; END IF;
+  SELECT count(*), max(created_at) INTO v_failed_count, v_last_failed
+  FROM public.auth_signin_attempts
+  WHERE lower(email) = lower(_email) AND status = 'failure'
+    AND created_at > NOW() - (v_window_min || ' minutes')::interval;
+  IF v_failed_count >= v_max_attempts AND v_last_failed > NOW() - (v_lock_min || ' minutes')::interval THEN
+    RETURN true;
+  END IF;
+  RETURN false;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.get_locked_accounts()
+RETURNS TABLE (email text, failed_attempts bigint, last_attempt timestamptz, unlock_at timestamptz)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
+DECLARE
+  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
+  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
+  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin'::app_role) THEN RAISE EXCEPTION 'Forbidden'; END IF;
+  RETURN QUERY
+  SELECT a.email::text, count(*)::bigint, max(a.created_at),
+    max(a.created_at) + (v_lock_min || ' minutes')::interval
+  FROM public.auth_signin_attempts a
+  WHERE a.status = 'failure' AND a.created_at > NOW() - (v_window_min || ' minutes')::interval
+  GROUP BY a.email
+  HAVING count(*) >= v_max_attempts AND max(a.created_at) > NOW() - (v_lock_min || ' minutes')::interval;
+END;
+$fn$;
+`,
+  },
 ];
 
 /**
