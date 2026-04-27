@@ -487,7 +487,7 @@ export default function AdminSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
             Onboarding
@@ -511,10 +511,6 @@ export default function AdminSettings() {
           <TabsTrigger value="audit-log" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Audit log
-          </TabsTrigger>
-          <TabsTrigger value="diagnostics" className="flex items-center gap-2">
-            <Eye className="w-4 h-4" />
-            Diagnostika
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
             <ShieldAlert className="w-4 h-4" />
