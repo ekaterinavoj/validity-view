@@ -600,7 +600,10 @@ export default function Employees() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-foreground">Zaměstnanci</h2>
+        <div className="flex items-center gap-1">
+          <h2 className="text-3xl font-bold text-foreground">Zaměstnanci</h2>
+          <HelpButton section="zamestnanci" label="Nápověda: Školené osoby" />
+        </div>
 
         <div className="flex gap-2">
           <RefreshButton onRefresh={() => refetch()} loading={employeesLoading} />
