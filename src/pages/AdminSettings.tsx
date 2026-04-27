@@ -564,15 +564,8 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
-          {/* Next Scheduled Send Preview – skryto, souhrny vypnuty */}
-          {false && (
-            <NextSendPreview 
-              schedule={reminderSchedule}
-              frequency={reminderFrequency}
-              hasRecipients={reminderRecipients.user_ids.length > 0}
-            />
-          )}
         </TabsContent>
+
 
         {/* Email Tab */}
         <TabsContent value="email" className="space-y-6">
