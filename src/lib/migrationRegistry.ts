@@ -3999,8 +3999,20 @@ BEGIN
       FOR SELECT
       TO authenticated
       USING (key = 'password_policy');
-  END IF;
+    END IF;
 END$$;`,
+  },
+  {
+    version: "20260427072617",
+    name: "security_checklist_shared_state",
+    sql: `-- Sdílený stav Security Checklist (zaškrtnuté položky) pro adminy.
+INSERT INTO public.system_settings (key, value, description)
+VALUES (
+  'security_checklist_state',
+  jsonb_build_object('items', '{}'::jsonb, 'updated_by', NULL, 'updated_at', NULL),
+  'Sdílený stav položek Security Hardening Checklistu (zaškrtnuté/nezaškrtnuté). Editují pouze admini.'
+)
+ON CONFLICT (key) DO NOTHING;`,
   },
 ];
 

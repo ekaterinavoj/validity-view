@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, KeyRound } from "lucide-react";
+import { ShieldAlert, KeyRound, BellOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePasswordPolicy } from "@/hooks/usePasswordPolicy";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { isPasswordExpired } from "@/lib/passwordStrength";
+import { useToast } from "@/hooks/use-toast";
 
 const SNOOZE_KEY = "password-review-snoozed-until";
 const SNOOZE_DAYS = 7;
@@ -16,14 +18,19 @@ const SNOOZE_DAYS = 7;
  *   - the active password_policy has max_age_enabled and the user's
  *     password_updated_at is older than max_age_days.
  *
- * User can snooze for 7 days (per browser, per user).
- *
- * Note: Supabase doesn't store password plaintext, so we cannot verify whether the
- * existing password meets the new policy. Instead we ask flagged users to rotate.
+ * User can:
+ *   - "Připomenout za 7 dní" — per-browser snooze (localStorage, useful when user
+ *     plans to change soon),
+ *   - "Už mi to nepřipomínat" — uloží trvalý opt-out do user_preferences
+ *     (synchronizováno přes zařízení), platí pouze pro doporučení (rotace);
+ *     u must_change_password / must_review_password od admina opt-out NEMÁ vliv,
+ *     protože admin chce explicitně, aby uživatel heslo změnil.
  */
 export const PasswordReviewModal = () => {
   const { profile, user } = useAuth();
   const { policy } = usePasswordPolicy();
+  const { preferences, updatePreference } = useUserPreferences();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
   const passwordExpired = useMemo(() => {
@@ -31,10 +38,18 @@ export const PasswordReviewModal = () => {
     return isPasswordExpired((profile as any).password_updated_at ?? null, policy);
   }, [profile, policy]);
 
+  // mustReview = explicit admin/migration flag → cannot be silenced via opt-out
+  const mustReview = (profile as any)?.must_review_password === true;
+
   useEffect(() => {
     if (!user || !profile) return;
-    const mustReview = (profile as any).must_review_password === true;
     if (!mustReview && !passwordExpired) {
+      setOpen(false);
+      return;
+    }
+
+    // Trvalý opt-out (jen pro "doporučení" — když není mustReview)
+    if (!mustReview && preferences.passwordReviewSnoozedForever) {
       setOpen(false);
       return;
     }
@@ -54,7 +69,7 @@ export const PasswordReviewModal = () => {
     }
 
     setOpen(true);
-  }, [user, profile, passwordExpired]);
+  }, [user, profile, passwordExpired, mustReview, preferences.passwordReviewSnoozedForever]);
 
   const handleSnooze = () => {
     if (!user) return;
@@ -64,6 +79,15 @@ export const PasswordReviewModal = () => {
     } catch {
       // ignore
     }
+    setOpen(false);
+  };
+
+  const handleNeverRemind = () => {
+    updatePreference("passwordReviewSnoozedForever", true);
+    toast({
+      title: "Připomínka vypnuta",
+      description: "Připomínání rotace hesla bylo trvale vypnuto. Změnit zpět můžete v Profilu (Nastavení → Bezpečnost).",
+    });
     setOpen(false);
   };
 
@@ -86,7 +110,7 @@ export const PasswordReviewModal = () => {
     ? "Vaše heslo vypršelo"
     : "Doporučujeme změnit heslo";
   const intro = passwordExpired
-    ? `Z bezpečnostních důvodů je nutné měnit heslo nejméně každých ${policy.max_age_days} dní. Nastavte si nové heslo splňující aktuální pravidla:`
+    ? `Z bezpečnostních důvodů je vhodné měnit heslo nejméně každých ${policy.max_age_days} dní. Nastavte si nové heslo splňující aktuální pravidla:`
     : "Z důvodu zvýšených bezpečnostních požadavků doporučujeme všem stávajícím uživatelům aktualizovat heslo tak, aby splňovalo nová pravidla:";
 
   return (
@@ -109,7 +133,13 @@ export const PasswordReviewModal = () => {
             </span>
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="gap-2 sm:gap-2 flex-col sm:flex-row">
+          {!mustReview && (
+            <Button variant="ghost" size="sm" onClick={handleNeverRemind} title="Trvale vypnout připomínání rotace hesla">
+              <BellOff className="w-4 h-4 mr-2" />
+              Už mi to nepřipomínat
+            </Button>
+          )}
           <Button variant="outline" onClick={handleSnooze}>
             Připomenout za 7 dní
           </Button>
