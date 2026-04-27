@@ -1,17 +1,26 @@
-# Systém správy školení, technických lhůt a lékařských prohlídek
+# Lhůtník — Systém správy školení, technických lhůt a lékařských prohlídek
 
-Webová aplikace pro evidenci školení zaměstnanců, technických lhůt zařízení a pracovně-lékařských prohlídek s automatickým systémem připomínek.
+Webová aplikace **Lhůtník** pro evidenci školení zaměstnanců, technických lhůt zařízení a pracovně-lékařských prohlídek (PLP) s automatickým systémem připomínek a kompletním auditem.
 
 ## 📋 Moduly
 
 | Modul | Popis |
 |-------|-------|
-| **Školení** | Evidence školení zaměstnanců s automatickým výpočtem expirací |
+| **Dashboard** | Souhrnný přehled klíčových ukazatelů a blížících se expirací |
+| **Školení** | Evidence školení zaměstnanců s automatickým výpočtem expirací a verzováním |
 | **Technické události** | Evidence technických kontrol, revizí a lhůt zařízení |
-| **PLP (Prohlídky)** | Pracovně-lékařské prohlídky zaměstnanců |
-| **Zaměstnanci** | Hierarchie nadřízených, oddělení, statusy |
+| **PLP (Prohlídky)** | Pracovně-lékařské prohlídky vč. zdravotních rizik |
+| **Zaměstnanci** | Hierarchie nadřízených, oddělení, statusy, věkové milníky |
+| **Neaktivní zaměstnanci** | Přehled MD/RD, nemocenské, ukončených pracovních poměrů |
+| **Zkušební doby** | Sledování zkušebních dob a jejich překážek |
 | **Zařízení** | Evidence inventáře s přiřazením odpovědných osob |
-| **Audit log** | Kompletní historie změn |
+| **Provozovny / Oddělení** | Organizační struktura |
+| **Skupiny odpovědných osob** | Sdílené příjemci připomínek napříč moduly |
+| **Dokumenty** | Sdílené firemní dokumenty organizované do složek |
+| **Statistiky** | Reporty a grafy napříč moduly |
+| **Historie** | Soft-deleted záznamy s možností obnovení nebo trvalého smazání |
+| **Audit log** | Kompletní historie změn (Basic / Advanced / RLS Diagnostics) |
+| **Administrace** | Uživatelé, role, moduly, SMTP, šablony připomínek, bezpečnost |
 
 ## 🛠️ Technologie
 
@@ -34,16 +43,16 @@ Webová aplikace pro evidenci školení zaměstnanců, technických lhůt zaří
 | Technologie | Účel |
 |-------------|------|
 | PostgreSQL 15 | Databáze |
-| Supabase Auth | Autentizace (JWT) |
-| Supabase Storage | Úložiště souborů |
+| Supabase Auth (GoTrue) | Autentizace (JWT) |
+| Supabase Storage | Úložiště dokumentů (3 buckety) |
 | Edge Functions (Deno) | Serverless funkce |
-| Row Level Security | Bezpečnostní politiky |
-| pg_cron + pg_net | Plánované úlohy |
+| Row Level Security | Granulární bezpečnostní politiky |
+| pg_cron + pg_net | Plánované úlohy (retention, cleanup) |
 
 ### E-mail
-- **Protokol**: Nativní SMTP (Deno implementace)
-- **Konfigurace**: Host, port, TLS/STARTTLS, autentizace
-- **Šablony**: HTML s proměnnými
+- **Protokol**: Nativní SMTP (Deno implementace) — STARTTLS, SMTPS i M365/Gmail OAuth2
+- **Konfigurace**: V administraci (Administrace → Nastavení → E-mail)
+- **Šablony**: Plně editovatelné HTML/text šablony s proměnnými ({{employeeName}}, {{trainingType}}, {{expiryDate}} …) a živým náhledem
 
 ---
 
