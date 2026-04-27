@@ -30,6 +30,9 @@ export interface UserPreferences {
   // Notification bell filters (synced cross-device)
   notificationCategory: "all" | "probation" | "training" | "deadline" | "medical" | "other";
   notificationOnlyUnread: boolean;
+
+  // Password review modal (synced cross-device — opt-out from rotation reminder)
+  passwordReviewSnoozedForever: boolean;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -50,6 +53,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   probationsCompactMode: false,
   notificationCategory: "all",
   notificationOnlyUnread: false,
+  passwordReviewSnoozedForever: false,
 };
 
 const getStorageKey = (userId: string | null) => {
