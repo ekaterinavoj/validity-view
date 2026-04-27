@@ -500,7 +500,7 @@ export default function AdminSettings() {
           </TabsTrigger>
           <TabsTrigger value="audit" className="flex items-center gap-2">
             <Eye className="w-4 h-4" />
-            Audit
+            Diagnostika přístupů
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
             <ShieldAlert className="w-4 h-4" />
@@ -1361,6 +1361,26 @@ export default function AdminSettings() {
 
         {/* Audit Tab */}
         <TabsContent value="audit" className="space-y-6">
+          <Card className="border-primary/40 bg-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Eye className="w-4 h-4 text-primary" />
+                Diagnostika přístupových oprávnění
+              </CardTitle>
+              <CardDescription>
+                Tato záložka obsahuje <strong>diagnostické nástroje</strong> pro ověření, zda RLS politiky správně omezují viditelnost dat (kdo na koho vidí, kdo má přístup k dokumentům, výsledky bezpečnostních scanů). Není to plný audit log změn — pro přehled <em>kdo co kdy změnil</em> v datech (školení, lhůty, PLP, zaměstnanci) použijte samostatnou stránku{" "}
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 inline align-baseline"
+                  onClick={() => navigate("/audit-log")}
+                >
+                  Audit log →
+                </Button>
+                .
+              </CardDescription>
+            </CardHeader>
+          </Card>
           <EmployeeAccessDebug />
           <MedicalDocsAccessDebug />
           <SecurityAuditPanel />
