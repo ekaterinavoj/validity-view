@@ -1,17 +1,26 @@
-# Systém správy školení, technických lhůt a lékařských prohlídek
+# Lhůtník — Systém správy školení, technických lhůt a lékařských prohlídek
 
-Webová aplikace pro evidenci školení zaměstnanců, technických lhůt zařízení a pracovně-lékařských prohlídek s automatickým systémem připomínek.
+Webová aplikace **Lhůtník** pro evidenci školení zaměstnanců, technických lhůt zařízení a pracovně-lékařských prohlídek (PLP) s automatickým systémem připomínek a kompletním auditem.
 
 ## 📋 Moduly
 
 | Modul | Popis |
 |-------|-------|
-| **Školení** | Evidence školení zaměstnanců s automatickým výpočtem expirací |
+| **Dashboard** | Souhrnný přehled klíčových ukazatelů a blížících se expirací |
+| **Školení** | Evidence školení zaměstnanců s automatickým výpočtem expirací a verzováním |
 | **Technické události** | Evidence technických kontrol, revizí a lhůt zařízení |
-| **PLP (Prohlídky)** | Pracovně-lékařské prohlídky zaměstnanců |
-| **Zaměstnanci** | Hierarchie nadřízených, oddělení, statusy |
+| **PLP (Prohlídky)** | Pracovně-lékařské prohlídky vč. zdravotních rizik |
+| **Zaměstnanci** | Hierarchie nadřízených, oddělení, statusy, věkové milníky |
+| **Neaktivní zaměstnanci** | Přehled MD/RD, nemocenské, ukončených pracovních poměrů |
+| **Zkušební doby** | Sledování zkušebních dob a jejich překážek |
 | **Zařízení** | Evidence inventáře s přiřazením odpovědných osob |
-| **Audit log** | Kompletní historie změn |
+| **Provozovny / Oddělení** | Organizační struktura |
+| **Skupiny odpovědných osob** | Sdílené příjemci připomínek napříč moduly |
+| **Dokumenty** | Sdílené firemní dokumenty organizované do složek |
+| **Statistiky** | Reporty a grafy napříč moduly |
+| **Historie** | Soft-deleted záznamy s možností obnovení nebo trvalého smazání |
+| **Audit log** | Kompletní historie změn (Basic / Advanced / RLS Diagnostics) |
+| **Administrace** | Uživatelé, role, moduly, SMTP, šablony připomínek, bezpečnost |
 
 ## 🛠️ Technologie
 
@@ -34,16 +43,16 @@ Webová aplikace pro evidenci školení zaměstnanců, technických lhůt zaří
 | Technologie | Účel |
 |-------------|------|
 | PostgreSQL 15 | Databáze |
-| Supabase Auth | Autentizace (JWT) |
-| Supabase Storage | Úložiště souborů |
+| Supabase Auth (GoTrue) | Autentizace (JWT) |
+| Supabase Storage | Úložiště dokumentů (3 buckety) |
 | Edge Functions (Deno) | Serverless funkce |
-| Row Level Security | Bezpečnostní politiky |
-| pg_cron + pg_net | Plánované úlohy |
+| Row Level Security | Granulární bezpečnostní politiky |
+| pg_cron + pg_net | Plánované úlohy (retention, cleanup) |
 
 ### E-mail
-- **Protokol**: Nativní SMTP (Deno implementace)
-- **Konfigurace**: Host, port, TLS/STARTTLS, autentizace
-- **Šablony**: HTML s proměnnými
+- **Protokol**: Nativní SMTP (Deno implementace) — STARTTLS, SMTPS i M365/Gmail OAuth2
+- **Konfigurace**: V administraci (Administrace → Nastavení → E-mail)
+- **Šablony**: Plně editovatelné HTML/text šablony s proměnnými ({{employeeName}}, {{trainingType}}, {{expiryDate}} …) a živým náhledem
 
 ---
 
@@ -711,12 +720,63 @@ Parametry na každém záznamu:
 
 ## 🔒 Bezpečnost
 
-- **RLS politiky** na všech tabulkách
-- **Role**: admin, manager, user
-- **Moduly**: trainings, deadlines, plp
-- **JWT verifikace** v Edge funkcích
-- **x-cron-secret** hlavička pro CRON automatizaci (env: `X_CRON_SECRET`)
-- **Modulový přístup**: trainings, deadlines, plp — admin má přístup ke všem, ostatní dle nastavení
+### Autentizace a autorizace
+- **Role**: `admin`, `manager`, `user` (uloženo v separátní tabulce `user_roles` — žádná eskalace přes `profiles`)
+- **Modulový přístup**: per-uživatel granularita pro `trainings`, `deadlines`, `plp` (admin má vždy vše)
+- **RLS politiky** na všech tabulkách + `SECURITY DEFINER` funkce (`has_role`, `is_admin_safe`) bez rekurze
+- **JWT verifikace** v Edge funkcích + `x-cron-secret` hlavička pro automatizaci
+- **Samoregistrace zakázána** — účty vytváří pouze administrátor
+
+### Politika hesel a relací
+- **Password policy**: konfigurovatelná délka, velká/malá písmena, číslice, speciální znaky (Administrace → Bezpečnost)
+- **Vynucená změna hesla** při: prvním přihlášení seed admina, ručním resetu adminem, vytvoření uživatele
+- **Idle timeout**: konfigurovatelný (Administrace → Bezpečnost → Časový limit relace)
+- **HIBP (Have I Been Pwned)**: doporučeno zapnout pro detekci kompromitovaných hesel
+
+### Brute-force ochrana (account lockout)
+- Po **N neúspěšných pokusech v X minutách** se účet automaticky uzamkne na **Y minut** (defaultně 5 / 15 / 15)
+- Pre-check v `signIn` před voláním GoTrue (`is_account_locked` RPC) — nesnižuje GoTrue rate limit
+- Login stránka zobrazí jasné upozornění **"Účet je dočasně uzamčen"** s živým odpočtem do odemčení
+- Pokud zbývá málo pokusů, toast varuje **"Zbývá X pokusů do uzamčení"**
+- Admin dashboard (Administrace → Bezpečnost → Monitorování přihlašování):
+  - tabulka aktuálně uzamčených účtů s odpočtem do odemčení
+  - upozornění na účty, jejichž zámek brzy vyprší
+  - přehled opakovaných selhání bez uzamčení (early warning)
+  - auto-refresh každých 30 s
+
+### Audit a retence logů
+- Veškeré změny v hlavních tabulkách jsou logovány do `audit_logs` (kdo, co, kdy, jaká pole)
+- Sekce **Administrace → Audit log** se třemi záložkami: **Basic** (denní přehled), **Advanced** (detailní filtrace + export), **RLS Diagnostics**
+- Automatický `pg_cron` job `cleanup_old_security_logs_daily` (denně 03:30 UTC) maže staré záznamy:
+  - `audit_logs`: 365 dní
+  - `reminder_logs`: 90 dní
+  - `auth_signin_attempts`: 180 dní
+  - retence je konfigurovatelná v `system_settings`
+
+### Bezpečnostní hlavičky (nginx)
+Frontend kontejner i reverse-proxy konfigurace nastavují:
+- **Content-Security-Policy** s `default-src 'self'`, povolenými Supabase endpointy a `frame-ancestors 'none'`
+- **X-Frame-Options: SAMEORIGIN** (clickjacking)
+- **X-Content-Type-Options: nosniff**
+- **Strict-Transport-Security** (HSTS — pouze přes HTTPS reverse proxy)
+- **Referrer-Policy: strict-origin-when-cross-origin**
+- **Permissions-Policy** — vypnuté kamera/mikrofon/geolokace/FLoC
+
+### Rate limiting (nginx)
+- `auth_zone`: 5 r/s pro `/auth/*` (brute-force)
+- `api_zone`: 30 r/s s burst 60 pro obecné API
+- `conn_per_ip`: max 50 souběžných spojení na IP
+
+### Self-hosted hardening checklist
+Aplikace obsahuje interaktivní **Security Checklist** (Administrace → Bezpečnost → Security Findings) pokrývající:
+- vypnutí veřejné registrace (`DISABLE_SIGNUP=true`)
+- změna výchozího Studio hesla (`DASHBOARD_PASSWORD`)
+- firewall na interní porty (5432, 3000, 8091, 4000)
+- HIBP a MFA/TOTP
+- zkrácení OTP/recovery na 1 h
+- DB SSL, restriktivní CORS, non-root kontejnery
+- aktualizace PostgreSQL verze
+
 
 ---
 
@@ -1442,34 +1502,47 @@ echo "Nový X_CRON_SECRET: $NEW_SECRET"
 
 ```
 ├── src/
-│   ├── components/     # React komponenty
-│   ├── contexts/       # React contexts (Auth, AppMode)
-│   ├── hooks/          # Custom hooks
-│   ├── pages/          # Stránky aplikace
-│   ├── lib/            # Utility funkce
-│   └── integrations/   # Supabase client a typy
+│   ├── components/     # React komponenty (vč. ReminderTemplateEditor, LockoutMonitorPanel,
+│   │                   #   AuditLogPanel, SecurityScanRunner, SecurityFindings, …)
+│   ├── contexts/       # React contexts (AuthContext, AppModeContext)
+│   ├── hooks/          # Custom hooks (useDeadlines, useTrainings, useSessionTimeout, …)
+│   ├── pages/          # Stránky aplikace (Dashboard, AdminSettings, SecurityChecklist,
+│   │                   #   Guides, Probations, InactiveEmployeesReport, …)
+│   ├── lib/            # Utility funkce (migrationRegistry, dateFormat, csvExport,
+│   │                   #   routeAccess, healthRisks, …)
+│   └── integrations/   # Supabase client a auto-generované typy
 ├── supabase/
-│   ├── functions/      # Edge funkce
+│   ├── functions/      # Edge funkce (Deno)
 │   │   ├── send-training-reminders/  # Připomínky školení (SMTP)
 │   │   ├── run-reminders/            # Sumární připomínky školení (SMTP)
 │   │   ├── run-deadline-reminders/   # Připomínky technických událostí (SMTP)
 │   │   ├── run-medical-reminders/    # Připomínky lékařských prohlídek (SMTP)
 │   │   ├── send-test-email/          # Testovací SMTP email
 │   │   ├── seed-initial-admin/       # Inicializace prvního admina
+│   │   ├── apply-migrations/         # Aplikace migrací z migrationRegistry
 │   │   ├── admin-create-user/        # Vytvoření uživatele (admin)
 │   │   ├── admin-reset-password/     # Reset hesla (admin)
 │   │   ├── admin-change-email/       # Změna emailu (admin)
 │   │   ├── admin-deactivate-user/    # Deaktivace uživatele (admin)
-│   │   ├── admin-delete-user/        # Smazání uživatele (admin)
+│   │   ├── admin-delete-user/        # Smazání uživatele + cascade cleanup
 │   │   ├── admin-link-employee/      # Propojení profilu se zaměstnancem
 │   │   └── list-users/               # Seznam uživatelů
-│   └── migrations/     # DB migrace (inkrementální aktualizace schématu)
+│   └── migrations/     # DB migrace (inkrementální, registrované v migrationRegistry.ts)
 ├── docker/
-│   └── .env.example    # Příklad ENV proměnných
-├── Dockerfile          # Frontend Docker image
+│   ├── .env.example    # Příklad ENV proměnných
+│   ├── init-db.sql     # Bootstrap schéma pro self-hosted (NEEDITUJTE — generováno)
+│   └── volumes/        # Konfigurace Supabase stacku (Kong, Realtime, …)
+├── selfhosted-resources/
+│   ├── env-example                  # Produkční .env šablona s hardening proměnnými
+│   ├── README-selfhosted.md         # Návod pro self-hosted nasazení
+│   └── nginx-reverseproxy/          # Vzorové konfigurace reverse proxy (HTTPS, CSP, HSTS)
+├── Dockerfile          # Frontend Docker image (Nginx + bezpečnostní hlavičky)
 ├── Dockerfile.db       # PostgreSQL Docker image
-├── docker-compose.yml  # Docker orchestrace
-└── nginx.conf          # Nginx konfigurace
+├── docker-compose.yml                  # Režim A — Frontend + externí Supabase
+├── docker-compose.supabase.yml         # Režim B — Self-hosted Supabase stack
+├── docker-compose-production.yml       # Produkční overlay
+├── docker-compose-selfhosted.yml       # Alternativní self-hosted compose
+└── nginx.conf          # Nginx konfigurace (CSP, HSTS, X-Frame-Options, rate limiting)
 ```
 
 ## ❓ FAQ — Nejčastější problémy po nasazení
