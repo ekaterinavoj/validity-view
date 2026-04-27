@@ -309,6 +309,55 @@ const CHECKLIST: ChecklistItem[] = [
     selfHostedAction:
       "V Administrace → Bezpečnost → Session timeout nastavte rozumnou hodnotu (typicky 30–60 min). Hodnota se ukládá do system_settings.session_timeout. Doporučeno kratší pro admin role.",
   },
+  {
+    id: "account-lockout",
+    category: "auth",
+    title: "Lockout účtu po neúspěšných přihlášeních",
+    description:
+      "Aplikace eviduje neúspěšné pokusy o přihlášení (auth_signin_attempts) a DB funkce is_account_locked(email) vrací true, pokud má účet ≥ N selhání během X minut. Brání útoku heslem i password-spray.",
+    severity: "high",
+    selfHostedAction:
+      "Výchozí: 5 pokusů / 15 minut → lock 15 minut. Hodnoty lze upravit v system_settings (security_lockout_max_attempts, security_lockout_window_minutes, security_lockout_duration_minutes). Aktivně uzamčené účty zobrazí RPC get_locked_accounts (admin only). Migrace 20260427105248.",
+    cloudAction:
+      "Cloud auth má vlastní rate limit; tato funkce přidává druhou aplikační vrstvu nezávislou na poskytovateli.",
+  },
+  {
+    id: "log-retention-cron",
+    category: "monitoring",
+    title: "Automatická retence security logů (pg_cron)",
+    description:
+      "DB job cleanup_old_security_logs_daily běží denně 03:30 UTC a maže starší záznamy z audit_logs, reminder_logs, deadline_reminder_logs, medical_reminder_logs a auth_signin_attempts. Splňuje GDPR data minimization a brání nekontrolovanému růstu DB.",
+    severity: "medium",
+    selfHostedAction:
+      "Výchozí retence: audit 365 dní, reminder 90 dní, signin attempts 180 dní. Hodnoty v system_settings (security_retention_audit_days, security_retention_reminder_days, security_retention_signin_days). Funkci lze spustit ručně: SELECT public.cleanup_old_security_logs();",
+    cloudAction:
+      "Cron job běží i v cloudu. V hosted prostředí se navíc využívá Supabase backup retence.",
+  },
+  {
+    id: "leaked-password-cloud",
+    category: "auth",
+    title: "Leaked Password Protection (Supabase Auth)",
+    description:
+      "Supabase Auth má vestavěnou kontrolu hesel proti databázi známých úniků. Bez aktivace mohou uživatelé používat hesla z public breach databází.",
+    severity: "high",
+    selfHostedAction:
+      "GOTRUE_PASSWORD_HIBP_ENABLED=true v docker/.env. Kontrolu otestujte registrací s heslem 'password123' (mělo by být odmítnuto).",
+    cloudAction:
+      "V Cloud konzoli (Auth Providers → Settings) zapněte „Leaked Password Protection\". Linter Supabase tuto položku jinak hlásí jako WARN.",
+    docsLink: "https://supabase.com/docs/guides/auth/password-security",
+  },
+  {
+    id: "postgres-version",
+    category: "monitoring",
+    title: "Aktualizace verze PostgreSQL",
+    description:
+      "Starší verze PostgreSQL obsahují známé CVE. Supabase linter kontroluje, zda běží podporovaná verze.",
+    severity: "medium",
+    selfHostedAction:
+      "Aktualizujte image v docker-compose.yml (supabase/postgres:15.x) a proveďte zálohu před upgradem. Sledujte changelog a security advisories.",
+    cloudAction:
+      "Cloud: použijte tlačítko „Upgrade Postgres\" v Database → Infrastructure (vyžaduje krátký downtime).",
+  },
 ];
 
 const severityColor = (s: Severity) => {
