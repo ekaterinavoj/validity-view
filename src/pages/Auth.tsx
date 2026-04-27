@@ -36,6 +36,31 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [lockout, setLockout] = useState<LockoutInfo | null>(null);
+  const [unlockCountdown, setUnlockCountdown] = useState<string>("");
+
+  // Live countdown if account is locked
+  useEffect(() => {
+    if (!lockout?.is_locked || !lockout.unlock_at) {
+      setUnlockCountdown("");
+      return;
+    }
+    const update = () => {
+      const ms = new Date(lockout.unlock_at!).getTime() - Date.now();
+      if (ms <= 0) {
+        setUnlockCountdown("");
+        setLockout(null);
+        return;
+      }
+      const totalSec = Math.floor(ms / 1000);
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      setUnlockCountdown(`${min}m ${sec.toString().padStart(2, "0")}s`);
+    };
+    update();
+    const intv = setInterval(update, 1000);
+    return () => clearInterval(intv);
+  }, [lockout]);
 
   // Redirect if already logged in
   useEffect(() => {
