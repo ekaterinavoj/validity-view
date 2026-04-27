@@ -51,10 +51,10 @@ export const ROUTE_CATALOG: RouteEntry[] = [
   // Documents & profile (open to all approved users)
   { path: "/documents", label: "Dokumenty", group: "Dokumenty a profil" },
   { path: "/profile", label: "Můj profil", group: "Dokumenty a profil" },
-  { path: "/my-permissions", label: "Moje oprávnění", group: "Dokumenty a profil" },
+  { path: "/profile?tab=permissions", label: "Moje oprávnění", group: "Dokumenty a profil" },
 
   // System
-  { path: "/audit-log", label: "Audit log", group: "Systém", requiredRoles: ["admin"] },
+  { path: "/admin/settings?tab=audit-log", label: "Audit log", group: "Systém", requiredRoles: ["admin"] },
   { path: "/admin/settings", label: "Administrace", group: "Systém", requiredRoles: ["admin"] },
   { path: "/admin/status", label: "Stav systému", group: "Systém", requiredRoles: ["admin"] },
   { path: "/admin/migrations", label: "Migrace databáze", group: "Systém", requiredRoles: ["admin"] },
