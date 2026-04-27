@@ -857,7 +857,7 @@ const sections: GuideSection[] = [
       {
         q: "K čemu slouží Security Hardening Checklist?",
         a: [
-          "Administrace → Bezpečnost → tlačítko „Security checklist“ (nebo přímá routa /security-checklist).",
+          "Hlavní menu → Systém → „Security checklist“ (přímá routa /admin/security-checklist).",
           "Je to KONTROLNÍ SEZNAM mimoaplikačních úkonů, které musíte provést na infrastruktuře:",
           "• HTTPS, HSTS, CSP, X-Frame-Options (reverse-proxy).",
           "• Rate limiting (anti brute-force) – konfigurace nginx.",
@@ -1032,7 +1032,7 @@ const sections: GuideSection[] = [
       {
         q: "Stav systému",
         a: [
-          "Hlavní menu → Systém → „Stav systému“ (/system-status).",
+          "Hlavní menu → Systém → „Stav systému“ (/admin/status).",
           "Zobrazuje:",
           "• Stav backendu (Lovable Cloud) – konektivita.",
           "• Počty záznamů per tabulka (zaměstnanci, školení, PLP, lhůty, dokumenty).",
@@ -1043,7 +1043,7 @@ const sections: GuideSection[] = [
       {
         q: "Databázové migrace",
         a: [
-          "Hlavní menu → Systém → „Migrace DB“ (/database-migrations).",
+          "Hlavní menu → Systém → „Migrace DB“ (/admin/migrations).",
           "Tabulka schema_migrations zaznamenává: version, name, checksum, applied_at.",
           "Migrace se aplikují automaticky při deployi přes systém migrationRegistry.",
           "Manuální spuštění edge funkce apply-migrations je možné, ale typicky není potřeba.",
