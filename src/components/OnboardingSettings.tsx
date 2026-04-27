@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Shield, UserPlus, Lock, CheckCircle, Users, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PendingUsersPanel } from "@/components/PendingUsersPanel";
 
 const roleColors: Record<string, string> = {
   admin: "bg-role-admin/20 text-role-admin-foreground dark:text-role-admin",
@@ -91,6 +92,9 @@ export function OnboardingSettings() {
 
   return (
     <div className="space-y-6">
+      {/* Pending users approval (safety net for legacy or future self-signup) */}
+      <PendingUsersPanel />
+
       {/* Admin-only provisioning info */}
       <Card className="border-primary/30 bg-primary/5">
         <CardHeader>
