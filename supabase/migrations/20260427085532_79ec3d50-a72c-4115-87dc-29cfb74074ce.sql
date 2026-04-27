@@ -1,0 +1,15 @@
+-- UX vylepšení editoru šablon upozornění (čistě UI, bez DB změn)
+--
+-- Změny v aplikaci:
+--   • ReminderTemplates: side-by-side živý náhled emailu místo samostatného dialogu
+--   • Klikací chipy pro vložení proměnných na pozici kurzoru (předmět i tělo)
+--   • HTML rámeček náhledu s ukázkovým záhlavím a vykreslenou {{records_table}}
+--   • Přidána proměnná {{expiryDate}} / {{expiry_date}} pro datum vypršení
+--
+-- Změny v edge funkcích (run-reminders, run-deadline-reminders,
+-- run-medical-reminders, send-training-reminders):
+--   • Nahrazení {{expiryDate}} a {{expiry_date}} skutečným datem vypršení
+--   • Sjednocení zápisu proměnných napříč moduly
+--
+-- Tato migrace je NOOP – neprovádí žádnou změnu v databázovém schématu.
+SELECT 1;
