@@ -216,8 +216,7 @@ export function SecurityAuditPanel() {
         </div>
 
         <div className="text-xs text-muted-foreground">
-          Zobrazeno {rows.length} záznamů (server vrátil celkem {total}). Zvyšte přesnost filtrů
-          pro užší výběr.
+          Načteno {rows.length} záznamů (server vrátil celkem {total}). Stránkování dle nastavení v Profil → Zobrazení.
         </div>
 
         {loading ? (
@@ -227,44 +226,53 @@ export function SecurityAuditPanel() {
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">Žádné záznamy neodpovídají filtrům.</p>
         ) : (
-          <ScrollArea className="max-h-[520px] rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Čas</TableHead>
-                  <TableHead>Akce</TableHead>
-                  <TableHead>Tabulka</TableHead>
-                  <TableHead>Uživatel</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Cílový uživatel</TableHead>
-                  <TableHead>Záznam</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {formatDisplayDateTime(r.created_at)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{r.action}</Badge>
-                    </TableCell>
-                    <TableCell className="text-xs">{r.table_name}</TableCell>
-                    <TableCell className="text-xs">{display(r.user_email)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{r.actor_role ?? "?"}</Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-[10px] text-muted-foreground">
-                      {r.target_user_id ?? "—"}
-                    </TableCell>
-                    <TableCell className="font-mono text-[10px] text-muted-foreground">
-                      {r.record_id}
-                    </TableCell>
+          <>
+            <ScrollArea className="max-h-[520px] rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Čas</TableHead>
+                    <TableHead>Akce</TableHead>
+                    <TableHead>Tabulka</TableHead>
+                    <TableHead>Uživatel</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Cílový uživatel</TableHead>
+                    <TableHead>Záznam</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+                </TableHeader>
+                <TableBody>
+                  {pagedRows.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {formatDisplayDateTime(r.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{r.action}</Badge>
+                      </TableCell>
+                      <TableCell className="text-xs">{r.table_name}</TableCell>
+                      <TableCell className="text-xs">{display(r.user_email)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{r.actor_role ?? "?"}</Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-[10px] text-muted-foreground">
+                        {r.target_user_id ?? "—"}
+                      </TableCell>
+                      <TableCell className="font-mono text-[10px] text-muted-foreground">
+                        {r.record_id}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={preferences.itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </CardContent>
     </Card>
