@@ -1857,6 +1857,7 @@ export type Database = {
         Returns: boolean
       }
       check_probation_period_endings: { Args: never; Returns: Json }
+      cleanup_old_security_logs: { Args: never; Returns: Json }
       debug_employee_visibility: {
         Args: { _target_user_id: string }
         Returns: {
@@ -1908,6 +1909,15 @@ export type Database = {
           user_name: string
         }[]
       }
+      get_locked_accounts: {
+        Args: never
+        Returns: {
+          email: string
+          failed_attempts: number
+          last_attempt: string
+          unlock_at: string
+        }[]
+      }
       get_password_review_summary: {
         Args: never
         Returns: {
@@ -1920,6 +1930,10 @@ export type Database = {
         }[]
       }
       get_registration_mode: { Args: never; Returns: string }
+      get_security_setting_int: {
+        Args: { _default: number; _key: string }
+        Returns: number
+      }
       get_subordinate_employee_ids: {
         Args: { root_employee_id: string }
         Returns: {
@@ -1942,6 +1956,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_account_locked: { Args: { _email: string }; Returns: boolean }
       is_deadline_responsible: {
         Args: { _deadline_id: string; _user_id: string }
         Returns: boolean
