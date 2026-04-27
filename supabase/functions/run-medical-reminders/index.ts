@@ -383,14 +383,16 @@ serve(async (req) => {
       emailTemplate.subject,
       examinationItems.length,
       expiringItems.length,
-      expiredItems.length
+      expiredItems.length,
+      examinationItems
     );
 
     let body = replaceVariables(
       emailTemplate.body,
       examinationItems.length,
       expiringItems.length,
-      expiredItems.length
+      expiredItems.length,
+      examinationItems
     );
 
     const tableHtml = buildExaminationsTable(examinationItems);
