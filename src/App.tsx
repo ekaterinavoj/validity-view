@@ -47,7 +47,7 @@ import MedicalExaminationHistory from "./pages/MedicalExaminationHistory";
 import DatabaseMigrations from "./pages/DatabaseMigrations";
 import Documents from "./pages/Documents";
 import EventTypesOverview from "./pages/EventTypesOverview";
-import MyPermissions from "./pages/MyPermissions";
+// MyPermissions sloučeno do Profile.tsx
 import Probations from "./pages/Probations";
 import Guides from "./pages/Guides";
 const queryClient = new QueryClient({
