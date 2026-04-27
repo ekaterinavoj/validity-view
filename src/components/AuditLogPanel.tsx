@@ -84,7 +84,7 @@ export function AuditLogPanel() {
         .from("audit_logs")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(1000);
       if (error) throw error;
       setLogs((data || []) as AuditLogRow[]);
     } catch (error: any) {
