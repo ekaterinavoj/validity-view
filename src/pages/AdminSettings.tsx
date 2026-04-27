@@ -29,7 +29,7 @@ import { SendTestSmtpEmail } from "@/components/SendTestSmtpEmail";
 import { EmailHistory } from "@/components/EmailHistory";
 import { EmailTemplatePreview } from "@/components/EmailTemplatePreview";
 import { DeadlineEmailTemplatePreview } from "@/components/DeadlineEmailTemplatePreview";
-import { NextSendPreview } from "@/components/NextSendPreview";
+
 
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { OnboardingSettings } from "@/components/OnboardingSettings";
