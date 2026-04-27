@@ -272,6 +272,10 @@ const Profile = () => {
         <TabsContent value="display" className="space-y-6">
           <DisplaySettings />
         </TabsContent>
+
+        <TabsContent value="permissions" className="space-y-6">
+          <MyPermissionsPanel />
+        </TabsContent>
       </Tabs>
 
       {/* Dialog pro změnu hesla */}
