@@ -5,16 +5,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2, Lock, ShieldAlert } from "lucide-react";
 import { z } from "zod";
 import companyLogo from "@/assets/company-logo.png";
 import { consumeIdleLogoutFlag } from "@/hooks/useSessionTimeout";
+import { supabase } from "@/integrations/supabase/client";
 
 const loginSchema = z.object({
   email: z.string().email("Neplatný email"),
   password: z.string().min(6, "Heslo musí mít alespoň 6 znaků"),
 });
+
+interface LockoutInfo {
+  is_locked: boolean;
+  unlock_at?: string | null;
+  failed_attempts: number;
+  max_attempts: number;
+  window_minutes: number;
+  lock_minutes: number;
+}
 
 export default function Auth() {
   const navigate = useNavigate();
