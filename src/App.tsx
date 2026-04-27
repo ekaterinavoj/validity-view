@@ -18,7 +18,7 @@ import Facilities from "./pages/Facilities";
 import InactiveEmployeesReport from "./pages/InactiveEmployeesReport";
 import Auth from "./pages/Auth";
 import ChangePassword from "./pages/ChangePassword";
-import AuditLog from "./pages/AuditLog";
+import { Navigate } from "react-router-dom";
 import Profile from "./pages/Profile";
 import AdminSettings from "./pages/AdminSettings";
 import SystemStatus from "./pages/SystemStatus";
@@ -130,12 +130,12 @@ const App = () => (
             <Route path="/inactive" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><InactiveEmployeesReport /></ProtectedLayout>} />
             <Route path="/probations" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Probations /></ProtectedLayout>} />
             
-            {/* Audit log - admin only */}
-            <Route path="/audit-log" element={<ProtectedLayout requiredRoles={["admin"]}><AuditLog /></ProtectedLayout>} />
+            {/* Audit log byl sloučen do Administrace → tab "audit-log" */}
+            <Route path="/audit-log" element={<Navigate to="/admin/settings?tab=audit-log" replace />} />
             {/* Profile - all approved users */}
             <Route path="/profile" element={<ProtectedLayout><Profile /></ProtectedLayout>} />
-            {/* Moje oprávnění — pro každou roli, ukáže matici a její dostupné odkazy */}
-            <Route path="/my-permissions" element={<ProtectedLayout><MyPermissions /></ProtectedLayout>} />
+            {/* Moje oprávnění bylo sloučeno do Profilu (tab "permissions") */}
+            <Route path="/my-permissions" element={<Navigate to="/profile?tab=permissions" replace />} />
             {/* Admin-only routes */}
             <Route path="/admin/settings" element={<ProtectedLayout requiredRoles={["admin"]}><AdminSettings /></ProtectedLayout>} />
             <Route path="/admin/status" element={<ProtectedLayout requiredRoles={["admin"]}><SystemStatus /></ProtectedLayout>} />
