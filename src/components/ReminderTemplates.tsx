@@ -529,119 +529,36 @@ export const ReminderTemplates = () => {
           if (!open) setEditingTemplate(null);
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-            {editingTemplate ? "Upravit šablonu" : `Nová šablona připomínky ${getModuleLabel()}`}
+              {editingTemplate ? "Upravit šablonu" : `Nová šablona připomínky ${getModuleLabel()}`}
             </DialogTitle>
             <DialogDescription>
-              {activeModule === "trainings" ? (
-                <>
-                  Vytvořte šablonu pro automatické připomínky školení. Můžete použít proměnné: 
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{training_name}}'}</code>,
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{days_remaining}}'}</code>
-                </>
-              ) : activeModule === "deadlines" ? (
-                <>
-                  Vytvořte šablonu pro automatické připomínky technických událostí. Můžete použít proměnné: 
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{equipmentName}}'}</code>,
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{deadlineType}}'}</code>,
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{daysLeft}}'}</code>
-                </>
-              ) : (
-                <>
-                  Vytvořte šablonu pro automatické připomínky lékařských prohlídek. Můžete použít proměnné: 
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{employeeName}}'}</code>,
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{examinationType}}'}</code>,
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{daysLeft}}'}</code>
-                </>
-              )}
+              Klikněte na proměnnou v sekci pod editorem pro vložení na pozici kurzoru. Náhled vpravo se aktualizuje při psaní.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Název šablony *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="např. Základní připomínka 30 dní"
-              />
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Popis</Label>
-              <Input
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Volitelný popis šablony"
-              />
-            </div>
+          <ReminderTemplateEditor
+            module={activeModule}
+            formData={formData}
+            onChange={setFormData}
+          />
 
-            <div className="space-y-2">
-              <Label htmlFor="email_subject">Předmět emailu *</Label>
-              <Input
-                id="email_subject"
-                value={formData.email_subject}
-                onChange={(e) => setFormData({ ...formData, email_subject: e.target.value })}
-                placeholder="např. Připomínka: Blíží se konec platnosti školení"
-              />
-            </div>
+          <Alert className="bg-accent/50 border-primary/30">
+            <Bell className="h-4 w-4 text-primary" />
+            <AlertDescription>
+              <p className="font-semibold mb-1">Příjemci připomínek:</p>
+              <p className="text-sm">
+                Příjemci se nastavují v <strong>Administraci → Příjemci</strong> pro každý modul zvlášť.
+                Tato šablona bude odeslána všem nakonfigurovaným příjemcům pro {getModuleLabel()}.
+              </p>
+            </AlertDescription>
+          </Alert>
 
-            <div className="space-y-2">
-              <Label htmlFor="email_body">Text emailu *</Label>
-              <Textarea
-                id="email_body"
-                value={formData.email_body}
-                onChange={(e) => setFormData({ ...formData, email_body: e.target.value })}
-                rows={10}
-                placeholder="Text připomínky..."
-              />
-               <p className="text-xs text-muted-foreground">
-                 {activeModule === "trainings" ? (
-                   <>Použijte <code>{'{{training_name}}'}</code> pro název školení a <code>{'{{days_remaining}}'}</code> pro zbývající dny</>
-                 ) : activeModule === "deadlines" ? (
-                   <>Použijte <code>{'{{equipmentName}}'}</code>, <code>{'{{deadlineType}}'}</code> a <code>{'{{daysLeft}}'}</code></>
-                 ) : (
-                   <>Použijte <code>{'{{employeeName}}'}</code>, <code>{'{{examinationType}}'}</code> a <code>{'{{daysLeft}}'}</code></>
-                 )}
-               </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Switch
-                id="is_active"
-                checked={formData.is_active}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-              />
-              <Label htmlFor="is_active" className="cursor-pointer">
-                Aktivní šablona
-              </Label>
-            </div>
-
-            <Alert className="bg-accent/50 border-primary/30">
-              <Bell className="h-4 w-4 text-primary" />
-              <AlertDescription>
-                <p className="font-semibold mb-2">Příjemci připomínek:</p>
-                <p className="text-sm">
-                  Příjemci pro odesílání těchto připomínek se nastavují v <strong>Administraci → Příjemci</strong> pro každý modul zvlášť. 
-                  Tato šablona bude odeslána všem nakonfigurovaným příjemcům pro {getModuleLabel()}.
-                </p>
-              </AlertDescription>
-            </Alert>
-          </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setPreviewDialogOpen(true)}
-              disabled={!formData.email_subject || !formData.email_body}
-            >
-              <Bell className="w-4 h-4 mr-2" />
-              Náhled emailu
-            </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setCreateDialogOpen(false);
                 setEditingTemplate(null);
