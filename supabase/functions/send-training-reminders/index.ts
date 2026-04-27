@@ -403,7 +403,11 @@ const handler = async (req: Request): Promise<Response> => {
         s
           .replace(/\{\{training_name\}\}/g, totalCount === 1 ? rows[0].trainingName : `${totalCount} školení`)
           .replace(/\{\{employee_name\}\}/g, totalCount === 1 ? rows[0].employeeName : `${totalCount} zaměstnanců`)
+          .replace(/\{\{employeeName\}\}/g, totalCount === 1 ? rows[0].employeeName : `${totalCount} zaměstnanců`)
           .replace(/\{\{days_remaining\}\}/g, totalCount === 1 ? String(rows[0].daysUntil) : "—")
+          .replace(/\{\{daysLeft\}\}/g, totalCount === 1 ? String(rows[0].daysUntil) : "—")
+          .replace(/\{\{expiry_date\}\}/g, totalCount === 1 ? rows[0].nextDateFormatted : "—")
+          .replace(/\{\{expiryDate\}\}/g, totalCount === 1 ? rows[0].nextDateFormatted : "—")
           .replace(/\{totalCount\}/g, String(totalCount))
           .replace(/\{expiringCount\}/g, String(expiringCount))
           .replace(/\{expiredCount\}/g, String(expiredCount));

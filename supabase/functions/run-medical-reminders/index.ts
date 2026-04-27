@@ -64,17 +64,46 @@ function formatDaysLabel(days: number): string {
 
 // Replace template variables
 function replaceVariables(
-  template: string, 
-  totalCount: number, 
-  expiringCount: number, 
-  expiredCount: number
+  template: string,
+  totalCount: number,
+  expiringCount: number,
+  expiredCount: number,
+  examinations?: ExaminationItem[]
 ): string {
   const today = new Date();
-  return template
+  let result = template
     .replace(/\{+totalCount\}+/g, String(totalCount))
     .replace(/\{+expiringCount\}+/g, String(expiringCount))
     .replace(/\{+expiredCount\}+/g, String(expiredCount))
     .replace(/\{+reportDate\}+/g, formatDate(today.toISOString()));
+
+  // Per-record variables (sample = first item) for editor templates that
+  // reference {{employeeName}}, {{examinationType}}, {{daysLeft}}, {{expiryDate}}.
+  if (examinations && examinations.length > 0) {
+    const sample = examinations[0];
+    const sampleFullName = `${sample.employee_first_name} ${sample.employee_last_name}`;
+    const days = sample.days_until >= 0 ? String(sample.days_until) : "0";
+    const expiry = formatDate(sample.next_examination_date);
+
+    result = result
+      // Modern format {{variable}}
+      .replace(/\{\{employee_name\}\}/g, sampleFullName)
+      .replace(/\{\{employeeName\}\}/g, sampleFullName)
+      .replace(/\{\{examination_type\}\}/g, sample.examination_type_name)
+      .replace(/\{\{examinationType\}\}/g, sample.examination_type_name)
+      .replace(/\{\{days_remaining\}\}/g, days)
+      .replace(/\{\{days_left\}\}/g, days)
+      .replace(/\{\{daysLeft\}\}/g, days)
+      .replace(/\{\{expiry_date\}\}/g, expiry)
+      .replace(/\{\{expiryDate\}\}/g, expiry)
+      // Legacy single-brace format
+      .replace(/\{employeeName\}/g, sampleFullName)
+      .replace(/\{examinationType\}/g, sample.examination_type_name)
+      .replace(/\{daysLeft\}/g, days)
+      .replace(/\{expiryDate\}/g, expiry);
+  }
+
+  return result;
 }
 
 // Build HTML table for examinations list
@@ -354,14 +383,16 @@ serve(async (req) => {
       emailTemplate.subject,
       examinationItems.length,
       expiringItems.length,
-      expiredItems.length
+      expiredItems.length,
+      examinationItems
     );
 
     let body = replaceVariables(
       emailTemplate.body,
       examinationItems.length,
       expiringItems.length,
-      expiredItems.length
+      expiredItems.length,
+      examinationItems
     );
 
     const tableHtml = buildExaminationsTable(examinationItems);

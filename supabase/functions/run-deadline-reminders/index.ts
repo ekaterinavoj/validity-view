@@ -230,6 +230,8 @@ function replaceVariables(
       .replace(/\{\{days_left\}\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
       .replace(/\{\{check_date\}\}/g, formatDate(sample.next_check_date))
       .replace(/\{\{next_check_date\}\}/g, formatDate(sample.next_check_date))
+      .replace(/\{\{expiry_date\}\}/g, formatDate(sample.next_check_date))
+      .replace(/\{\{expiryDate\}\}/g, formatDate(sample.next_check_date))
       .replace(/\{\{facility\}\}/g, sample.facility)
       .replace(/\{\{responsible_person\}\}/g, sample.responsible_person || "-")
       .replace(/\{equipmentName\}/g, sample.equipment_name)
@@ -239,6 +241,7 @@ function replaceVariables(
       .replace(/\{daysRemaining\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
       .replace(/\{checkDate\}/g, formatDate(sample.next_check_date))
       .replace(/\{nextCheckDate\}/g, formatDate(sample.next_check_date))
+      .replace(/\{expiryDate\}/g, formatDate(sample.next_check_date))
       .replace(/\{responsiblePerson\}/g, sample.responsible_person || "-");
   }
   

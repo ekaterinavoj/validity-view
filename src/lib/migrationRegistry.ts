@@ -4045,6 +4045,18 @@ WHERE key = 'security_checklist_state';`,
     //  • ?tab=diagnostics se automaticky přesměruje na ?tab=audit-log
     sql: `SELECT 1; -- noop migration, viz komentář výše`,
   },
+  {
+    version: "20260427085532",
+    name: "ux_reminder_template_editor_improvements",
+    // Čistě UI change + úprava edge funkcí – žádná změna v DB schématu.
+    //  • ReminderTemplates: side-by-side živý náhled emailu místo samostatného dialogu
+    //  • Klikací chipy pro vložení proměnných na pozici kurzoru (předmět i tělo)
+    //  • HTML rámeček náhledu s ukázkovým záhlavím a vykreslenou {{records_table}}
+    //  • Přidána proměnná {{expiryDate}} / {{expiry_date}} pro datum vypršení
+    //    do edge funkcí: run-reminders, run-deadline-reminders,
+    //    run-medical-reminders, send-training-reminders
+    sql: `SELECT 1; -- noop migration, viz komentář výše`,
+  },
 ];
 
 /**

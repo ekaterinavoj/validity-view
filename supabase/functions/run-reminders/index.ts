@@ -226,6 +226,7 @@ function replaceVariables(
       .replace(/\{\{days_remaining\}\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
       .replace(/\{\{days_left\}\}/g, sample.days_until >= 0 ? String(sample.days_until) : "0")
       .replace(/\{\{expiry_date\}\}/g, formatDate(sample.next_training_date))
+      .replace(/\{\{expiryDate\}\}/g, formatDate(sample.next_training_date))
       .replace(/\{\{expires_on\}\}/g, formatDate(sample.next_training_date))
       .replace(/\{\{employee_email\}\}/g, sample.employee_email)
       // Legacy format {variable}
