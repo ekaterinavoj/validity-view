@@ -105,6 +105,10 @@ export function SecurityAuditPanel() {
   const display = (e: string | null | undefined) =>
     isAdmin && showEmails ? e ?? "—" : maskEmail(e);
 
+  const { preferences } = useUserPreferences();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: pagedRows, totalItems } =
+    usePagination(rows, preferences.itemsPerPage);
+
   const handleExport = () => {
     if (rows.length === 0) {
       toast({ title: "Nic k exportu", variant: "destructive" });
