@@ -271,8 +271,37 @@ export default function SecurityChecklist() {
       <PageHeader
         icon={ShieldCheck}
         title="Security hardening checklist"
-        description="Kontrolní seznam pro bezpečné nasazení aplikace na produkční doménu (self-hosted i cloud)."
+        description="Sdílený kontrolní seznam pro bezpečné nasazení aplikace na produkční doménu (self-hosted i cloud)."
+        actions={<HelpButton section="admin-bezpecnost" label="Co je tento checklist a jak ho používat" />}
       />
+
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/20 rounded-md">
+            <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div className="text-sm space-y-1">
+              <p>
+                <strong>K čemu slouží:</strong> Checklist je seznam doporučených bezpečnostních
+                opatření, která je potřeba ručně ověřit nebo nastavit mimo aplikaci
+                (na úrovni serveru, reverse-proxy, SMTP, záloh apod.).
+                Aplikace tyto úkony technicky nevynucuje – musíte je provést sami.
+              </p>
+              <p>
+                <strong>Jak se ukládá:</strong> Zaškrtnutí jednotlivých položek se ukládá do
+                databáze (klíč <code>security_checklist_state</code>) a je <strong>sdíleno mezi
+                všemi administrátory</strong> – kolega vidí stejný stav jako vy. Ukládá se i čas
+                a kdo položku naposledy změnil (audit dohledatelný v audit logu).
+              </p>
+              {state.updated_at && (
+                <p className="text-xs text-muted-foreground">
+                  Naposledy upravil: <strong>{state.updated_by ?? "—"}</strong> ·{" "}
+                  {formatDisplayDateTime(state.updated_at)}
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
