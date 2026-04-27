@@ -309,7 +309,7 @@ const CHECKLIST: ChecklistItem[] = [
     selfHostedAction:
       "V Administrace → Bezpečnost → Session timeout nastavte rozumnou hodnotu (typicky 30–60 min). Hodnota se ukládá do system_settings.session_timeout. Doporučeno kratší pro admin role.",
   },
-],
+];
 
 const severityColor = (s: Severity) => {
   switch (s) {
