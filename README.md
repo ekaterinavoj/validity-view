@@ -718,64 +718,543 @@ Parametry na každém záznamu:
 - **remind_days_before** (výchozí 30) — kolik dní před expirací upozornit
 - **repeat_days_after** (výchozí 30) — interval opakování
 
-## 🔒 Bezpečnost
+## 🔒 Bezpečnost — Kompletní přehled implementovaných funkcí
 
-### Autentizace a autorizace
-- **Role**: `admin`, `manager`, `user` (uloženo v separátní tabulce `user_roles` — žádná eskalace přes `profiles`)
-- **Modulový přístup**: per-uživatel granularita pro `trainings`, `deadlines`, `plp` (admin má vždy vše)
-- **RLS politiky** na všech tabulkách + `SECURITY DEFINER` funkce (`has_role`, `is_admin_safe`) bez rekurze
-- **JWT verifikace** v Edge funkcích + `x-cron-secret` hlavička pro automatizaci
-- **Samoregistrace zakázána** — účty vytváří pouze administrátor
+Aplikace **Lhůtník** je navržena jako **defense-in-depth** systém s vícevrstvým zabezpečením. Níže je úplný seznam bezpečnostních funkcí, které jsou v aplikaci aktivní.
 
-### Politika hesel a relací
-- **Password policy**: konfigurovatelná délka, velká/malá písmena, číslice, speciální znaky (Administrace → Bezpečnost)
-- **Vynucená změna hesla** při: prvním přihlášení seed admina, ručním resetu adminem, vytvoření uživatele
-- **Idle timeout**: konfigurovatelný (Administrace → Bezpečnost → Časový limit relace)
-- **HIBP (Have I Been Pwned)**: doporučeno zapnout pro detekci kompromitovaných hesel
+### 1. Autentizace a autorizace
 
-### Brute-force ochrana (account lockout)
-- Po **N neúspěšných pokusech v X minutách** se účet automaticky uzamkne na **Y minut** (defaultně 5 / 15 / 15)
-- Pre-check v `signIn` před voláním GoTrue (`is_account_locked` RPC) — nesnižuje GoTrue rate limit
-- Login stránka zobrazí jasné upozornění **"Účet je dočasně uzamčen"** s živým odpočtem do odemčení
-- Pokud zbývá málo pokusů, toast varuje **"Zbývá X pokusů do uzamčení"**
-- Admin dashboard (Administrace → Bezpečnost → Monitorování přihlašování):
-  - tabulka aktuálně uzamčených účtů s odpočtem do odemčení
-  - upozornění na účty, jejichž zámek brzy vyprší
-  - přehled opakovaných selhání bez uzamčení (early warning)
-  - auto-refresh každých 30 s
+| Funkce | Popis | Konfigurace |
+|--------|-------|-------------|
+| **Role-based access control** | Tři role: `admin`, `manager`, `user`. Role uloženy v separátní tabulce `user_roles` (zabraňuje privilege escalation přes `profiles`) | Administrace → Správa uživatelů |
+| **Modulový přístup** | Per-uživatel granularita pro `trainings`, `deadlines`, `plp` | Administrace → Správa uživatelů → Moduly |
+| **RLS (Row Level Security)** | RLS politiky na **všech** tabulkách + `SECURITY DEFINER` funkce (`has_role`, `is_admin_safe`) bez rekurze | Automaticky |
+| **Atomická změna rolí** | RPC `set_user_role` mění roli a logy v jedné transakci | — |
+| **JWT verifikace** | Edge funkce verifikují JWT, `x-cron-secret` hlavička pro automatizaci | `X_CRON_SECRET` v `.env` |
+| **Samoregistrace ZAKÁZÁNA** | Účty vytváří pouze administrátor | `DISABLE_SIGNUP=true` v `.env` |
+| **Hierarchická viditelnost** | Manažer vidí pouze záznamy ve svém subtree (FK `manager_employee_id`) | — |
 
-### Audit a retence logů
-- Veškeré změny v hlavních tabulkách jsou logovány do `audit_logs` (kdo, co, kdy, jaká pole)
-- Sekce **Administrace → Audit log** se třemi záložkami: **Basic** (denní přehled), **Advanced** (detailní filtrace + export), **RLS Diagnostics**
-- Automatický `pg_cron` job `cleanup_old_security_logs_daily` (denně 03:30 UTC) maže staré záznamy:
-  - `audit_logs`: 365 dní
-  - `reminder_logs`: 90 dní
-  - `auth_signin_attempts`: 180 dní
-  - retence je konfigurovatelná v `system_settings`
+### 2. Politika hesel a relací
 
-### Bezpečnostní hlavičky (nginx)
-Frontend kontejner i reverse-proxy konfigurace nastavují:
-- **Content-Security-Policy** s `default-src 'self'`, povolenými Supabase endpointy a `frame-ancestors 'none'`
-- **X-Frame-Options: SAMEORIGIN** (clickjacking)
-- **X-Content-Type-Options: nosniff**
-- **Strict-Transport-Security** (HSTS — pouze přes HTTPS reverse proxy)
-- **Referrer-Policy: strict-origin-when-cross-origin**
-- **Permissions-Policy** — vypnuté kamera/mikrofon/geolokace/FLoC
+| Funkce | Popis | Konfigurace |
+|--------|-------|-------------|
+| **Password policy** | Konfigurovatelná délka, velká/malá písmena, číslice, speciální znaky | Administrace → Bezpečnost → Politika hesel |
+| **Vynucená změna hesla** | Při prvním přihlášení seed admina, ručním resetu adminem, vytvoření uživatele | Automaticky (`must_change_password`) |
+| **Idle timeout** | Automatické odhlášení po nečinnosti | Administrace → Bezpečnost → Časový limit relace |
+| **HIBP (Have I Been Pwned)** | Detekce kompromitovaných hesel proti databázi 1B+ uniklých hesel | `GOTRUE_PASSWORD_HIBP_ENABLED=true` v `.env` |
+| **MFA / TOTP** | Vícefaktorová autentizace | `GOTRUE_MFA_ENABLED=true` v `.env` |
+| **Zkrácená platnost OTP** | Magické odkazy a OTP kódy 1 h (default 24 h) | `GOTRUE_MAILER_OTP_EXP=3600` v `.env` |
+| **JWT expirace** | Konfigurovatelná životnost tokenu | `JWT_EXPIRY=3600` v `.env` |
 
-### Rate limiting (nginx)
-- `auth_zone`: 5 r/s pro `/auth/*` (brute-force)
-- `api_zone`: 30 r/s s burst 60 pro obecné API
-- `conn_per_ip`: max 50 souběžných spojení na IP
+### 3. Brute-force ochrana (account lockout)
 
-### Self-hosted hardening checklist
-Aplikace obsahuje interaktivní **Security Checklist** (Administrace → Bezpečnost → Security Findings) pokrývající:
-- vypnutí veřejné registrace (`DISABLE_SIGNUP=true`)
-- změna výchozího Studio hesla (`DASHBOARD_PASSWORD`)
-- firewall na interní porty (5432, 3000, 8091, 4000)
-- HIBP a MFA/TOTP
-- zkrácení OTP/recovery na 1 h
-- DB SSL, restriktivní CORS, non-root kontejnery
-- aktualizace PostgreSQL verze
+- **Aktivní zamykání účtů**: Po **N neúspěšných pokusech v X minutách** (default 5 / 15) se účet automaticky uzamkne na **Y minut** (default 15)
+- **Pre-check v `signIn`**: RPC `is_account_locked` se volá **před** GoTrue → nesnižuje GoTrue rate-limit
+- **Login UI**: Jasné upozornění *„Účet je dočasně uzamčen"* s **živým odpočtem** do odemčení
+- **Toast warning**: *„Zbývá X pokusů do uzamčení"* (last 2 attempts)
+- **Admin dashboard** (Administrace → Bezpečnost → Monitorování přihlašování):
+  - Tabulka aktuálně uzamčených účtů s odpočtem do odemčení
+  - Early-warning přehled opakovaných selhání bez uzamčení (3+ za 24 h)
+  - Auto-refresh každých 30 s
+- **Konfigurace** politiky: `system_settings` (lockout_threshold, lockout_window_minutes, lockout_duration_minutes)
+
+### 4. Audit log
+
+- **Kompletní auditing** všech změn v hlavních tabulkách → `audit_logs` (kdo, co, kdy, stará/nová hodnota, IP)
+- **Sekce Administrace → Audit log** s třemi záložkami:
+  - **Basic** — denní přehled aktivit
+  - **Advanced** — detailní filtrace, export do CSV
+  - **RLS Diagnostics** — diagnostika RLS politik
+- **Tabulka `auth_signin_attempts`** — všechny pokusy o přihlášení (success/failure) s IP a user-agentem
+
+### 5. Automatická retence logů (pg_cron)
+
+Automatický `pg_cron` job `cleanup_old_security_logs_daily` (denně **03:30 UTC**) maže staré záznamy:
+
+| Tabulka | Default retence | Konfigurace |
+|---------|-----------------|-------------|
+| `audit_logs` | 365 dní | `system_settings.audit_log_retention_days` |
+| `reminder_logs` | 90 dní | `system_settings.reminder_log_retention_days` |
+| `auth_signin_attempts` | 180 dní | `system_settings.signin_attempts_retention_days` |
+| `deadline_reminder_logs` | 90 dní | — |
+| `medical_reminder_logs` | 90 dní | — |
+
+Vyžaduje aktivní extenze **`pg_cron`** a **`pg_net`** v PostgreSQL.
+
+### 6. Bezpečnostní HTTP hlavičky (nginx)
+
+Frontend kontejner (`nginx.conf`) i reverse-proxy konfigurace (`selfhosted-resources/nginx-reverseproxy/`) nastavují:
+
+| Hlavička | Hodnota | Ochrana proti |
+|----------|---------|---------------|
+| **Content-Security-Policy** | `default-src 'self'`, povolené Supabase endpointy, `frame-ancestors 'none'` | XSS, data exfiltration |
+| **X-Frame-Options** | `SAMEORIGIN` | Clickjacking |
+| **X-Content-Type-Options** | `nosniff` | MIME-type sniffing |
+| **X-XSS-Protection** | `1; mode=block` | Legacy XSS (starší klienti) |
+| **Strict-Transport-Security** | `max-age=31536000; includeSubDomains; preload` | Downgrade attack (HTTPS only) |
+| **Referrer-Policy** | `strict-origin-when-cross-origin` | Únik dat přes Referer |
+| **Permissions-Policy** | `camera=(), microphone=(), geolocation=(), interest-cohort=()` | Zneužití API + FLoC tracking |
+| **server_tokens off** | — | Skrytí verze nginx |
+
+### 7. Rate limiting (nginx)
+
+| Zóna | Limit | Účel |
+|------|-------|------|
+| `auth_zone` | **5 r/s** pro `/auth/*` | Brute-force ochrana login |
+| `api_zone` | **30 r/s**, burst 60 | Obecné API |
+| `conn_per_ip` | **50 souběžných spojení** na IP | DoS ochrana |
+
+### 8. Edge funkce — autorizace
+
+- **Duální mechanismus**: validní JWT **NEBO** `x-cron-secret` hlavička (pro CRON)
+- Citlivé admin funkce (`admin-create-user`, `admin-delete-user`, `admin-reset-password`) vyžadují **server-side ověření role admin**
+- `admin-delete-user` provádí **kompletní cascade cleanup** (mazání souborů ze storage, profilů, rolí)
+
+### 9. Storage zabezpečení
+
+- **3 buckety** (`training-documents`, `deadline-documents`, `medical-documents`) s RLS
+- Přístup pouze pro autorizované uživatele s vazbou na záznam
+- Soubory se mažou při permanent-delete záznamu
+
+### 10. Self-hosted hardening checklist
+
+Aplikace obsahuje **interaktivní Security Checklist** (Administrace → Bezpečnost → Security Findings) pokrývající všechny body níže. Doporučujeme projít po nasazení.
+
+---
+
+## 🛡️ Self-hosted: Detailní bezpečnostní hardening
+
+Tato sekce obsahuje **podrobný návod** jak zabezpečit self-hosted instanci na vlastním serveru.
+
+### Krok 1: Požadavky před nasazením
+
+| Komponenta | Minimum | Doporučené |
+|------------|---------|------------|
+| **OS** | Ubuntu 22.04 / Debian 11 / RHEL 8 | Ubuntu 24.04 LTS |
+| **Docker** | 24.0+ | 27.0+ |
+| **Docker Compose** | 2.20+ | 2.29+ |
+| **Node.js** (pouze pro generování JWT klíčů) | 18+ | 20 LTS |
+| **RAM** | 4 GB | 8 GB+ |
+| **CPU** | 2 jádra | 4+ jádra |
+| **Disk** | 20 GB SSD | 50+ GB SSD |
+| **PostgreSQL** | 15+ (součást Supabase image) | 15.8+ |
+| **Doména + SSL** | Let's Encrypt zdarma | Wildcard cert pro subdomény |
+
+> ⚠️ **Pozor**: Self-hosted Supabase **nelze provozovat** s externím PostgreSQL — musíte použít `supabase/postgres` image, který obsahuje extenze `pg_cron`, `pg_net`, `pgsodium`, `pgjwt`.
+
+### Krok 2: Generování silných tajných klíčů
+
+```bash
+# Vytvořte všechny klíče najednou
+cat > /tmp/generate-secrets.sh << 'EOF'
+#!/bin/bash
+echo "POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)"
+echo "JWT_SECRET=$(openssl rand -base64 48 | tr -d '/+=' | head -c 48)"
+echo "DASHBOARD_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)"
+echo "SECRET_KEY_BASE=$(openssl rand -hex 32)"
+echo "VAULT_ENC_KEY=$(openssl rand -hex 16)"
+echo "X_CRON_SECRET=$(openssl rand -hex 32)"
+EOF
+chmod +x /tmp/generate-secrets.sh
+/tmp/generate-secrets.sh > .env.secrets
+cat .env.secrets  # Vložte hodnoty do .env
+```
+
+### Krok 3: Klíčové `.env` proměnné pro produkční hardening
+
+```env
+# ============================================
+# POVINNÁ BEZPEČNOSTNÍ NASTAVENÍ
+# ============================================
+
+# 🔒 ZÁKAZ samoregistrace — pouze admin vytváří účty
+DISABLE_SIGNUP=true
+
+# 🔒 SILNÉ Studio heslo (POVINNĚ ZMĚŇTE!)
+DASHBOARD_USERNAME=supabase
+DASHBOARD_PASSWORD=<vygenerované-silné-heslo-min-24-znaků>
+
+# 🔒 HIBP — kontrola hesel proti databázi 1B+ uniklých hesel
+GOTRUE_PASSWORD_HIBP_ENABLED=true
+
+# 🔒 MFA / TOTP autentizace
+GOTRUE_MFA_ENABLED=true
+GOTRUE_MFA_MAX_ENROLLED_FACTORS=2
+
+# 🔒 Zkrácení platnosti OTP a recovery odkazů (default 24h → 1h)
+GOTRUE_MAILER_OTP_EXP=3600
+
+# 🔒 Vypnutí anonymních uživatelů
+ENABLE_ANONYMOUS_USERS=false
+
+# 🔒 Vypnutí phone signup (nepoužíváme)
+ENABLE_PHONE_SIGNUP=false
+ENABLE_PHONE_AUTOCONFIRM=false
+
+# 🔒 JWT expirace 1h
+JWT_EXPIRY=3600
+
+# 🔒 Rate-limit hlavička za reverse proxy
+GOTRUE_RATE_LIMIT_HEADER=X-Forwarded-For
+
+# 🔒 SITE_URL musí být HTTPS produkční doména
+SITE_URL=https://lhutnik.vasefirma.cz
+API_EXTERNAL_URL=https://api.lhutnik.vasefirma.cz
+
+# 🔒 CRON secret (32+ znaků, unikátní)
+X_CRON_SECRET=<vygenerovaný-hex-32>
+```
+
+### Krok 4: Nastavení nginx (CSP, X-Frame-Options, SSL)
+
+Frontend kontejner už má v `nginx.conf` přednastavené všechny bezpečnostní hlavičky. Pro **reverse proxy** (HTTPS termination) použijte vzory v `selfhosted-resources/nginx-reverseproxy/`.
+
+#### 4a. Reverse proxy s Let's Encrypt SSL
+
+```bash
+# 1. Instalace nginx + certbot
+sudo apt update
+sudo apt install -y nginx certbot python3-certbot-nginx
+
+# 2. Získání certifikátu
+sudo certbot --nginx -d lhutnik.vasefirma.cz -d api.lhutnik.vasefirma.cz \
+  --agree-tos --email admin@vasefirma.cz --redirect
+
+# 3. Auto-renewal (certbot vytvoří systemd timer automaticky)
+sudo systemctl enable --now certbot.timer
+sudo certbot renew --dry-run
+```
+
+#### 4b. Vzor reverse-proxy konfigurace
+
+```nginx
+# /etc/nginx/sites-available/lhutnik.conf
+
+# Rate limit zóny (musí být v http kontextu — vložte do nginx.conf)
+limit_req_zone $binary_remote_addr zone=auth_zone:10m rate=5r/s;
+limit_req_zone $binary_remote_addr zone=api_zone:10m rate=30r/s;
+limit_conn_zone $binary_remote_addr zone=conn_per_ip:10m;
+
+# Frontend (port 80 → frontend kontejner :8087)
+server {
+    listen 443 ssl http2;
+    server_name lhutnik.vasefirma.cz;
+
+    ssl_certificate /etc/letsencrypt/live/lhutnik.vasefirma.cz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/lhutnik.vasefirma.cz/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    # Bezpečnostní hlavičky (CSP, HSTS, X-Frame-Options atd.)
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://api.lhutnik.vasefirma.cz wss://api.lhutnik.vasefirma.cz; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests" always;
+
+    limit_conn conn_per_ip 50;
+    server_tokens off;
+
+    location / {
+        proxy_pass http://127.0.0.1:8087;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+# Supabase API (port Kong :8091)
+server {
+    listen 443 ssl http2;
+    server_name api.lhutnik.vasefirma.cz;
+
+    ssl_certificate /etc/letsencrypt/live/api.lhutnik.vasefirma.cz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.lhutnik.vasefirma.cz/privkey.pem;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    server_tokens off;
+
+    # Strict rate-limit pro auth endpointy
+    location /auth/ {
+        limit_req zone=auth_zone burst=10 nodelay;
+        proxy_pass http://127.0.0.1:8091;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location / {
+        limit_req zone=api_zone burst=60 nodelay;
+        limit_conn conn_per_ip 50;
+        proxy_pass http://127.0.0.1:8091;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # WebSocket podpora pro Realtime
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+# HTTP → HTTPS redirect
+server {
+    listen 80;
+    server_name lhutnik.vasefirma.cz api.lhutnik.vasefirma.cz;
+    return 301 https://$host$request_uri;
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/lhutnik.conf /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### Krok 5: Aktivace pg_cron pro retenci logů
+
+Po prvním nasazení **ověřte**, že retenční job běží:
+
+```bash
+# Připojení do databáze
+docker exec -it supabase-db psql -U postgres -d postgres
+
+# Ověření pg_cron extenze
+SELECT * FROM pg_extension WHERE extname IN ('pg_cron', 'pg_net');
+
+# Seznam aktivních CRON jobů
+SELECT jobid, schedule, command, active FROM cron.job;
+
+# Měl by být vidět job 'cleanup_old_security_logs_daily' (30 3 * * *)
+# Pokud chybí, ručně aktivujte z migrace:
+\i /docker-entrypoint-initdb.d/migrations/20260427105248_*.sql
+```
+
+Pokud `pg_cron` extenze chybí (např. starší PostgreSQL image):
+
+```sql
+-- V databázi jako superuser
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+GRANT USAGE ON SCHEMA cron TO postgres;
+```
+
+A v `postgresql.conf` (nebo přes Docker `command:`):
+```
+shared_preload_libraries = 'pg_cron'
+cron.database_name = 'postgres'
+```
+
+### Krok 6: Firewall — uzavřete interní porty
+
+**KRITICKÉ**: Self-hosted Supabase stack vystavuje **interní porty**, které **NESMÍ být dostupné z internetu**:
+
+| Port | Služba | Smí být na internetu? |
+|------|--------|------------------------|
+| **5432** | PostgreSQL | ❌ **NIKDY** |
+| **3000** | Supabase Studio | ❌ Nikdy (pouze přes VPN/SSH tunnel) |
+| **8091** | Kong (API Gateway) | ⚠️ Pouze přes reverse-proxy (443) |
+| **4000** | Logflare/Vector | ❌ Nikdy |
+| **8443** | Kong HTTPS (interní) | ❌ Nikdy |
+| **8087** | Frontend kontejner | ⚠️ Pouze přes reverse-proxy (443) |
+| 80, 443 | Nginx reverse proxy | ✅ Veřejně |
+| 22 | SSH | ✅ Lépe omezit na známé IP |
+
+#### UFW konfigurace (Ubuntu/Debian)
+
+```bash
+# Reset firewall (POZOR — zruší všechna stávající pravidla)
+sudo ufw --force reset
+
+# Default: blokuj vše příchozí, povol vše odchozí
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# Povolené veřejné porty
+sudo ufw allow 22/tcp comment 'SSH'
+sudo ufw allow 80/tcp comment 'HTTP (redirect na HTTPS)'
+sudo ufw allow 443/tcp comment 'HTTPS'
+
+# EXPLICITNĚ blokuj interní Supabase porty z internetu
+sudo ufw deny 5432/tcp comment 'PostgreSQL — NIKDY'
+sudo ufw deny 3000/tcp comment 'Studio — pouze přes SSH tunnel'
+sudo ufw deny 8091/tcp comment 'Kong — pouze přes reverse proxy'
+sudo ufw deny 4000/tcp comment 'Logflare'
+sudo ufw deny 8443/tcp comment 'Kong HTTPS interní'
+sudo ufw deny 8087/tcp comment 'Frontend — pouze přes reverse proxy'
+
+# Volitelně: SSH pouze ze známých IP
+# sudo ufw allow from 203.0.113.0/24 to any port 22
+
+# Aktivace
+sudo ufw enable
+sudo ufw status verbose
+```
+
+#### Docker bind pouze na localhost
+
+V `docker-compose.supabase.yml` ověřte, že interní porty jsou bindované **pouze na 127.0.0.1**:
+
+```yaml
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"   # ✅ pouze localhost
+      # NE: "5432:5432"           ❌ vystaví na všechna interface
+  kong:
+    ports:
+      - "127.0.0.1:8091:8000"   # ✅ pouze localhost (reverse proxy přepošle)
+  studio:
+    ports:
+      - "127.0.0.1:3000:3000"   # ✅ pouze přes SSH tunnel
+```
+
+#### Přístup ke Studio přes SSH tunnel
+
+```bash
+# Z lokálního počítače
+ssh -L 3000:127.0.0.1:3000 user@vas-server.cz
+# Pak otevřete http://localhost:3000 v lokálním prohlížeči
+```
+
+### Krok 7: Doporučené kroky po prvním nasazení
+
+#### 7.1 IHNED po `seed-initial-admin`
+
+```bash
+# 1. Zavolejte seed funkci
+curl -X POST "https://api.lhutnik.vasefirma.cz/functions/v1/seed-initial-admin"
+
+# 2. Přihlaste se: admin@system.local / admin123
+# 3. ⚠️ OKAMŽITĚ změňte heslo v Profilu (vynuceno systémem)
+```
+
+#### 7.2 Vytvořte reálný admin účet
+
+1. Administrace → Správa uživatelů → **Přidat uživatele** s vaším reálným e-mailem
+2. Přiřaďte roli **admin**
+3. Přihlaste se reálným účtem
+4. **Deaktivujte nebo smažte** výchozí `admin@system.local`
+
+#### 7.3 Zapněte HIBP v Supabase Auth
+
+V `.env`:
+```env
+GOTRUE_PASSWORD_HIBP_ENABLED=true
+```
+
+Restartujte auth službu:
+```bash
+docker compose -f docker-compose.supabase.yml restart auth
+```
+
+#### 7.4 Změňte výchozí Studio heslo
+
+```bash
+# V .env
+DASHBOARD_PASSWORD=<silné-heslo-min-24-znaků>
+
+# Restartujte Studio
+docker compose -f docker-compose.supabase.yml restart studio
+```
+
+#### 7.5 Ověřte bezpečnostní hlavičky
+
+```bash
+# Test CSP, HSTS, X-Frame-Options
+curl -sI https://lhutnik.vasefirma.cz | grep -iE 'content-security|x-frame|strict-transport|x-content-type|referrer-policy'
+
+# Online test
+# https://securityheaders.com/?q=lhutnik.vasefirma.cz
+# Cílový rating: A nebo A+
+```
+
+#### 7.6 Ověřte že interní porty NEJSOU veřejné
+
+```bash
+# Z externího počítače (NE ze serveru!)
+nmap -p 5432,3000,8091,4000,8443 vas-server.cz
+# Očekávaný výsledek: všechny porty 'filtered' nebo 'closed'
+
+# Test PostgreSQL z internetu (musí selhat!)
+psql "postgresql://postgres:heslo@vas-server.cz:5432/postgres"
+# Očekávané: connection timeout / refused
+```
+
+#### 7.7 Aktivujte automatickou retenci logů
+
+```bash
+# Ověřte že pg_cron job běží
+docker exec -it supabase-db psql -U postgres -c "SELECT jobname, schedule, active FROM cron.job;"
+
+# Měl by vrátit:
+#  jobname                          | schedule    | active
+# ----------------------------------+-------------+--------
+#  cleanup_old_security_logs_daily  | 30 3 * * *  | t
+```
+
+#### 7.8 Nakonfigurujte SMTP pro auth e-maily
+
+Administrace → Nastavení → E-mail (testovací odeslání povinné!)
+
+#### 7.9 Nastavte zálohovací strategii
+
+Viz sekce **💾 Zálohování databáze a Storage** níže.
+
+#### 7.10 Aktivujte fail2ban (volitelné, doporučené)
+
+```bash
+sudo apt install -y fail2ban
+
+cat > /etc/fail2ban/jail.local << 'EOF'
+[sshd]
+enabled = true
+maxretry = 3
+bantime = 3600
+
+[nginx-limit-req]
+enabled = true
+filter = nginx-limit-req
+logpath = /var/log/nginx/error.log
+maxretry = 10
+bantime = 600
+EOF
+
+sudo systemctl enable --now fail2ban
+sudo fail2ban-client status
+```
+
+### Krok 8: Kompletní self-hosted hardening checklist
+
+Aplikace obsahuje **interaktivní Security Checklist** (Administrace → Bezpečnost → Security Findings) s živou kontrolou. Manuálně projděte:
+
+- [ ] `DISABLE_SIGNUP=true` v `.env`
+- [ ] Změněno výchozí Studio heslo (`DASHBOARD_PASSWORD`)
+- [ ] Vygenerován silný `JWT_SECRET` (min 48 znaků, unikátní per instance)
+- [ ] Vygenerován silný `POSTGRES_PASSWORD` (min 32 znaků)
+- [ ] Vygenerován silný `X_CRON_SECRET` (32+ hex znaků)
+- [ ] `GOTRUE_PASSWORD_HIBP_ENABLED=true`
+- [ ] `GOTRUE_MFA_ENABLED=true` (volitelné, doporučené)
+- [ ] `GOTRUE_MAILER_OTP_EXP=3600` (1h místo 24h)
+- [ ] `ENABLE_ANONYMOUS_USERS=false`
+- [ ] HTTPS aktivní (Let's Encrypt, auto-renewal)
+- [ ] HSTS hlavička s `includeSubDomains; preload`
+- [ ] CSP hlavička bez `unsafe-eval` (nebo zdokumentováno proč)
+- [ ] X-Frame-Options: SAMEORIGIN
+- [ ] Firewall: porty **5432, 3000, 8091, 4000, 8443, 8087 NEDOSTUPNÉ z internetu**
+- [ ] Docker porty bindované pouze na `127.0.0.1` (kromě 80/443)
+- [ ] `pg_cron` job `cleanup_old_security_logs_daily` aktivní
+- [ ] Reálný admin účet vytvořen + výchozí `admin@system.local` deaktivován
+- [ ] SMTP konfigurován + testovací e-mail odeslán
+- [ ] Denní automatická záloha DB + Storage (cron 3:00)
+- [ ] Týdenní off-site záloha (rsync / S3)
+- [ ] fail2ban aktivní (volitelné)
+- [ ] SSH: `PermitRootLogin no`, klíčová autentizace (no password)
+- [ ] PostgreSQL verze aktualizovaná (`SELECT version();`)
+- [ ] Pravidelný `docker compose pull` + restart (měsíčně)
+- [ ] Test obnovy ze zálohy proveden alespoň 1× 
 
 
 ---
