@@ -4014,6 +4014,14 @@ VALUES (
 )
 ON CONFLICT (key) DO NOTHING;`,
   },
+  {
+    version: "20260427074137",
+    name: "security_checklist_description_refresh",
+    sql: `-- Doplnění popisu k záznamu sdíleného Security Checklistu (čistě dokumentační).
+UPDATE public.system_settings
+SET description = 'Sdílený stav Security Hardening Checklistu (zaškrtnutí jsou viditelná všem administrátorům, ukládá se do DB).'
+WHERE key = 'security_checklist_state';`,
+  },
 ];
 
 /**
