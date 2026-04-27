@@ -4034,6 +4034,17 @@ WHERE key = 'security_checklist_state';`,
     //  • V hlavičce přidán odkaz "Přehled" (Home) pro rychlý návrat na dashboard
     sql: `SELECT 1; -- noop migration, viz komentář výše`,
   },
+  {
+    version: "20260427120000",
+    name: "ux_merge_diagnostics_into_audit_log",
+    // Čistě UI change – žádná změna v DB schématu.
+    //  • Záložka "Diagnostika" v Administraci sloučena do "Audit log" jako sub-záložky:
+    //      - Přehled změn (AuditLogPanel)
+    //      - Pokročilý filtr (SecurityAuditPanel se server-side filtry)
+    //      - Diagnostika RLS (debug panely za přepínačem)
+    //  • ?tab=diagnostics se automaticky přesměruje na ?tab=audit-log
+    sql: `SELECT 1; -- noop migration, viz komentář výše`,
+  },
 ];
 
 /**
