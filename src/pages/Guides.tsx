@@ -710,9 +710,12 @@ const sections: GuideSection[] = [
       {
         q: "Mohu si vypnout připomínání rotace hesla?",
         a: [
-          "ANO – přímo v dialogu „Doporučujeme změnit heslo“ je tlačítko „Už mi to nepřipomínat“.",
-          "Nastavení se ukládá do vašich uživatelských preferencí (synchronizováno přes všechna zařízení).",
-          "Důležité: vypnutí platí POUZE pro doporučení rotace. Pokud admin nastaví explicitně must_review_password (např. po incidentu), modal se znovu objeví a opt-out nepomáhá.",
+          "ANO – přímo v dialogu „Doporučujeme změnit heslo“ máte tři možnosti:",
+          "• „Změnit heslo nyní“ – přesun na /change-password.",
+          "• „Připomenout za 7 dní“ – modal se znovu objeví AŽ za 7 dní (ukládá se do localStorage prohlížeče s konkrétním datem). Při dalším přihlášení dříve než po 7 dnech se NEOBJEVÍ. Funguje per-prohlížeč.",
+          "• „Už mi to nepřipomínat“ – trvalé vypnutí, ukládá se do uživatelských preferencí (synchronizováno přes všechna zařízení).",
+          "Zavření dialogu křížkem (×) = pouze pro tuto seanci, při dalším přihlášení se objeví znovu.",
+          "Důležité: opt-out platí POUZE pro doporučení rotace. Pokud admin nastaví explicitně must_review_password (např. po incidentu), modal se znovu objeví a nelze ho odložit.",
           "Změnit zpět můžete v Profilu → karta „Bezpečnost a oznámení“.",
         ],
       },
