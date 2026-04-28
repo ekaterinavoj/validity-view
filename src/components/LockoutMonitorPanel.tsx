@@ -197,6 +197,7 @@ export function LockoutMonitorPanel() {
                     <TableHead>Poslední pokus</TableHead>
                     <TableHead>Odemknutí</TableHead>
                     <TableHead>Zbývá</TableHead>
+                    <TableHead className="text-right">Akce</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -204,6 +205,7 @@ export function LockoutMonitorPanel() {
                     const remainingMs = new Date(row.unlock_at).getTime() - now;
                     const isExpiringSoon =
                       remainingMs > 0 && remainingMs <= EXPIRY_WARNING_MINUTES * 60_000;
+                    const isUnlocking = unlockingEmail === row.email;
                     return (
                       <TableRow key={row.email}>
                         <TableCell className="font-mono text-xs">{row.email}</TableCell>
@@ -220,6 +222,17 @@ export function LockoutMonitorPanel() {
                           <Badge variant={isExpiringSoon ? "outline" : "secondary"}>
                             {formatDuration(row.unlock_at)}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUnlock(row.email)}
+                            disabled={isUnlocking}
+                          >
+                            <Unlock className={`h-3.5 w-3.5 mr-1 ${isUnlocking ? "animate-pulse" : ""}`} />
+                            Odemknout
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
