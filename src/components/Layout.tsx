@@ -95,7 +95,7 @@ export const Layout = ({
   const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types", "/deadlines/groups"].some(path => location.pathname === path);
 
   // Správa dat dropdown active state
-  const isDataManagementActive = ["/facilities", "/employees", "/departments", "/event-types", "/statistics"].includes(location.pathname);
+  const isDataManagementActive = ["/facilities", "/employees", "/departments", "/event-types", "/statistics", "/probations"].includes(location.pathname);
   // Systém dropdown active state  
   const isSystemActive = location.pathname === "/guides" || location.pathname.startsWith("/admin");
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -244,12 +244,6 @@ export const Layout = ({
                             Pozastavená
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/probations" className="flex items-center gap-2 cursor-pointer">
-                            <UserX className="w-4 h-4" />
-                            Zkušební doby
-                          </Link>
-                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -377,6 +371,14 @@ export const Layout = ({
                         <Link to="/employees" className="flex items-center gap-2 cursor-pointer">
                           <Users className="w-4 h-4" />
                           Zaměstnanci
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {!isDeadlineMode && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/probations" className="flex items-center gap-2 cursor-pointer">
+                          <UserX className="w-4 h-4" />
+                          Zkušební doby
                         </Link>
                       </DropdownMenuItem>
                     )}
@@ -591,6 +593,12 @@ export const Layout = ({
                   <Link to="/employees" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/employees" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <Users className="w-4 h-4" />
                     Zaměstnanci
+                  </Link>
+                )}
+                {!isDeadlineMode && (
+                  <Link to="/probations" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/probations" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                    <UserX className="w-4 h-4" />
+                    Zkušební doby
                   </Link>
                 )}
                 <Link to="/facilities" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/facilities" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
