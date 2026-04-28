@@ -266,26 +266,42 @@ export function LockoutMonitorPanel() {
                     <TableHead>První pokus</TableHead>
                     <TableHead>Poslední pokus</TableHead>
                     <TableHead className="text-right">Různé prohlížeče</TableHead>
+                    <TableHead className="text-right">Akce</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {repeatedFailures.map((row) => (
-                    <TableRow key={row.email}>
-                      <TableCell className="font-mono text-xs">{row.email}</TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline">{row.failed_attempts}</Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDisplayDateTime(row.first_attempt)}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDisplayDateTime(row.last_attempt)}
-                      </TableCell>
-                      <TableCell className="text-right text-xs">
-                        {row.distinct_user_agents}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {repeatedFailures.map((row) => {
+                    const isUnlocking = unlockingEmail === row.email;
+                    return (
+                      <TableRow key={row.email}>
+                        <TableCell className="font-mono text-xs">{row.email}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="outline">{row.failed_attempts}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatDisplayDateTime(row.first_attempt)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatDisplayDateTime(row.last_attempt)}
+                        </TableCell>
+                        <TableCell className="text-right text-xs">
+                          {row.distinct_user_agents}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleUnlock(row.email)}
+                            disabled={isUnlocking}
+                            title="Vynulovat počítadlo neúspěšných pokusů"
+                          >
+                            <Unlock className={`h-3.5 w-3.5 mr-1 ${isUnlocking ? "animate-pulse" : ""}`} />
+                            Vynulovat
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
