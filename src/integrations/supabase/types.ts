@@ -1832,6 +1832,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_unlock_account: { Args: { _email: string }; Returns: Json }
       calculate_deadline_status: {
         Args: { next_date: string }
         Returns: string

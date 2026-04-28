@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Lock, RefreshCw, ShieldAlert, Clock } from "lucide-react";
+import { AlertTriangle, Lock, RefreshCw, ShieldAlert, Clock, Unlock } from "lucide-react";
 import { formatDisplayDateTime } from "@/lib/dateFormat";
 import { useToast } from "@/hooks/use-toast";
 
@@ -45,6 +45,7 @@ export function LockoutMonitorPanel() {
   const [locked, setLocked] = useState<LockedAccount[]>([]);
   const [highRisk, setHighRisk] = useState<HighRiskAttempt[]>([]);
   const [loading, setLoading] = useState(false);
+  const [unlockingEmail, setUnlockingEmail] = useState<string | null>(null);
   const [now, setNow] = useState<number>(() => Date.now());
 
   const load = useCallback(async () => {
@@ -70,6 +71,31 @@ export function LockoutMonitorPanel() {
       setLoading(false);
     }
   }, [toast]);
+
+  const handleUnlock = useCallback(
+    async (email: string) => {
+      setUnlockingEmail(email);
+      try {
+        const { data, error } = await supabase.rpc("admin_unlock_account", { _email: email });
+        if (error) throw error;
+        const deleted = (data as any)?.deleted_attempts ?? 0;
+        toast({
+          title: "Účet odemčen",
+          description: `${email} – smazáno ${deleted} neúspěšných pokusů.`,
+        });
+        await load();
+      } catch (e: any) {
+        toast({
+          title: "Chyba odemčení",
+          description: e?.message ?? "Nepodařilo se odemknout účet.",
+          variant: "destructive",
+        });
+      } finally {
+        setUnlockingEmail(null);
+      }
+    },
+    [toast, load],
+  );
 
   useEffect(() => {
     load();
@@ -171,6 +197,7 @@ export function LockoutMonitorPanel() {
                     <TableHead>Poslední pokus</TableHead>
                     <TableHead>Odemknutí</TableHead>
                     <TableHead>Zbývá</TableHead>
+                    <TableHead className="text-right">Akce</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -178,6 +205,7 @@ export function LockoutMonitorPanel() {
                     const remainingMs = new Date(row.unlock_at).getTime() - now;
                     const isExpiringSoon =
                       remainingMs > 0 && remainingMs <= EXPIRY_WARNING_MINUTES * 60_000;
+                    const isUnlocking = unlockingEmail === row.email;
                     return (
                       <TableRow key={row.email}>
                         <TableCell className="font-mono text-xs">{row.email}</TableCell>
@@ -194,6 +222,17 @@ export function LockoutMonitorPanel() {
                           <Badge variant={isExpiringSoon ? "outline" : "secondary"}>
                             {formatDuration(row.unlock_at)}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUnlock(row.email)}
+                            disabled={isUnlocking}
+                          >
+                            <Unlock className={`h-3.5 w-3.5 mr-1 ${isUnlocking ? "animate-pulse" : ""}`} />
+                            Odemknout
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -227,26 +266,42 @@ export function LockoutMonitorPanel() {
                     <TableHead>První pokus</TableHead>
                     <TableHead>Poslední pokus</TableHead>
                     <TableHead className="text-right">Různé prohlížeče</TableHead>
+                    <TableHead className="text-right">Akce</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {repeatedFailures.map((row) => (
-                    <TableRow key={row.email}>
-                      <TableCell className="font-mono text-xs">{row.email}</TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline">{row.failed_attempts}</Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDisplayDateTime(row.first_attempt)}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDisplayDateTime(row.last_attempt)}
-                      </TableCell>
-                      <TableCell className="text-right text-xs">
-                        {row.distinct_user_agents}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {repeatedFailures.map((row) => {
+                    const isUnlocking = unlockingEmail === row.email;
+                    return (
+                      <TableRow key={row.email}>
+                        <TableCell className="font-mono text-xs">{row.email}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="outline">{row.failed_attempts}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatDisplayDateTime(row.first_attempt)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatDisplayDateTime(row.last_attempt)}
+                        </TableCell>
+                        <TableCell className="text-right text-xs">
+                          {row.distinct_user_agents}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleUnlock(row.email)}
+                            disabled={isUnlocking}
+                            title="Vynulovat počítadlo neúspěšných pokusů"
+                          >
+                            <Unlock className={`h-3.5 w-3.5 mr-1 ${isUnlocking ? "animate-pulse" : ""}`} />
+                            Vynulovat
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
