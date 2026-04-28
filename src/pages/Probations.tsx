@@ -485,10 +485,19 @@ export default function Probations() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedItems.map((e) => (
+                  paginatedItems.map((e) => {
+                    const days = daysUntil(e.probationEndDate!);
+                    const isUrgent = days <= 7;
+                    const isWarning = days > 7 && days <= 14;
+                    return (
                     <TableRow
                       key={e.id}
-                      className="cursor-pointer hover:bg-muted/40"
+                      className={cn(
+                        "cursor-pointer hover:bg-muted/40 border-l-4",
+                        isUrgent ? "border-l-destructive bg-destructive/5" :
+                        isWarning ? "border-l-status-warning bg-status-warning/5" :
+                        "border-l-transparent"
+                      )}
                       onClick={() => goToEmployeeProbation(e.id)}
                     >
                       <TableCell className="font-medium">{e.employeeNumber || "-"}</TableCell>
