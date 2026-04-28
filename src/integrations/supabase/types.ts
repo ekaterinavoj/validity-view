@@ -1833,6 +1833,14 @@ export type Database = {
     }
     Functions: {
       admin_unlock_account: { Args: { _email: string }; Returns: Json }
+      admin_update_lockout_policy: {
+        Args: {
+          _duration_minutes: number
+          _max_attempts: number
+          _window_minutes: number
+        }
+        Returns: Json
+      }
       calculate_deadline_status: {
         Args: { next_date: string }
         Returns: string
@@ -1930,6 +1938,7 @@ export type Database = {
           unlock_at: string
         }[]
       }
+      get_lockout_policy: { Args: never; Returns: Json }
       get_password_review_summary: {
         Args: never
         Returns: {
