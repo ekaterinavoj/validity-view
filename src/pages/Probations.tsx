@@ -27,6 +27,7 @@ import { usePagination } from "@/hooks/usePagination";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { buildExportFilename, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { cn } from "@/lib/utils";
 
 type WindowFilter = "ending_14" | "ending_30" | "ending_60" | "all_active";
 
