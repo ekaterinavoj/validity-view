@@ -1219,6 +1219,7 @@ export default function AdminSettings() {
         <TabsContent value="security" className="space-y-6">
           <SessionTimeoutSettings />
           <PasswordPolicySettings />
+          <LockoutPolicySettings />
           <LockoutMonitorPanel />
           <SecurityScanRunner />
           <SecurityFindings />
