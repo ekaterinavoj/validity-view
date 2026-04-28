@@ -173,19 +173,27 @@ export default function Auth() {
             <AlertTitle>Účet je dočasně uzamčen</AlertTitle>
             <AlertDescription className="space-y-1">
               <p>
-                Po {lockout.failed_attempts} neúspěšných pokusech byl tento účet uzamčen na{" "}
-                {lockout.lock_minutes} minut.
+                <strong>Důvod:</strong> překročen povolený počet neúspěšných pokusů o přihlášení
+                ({lockout.failed_attempts} z {lockout.max_attempts} povolených v okně{" "}
+                {lockout.window_minutes} min).
+              </p>
+              <p>
+                Účet je uzamčen na <strong>{lockout.lock_minutes} min</strong> a poté se{" "}
+                <strong>automaticky odemkne</strong>.
               </p>
               {unlockCountdown && (
                 <p className="font-medium">
-                  Odemčení za: <span className="font-mono">{unlockCountdown}</span>
+                  Zbývá do odemčení: <span className="font-mono">{unlockCountdown}</span>
                 </p>
               )}
               {lockout.unlock_at && (
                 <p className="text-xs opacity-80">
-                  Odemčení v {new Date(lockout.unlock_at).toLocaleTimeString("cs-CZ")}
+                  Přesný čas odemčení: {new Date(lockout.unlock_at).toLocaleTimeString("cs-CZ")}
                 </p>
               )}
+              <p className="text-xs opacity-80">
+                Pokud potřebujete přístup ihned, kontaktujte správce systému.
+              </p>
             </AlertDescription>
           </Alert>
         )}
