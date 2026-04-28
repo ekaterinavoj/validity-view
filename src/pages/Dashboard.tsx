@@ -62,10 +62,33 @@ export default function Dashboard() {
   const [deadlines, setDeadlines] = useState<ModuleStats>(EMPTY);
   const [plp, setPlp] = useState<ModuleStats>(EMPTY);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [quickLinksDialogOpen, setQuickLinksDialogOpen] = useState(false);
+  const { preferences, updatePreference, isLoaded: prefsLoaded } = useUserPreferences();
 
   const canT = hasModuleAccess("trainings");
   const canD = hasModuleAccess("deadlines");
   const canP = hasModuleAccess("plp");
+
+  // Výchozí systémové odkazy – závisí na rolích/oprávněních.
+  // Pokud uživatel nemá vlastní (preference je prázdné pole), použijí se tyto.
+  const defaultQuickLinks = useMemo<DashboardQuickLink[]>(() => {
+    const items: DashboardQuickLink[] = [];
+    if (canT) items.push({ id: "sys-new-training", label: "+ Nové školení", path: "/trainings/new" });
+    if (canD) items.push({ id: "sys-new-deadline", label: "+ Nová tech. událost", path: "/deadlines/new" });
+    if (canP && isAdmin) items.push({ id: "sys-new-plp", label: "+ Nová PLP", path: "/plp/new" });
+    items.push({ id: "sys-documents", label: "Dokumenty", path: "/documents" });
+    items.push({ id: "sys-guides", label: "Návody", path: "/guides" });
+    items.push({ id: "sys-permissions", label: "Moje oprávnění", path: "/profile?tab=permissions" });
+    return items;
+  }, [canT, canD, canP, isAdmin]);
+
+  // Pokud uživatel nikdy neupravoval, použij výchozí. Jinak jeho vlastní.
+  const effectiveQuickLinks =
+    prefsLoaded && preferences.dashboardQuickLinks.length > 0
+      ? preferences.dashboardQuickLinks
+      : defaultQuickLinks;
+
+  const isExternal = (path: string) => /^https?:\/\//i.test(path);
 
   useEffect(() => {
     if (loading || !rolesLoaded || !moduleAccessLoaded) return;
