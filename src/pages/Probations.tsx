@@ -357,6 +357,58 @@ export default function Probations() {
         )}
 
         <TabsContent value="list" className="space-y-4">
+          {/* Souhrnný banner – aktuální stav, klikatelné karty nastavují odpovídající filtr okna */}
+          {stats.total > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setWindowFilter("all_active")}
+                className="flex flex-col items-start rounded-md border border-border bg-card hover:bg-muted/40 transition-colors p-3 text-left"
+              >
+                <span className="text-2xl font-bold">{stats.total}</span>
+                <span className="text-[11px] text-muted-foreground mt-1">Celkem aktivních v ZD</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWindowFilter("ending_14")}
+                className={cn(
+                  "flex flex-col items-start rounded-md border p-3 text-left transition-colors",
+                  stats.urgent7 > 0
+                    ? "border-destructive/40 bg-destructive/5 hover:bg-destructive/10"
+                    : "border-border bg-card hover:bg-muted/40"
+                )}
+              >
+                <span className={cn("text-2xl font-bold", stats.urgent7 > 0 && "text-destructive")}>
+                  {stats.urgent7}
+                </span>
+                <span className="text-[11px] text-muted-foreground mt-1">Končí do 7 dní (urgentní)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWindowFilter("ending_14")}
+                className={cn(
+                  "flex flex-col items-start rounded-md border p-3 text-left transition-colors",
+                  stats.upcoming14 > 0
+                    ? "border-status-warning/40 bg-status-warning/5 hover:bg-status-warning/10"
+                    : "border-border bg-card hover:bg-muted/40"
+                )}
+              >
+                <span className={cn("text-2xl font-bold", stats.upcoming14 > 0 && "text-status-warning")}>
+                  {stats.upcoming14}
+                </span>
+                <span className="text-[11px] text-muted-foreground mt-1">Končí za 8–14 dní</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWindowFilter("ending_30")}
+                className="flex flex-col items-start rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors p-3 text-left"
+              >
+                <span className="text-2xl font-bold text-primary">{stats.upcoming30}</span>
+                <span className="text-[11px] text-muted-foreground mt-1">Končí za 15–30 dní</span>
+              </button>
+            </div>
+          )}
+
           <Card className="p-4">
             <div className="flex flex-wrap gap-2 items-center">
               <div className="relative flex-1 min-w-[220px]">
