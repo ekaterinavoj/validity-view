@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,12 @@ import {
   Stethoscope,
   Wrench,
   ArrowRight,
+  Settings2,
+  Link as LinkIcon,
+  ExternalLink,
 } from "lucide-react";
+import { useUserPreferences, type DashboardQuickLink } from "@/hooks/useUserPreferences";
+import { QuickLinksManagerDialog } from "@/components/QuickLinksManagerDialog";
 
 interface ModuleStats {
   expired: number;
@@ -57,10 +62,33 @@ export default function Dashboard() {
   const [deadlines, setDeadlines] = useState<ModuleStats>(EMPTY);
   const [plp, setPlp] = useState<ModuleStats>(EMPTY);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [quickLinksDialogOpen, setQuickLinksDialogOpen] = useState(false);
+  const { preferences, updatePreference, isLoaded: prefsLoaded } = useUserPreferences();
 
   const canT = hasModuleAccess("trainings");
   const canD = hasModuleAccess("deadlines");
   const canP = hasModuleAccess("plp");
+
+  // Výchozí systémové odkazy – závisí na rolích/oprávněních.
+  // Pokud uživatel nemá vlastní (preference je prázdné pole), použijí se tyto.
+  const defaultQuickLinks = useMemo<DashboardQuickLink[]>(() => {
+    const items: DashboardQuickLink[] = [];
+    if (canT) items.push({ id: "sys-new-training", label: "+ Nové školení", path: "/trainings/new" });
+    if (canD) items.push({ id: "sys-new-deadline", label: "+ Nová tech. událost", path: "/deadlines/new" });
+    if (canP && isAdmin) items.push({ id: "sys-new-plp", label: "+ Nová PLP", path: "/plp/new" });
+    items.push({ id: "sys-documents", label: "Dokumenty", path: "/documents" });
+    items.push({ id: "sys-guides", label: "Návody", path: "/guides" });
+    items.push({ id: "sys-permissions", label: "Moje oprávnění", path: "/profile?tab=permissions" });
+    return items;
+  }, [canT, canD, canP, isAdmin]);
+
+  // Pokud uživatel nikdy neupravoval, použij výchozí. Jinak jeho vlastní.
+  const effectiveQuickLinks =
+    prefsLoaded && preferences.dashboardQuickLinks.length > 0
+      ? preferences.dashboardQuickLinks
+      : defaultQuickLinks;
+
+  const isExternal = (path: string) => /^https?:\/\//i.test(path);
 
   useEffect(() => {
     if (loading || !rolesLoaded || !moduleAccessLoaded) return;
@@ -256,41 +284,65 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Calendar className="w-4 h-4 text-primary" />
-                Rychlé odkazy
-              </CardTitle>
-              <CardDescription>Nejčastěji používané akce a sekce.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {canT && (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/trainings/new">+ Nové školení</Link>
-                  </Button>
-                )}
-                {canD && (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/deadlines/new">+ Nová tech. událost</Link>
-                  </Button>
-                )}
-                {canP && isAdmin && (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/plp/new">+ Nová PLP</Link>
-                  </Button>
-                )}
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/documents">Dokumenty</Link>
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/guides">Návody</Link>
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/profile?tab=permissions">Moje oprávnění</Link>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    Rychlé odkazy
+                  </CardTitle>
+                  <CardDescription>
+                    {preferences.dashboardQuickLinks.length > 0
+                      ? "Vaše vlastní rychlé odkazy."
+                      : "Nejčastěji používané akce a sekce."}
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setQuickLinksDialogOpen(true)}
+                  title="Upravit rychlé odkazy"
+                >
+                  <Settings2 className="w-4 h-4 mr-1" />
+                  Spravovat
                 </Button>
               </div>
+            </CardHeader>
+            <CardContent>
+              {effectiveQuickLinks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Žádné rychlé odkazy. Klikněte na „Spravovat" a přidejte své vlastní.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {effectiveQuickLinks.map((link) =>
+                    isExternal(link.path) ? (
+                      <Button asChild key={link.id} variant="outline" size="sm">
+                        <a href={link.path} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                          {link.label}
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button asChild key={link.id} variant="outline" size="sm">
+                        <Link to={link.path}>
+                          <LinkIcon className="w-3.5 h-3.5 mr-1" />
+                          {link.label}
+                        </Link>
+                      </Button>
+                    )
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          <QuickLinksManagerDialog
+            open={quickLinksDialogOpen}
+            onOpenChange={setQuickLinksDialogOpen}
+            links={effectiveQuickLinks}
+            onSave={(links) => updatePreference("dashboardQuickLinks", links)}
+            onResetToDefault={() => updatePreference("dashboardQuickLinks", [])}
+          />
 
           {trainings.expired + deadlines.expired + plp.expired === 0 && (
             <Card className="border-success/30 bg-success/5">

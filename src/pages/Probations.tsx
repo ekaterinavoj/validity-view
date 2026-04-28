@@ -27,6 +27,7 @@ import { usePagination } from "@/hooks/usePagination";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { buildExportFilename, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { cn } from "@/lib/utils";
 
 type WindowFilter = "ending_14" | "ending_30" | "ending_60" | "all_active";
 
@@ -114,6 +115,25 @@ export default function Probations() {
       })
       .sort((a, b) => daysUntil(a.probationEndDate!) - daysUntil(b.probationEndDate!));
   }, [employees, windowFilter, search]);
+
+  // Souhrnné metriky pro banner – vždy z plné množiny aktivních zaměstnanců v ZD
+  // (nezávislé na aktivním filtru okna / vyhledávání), aby uživatel viděl reálný stav.
+  const allActiveInProbation = useMemo(
+    () => employees.filter((e) => e.status === "employed" && e.probationEndDate && daysUntil(e.probationEndDate!) >= 0),
+    [employees],
+  );
+  const stats = useMemo(() => {
+    let urgent7 = 0;
+    let upcoming14 = 0;
+    let upcoming30 = 0;
+    for (const e of allActiveInProbation) {
+      const d = daysUntil(e.probationEndDate!);
+      if (d <= 7) urgent7++;
+      else if (d <= 14) upcoming14++;
+      else if (d <= 30) upcoming30++;
+    }
+    return { urgent7, upcoming14, upcoming30, total: allActiveInProbation.length };
+  }, [allActiveInProbation]);
 
   const PAGE_SIZE = 25;
   const { currentPage, setCurrentPage, totalPages, paginatedItems, totalItems } = usePagination(filtered, PAGE_SIZE);
@@ -338,6 +358,58 @@ export default function Probations() {
         )}
 
         <TabsContent value="list" className="space-y-4">
+          {/* Souhrnný banner – aktuální stav, klikatelné karty nastavují odpovídající filtr okna */}
+          {stats.total > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setWindowFilter("all_active")}
+                className="flex flex-col items-start rounded-md border border-border bg-card hover:bg-muted/40 transition-colors p-3 text-left"
+              >
+                <span className="text-2xl font-bold">{stats.total}</span>
+                <span className="text-[11px] text-muted-foreground mt-1">Celkem aktivních v ZD</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWindowFilter("ending_14")}
+                className={cn(
+                  "flex flex-col items-start rounded-md border p-3 text-left transition-colors",
+                  stats.urgent7 > 0
+                    ? "border-destructive/40 bg-destructive/5 hover:bg-destructive/10"
+                    : "border-border bg-card hover:bg-muted/40"
+                )}
+              >
+                <span className={cn("text-2xl font-bold", stats.urgent7 > 0 && "text-destructive")}>
+                  {stats.urgent7}
+                </span>
+                <span className="text-[11px] text-muted-foreground mt-1">Končí do 7 dní (urgentní)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWindowFilter("ending_14")}
+                className={cn(
+                  "flex flex-col items-start rounded-md border p-3 text-left transition-colors",
+                  stats.upcoming14 > 0
+                    ? "border-status-warning/40 bg-status-warning/5 hover:bg-status-warning/10"
+                    : "border-border bg-card hover:bg-muted/40"
+                )}
+              >
+                <span className={cn("text-2xl font-bold", stats.upcoming14 > 0 && "text-status-warning")}>
+                  {stats.upcoming14}
+                </span>
+                <span className="text-[11px] text-muted-foreground mt-1">Končí za 8–14 dní</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWindowFilter("ending_30")}
+                className="flex flex-col items-start rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors p-3 text-left"
+              >
+                <span className="text-2xl font-bold text-primary">{stats.upcoming30}</span>
+                <span className="text-[11px] text-muted-foreground mt-1">Končí za 15–30 dní</span>
+              </button>
+            </div>
+          )}
+
           <Card className="p-4">
             <div className="flex flex-wrap gap-2 items-center">
               <div className="relative flex-1 min-w-[220px]">
@@ -413,10 +485,19 @@ export default function Probations() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedItems.map((e) => (
+                  paginatedItems.map((e) => {
+                    const days = daysUntil(e.probationEndDate!);
+                    const isUrgent = days <= 7;
+                    const isWarning = days > 7 && days <= 14;
+                    return (
                     <TableRow
                       key={e.id}
-                      className="cursor-pointer hover:bg-muted/40"
+                      className={cn(
+                        "cursor-pointer hover:bg-muted/40 border-l-4",
+                        isUrgent ? "border-l-destructive bg-destructive/5" :
+                        isWarning ? "border-l-status-warning bg-status-warning/5" :
+                        "border-l-transparent"
+                      )}
                       onClick={() => goToEmployeeProbation(e.id)}
                     >
                       <TableCell className="font-medium">{e.employeeNumber || "-"}</TableCell>
@@ -470,7 +551,8 @@ export default function Probations() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
