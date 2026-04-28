@@ -45,6 +45,7 @@ export function LockoutMonitorPanel() {
   const [locked, setLocked] = useState<LockedAccount[]>([]);
   const [highRisk, setHighRisk] = useState<HighRiskAttempt[]>([]);
   const [loading, setLoading] = useState(false);
+  const [unlockingEmail, setUnlockingEmail] = useState<string | null>(null);
   const [now, setNow] = useState<number>(() => Date.now());
 
   const load = useCallback(async () => {
