@@ -115,6 +115,25 @@ export default function Probations() {
       .sort((a, b) => daysUntil(a.probationEndDate!) - daysUntil(b.probationEndDate!));
   }, [employees, windowFilter, search]);
 
+  // Souhrnné metriky pro banner – vždy z plné množiny aktivních zaměstnanců v ZD
+  // (nezávislé na aktivním filtru okna / vyhledávání), aby uživatel viděl reálný stav.
+  const allActiveInProbation = useMemo(
+    () => employees.filter((e) => e.status === "employed" && e.probationEndDate && daysUntil(e.probationEndDate!) >= 0),
+    [employees],
+  );
+  const stats = useMemo(() => {
+    let urgent7 = 0;
+    let upcoming14 = 0;
+    let upcoming30 = 0;
+    for (const e of allActiveInProbation) {
+      const d = daysUntil(e.probationEndDate!);
+      if (d <= 7) urgent7++;
+      else if (d <= 14) upcoming14++;
+      else if (d <= 30) upcoming30++;
+    }
+    return { urgent7, upcoming14, upcoming30, total: allActiveInProbation.length };
+  }, [allActiveInProbation]);
+
   const PAGE_SIZE = 25;
   const { currentPage, setCurrentPage, totalPages, paginatedItems, totalItems } = usePagination(filtered, PAGE_SIZE);
 
