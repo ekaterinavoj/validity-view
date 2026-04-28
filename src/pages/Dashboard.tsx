@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,12 @@ import {
   Stethoscope,
   Wrench,
   ArrowRight,
+  Settings2,
+  Link as LinkIcon,
+  ExternalLink,
 } from "lucide-react";
+import { useUserPreferences, type DashboardQuickLink } from "@/hooks/useUserPreferences";
+import { QuickLinksManagerDialog } from "@/components/QuickLinksManagerDialog";
 
 interface ModuleStats {
   expired: number;
