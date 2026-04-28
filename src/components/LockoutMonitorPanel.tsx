@@ -72,6 +72,31 @@ export function LockoutMonitorPanel() {
     }
   }, [toast]);
 
+  const handleUnlock = useCallback(
+    async (email: string) => {
+      setUnlockingEmail(email);
+      try {
+        const { data, error } = await supabase.rpc("admin_unlock_account", { _email: email });
+        if (error) throw error;
+        const deleted = (data as any)?.deleted_attempts ?? 0;
+        toast({
+          title: "Účet odemčen",
+          description: `${email} – smazáno ${deleted} neúspěšných pokusů.`,
+        });
+        await load();
+      } catch (e: any) {
+        toast({
+          title: "Chyba odemčení",
+          description: e?.message ?? "Nepodařilo se odemknout účet.",
+          variant: "destructive",
+        });
+      } finally {
+        setUnlockingEmail(null);
+      }
+    },
+    [toast, load],
+  );
+
   useEffect(() => {
     load();
     // auto-refresh každých 30s
