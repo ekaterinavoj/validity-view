@@ -72,7 +72,7 @@ export default function Probations() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { preferences, updatePreference, isLoaded: prefsLoaded } = useUserPreferences();
-  const [windowFilter, setWindowFilter] = useState<WindowFilter>("ending_30");
+  const [windowFilter, setWindowFilter] = useState<WindowFilter>("all_active");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"list" | "history">("list");
 
@@ -118,7 +118,7 @@ export default function Probations() {
   const PAGE_SIZE = 25;
   const { currentPage, setCurrentPage, totalPages, paginatedItems, totalItems } = usePagination(filtered, PAGE_SIZE);
 
-  const hasFilters = search !== "" || windowFilter !== "ending_30";
+  const hasFilters = search !== "" || windowFilter !== "all_active";
 
   // Build employee lookup for history tab (audit logs reference employee_id via record_id for employees_probation)
   const employeeMap = useMemo(() => {
@@ -366,7 +366,7 @@ export default function Probations() {
                   size="sm"
                   onClick={() => {
                     setSearch("");
-                    setWindowFilter("ending_30");
+                    setWindowFilter("all_active");
                   }}
                 >
                   <X className="h-4 w-4 mr-1" /> Vyčistit
