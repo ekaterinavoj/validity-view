@@ -284,41 +284,65 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Calendar className="w-4 h-4 text-primary" />
-                Rychlé odkazy
-              </CardTitle>
-              <CardDescription>Nejčastěji používané akce a sekce.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {canT && (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/trainings/new">+ Nové školení</Link>
-                  </Button>
-                )}
-                {canD && (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/deadlines/new">+ Nová tech. událost</Link>
-                  </Button>
-                )}
-                {canP && isAdmin && (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/plp/new">+ Nová PLP</Link>
-                  </Button>
-                )}
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/documents">Dokumenty</Link>
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/guides">Návody</Link>
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/profile?tab=permissions">Moje oprávnění</Link>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    Rychlé odkazy
+                  </CardTitle>
+                  <CardDescription>
+                    {preferences.dashboardQuickLinks.length > 0
+                      ? "Vaše vlastní rychlé odkazy."
+                      : "Nejčastěji používané akce a sekce."}
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setQuickLinksDialogOpen(true)}
+                  title="Upravit rychlé odkazy"
+                >
+                  <Settings2 className="w-4 h-4 mr-1" />
+                  Spravovat
                 </Button>
               </div>
+            </CardHeader>
+            <CardContent>
+              {effectiveQuickLinks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Žádné rychlé odkazy. Klikněte na „Spravovat" a přidejte své vlastní.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {effectiveQuickLinks.map((link) =>
+                    isExternal(link.path) ? (
+                      <Button asChild key={link.id} variant="outline" size="sm">
+                        <a href={link.path} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                          {link.label}
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button asChild key={link.id} variant="outline" size="sm">
+                        <Link to={link.path}>
+                          <LinkIcon className="w-3.5 h-3.5 mr-1" />
+                          {link.label}
+                        </Link>
+                      </Button>
+                    )
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          <QuickLinksManagerDialog
+            open={quickLinksDialogOpen}
+            onOpenChange={setQuickLinksDialogOpen}
+            links={effectiveQuickLinks}
+            onSave={(links) => updatePreference("dashboardQuickLinks", links)}
+            onResetToDefault={() => updatePreference("dashboardQuickLinks", [])}
+          />
 
           {trainings.expired + deadlines.expired + plp.expired === 0 && (
             <Card className="border-success/30 bg-success/5">
