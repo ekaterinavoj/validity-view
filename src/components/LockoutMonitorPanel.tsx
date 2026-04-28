@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Lock, RefreshCw, ShieldAlert, Clock } from "lucide-react";
+import { AlertTriangle, Lock, RefreshCw, ShieldAlert, Clock, Unlock } from "lucide-react";
 import { formatDisplayDateTime } from "@/lib/dateFormat";
 import { useToast } from "@/hooks/use-toast";
 
