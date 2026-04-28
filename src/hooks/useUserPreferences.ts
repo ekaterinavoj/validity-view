@@ -33,6 +33,16 @@ export interface UserPreferences {
 
   // Password review modal (synced cross-device — opt-out from rotation reminder)
   passwordReviewSnoozedForever: boolean;
+
+  // Dashboard – uživatelské rychlé odkazy (synced cross-device)
+  dashboardQuickLinks: DashboardQuickLink[];
+}
+
+export interface DashboardQuickLink {
+  id: string;
+  label: string;
+  path: string; // interní cesta nebo absolutní URL
+  icon?: string; // klíč z lucide-react (volitelný); fallback = "Link"
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -54,6 +64,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   notificationCategory: "all",
   notificationOnlyUnread: false,
   passwordReviewSnoozedForever: false,
+  dashboardQuickLinks: [], // prázdné = použijí se výchozí systémové odkazy
 };
 
 const getStorageKey = (userId: string | null) => {
