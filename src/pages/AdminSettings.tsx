@@ -42,6 +42,7 @@ import { LockoutMonitorPanel } from "@/components/LockoutMonitorPanel";
 import { SecurityScanRunner } from "@/components/SecurityScanRunner";
 import { SessionTimeoutSettings } from "@/components/SessionTimeoutSettings";
 import { PasswordPolicySettings } from "@/components/PasswordPolicySettings";
+import { LockoutPolicySettings } from "@/components/LockoutPolicySettings";
 import { ShieldAlert } from "lucide-react";
 
 import { DisplaySettings } from "@/components/DisplaySettings";
