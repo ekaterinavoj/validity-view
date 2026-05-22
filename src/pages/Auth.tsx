@@ -220,8 +220,20 @@ export default function Auth() {
                 </p>
               )}
               <p className="text-xs opacity-80">
-                Pokud potřebujete přístup ihned, kontaktujte správce systému.
+                Pokud potřebujete přístup ihned, kontaktujte správce systému nebo zkuste samoodemčení.
               </p>
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSelfUnlock}
+                  disabled={unlocking}
+                >
+                  {unlocking && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                  Odemknout účet
+                </Button>
+              </div>
             </AlertDescription>
           </Alert>
         )}
