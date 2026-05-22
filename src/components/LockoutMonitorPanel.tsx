@@ -76,15 +76,20 @@ export function LockoutMonitorPanel() {
 
   const handleUnlock = useCallback(
     async (email: string) => {
-      setUnlockingEmail(email);
+      const normalized = email.toLowerCase();
+      setUnlockingEmail(normalized);
       try {
-        const { data, error } = await supabase.rpc("admin_unlock_account", { _email: email });
+        const { data, error } = await supabase.rpc("admin_unlock_account", { _email: normalized });
         if (error) throw error;
         const deleted = (data as any)?.deleted_attempts ?? 0;
+        // Optimistická aktualizace – okamžitě odstraníme e-mail ze stavu
+        setLocked((prev) => prev.filter((a) => a.email.toLowerCase() !== normalized));
+        setHighRisk((prev) => prev.filter((a) => a.email.toLowerCase() !== normalized));
         toast({
           title: "Účet odemčen",
-          description: `${email} – smazáno ${deleted} neúspěšných pokusů.`,
+          description: `${normalized} – smazáno ${deleted} neúspěšných pokusů.`,
         });
+        // Následně syncneme se serverem pro jistotu
         await load();
       } catch (e: any) {
         toast({
