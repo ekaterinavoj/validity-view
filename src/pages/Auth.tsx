@@ -38,6 +38,34 @@ export default function Auth() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [lockout, setLockout] = useState<LockoutInfo | null>(null);
   const [unlockCountdown, setUnlockCountdown] = useState<string>("");
+  const [unlocking, setUnlocking] = useState(false);
+
+  const handleSelfUnlock = async () => {
+    const email = loginData.email.trim().toLowerCase();
+    if (!email) {
+      toast({ title: "Zadejte e-mail", description: "Vyplňte pole s e-mailem.", variant: "destructive" });
+      return;
+    }
+    setUnlocking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("self-unlock-account", { body: { email } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({
+        title: "Účet odemčen",
+        description: `Smazáno ${(data as any)?.deleted_attempts ?? 0} neúspěšných pokusů. Zkuste se přihlásit znovu.`,
+      });
+      setLockout(null);
+    } catch (e: any) {
+      toast({
+        title: "Odemčení selhalo",
+        description: e?.message ?? "Zkuste to znovu nebo kontaktujte administrátora.",
+        variant: "destructive",
+      });
+    } finally {
+      setUnlocking(false);
+    }
+  };
 
   // Live countdown if account is locked
   useEffect(() => {
