@@ -148,7 +148,38 @@ export function LockoutMonitorPanel() {
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Upozornění – brzy vyprší zámek */}
+        {/* Manuální odemčení podle e-mailu */}
+        <div className="border rounded-md p-3 bg-muted/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Unlock className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Odemknout účet podle e-mailu</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">
+            Okamžitě smaže všechny záznamy neúspěšných pokusů pro daný e-mail a odemkne ho.
+          </p>
+          <form
+            className="flex flex-col sm:flex-row gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const email = manualEmail.trim().toLowerCase();
+              if (!email) return;
+              handleUnlock(email).then(() => setManualEmail(""));
+            }}
+          >
+            <Input
+              type="email"
+              placeholder="uzivatel@firma.cz"
+              value={manualEmail}
+              onChange={(e) => setManualEmail(e.target.value)}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={!manualEmail || unlockingEmail === manualEmail.trim().toLowerCase()}>
+              <Unlock className="h-4 w-4 mr-2" />
+              Odemknout
+            </Button>
+          </form>
+        </div>
+
         {expiringSoon.length > 0 && (
           <Alert>
             <Clock className="h-4 w-4" />
