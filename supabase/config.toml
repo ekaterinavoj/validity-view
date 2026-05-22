@@ -41,3 +41,5 @@ verify_jwt = false
 
 [functions.apply-migrations]
 verify_jwt = false
+[functions.self-unlock-account]
+verify_jwt = false
