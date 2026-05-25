@@ -4126,10 +4126,12 @@ GRANT EXECUTE ON FUNCTION public.cleanup_old_security_logs() TO service_role;
 DO $do$
 DECLARE v_jobid int;
 BEGIN
-  SELECT jobid INTO v_jobid FROM cron.job WHERE jobname = 'cleanup_old_security_logs_daily';
-  IF v_jobid IS NOT NULL THEN PERFORM cron.unschedule(v_jobid); END IF;
-  PERFORM cron.schedule('cleanup_old_security_logs_daily', '30 3 * * *',
-    $cron$ SELECT public.cleanup_old_security_logs(); $cron$);
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    SELECT jobid INTO v_jobid FROM cron.job WHERE jobname = 'cleanup_old_security_logs_daily';
+    IF v_jobid IS NOT NULL THEN PERFORM cron.unschedule(v_jobid); END IF;
+    PERFORM cron.schedule('cleanup_old_security_logs_daily', '30 3 * * *',
+      $cron$ SELECT public.cleanup_old_security_logs(); $cron$);
+  END IF;
 END $do$;
 
 -- 5) Brute-force lockout
