@@ -17,9 +17,9 @@ import { MissingHeadersAlert } from "@/components/MissingHeadersAlert";
 import { ImportDescription } from "@/components/ImportDescription";
 
 const REQUIRED_EQUIPMENT_HEADERS: Record<string, string[]> = {
-  "Inventární číslo": ["Inventární číslo", "inventoryNumber", "inventory_number"],
-  "Název": ["Název", "name"],
-  "Typ zařízení": ["Typ zařízení", "equipmentType", "equipment_type"],
+  "Inventární číslo": ["Inventární číslo", "Inv. číslo", "Inv. cislo", "inventoryNumber", "inventory_number"],
+  "Název": ["Název", "Nazev", "name"],
+  "Typ zařízení": ["Typ zařízení", "Typ zarizeni", "Typ", "equipmentType", "equipment_type"],
   "Provozovna": ["Provozovna", "facility"],
 };
 
