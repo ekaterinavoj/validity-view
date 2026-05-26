@@ -4423,6 +4423,15 @@ REVOKE EXECUTE ON FUNCTION public.get_lockout_policy() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_lockout_policy() TO anon, authenticated, service_role;
 `,
   },
+  {
+    version: "20260526133226",
+    name: "drop_equipment_inventory_number_unique",
+    sql: `
+ALTER TABLE public.equipment DROP CONSTRAINT IF EXISTS equipment_inventory_number_key;
+DROP INDEX IF EXISTS public.equipment_inventory_number_key;
+CREATE INDEX IF NOT EXISTS equipment_inventory_number_idx ON public.equipment (inventory_number);
+`,
+  },
 ];
 
 /**
