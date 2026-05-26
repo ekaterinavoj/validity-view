@@ -78,23 +78,36 @@ export function LockoutMonitorPanel() {
     async (email: string) => {
       const normalized = email.toLowerCase();
       setUnlockingEmail(normalized);
+
+      // Snapshot pro případný rollback
+      let prevLocked: LockedAccount[] = [];
+      let prevHighRisk: HighRiskAttempt[] = [];
+      setLocked((prev) => {
+        prevLocked = prev;
+        return prev.filter((a) => a.email.toLowerCase() !== normalized);
+      });
+      setHighRisk((prev) => {
+        prevHighRisk = prev;
+        return prev.filter((a) => a.email.toLowerCase() !== normalized);
+      });
+
       try {
         const { data, error } = await supabase.rpc("admin_unlock_account", { _email: normalized });
         if (error) throw error;
         const deleted = (data as any)?.deleted_attempts ?? 0;
-        // Optimistická aktualizace – okamžitě odstraníme e-mail ze stavu
-        setLocked((prev) => prev.filter((a) => a.email.toLowerCase() !== normalized));
-        setHighRisk((prev) => prev.filter((a) => a.email.toLowerCase() !== normalized));
         toast({
           title: "Účet odemčen",
           description: `${normalized} – smazáno ${deleted} neúspěšných pokusů.`,
         });
-        // Následně syncneme se serverem pro jistotu
+        // Sync se serverem pro jistotu
         await load();
       } catch (e: any) {
+        // Rollback optimistické aktualizace
+        setLocked(prevLocked);
+        setHighRisk(prevHighRisk);
         toast({
           title: "Chyba odemčení",
-          description: e?.message ?? "Nepodařilo se odemknout účet.",
+          description: e?.message ?? "Nepodařilo se odemknout účet. Záznamy byly obnoveny.",
           variant: "destructive",
         });
       } finally {
