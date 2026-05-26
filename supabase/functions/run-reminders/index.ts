@@ -619,57 +619,62 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   // Server-side validation of recipients - only existing users, deduplicated
-  const rawUserIds: string[] = reminderRecipients.user_ids || [];
-  const uniqueUserIds = [...new Set(rawUserIds)]; // Remove duplicates
+  // For single-recipient preview we skip the global recipient validation.
+  let recipientEmails: string[] = [];
 
-  if (uniqueUserIds.length === 0) {
-    console.log("No recipients configured");
-    return new Response(
-      JSON.stringify({ 
-        success: false,
-        info: "Nejsou nakonfigurováni žádní příjemci připomínek. Přejděte do Nastavení → Příjemci připomínek a přidejte alespoň jednoho uživatele.",
-        warning: "Please configure reminder recipients in Admin Settings",
-        emailsSent: 0 
-      }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+  if (singleRecipientEmail) {
+    console.log(`Single-recipient preview for ${singleRecipientEmail} - bypassing recipient validation`);
+    recipientEmails = [singleRecipientEmail];
+  } else {
+    const rawUserIds: string[] = reminderRecipients.user_ids || [];
+    const uniqueUserIds = [...new Set(rawUserIds)];
+
+    if (uniqueUserIds.length === 0) {
+      console.log("No recipients configured");
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          info: "Nejsou nakonfigurováni žádní příjemci připomínek. Přejděte do Nastavení → Příjemci připomínek a přidejte alespoň jednoho uživatele.",
+          warning: "Please configure reminder recipients in Admin Settings",
+          emailsSent: 0 
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { data: validProfiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, email, first_name, last_name")
+      .in("id", uniqueUserIds);
+
+    if (profilesError) {
+      console.error("Failed to validate recipients:", profilesError);
+      return new Response(
+        JSON.stringify({ error: "Failed to validate recipients" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const validUserIds = validProfiles?.map(p => p.id) || [];
+    const invalidUserIds = uniqueUserIds.filter(id => !validUserIds.includes(id));
+    if (invalidUserIds.length > 0) {
+      console.log(`Ignoring ${invalidUserIds.length} invalid user IDs: ${invalidUserIds.join(", ")}`);
+    }
+
+    if (!validProfiles || validProfiles.length === 0) {
+      console.log("No valid recipients after validation");
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          warning: "Všichni nakonfigurovaní příjemci jsou neplatní. Aktualizujte je v Nastavení.",
+          emailsSent: 0 
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    recipientEmails = validProfiles.map(r => r.email);
   }
-
-  // Validate user IDs exist in profiles
-  const { data: validProfiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, email, first_name, last_name")
-    .in("id", uniqueUserIds);
-
-  if (profilesError) {
-    console.error("Failed to validate recipients:", profilesError);
-    return new Response(
-      JSON.stringify({ error: "Failed to validate recipients" }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
-  }
-
-  // Filter to only valid users
-  const validUserIds = validProfiles?.map(p => p.id) || [];
-  const invalidUserIds = uniqueUserIds.filter(id => !validUserIds.includes(id));
-  
-  if (invalidUserIds.length > 0) {
-    console.log(`Ignoring ${invalidUserIds.length} invalid user IDs: ${invalidUserIds.join(", ")}`);
-  }
-
-  if (validProfiles?.length === 0) {
-    console.log("No valid recipients after validation");
-    return new Response(
-      JSON.stringify({ 
-        error: "No valid recipients", 
-        warning: "All configured recipients are invalid. Please update in Admin Settings",
-        emailsSent: 0 
-      }),
-      { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
-  }
-
-  const recipientEmails = validProfiles!.map(r => r.email);
 
   // Get run period key for idempotency
   const runPeriodKey = getRunPeriodKey(reminderFrequency.type, reminderFrequency.interval_days);
