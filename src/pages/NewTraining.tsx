@@ -128,6 +128,16 @@ export default function NewTraining() {
         setPeriodUnit(unit);
       }
       form.setValue("facility", selectedTrainingType.facility);
+
+      // Pre-fill reminder timing from the type's defaults (if configured) so
+      // new records don't all just start at the hardcoded 30/30 regardless of
+      // type. Only applies while the user hasn't already touched these fields.
+      if (!form.formState.dirtyFields.remindDaysBefore && selectedTrainingType.defaultRemindDaysBefore != null) {
+        form.setValue("remindDaysBefore", String(selectedTrainingType.defaultRemindDaysBefore));
+      }
+      if (!form.formState.dirtyFields.repeatDaysAfter && selectedTrainingType.defaultRepeatDaysAfter != null) {
+        form.setValue("repeatDaysAfter", String(selectedTrainingType.defaultRepeatDaysAfter));
+      }
     }
   }, [selectedTrainingType, form]);
 

@@ -80,13 +80,18 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
     });
   };
 
+  // Matches an email anywhere in the cell, so both plain "a@b.cz, c@d.cz" and the
+  // export's human-readable "Jméno Příjmení <a@b.cz>, ..." format work as import input.
+  const EMAIL_RE = /[^\s<>,;]+@[^\s<>,;]+\.[^\s<>,;]+/g;
+
   const mapRowToEquipment = (row: any) => {
     const rawStatus = String(row['Stav'] || row['status'] || 'active').toLowerCase().trim();
     const rawResponsibles = String(row['Odpovědná osoba'] || row['Odpovědné osoby'] || row['responsible'] || '').trim();
-    // Support multiple emails separated by ; or ,
-    const responsibleEmails = rawResponsibles
-      ? rawResponsibles.split(/[;,]/).map((e: string) => e.trim().toLowerCase()).filter(Boolean)
-      : [];
+    // "Odpovědná osoba" holds the profile-linked responsible person(s) shown as
+    // badges in the UI (equipment_responsibles) — the same thing the export writes
+    // out as "Jméno Příjmení <email>". Extract the embedded email(s) to resolve
+    // them back against profiles.
+    const responsibleEmails = Array.from(rawResponsibles.matchAll(EMAIL_RE), m => m[0].toLowerCase());
     const resolvedStatus = STATUS_MAP[rawStatus] || null;
     return {
       inventoryNumber: String(row['Inv. číslo'] || row['Inventární číslo'] || row['inventory_number'] || '').trim(),

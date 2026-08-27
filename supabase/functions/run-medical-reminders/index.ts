@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendViaSMTP } from "../_shared/smtp-sender.ts";
+import { resolveReminderStage, ReminderStage } from "../_shared/reminder-cadence.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +19,7 @@ interface ExaminationItem {
   days_until: number;
   remind_days_before: number;
   repeat_days_after: number;
+  reminder_stage?: ReminderStage;
 }
 
 interface Recipient {
@@ -167,16 +169,40 @@ serve(async (req) => {
       });
     }
 
+    // Optional test mode: send a real digest (built from live data) to one
+    // address instead of the configured recipients, skip manager fan-out, and
+    // don't count against the normal before/due/overdue cadence. Previously
+    // ignored entirely, so the "test" button was indistinguishable from a real
+    // scheduled run — it emailed the real recipients with no [TEST] marker.
+    let testMode = false;
+    let singleRecipientEmail: string | null = null;
+    try {
+      const body = await req.clone().json();
+      testMode = body?.test_mode === true;
+      singleRecipientEmail = typeof body?.single_recipient_email === "string" ? body.single_recipient_email : null;
+    } catch {
+      // no/invalid body - normal cron invocation
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
+    // Re-check every active employee's age against milestone thresholds (currently: 50).
+    // This runs on every scheduled invocation so it fires even when nobody has edited
+    // the employee's record on their actual birthday (the DB trigger alone would miss it).
+    try {
+      await supabase.rpc("check_employee_age_milestones");
+    } catch (ageCheckError) {
+      console.error("check_employee_age_milestones failed:", ageCheckError);
+    }
+
     // Load settings
   const { data: settings } = await supabase
       .from("system_settings")
       .select("key, value")
-      .in("key", ["medical_reminder_recipients", "email_provider", "medical_email_template", "medical_manager_notifications"]);
+      .in("key", ["medical_reminder_recipients", "email_provider", "medical_manager_notifications", "medical_reminder_frequency"]);
 
     const settingsMap: Record<string, any> = {};
     settings?.forEach(s => { settingsMap[s.key] = s.value; });
@@ -185,55 +211,76 @@ serve(async (req) => {
     const emailProvider = settingsMap["email_provider"] || {};
     const managerNotifications = settingsMap["medical_manager_notifications"] || { enabled: false };
     const medicalFrequency = settingsMap["medical_reminder_frequency"] || { enabled: true, skip_weekends: true };
-    const emailTemplate = settingsMap["medical_email_template"] || {
-      subject: "Souhrn lékařských prohlídek - {reportDate}",
-      body: "Dobrý den,\n\nzasíláme přehled lékařských prohlídek vyžadujících pozornost.\n\nCelkem: {totalCount}\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}",
+
+    // Subject/body come solely from medical_reminder_templates now (edited under
+    // Administrace → Emaily & Šablony → Šablony individuálních připomínek → PLP)
+    // — this used to be ignored entirely in favor of a settings-only blob, so
+    // editing a template there had no effect on what was actually sent. The
+    // settings-blob override has been retired so there's exactly one place to
+    // edit this text, matching Deadlines and Trainings.
+    const { data: activeMedicalTemplates } = await supabase
+      .from("medical_reminder_templates")
+      .select("id, name, email_subject, email_body")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const tableTemplate = activeMedicalTemplates?.[0];
+
+    const emailTemplate = {
+      subject: tableTemplate?.email_subject || "Souhrn lékařských prohlídek - {reportDate}",
+      body: tableTemplate?.email_body ||
+        "Dobrý den,\n\nzasíláme přehled lékařských prohlídek vyžadujících pozornost.\n\nCelkem: {totalCount}\n- Brzy vypršuje: {expiringCount}\n- Prošlé: {expiredCount}",
     };
 
-    // Check if summary sending is enabled
-    if (!medicalFrequency.enabled) {
+    // Check if summary sending is enabled (bypassed for an explicit test)
+    if (!testMode && !medicalFrequency.enabled) {
       console.log("Medical summary sending is disabled");
-      return new Response(JSON.stringify({ 
-        success: true, 
-        info: "Medical summary sending is disabled in settings" 
+      return new Response(JSON.stringify({
+        success: true,
+        info: "Medical summary sending is disabled in settings"
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Check skip weekends
-    if (medicalFrequency.skip_weekends) {
+    if (!testMode && medicalFrequency.skip_weekends) {
       const today = new Date();
       const dayOfWeek = today.getDay();
       if (dayOfWeek === 0 || dayOfWeek === 6) {
         console.log("Skipping medical summary - weekend");
-        return new Response(JSON.stringify({ 
-          success: true, 
-          info: "Skipped - weekend" 
+        return new Response(JSON.stringify({
+          success: true,
+          info: "Skipped - weekend"
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
 
-    if (!recipients.user_ids || recipients.user_ids.length === 0) {
-      console.log("No medical reminder recipients configured");
-      return new Response(JSON.stringify({ 
-        success: true, 
-        info: "No recipients configured for medical reminders" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // A single-address test preview overrides the real configured recipients
+    // so clicking "test" never emails your actual team.
+    let recipientEmails: string[] = [];
+    if (testMode && singleRecipientEmail) {
+      recipientEmails = [singleRecipientEmail];
+    } else {
+      if (!recipients.user_ids || recipients.user_ids.length === 0) {
+        console.log("No medical reminder recipients configured");
+        return new Response(JSON.stringify({
+          success: true,
+          info: "No recipients configured for medical reminders"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: recipientProfiles } = await supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name")
+        .in("id", recipients.user_ids);
+
+      recipientEmails = [...new Set((recipientProfiles?.map(p => p.email.toLowerCase()).filter(Boolean)) || [])];
     }
-
-    // Get recipient emails
-    const { data: recipientProfiles } = await supabase
-      .from("profiles")
-      .select("id, email, first_name, last_name")
-      .in("id", recipients.user_ids);
-
-    // Deduplicate emails (case-insensitive)
-    const recipientEmails = [...new Set((recipientProfiles?.map(p => p.email.toLowerCase()).filter(Boolean)) || [])];
 
     if (recipientEmails.length === 0) {
       return new Response(JSON.stringify({ 
@@ -302,36 +349,29 @@ serve(async (req) => {
       });
     }
 
-    // === DEDUPLICATION CHECK ===
-    // For each eligible examination, check if a successful reminder was sent recently
+    // === CADENCE CHECK ===
+    // Exactly one "before" reminder, exactly one "due" reminder, then repeats
+    // every repeat_days_after days — see _shared/reminder-cadence.ts.
     let totalSkipped = 0;
     const examinationItems: ExaminationItem[] = [];
 
     for (const item of eligibleItems) {
-      const repeatDays = item.repeat_days_after;
-      if (repeatDays > 0) {
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - repeatDays);
-        const cutoffDateStr = cutoffDate.toISOString();
+      const { data: recentLogs } = await supabase
+        .from("medical_reminder_logs")
+        .select("reminder_stage, created_at")
+        .eq("examination_id", item.id)
+        .eq("status", "sent")
+        .eq("is_test", false)
+        .order("created_at", { ascending: false })
+        .limit(20);
 
-        const { data: recentLogs } = await supabase
-          .from("medical_reminder_logs")
-          .select("id, created_at")
-          .eq("examination_id", item.id)
-          .eq("status", "sent")
-          .eq("is_test", false)
-          .gte("created_at", cutoffDateStr)
-          .order("created_at", { ascending: false })
-          .limit(1);
-
-        if (recentLogs && recentLogs.length > 0) {
-          console.log(`Skipping examination ${item.id}: reminder already sent on ${recentLogs[0].created_at} (repeat_days_after=${repeatDays})`);
-          totalSkipped++;
-          continue;
-        }
+      const resolvedStage = resolveReminderStage(item.days_until, item.remind_days_before, item.repeat_days_after, recentLogs || []);
+      if (!testMode && !resolvedStage) {
+        totalSkipped++;
+        continue;
       }
 
-      examinationItems.push(item);
+      examinationItems.push({ ...item, reminder_stage: resolvedStage ?? "before" });
     }
 
     if (examinationItems.length === 0) {
@@ -350,7 +390,7 @@ serve(async (req) => {
     const expiringItems = examinationItems.filter(e => e.days_until >= 0);
 
     // Build email
-    const subject = replaceVariables(
+    const subject = (testMode ? "[TEST] " : "") + replaceVariables(
       emailTemplate.subject,
       examinationItems.length,
       expiringItems.length,
@@ -398,8 +438,9 @@ serve(async (req) => {
         email_subject: subject,
         email_body: fullBody,
         status: result.success ? "sent" : "failed",
+        reminder_stage: item.reminder_stage,
         error_message: result.error || null,
-        is_test: false,
+        is_test: testMode,
         delivery_mode: recipients.delivery_mode || "bcc",
       });
     }
@@ -408,8 +449,10 @@ serve(async (req) => {
     
     // =====================================================================
     // MANAGER NOTIFICATIONS - optional, sends filtered data per manager
+    // (skipped for a single-address test preview - it must never reach
+    // anyone else's real inbox)
     // =====================================================================
-    if (managerNotifications.enabled) {
+    if (!(testMode && singleRecipientEmail) && managerNotifications.enabled) {
       console.log("Manager notifications enabled for medical module");
       
       // Get all managers (users with manager role linked to employees)
@@ -434,7 +477,7 @@ serve(async (req) => {
           if (recipientEmails.includes(manager.email.toLowerCase())) continue;
           
           // Get subordinate employee IDs
-          const { data: subordinates } = await supabase.rpc("get_subordinate_employee_ids", {
+          const { data: subordinates } = await supabase.rpc("get_subordinate_employee_ids_for_service", {
             root_employee_id: manager.employee_id!,
           });
           
@@ -477,6 +520,7 @@ serve(async (req) => {
               email_subject: mgrSubject,
               email_body: mgrBody,
               status: mgrResult.success ? "sent" : "failed",
+              reminder_stage: exam.reminder_stage,
               error_message: mgrResult.error || null,
               is_test: false,
               delivery_mode: "to",
@@ -486,6 +530,8 @@ serve(async (req) => {
           if (mgrResult.success) {
             managerEmailsSent++;
             console.log(`Sent manager medical notification to ${manager.email} with ${managerExams.length} exams`);
+          } else {
+            console.error(`Failed manager medical notification to ${manager.email}: ${mgrResult.error}`);
           }
         }
       }

@@ -7,6 +7,8 @@ export interface MedicalExaminationType {
   facility: string;
   periodDays: number;
   description: string | null;
+  defaultRemindDaysBefore?: number | null;
+  defaultRepeatDaysAfter?: number | null;
 }
 
 export function useMedicalExaminationTypes() {
@@ -26,12 +28,14 @@ export function useMedicalExaminationTypes() {
 
       if (fetchError) throw fetchError;
 
-      const transformed: MedicalExaminationType[] = (data || []).map((t) => ({
+      const transformed: MedicalExaminationType[] = (data || []).map((t: any) => ({
         id: t.id,
         name: t.name,
         facility: t.facility,
         periodDays: t.period_days,
         description: t.description,
+        defaultRemindDaysBefore: t.default_remind_days_before,
+        defaultRepeatDaysAfter: t.default_repeat_days_after,
       }));
 
       setExaminationTypes(transformed);

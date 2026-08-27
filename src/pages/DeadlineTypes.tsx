@@ -49,6 +49,7 @@ export default function DeadlineTypes() {
   const [editingItem, setEditingItem] = useState<DeadlineType | null>(null);
   const [formData, setFormData] = useState({
     name: "", facility: "", periodValue: 1, periodUnit: "years" as PeriodicityUnit, description: "",
+    defaultRemindDaysBefore: "30", defaultRepeatDaysAfter: "30",
   });
 
   // Import state
@@ -76,20 +77,28 @@ export default function DeadlineTypes() {
 
   const openCreateDialog = () => {
     setEditingItem(null);
-    setFormData({ name: "", facility: "", periodValue: 1, periodUnit: "years", description: "" });
+    setFormData({ name: "", facility: "", periodValue: 1, periodUnit: "years", description: "", defaultRemindDaysBefore: "30", defaultRepeatDaysAfter: "30" });
     setDialogOpen(true);
   };
 
   const openEditDialog = (item: DeadlineType) => {
     setEditingItem(item);
     const { value, unit } = daysToPeriodicityUnit(item.period_days);
-    setFormData({ name: item.name, facility: item.facility, periodValue: value, periodUnit: unit, description: item.description || "" });
+    setFormData({
+      name: item.name, facility: item.facility, periodValue: value, periodUnit: unit, description: item.description || "",
+      defaultRemindDaysBefore: String(item.default_remind_days_before ?? 30),
+      defaultRepeatDaysAfter: String(item.default_repeat_days_after ?? 30),
+    });
     setDialogOpen(true);
   };
 
   const handleSubmit = () => {
     const period_days = periodicityToDays(formData.periodValue, formData.periodUnit);
-    const data = { name: formData.name, facility: formData.facility, period_days, description: formData.description || null };
+    const data = {
+      name: formData.name, facility: formData.facility, period_days, description: formData.description || null,
+      default_remind_days_before: formData.defaultRemindDaysBefore ? parseInt(formData.defaultRemindDaysBefore) : null,
+      default_repeat_days_after: formData.defaultRepeatDaysAfter ? parseInt(formData.defaultRepeatDaysAfter) : null,
+    };
     if (editingItem) { updateDeadlineType({ id: editingItem.id, ...data }); } else { createDeadlineType(data); }
     setDialogOpen(false);
   };
@@ -323,6 +332,19 @@ export default function DeadlineTypes() {
             <div className="space-y-2">
               <Label>Popis</Label>
               <Textarea value={formData.description} onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} placeholder="Volitelný popis typu události" />
+            </div>
+            <div className="space-y-2 rounded-md border p-3">
+              <Label className="text-sm text-muted-foreground">Výchozí připomínky pro nové události tohoto typu</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Upozornit dní předem</Label>
+                  <Input type="number" min="0" value={formData.defaultRemindDaysBefore} onChange={e => setFormData(prev => ({ ...prev, defaultRemindDaysBefore: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Opakovat po expiraci (dní)</Label>
+                  <Input type="number" min="0" value={formData.defaultRepeatDaysAfter} onChange={e => setFormData(prev => ({ ...prev, defaultRepeatDaysAfter: e.target.value }))} />
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>

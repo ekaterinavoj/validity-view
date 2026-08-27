@@ -164,6 +164,15 @@ export default function NewDeadline() {
         form.setValue("period_unit", unit);
       }
       form.setValue("facility", selectedType.facility);
+
+      // Pre-fill reminder timing from the type's defaults (if configured), same
+      // as trainings — only while the user hasn't already touched these fields.
+      if (!form.formState.dirtyFields.remind_days_before && selectedType.default_remind_days_before != null) {
+        form.setValue("remind_days_before", selectedType.default_remind_days_before);
+      }
+      if (!form.formState.dirtyFields.repeat_days_after && selectedType.default_repeat_days_after != null) {
+        form.setValue("repeat_days_after", selectedType.default_repeat_days_after);
+      }
     }
   }, [selectedType, form]);
 

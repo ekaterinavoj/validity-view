@@ -2,6 +2,8 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -11,12 +13,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { 
-  Send, 
-  Loader2, 
+import {
+  Send,
+  Loader2,
   AlertCircle,
   CheckCircle2,
-  Mail
+  Mail,
 } from "lucide-react";
 
 interface SendTestMedicalEmailProps {
@@ -24,58 +26,44 @@ interface SendTestMedicalEmailProps {
   isEnabled: boolean;
 }
 
-export function SendTestMedicalEmail({ hasRecipients, isEnabled }: SendTestMedicalEmailProps) {
+export function SendTestMedicalEmail({ isEnabled }: SendTestMedicalEmailProps) {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleSendTest = async () => {
+    if (!testEmail || !testEmail.includes("@")) {
+      toast({ title: "Neplatný email", description: "Zadejte platnou emailovou adresu", variant: "destructive" });
+      return;
+    }
+
     setSending(true);
     setResult(null);
-    
+
     try {
       const { data, error } = await supabase.functions.invoke("run-medical-reminders", {
-        body: { 
+        body: {
           triggered_by: "manual_test",
           test_mode: true,
+          single_recipient_email: testEmail,
         },
       });
 
       if (error) throw error;
 
       if (data?.error || data?.warning) {
-        setResult({ 
-          success: false, 
-          message: data.error || data.warning 
-        });
+        setResult({ success: false, message: data.error || data.warning });
       } else if (data?.info) {
-        // Edge function returned early (e.g. no examinations need attention)
-        setResult({
-          success: true,
-          message: data.info,
-        });
+        setResult({ success: true, message: data.info });
       } else {
-        const recipientCount = data?.recipientCount || data?.emailsSent || 0;
-        setResult({ 
-          success: true, 
-          message: `Testovací email byl úspěšně odeslán ${recipientCount} příjemcům.` 
-        });
-        toast({
-          title: "Testovací email odeslán",
-          description: `Email byl odeslán ${recipientCount} příjemcům.`,
-        });
+        setResult({ success: true, message: `Testovací email byl úspěšně odeslán na ${testEmail}.` });
+        toast({ title: "Testovací email odeslán", description: `Email byl odeslán na ${testEmail}.` });
       }
     } catch (error: any) {
-      setResult({ 
-        success: false, 
-        message: error.message 
-      });
-      toast({
-        title: "Chyba při odesílání",
-        description: error.message,
-        variant: "destructive",
-      });
+      setResult({ success: false, message: error.message });
+      toast({ title: "Chyba při odesílání", description: error.message, variant: "destructive" });
     } finally {
       setSending(false);
     }
@@ -84,36 +72,38 @@ export function SendTestMedicalEmail({ hasRecipients, isEnabled }: SendTestMedic
   const handleClose = () => {
     setIsOpen(false);
     setResult(null);
+    setTestEmail("");
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => open ? setIsOpen(true) : handleClose()}>
       <DialogTrigger asChild>
-        <Button 
+        <Button
           variant="secondary"
-          disabled={!hasRecipients || !isEnabled}
+          disabled={!isEnabled}
           className="w-full"
         >
           <Send className="w-4 h-4 mr-2" />
-          Odeslat testovací souhrnný email (PLP)
+          Odeslat náhled na jednu adresu (PLP)
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="w-5 h-5" />
-            Odeslat testovací email (PLP)
+            Odeslat testovací náhled (PLP)
           </DialogTitle>
           <DialogDescription>
-            Toto odešle skutečný souhrnný email o lékařských prohlídkách všem vybraným příjemcům pro ověření konfigurace.
+            Spustí skutečnou kontrolu lékařských prohlídek a pošle vygenerovaný souhrnný email
+            (s tabulkou aktuálních událostí) na jednu testovací adresu místo skutečných příjemců.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="py-4 space-y-4">
           {result ? (
             <div className={`p-4 rounded-lg flex items-start gap-3 ${
-              result.success 
-                ? "bg-primary/10 border border-primary/30" 
+              result.success
+                ? "bg-primary/10 border border-primary/30"
                 : "bg-destructive/10 border border-destructive/30"
             }`}>
               {result.success ? (
@@ -125,24 +115,34 @@ export function SendTestMedicalEmail({ hasRecipients, isEnabled }: SendTestMedic
                 <p className={`font-medium ${result.success ? "text-primary" : "text-destructive"}`}>
                   {result.success ? "Úspěch" : "Chyba"}
                 </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {result.message}
-                </p>
+                <p className="text-sm text-muted-foreground mt-1">{result.message}</p>
               </div>
             </div>
           ) : (
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="font-medium">Upozornění</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Tento email bude skutečně odeslán všem vybraným příjemcům lékařských prohlídek. 
-                    Použijte pro ověření, že emailová konfigurace funguje správně.
-                  </p>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="test-email-medical">Testovací emailová adresa</Label>
+                <Input
+                  id="test-email-medical"
+                  type="email"
+                  placeholder="test@example.com"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                />
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium">Náhled emailu</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Email bude obsahovat aktuální data lékařských prohlídek a bude označen jako [TEST].
+                      Nikam jinam se neodešle — skuteční příjemci ani odpovědné osoby ho nedostanou.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 
@@ -151,7 +151,7 @@ export function SendTestMedicalEmail({ hasRecipients, isEnabled }: SendTestMedic
             {result ? "Zavřít" : "Zrušit"}
           </Button>
           {!result && (
-            <Button onClick={handleSendTest} disabled={sending}>
+            <Button onClick={handleSendTest} disabled={sending || !testEmail}>
               {sending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -160,7 +160,7 @@ export function SendTestMedicalEmail({ hasRecipients, isEnabled }: SendTestMedic
               ) : (
                 <>
                   <Send className="w-4 h-4 mr-2" />
-                  Odeslat nyní
+                  Odeslat náhled
                 </>
               )}
             </Button>

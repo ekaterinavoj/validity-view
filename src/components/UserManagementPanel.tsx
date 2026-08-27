@@ -191,6 +191,13 @@ export function UserManagementPanel() {
     return users.filter(u => u.roles.includes("admin")).length;
   }, [users]);
 
+  const userStats = useMemo(() => ({
+    total: users.length,
+    admins: adminCount,
+    managers: users.filter(u => u.roles.includes("manager")).length,
+    regular: users.filter(u => u.roles.includes("user")).length,
+  }), [users, adminCount]);
+
   const handleRoleChangeRequest = (userId: string, currentRole: string, newRole: string) => {
     const user = users.find(u => u.id === userId);
     if (!user) return;
@@ -432,6 +439,29 @@ export function UserManagementPanel() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
+          <UserCheck className="w-6 h-6 text-primary mb-2" />
+          <div className="text-2xl font-bold">{userStats.total}</div>
+          <div className="text-sm text-muted-foreground">Celkem uživatelů</div>
+        </div>
+        <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-role-admin/10">
+          <Shield className="w-6 h-6 text-role-admin mb-2" />
+          <div className="text-2xl font-bold text-role-admin">{userStats.admins}</div>
+          <div className="text-sm text-muted-foreground">Administrátorů</div>
+        </div>
+        <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-role-manager/10">
+          <Shield className="w-6 h-6 text-role-manager mb-2" />
+          <div className="text-2xl font-bold text-role-manager">{userStats.managers}</div>
+          <div className="text-sm text-muted-foreground">Manažerů</div>
+        </div>
+        <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-role-user/10">
+          <Shield className="w-6 h-6 text-role-user mb-2" />
+          <div className="text-2xl font-bold text-role-user">{userStats.regular}</div>
+          <div className="text-sm text-muted-foreground">Uživatelů</div>
+        </div>
+      </div>
 
       <Card>
         <CardHeader>

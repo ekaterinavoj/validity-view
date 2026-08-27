@@ -240,43 +240,40 @@ export const ReminderTemplates = () => {
     }
   };
 
+  // Sample rows shaped like what each edge function's buildXTable() actually
+  // renders, so the preview's table matches the real email instead of just
+  // showing the intro text in isolation.
+  const PREVIEW_ROWS: Record<ModuleType, { who: string; what: string; due: string; days: number }[]> = {
+    trainings: [
+      { who: "Jan Novák", what: "BOZP - vstupní a periodické školení", due: "20.9.2026", days: 24 },
+      { who: "Petr Svoboda", what: "BOZP - vstupní a periodické školení", due: "22.7.2026", days: -36 },
+    ],
+    deadlines: [
+      { who: "INV-VZV-001 – Vysokozdvižný vozík Toyota", what: "Revize vysokozdvižného vozíku", due: "10.9.2026", days: 14 },
+      { who: "INV-KOM-001 – Kompresor dílenský", what: "Revize hasicích přístrojů", due: "21.8.2026", days: -6 },
+    ],
+    medical: [
+      { who: "Jan Novák", what: "Periodická prohlídka - kategorie 2", due: "15.9.2026", days: 19 },
+      { who: "Petr Svoboda", what: "Periodická prohlídka - kategorie 2", due: "16.8.2026", days: -11 },
+    ],
+  };
+
   const getPreviewEmail = () => {
-    // Use different placeholders based on module
-    if (activeModule === "trainings") {
-      const subject = formData.email_subject
-        .replace(/\{\{training_name\}\}/g, "Bezpečnost práce")
-        .replace(/\{\{days_remaining\}\}/g, "15");
-      
-      const body = formData.email_body
-        .replace(/\{\{training_name\}\}/g, "Bezpečnost práce")
-        .replace(/\{\{days_remaining\}\}/g, "15");
-      
-      return { subject, body };
-    } else if (activeModule === "deadlines") {
-      const subject = formData.email_subject
-        .replace(/\{\{equipmentName\}\}/g, "Hasící přístroj A1")
-        .replace(/\{\{deadlineType\}\}/g, "Revize")
-        .replace(/\{\{daysLeft\}\}/g, "15");
-      
-      const body = formData.email_body
-        .replace(/\{\{equipmentName\}\}/g, "Hasící přístroj A1")
-        .replace(/\{\{deadlineType\}\}/g, "Revize")
-        .replace(/\{\{daysLeft\}\}/g, "15");
-      
-      return { subject, body };
-    } else {
-      const subject = formData.email_subject
-        .replace(/\{\{employeeName\}\}/g, "Jan Novák")
-        .replace(/\{\{examinationType\}\}/g, "Vstupní prohlídka")
-        .replace(/\{\{daysLeft\}\}/g, "15");
-      
-      const body = formData.email_body
-        .replace(/\{\{employeeName\}\}/g, "Jan Novák")
-        .replace(/\{\{examinationType\}\}/g, "Vstupní prohlídka")
-        .replace(/\{\{daysLeft\}\}/g, "15");
-      
-      return { subject, body };
-    }
+    const rows = PREVIEW_ROWS[activeModule];
+    const expiredCount = rows.filter(r => r.days < 0).length;
+    const expiringCount = rows.length - expiredCount;
+    const substitute = (text: string) =>
+      text
+        .replace(/\{+totalCount\}+/g, String(rows.length))
+        .replace(/\{+expiringCount\}+/g, String(expiringCount))
+        .replace(/\{+expiredCount\}+/g, String(expiredCount))
+        .replace(/\{+reportDate\}+/g, new Date().toLocaleDateString("cs-CZ"));
+
+    return {
+      subject: substitute(formData.email_subject),
+      body: substitute(formData.email_body),
+      rows,
+    };
   };
 
   const getModuleLabel = () => {
@@ -300,12 +297,12 @@ export const ReminderTemplates = () => {
     
     try {
       // Call the correct edge function based on module
-      const functionName = activeModule === "trainings" 
-        ? "run-reminders" 
-        : activeModule === "deadlines" 
-          ? "run-deadline-reminders" 
+      const functionName = activeModule === "trainings"
+        ? "send-training-reminders"
+        : activeModule === "deadlines"
+          ? "run-deadline-reminders"
           : "run-medical-reminders";
-      
+
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { triggered_by: "manual" }
       });
@@ -371,18 +368,20 @@ export const ReminderTemplates = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Alert>
+          <Alert variant="destructive">
             <Bell className="h-4 w-4" />
             <AlertDescription>
-              <p className="font-semibold mb-2">Jak funguje manuální kontrola:</p>
+              <p className="font-semibold mb-2">⚠️ Toto je skutečné odeslání, ne test:</p>
               <ul className="text-sm space-y-1 list-disc list-inside">
                 <li>Systém projde všechny aktivní šablony připomínek</li>
                 <li>Zkontroluje {getModuleLabel()}, kterým brzy vyprší platnost</li>
-                <li>Odešle připomínkové emaily podle nastavených šablon</li>
+                <li>Odešle připomínkové emaily <strong>skutečným nakonfigurovaným příjemcům a odpovědným osobám</strong> podle nastavené kadence</li>
                 <li>Zobrazí výsledek - kolik emailů bylo odesláno</li>
               </ul>
               <p className="text-xs text-muted-foreground mt-3">
                 <strong>Poznámka:</strong> Pro odeslání emailů musí být nakonfigurován SMTP server v Administraci.
+                Chcete-li si jen ověřit, jak email vypadá, aniž byste zasáhli skutečné příjemce, použijte
+                sekci „Testování a historie" níže a zadejte vlastní testovací adresu.
               </p>
             </AlertDescription>
           </Alert>
@@ -534,27 +533,14 @@ export const ReminderTemplates = () => {
             {editingTemplate ? "Upravit šablonu" : `Nová šablona připomínky ${getModuleLabel()}`}
             </DialogTitle>
             <DialogDescription>
-              {activeModule === "trainings" ? (
-                <>
-                  Vytvořte šablonu pro automatické připomínky školení. Můžete použít proměnné: 
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{training_name}}'}</code>,
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{days_remaining}}'}</code>
-                </>
-              ) : activeModule === "deadlines" ? (
-                <>
-                  Vytvořte šablonu pro automatické připomínky technických událostí. Můžete použít proměnné: 
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{equipmentName}}'}</code>,
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{deadlineType}}'}</code>,
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{daysLeft}}'}</code>
-                </>
-              ) : (
-                <>
-                  Vytvořte šablonu pro automatické připomínky lékařských prohlídek. Můžete použít proměnné: 
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{employeeName}}'}</code>,
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{examinationType}}'}</code>,
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{{daysLeft}}'}</code>
-                </>
-              )}
+              Vytvořte šablonu pro automatické připomínky {getModuleLabel()}. Text níže je úvod k emailu —
+              pod něj se automaticky vloží tabulka se všemi aktuálně relevantními záznamy (zaměstnanec/zařízení,
+              o co jde, termín, kolik dní zbývá nebo o kolik je po termínu) načtená vždy z aktuálních dat.
+              V textu můžete použít proměnné:{" "}
+              <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{totalCount}'}</code>
+              <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{expiringCount}'}</code>
+              <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{expiredCount}'}</code>
+              <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{reportDate}'}</code>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -598,13 +584,9 @@ export const ReminderTemplates = () => {
                 placeholder="Text připomínky..."
               />
                <p className="text-xs text-muted-foreground">
-                 {activeModule === "trainings" ? (
-                   <>Použijte <code>{'{{training_name}}'}</code> pro název školení a <code>{'{{days_remaining}}'}</code> pro zbývající dny</>
-                 ) : activeModule === "deadlines" ? (
-                   <>Použijte <code>{'{{equipmentName}}'}</code>, <code>{'{{deadlineType}}'}</code> a <code>{'{{daysLeft}}'}</code></>
-                 ) : (
-                   <>Použijte <code>{'{{employeeName}}'}</code>, <code>{'{{examinationType}}'}</code> a <code>{'{{daysLeft}}'}</code></>
-                 )}
+                 Použijte <code>{'{totalCount}'}</code> (celkem záznamů), <code>{'{expiringCount}'}</code> (brzy vyprší),{" "}
+                 <code>{'{expiredCount}'}</code> (prošlé) a <code>{'{reportDate}'}</code> (datum). Tabulka s konkrétními
+                 záznamy se připojí automaticky pod tento text.
                </p>
             </div>
 
@@ -687,16 +669,13 @@ export const ReminderTemplates = () => {
 
       {/* Dialog pro náhled emailu */}
       <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Náhled připomínkového emailu</DialogTitle>
             <DialogDescription>
-              {activeModule === "trainings" 
-                ? 'Ukázka emailu s nahrazenými proměnnými (příklad: školení "Bezpečnost práce", 15 dní do vypršení)'
-                : activeModule === "deadlines"
-                  ? 'Ukázka emailu s nahrazenými proměnnými (příklad: zařízení "Hasící přístroj A1", revize, 15 dní)'
-                  : 'Ukázka emailu s nahrazenými proměnnými (příklad: zaměstnanec "Jan Novák", vstupní prohlídka, 15 dní)'
-              }
+              Přesně takhle vypadá skutečný email — text šablony s dosazenými proměnnými, a pod ním
+              tabulka se dvěma ukázkovými záznamy (skutečný email bude mít tolik řádků, kolik je
+              aktuálně relevantních záznamů).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -712,28 +691,50 @@ export const ReminderTemplates = () => {
                 <p className="text-sm whitespace-pre-wrap">{getPreviewEmail().body}</p>
               </div>
             </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Tabulka záznamů (připojí se automaticky):</Label>
+              <div className="overflow-x-auto border rounded-md">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted">
+                      <th className="text-left p-2 border-b">
+                        {activeModule === "deadlines" ? "Zařízení" : "Zaměstnanec"}
+                      </th>
+                      <th className="text-left p-2 border-b">
+                        {activeModule === "deadlines" ? "Typ události" : activeModule === "medical" ? "Typ prohlídky" : "Školení"}
+                      </th>
+                      <th className="text-left p-2 border-b">Termín</th>
+                      <th className="text-center p-2 border-b">Dnů</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getPreviewEmail().rows.map((row, i) => (
+                      <tr key={i}>
+                        <td className="p-2 border-b">{row.who}</td>
+                        <td className="p-2 border-b">{row.what}</td>
+                        <td className="p-2 border-b">{row.due}</td>
+                        <td className="p-2 border-b text-center">
+                          <span
+                            className="px-2 py-0.5 rounded text-xs text-white"
+                            style={{ backgroundColor: row.days < 0 ? "#ef4444" : row.days <= 7 ? "#f59e0b" : "#22c55e" }}
+                          >
+                            {row.days < 0 ? `${Math.abs(row.days)} po termínu` : row.days}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             <div className="text-xs text-muted-foreground p-3 bg-accent/10 rounded">
-              <p className="font-semibold mb-1">Dostupné proměnné:</p>
-              {activeModule === "trainings" ? (
-                <ul className="list-disc list-inside space-y-1">
-                  <li><code>{'{{training_name}}'}</code> - název školení</li>
-                  <li><code>{'{{days_remaining}}'}</code> - počet dní do vypršení</li>
-                </ul>
-              ) : activeModule === "deadlines" ? (
-                <ul className="list-disc list-inside space-y-1">
-                  <li><code>{'{{equipmentName}}'}</code> - název zařízení</li>
-                  <li><code>{'{{deadlineType}}'}</code> - typ lhůty (revize, kalibrace...)</li>
-                  <li><code>{'{{daysLeft}}'}</code> - počet dní do vypršení</li>
-                  <li><code>{'{{inventoryNumber}}'}</code> - inventární číslo</li>
-                  <li><code>{'{{nextDue}}'}</code> - datum další kontroly</li>
-                </ul>
-              ) : (
-                <ul className="list-disc list-inside space-y-1">
-                  <li><code>{'{{employeeName}}'}</code> - jméno zaměstnance</li>
-                  <li><code>{'{{examinationType}}'}</code> - typ prohlídky</li>
-                  <li><code>{'{{daysLeft}}'}</code> - počet dní do vypršení</li>
-                </ul>
-              )}
+              <p className="font-semibold mb-1">Dostupné proměnné (v textu nad tabulkou):</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li><code>{'{totalCount}'}</code> - celkový počet záznamů v tabulce</li>
+                <li><code>{'{expiringCount}'}</code> - počet brzy vypršujících</li>
+                <li><code>{'{expiredCount}'}</code> - počet prošlých</li>
+                <li><code>{'{reportDate}'}</code> - datum odeslání</li>
+              </ul>
             </div>
           </div>
           <DialogFooter>

@@ -31,12 +31,15 @@ const formSchema = z.object({
   periodUnit: z.enum(["days", "months", "years"]),
   durationHours: z.string().min(1, "Zadejte délku školení v hodinách"),
   description: z.string().optional(),
+  defaultRemindDaysBefore: z.string().optional(),
+  defaultRepeatDaysAfter: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 interface TrainingType {
   id: string; facility: string; name: string; period_days: number; duration_hours: number | null; description: string | null; created_at: string;
+  default_remind_days_before: number | null; default_repeat_days_after: number | null;
 }
 
 export default function TrainingTypes() {
@@ -77,7 +80,7 @@ export default function TrainingTypes() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { periodValue: "2", periodUnit: "years", durationHours: "2", description: "" },
+    defaultValues: { periodValue: "2", periodUnit: "years", durationHours: "2", description: "", defaultRemindDaysBefore: "30", defaultRepeatDaysAfter: "30" },
   });
 
   const loadTrainingTypes = async () => {
@@ -219,7 +222,15 @@ export default function TrainingTypes() {
     try {
       const periodDays = convertToDays(parseFloat(data.periodValue), data.periodUnit);
       const durationHours = parseFloat(data.durationHours);
-      const trainingTypeData = { facility: data.facility, name: data.name, period_days: periodDays, duration_hours: durationHours, description: data.description || null };
+      const trainingTypeData = {
+        facility: data.facility,
+        name: data.name,
+        period_days: periodDays,
+        duration_hours: durationHours,
+        description: data.description || null,
+        default_remind_days_before: data.defaultRemindDaysBefore ? parseInt(data.defaultRemindDaysBefore) : null,
+        default_repeat_days_after: data.defaultRepeatDaysAfter ? parseInt(data.defaultRepeatDaysAfter) : null,
+      };
       if (editingType) {
         const { error } = await supabase.from("training_types").update(trainingTypeData).eq("id", editingType.id);
         if (error) throw error;
@@ -244,7 +255,16 @@ export default function TrainingTypes() {
     setEditingType(type);
     const periodUnit: "days" | "months" | "years" = type.period_days % 365 === 0 ? "years" : type.period_days % 30 === 0 ? "months" : "days";
     const periodValue = convertFromDays(type.period_days, periodUnit);
-    form.reset({ facility: type.facility, name: type.name, periodValue: periodValue.toString(), periodUnit, durationHours: (type.duration_hours || 0).toString(), description: type.description || "" });
+    form.reset({
+      facility: type.facility,
+      name: type.name,
+      periodValue: periodValue.toString(),
+      periodUnit,
+      durationHours: (type.duration_hours || 0).toString(),
+      description: type.description || "",
+      defaultRemindDaysBefore: String(type.default_remind_days_before ?? 30),
+      defaultRepeatDaysAfter: String(type.default_repeat_days_after ?? 30),
+    });
     setDialogOpen(true);
   };
 
@@ -332,6 +352,17 @@ export default function TrainingTypes() {
                   <FormField control={form.control} name="description" render={({ field }) => (
                     <FormItem><FormLabel>Popis školení</FormLabel><FormControl><Textarea placeholder="Volitelný popis typu školení..." rows={3} {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
+                  <div className="space-y-2 rounded-md border p-3">
+                    <FormLabel className="text-sm text-muted-foreground">Výchozí připomínky pro nová školení tohoto typu</FormLabel>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField control={form.control} name="defaultRemindDaysBefore" render={({ field }) => (
+                        <FormItem><FormLabel>Upozornit dní předem</FormLabel><FormControl><Input type="number" min="0" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="defaultRepeatDaysAfter" render={({ field }) => (
+                        <FormItem><FormLabel>Opakovat po expiraci (dní)</FormLabel><FormControl><Input type="number" min="0" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                    </div>
+                  </div>
                   <div className="flex gap-4 pt-4">
                     <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{isSubmitting ? "Ukládá se..." : "Uložit"}</Button>
                     <Button type="button" variant="outline" onClick={() => handleDialogClose(false)} disabled={isSubmitting}>Zrušit</Button>

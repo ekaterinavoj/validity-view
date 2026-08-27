@@ -34,6 +34,9 @@ services:
       - "${FRONTEND_PORT:-80}:80"
     environment:
       - NODE_ENV=production
+      - VITE_SUPABASE_URL=${API_EXTERNAL_URL:-http://${SITE_DOMAIN:-localhost}:${KONG_HTTP_PORT:-8000}}
+      - VITE_SUPABASE_PUBLISHABLE_KEY=${ANON_KEY}
+      - VITE_SUPABASE_PROJECT_ID=self-hosted
     restart: unless-stopped
     depends_on:
       kong:
@@ -257,6 +260,9 @@ services:
     volumes:
       # Main router entry point
       - ./docker/volumes/functions/main:/home/deno/functions/main:Z
+      # Shared code imported by multiple functions (e.g. SMTP sender) — several
+      # functions do `import ... from "../_shared/..."`, which resolves to this path.
+      - ./supabase/functions/_shared:/home/deno/functions/_shared:Z
       # Application edge functions
       - ./supabase/functions/run-reminders:/home/deno/functions/run-reminders:Z
       - ./supabase/functions/send-training-reminders:/home/deno/functions/send-training-reminders:Z

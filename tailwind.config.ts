@@ -81,8 +81,6 @@ export default {
           "manager-foreground": "hsl(var(--role-manager-foreground))",
           user: "hsl(var(--role-user))",
           "user-foreground": "hsl(var(--role-user-foreground))",
-          viewer: "hsl(var(--role-viewer))",
-          "viewer-foreground": "hsl(var(--role-viewer-foreground))",
         },
         chart: {
           "1": "hsl(var(--chart-1))",

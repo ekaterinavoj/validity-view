@@ -61,6 +61,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EquipmentResponsiblesManager } from "@/components/EquipmentResponsiblesManager";
 import { EquipmentResponsiblesBadges } from "@/components/EquipmentResponsiblesBadges";
 import { ResponsiblePersonsPicker } from "@/components/ResponsiblePersonsPicker";
+import { useAllEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { BulkEquipmentImport } from "@/components/BulkEquipmentImport";
 import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColors } from "@/types/equipment";
 import { cn } from "@/lib/utils";
@@ -74,6 +75,7 @@ export default function Equipment() {
   const { toast } = useToast();
   const { equipment, isLoading, error, refetch, createEquipment, updateEquipment, deleteEquipment, checkDependencies, isCreating, isUpdating, isDeleting } = useEquipment();
   const { facilities } = useFacilities();
+  const { allResponsibles } = useAllEquipmentResponsibles();
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -223,6 +225,20 @@ export default function Equipment() {
   };
 
   const exportToCSV = () => {
+    const departmentByCode = new Map(departments.map(d => [d.id, d.code]));
+    // "Odpovědná osoba" reflects the same profile-linked assignments shown as
+    // badges in the table (equipment_responsibles) — NOT the unused legacy
+    // equipment.responsible_person text field — so export and the on-screen
+    // column always agree, and re-importing the file restores the same people.
+    const responsiblesByEquipment = new Map<string, string[]>();
+    allResponsibles.forEach(r => {
+      if (!r.profile) return;
+      const label = `${r.profile.first_name} ${r.profile.last_name} <${r.profile.email}>`;
+      const list = responsiblesByEquipment.get(r.equipment_id) || [];
+      list.push(label);
+      responsiblesByEquipment.set(r.equipment_id, list);
+    });
+
     const data = equipment.map(eq => ({
       "Inv. číslo": eq.inventory_number || "",
       "Název": eq.name || "",
@@ -232,7 +248,8 @@ export default function Equipment() {
       "Model": eq.model || "",
       "Sériové č.": eq.serial_number || "",
       "Umístění": eq.location || "",
-      "Odpovědná osoba": eq.responsible_person || "",
+      "Středisko": (eq.department_id && departmentByCode.get(eq.department_id)) || "",
+      "Odpovědná osoba": (responsiblesByEquipment.get(eq.id) || []).join("; "),
       "Stav": equipmentStatusLabels[eq.status] || "",
     }));
 

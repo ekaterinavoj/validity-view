@@ -128,6 +128,15 @@ export default function NewMedicalExamination() {
         setPeriodUnit(unit);
       }
       form.setValue("facility", selectedType.facility);
+
+      // Pre-fill reminder timing from the type's defaults (if configured), same
+      // as trainings/deadlines — only while the user hasn't touched these fields.
+      if (!form.formState.dirtyFields.remindDaysBefore && selectedType.defaultRemindDaysBefore != null) {
+        form.setValue("remindDaysBefore", String(selectedType.defaultRemindDaysBefore));
+      }
+      if (!form.formState.dirtyFields.repeatDaysAfter && selectedType.defaultRepeatDaysAfter != null) {
+        form.setValue("repeatDaysAfter", String(selectedType.defaultRepeatDaysAfter));
+      }
     }
   }, [selectedType, form]);
 

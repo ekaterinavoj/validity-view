@@ -159,7 +159,9 @@ export default function Employees() {
         "Stav": getStatusLabel(employee.status) || "",
         "Datum narození": employee.birthDate ? formatDisplayDate(employee.birthDate, "") : "",
         "Věk": employee.birthDate ? String(calculateAge(employee.birthDate) ?? "") : "",
-        "Datum od": employee.statusStartDate || employee.terminationDate 
+        "Kategorie práce": employee.workCategory || "",
+        "Email nadřízeného": employee.managerEmail || "",
+        "Datum od": employee.statusStartDate || employee.terminationDate
           ? formatDisplayDate(employee.statusStartDate || employee.terminationDate, "")
           : "",
       }));
