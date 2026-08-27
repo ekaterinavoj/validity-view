@@ -40,6 +40,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isManager: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  resetPasswordForEmail: (email: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, firstName: string, lastName: string, position?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -291,6 +292,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Sends a password-recovery email via Supabase Auth (GoTrue). The link lands
+  // the user back on /change-password with a valid session already established,
+  // where they can set a new password. Requires GoTrue's SMTP to be configured
+  // with real credentials and the account to have a real, reachable email —
+  // this app's seeded admin account uses a placeholder @system.local address,
+  // which cannot receive mail.
+  const resetPasswordForEmail = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/change-password`,
+      });
+      return { error: error ?? null };
+    } catch (error: any) {
+      return { error };
+    }
+  };
+
   const signUp = async (
     email: string,
     password: string,
@@ -397,6 +415,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAdmin,
         isManager,
         signIn,
+        resetPasswordForEmail,
         signUp,
         signOut,
         refreshProfile,

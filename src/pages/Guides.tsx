@@ -650,7 +650,7 @@ const sections: GuideSection[] = [
     icon: UserCog,
     adminOnly: true,
     description: "Vytváření, deaktivace, role a oprávnění uživatelských účtů.",
-    keywords: ["uživatel", "role", "admin", "manažer", "deaktivace", "reset"],
+    keywords: ["uživatel", "role", "admin", "manažer", "deaktivace", "reset", "zapomenuté heslo"],
     items: [
       {
         q: "Jak vytvořit nového uživatele?",
@@ -690,6 +690,16 @@ const sections: GuideSection[] = [
           "Edge funkce admin-reset-password nastaví nové heslo + flag must_change_password.",
           "Předejte heslo uživateli bezpečným kanálem (osobně, šifrovaný chat).",
           "Při prvním přihlášení uživatel musí heslo změnit (modal nelze odložit).",
+        ],
+      },
+      {
+        q: "Zapomenuté heslo – svépomocná obnova",
+        a: [
+          "Na přihlašovací obrazovce je odkaz „Zapomenuté heslo?“ – uživatel zadá svůj email a systém (pokud pod ním účet existuje) pošle odkaz pro nastavení nového hesla.",
+          "Ze bezpečnostních důvodů se zobrazí stejná zpráva o odeslání, ať už email existuje nebo ne – neprozrazuje se tak, které účty v systému jsou.",
+          "Vyžaduje: (1) v účtu skutečnou, funkční e-mailovou adresu – ne placeholder jako „@system.local“, a (2) správně nastavené SMTP pro Supabase Auth (proměnné SMTP_HOST/PORT/USER/PASS v .env) – bez toho se e-mail nikam neodešle.",
+          "Když svépomocná obnova není k dispozici (chybí SMTP, nebo je uživatel jediný admin bez funkčního emailu), zůstává záložní cestou „Reset hesla uživatele administrátorem“ výše – tu ale musí provést JINÝ přihlášený admin.",
+          "Pokud je uzamčen jediný existující admin účet a SMTP není nastavené, je nutné heslo resetovat přímo v databázi (přes Supabase Admin API se service_role klíčem) – kontaktujte správce infrastruktury.",
         ],
       },
       {

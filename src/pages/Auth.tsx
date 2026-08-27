@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Lock } from "lucide-react";
 import { z } from "zod";
@@ -15,6 +22,102 @@ const loginSchema = z.object({
   password: z.string().min(6, "Heslo musí mít alespoň 6 znaků"),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Zadejte platný email"),
+});
+
+function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { resetPasswordForEmail } = useAuth();
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleClose = (nextOpen: boolean) => {
+    onOpenChange(nextOpen);
+    if (!nextOpen) {
+      // Reset for next time the dialog is opened
+      setEmail("");
+      setError("");
+      setSent(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    const result = forgotPasswordSchema.safeParse({ email });
+    if (!result.success) {
+      setError(result.error.errors[0]?.message || "Neplatný email");
+      return;
+    }
+
+    setIsLoading(true);
+    const { error: resetError } = await resetPasswordForEmail(email.trim());
+    setIsLoading(false);
+
+    if (resetError) {
+      toast({
+        title: "Chyba",
+        description: "Odkaz pro obnovení hesla se nepodařilo odeslat. Zkuste to prosím později.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Always show the same success message regardless of whether the email
+    // actually matches an account — do not reveal which addresses exist.
+    setSent(true);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Zapomenuté heslo</DialogTitle>
+          <DialogDescription>
+            Zadejte email svého účtu. Pokud pod ním existuje účet, přijde na něj odkaz pro nastavení nového hesla.
+          </DialogDescription>
+        </DialogHeader>
+
+        {sent ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Pokud účet s tímto emailem existuje, byl na něj právě odeslán odkaz pro obnovení hesla.
+              Zkontrolujte doručenou poštu (i spam).
+            </p>
+            <Button className="w-full" onClick={() => handleClose(false)}>
+              Zavřít
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                placeholder="vas@email.cz"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoFocus
+              />
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Odeslat odkaz pro obnovení
+            </Button>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Auth() {
   const navigate = useNavigate();
   const { user, signIn } = useAuth();
@@ -23,6 +126,7 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -129,8 +233,18 @@ export default function Auth() {
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Přihlásit se
           </Button>
+
+          <button
+            type="button"
+            onClick={() => setForgotPasswordOpen(true)}
+            className="w-full text-center text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
+          >
+            Zapomenuté heslo?
+          </button>
         </form>
       </Card>
+
+      <ForgotPasswordDialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen} />
     </div>
   );
 }

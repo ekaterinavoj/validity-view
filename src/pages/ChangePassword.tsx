@@ -20,7 +20,7 @@ const passwordSchema = z.object({
 
 export default function ChangePassword() {
   const navigate = useNavigate();
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({ password: "", confirmPassword: "" });
@@ -85,9 +85,13 @@ export default function ChangePassword() {
         <div className="flex items-center gap-3 mb-6">
           <ShieldAlert className="h-8 w-8 text-destructive" />
           <div>
-            <h1 className="text-xl font-bold">Změna hesla vyžadována</h1>
+            <h1 className="text-xl font-bold">
+              {profile?.must_change_password ? "Změna hesla vyžadována" : "Nastavení nového hesla"}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Vaše heslo bylo resetováno administrátorem. Zadejte prosím nové heslo.
+              {profile?.must_change_password
+                ? "Vaše heslo bylo resetováno administrátorem. Zadejte prosím nové heslo."
+                : "Zadejte nové heslo ke svému účtu."}
             </p>
           </div>
         </div>
