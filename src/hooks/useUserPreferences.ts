@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+export interface DashboardQuickLink {
+  id: string;
+  label: string;
+  path: string;
+}
+
 export interface UserPreferences {
   // UI & Display
   theme: "light" | "dark" | "system";
@@ -23,6 +29,9 @@ export interface UserPreferences {
   showQuickStats: boolean;
   autoRefresh: boolean;
   autoRefreshInterval: number; // in seconds
+
+  // Dashboard quick links — empty array means "use the role-based defaults"
+  dashboardQuickLinks: DashboardQuickLink[];
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -40,6 +49,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   showQuickStats: true,
   autoRefresh: false,
   autoRefreshInterval: 60,
+  dashboardQuickLinks: [],
 };
 
 const getStorageKey = (userId: string | null) => {

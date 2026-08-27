@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { Layout } from "./components/Layout";
+import Dashboard from "./pages/Dashboard";
+import Guides from "./pages/Guides";
 import Statistics from "./pages/Statistics";
 import ScheduledTrainings from "./pages/ScheduledTrainings";
 import History from "./pages/History";
@@ -26,7 +28,6 @@ import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import NoAccess from "./pages/NoAccess";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { ModuleRedirect } from "./components/ModuleRedirect";
 
 // Deadline module pages
 import ScheduledDeadlines from "./pages/ScheduledDeadlines";
@@ -83,8 +84,9 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
             
+            <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+
             {/* ============ TRAININGS MODULE ============ */}
-            <Route path="/" element={<ProtectedRoute><ModuleRedirect /></ProtectedRoute>} />
             <Route path="/trainings" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
             <Route path="/trainings/scheduled" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
             <Route path="/trainings/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="trainings"><History /></ProtectedLayout>} />
@@ -133,6 +135,7 @@ const App = () => (
             <Route path="/admin/migrations" element={<ProtectedLayout requiredRoles={["admin"]}><DatabaseMigrations /></ProtectedLayout>} />
             <Route path="/user-management" element={<ProtectedLayout requiredRoles={["admin"]}><UserManagement /></ProtectedLayout>} />
             <Route path="/documents" element={<ProtectedLayout><Documents /></ProtectedLayout>} />
+            <Route path="/guides" element={<ProtectedLayout><Guides /></ProtectedLayout>} />
             <Route path="/event-types" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><EventTypesOverview /></ProtectedLayout>} />
             <Route path="/no-access" element={<ProtectedRoute><NoAccess /></ProtectedRoute>} />
             

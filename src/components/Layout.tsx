@@ -4,7 +4,7 @@ import { NavLink } from "./NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "./ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound, Stethoscope, FolderOpen, AlertTriangle } from "lucide-react";
+import { Calendar, History, PlusCircle, BarChart3, ChevronDown, LogOut, User, FileText, Activity, Users, BookOpen, Building2, UserX, Settings, Bell, Mail, UserCheck, Database, Menu, X, GraduationCap, Wrench, Clock, Cog, UsersRound, Stethoscope, FolderOpen, AlertTriangle, HelpCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
@@ -379,6 +379,12 @@ export const Layout = ({
                         Přehled typů událostí
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/guides" className="flex items-center gap-2 cursor-pointer">
+                        <HelpCircle className="w-4 h-4" />
+                        Návody
+                      </Link>
+                    </DropdownMenuItem>
                     {isAdmin && <DropdownMenuItem asChild>
                       <Link to="/audit-log" className="flex items-center gap-2 cursor-pointer">
                         <FileText className="w-4 h-4" />
@@ -550,6 +556,12 @@ export const Layout = ({
                 <Link to="/event-types" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/event-types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                   <BookOpen className="w-4 h-4" />
                   Přehled typů událostí
+                </Link>
+              )}
+              {(isAdmin || isManager) && (
+                <Link to="/guides" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/guides" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <HelpCircle className="w-4 h-4" />
+                  Návody
                 </Link>
               )}
             </div>

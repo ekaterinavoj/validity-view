@@ -11,6 +11,17 @@ import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
 import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
+import { checkRequiredHeaders, type MissingHeader } from "@/lib/importValidation";
+import { MissingHeadersAlert } from "@/components/MissingHeadersAlert";
+
+const REQUIRED_EMPLOYEE_HEADERS: Record<string, string[]> = {
+  "Jméno": ["Jméno", "firstName"],
+  "Příjmení": ["Příjmení", "lastName"],
+  "Email": ["Email", "email"],
+  "Osobní číslo": ["Osobní číslo", "employeeNumber", "employee_number"],
+  "Pozice": ["Pozice", "position"],
+  "Středisko": ["Středisko", "department"],
+};
 
 const employeeSchema = z.object({
   firstName: z.string().min(1, "Jméno je povinné").max(100),
@@ -47,6 +58,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
   const [importErrorsList, setImportErrorsList] = useState<string[]>([]);
+  const [headerError, setHeaderError] = useState<{ missing: MissingHeader[]; detected: string[] } | null>(null);
   const abortRef = useRef(false);
   const { toast } = useToast();
 
@@ -218,9 +230,24 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     }
 
     setIsProcessing(true);
+    setHeaderError(null);
     try {
       const jsonData = await parseFile(file);
-      
+
+      const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
+      const headerCheck = checkRequiredHeaders(headers, REQUIRED_EMPLOYEE_HEADERS);
+      if (!headerCheck.ok) {
+        setHeaderError({ missing: headerCheck.missingDetailed, detected: headerCheck.detected });
+        setImportedData([]);
+        setDialogOpen(true);
+        toast({
+          title: "Chybí povinné sloupce",
+          description: `V souboru chybí: ${headerCheck.missing.join(", ")}. Detail v dialogu.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (jsonData.length > 5000) {
         toast({ title: "Příliš mnoho řádků", description: "Maximální počet řádků je 5000.", variant: "destructive" });
         setIsProcessing(false);
@@ -233,6 +260,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       }
 
       const validatedData = await validateAndMarkDuplicates(jsonData);
+      setHeaderError(null);
       setImportedData(validatedData);
       setDialogOpen(true);
 
@@ -555,6 +583,11 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Header validation error */}
+            {headerError && (
+              <MissingHeadersAlert missing={headerError.missing} detected={headerError.detected} />
+            )}
+
             {/* Large dataset warning */}
             {importedData.length >= 1000 && (
               <Alert className="border-amber-500/50 bg-amber-500/10">

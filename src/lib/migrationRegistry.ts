@@ -1229,6 +1229,621 @@ WHERE me.is_active = true
 SELECT public.recalculate_all_statuses();
     `.trim(),
   },
+
+  // ===== Added in this session (2026-08-27): reminder cadence overhaul,
+  //      duplicate-trigger fixes, self-hosted bug fixes =====
+  {
+    version: "20260827090000",
+    name: "periodic_age_milestone_check",
+    sql: `
+-- The existing notify_employee_age_50() trigger only fires on INSERT/UPDATE of the
+-- employees row itself. In practice an employee record is rarely touched exactly on
+-- their birthday, so the notification silently never fires for most people who turn 50.
+-- This adds a callable, idempotent function that re-checks ALL active employees and can
+-- be invoked from a daily/hourly job (see run-medical-reminders), independent of any
+-- write to the employees table.
+
+CREATE OR REPLACE FUNCTION public.check_employee_age_milestones()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  admin_record RECORD;
+  emp_record RECORD;
+  emp_name TEXT;
+  emp_age INT;
+  notified_count INT := 0;
+BEGIN
+  FOR emp_record IN
+    SELECT id, first_name, last_name, birth_date
+    FROM public.employees
+    WHERE birth_date IS NOT NULL
+      AND status = 'employed'
+  LOOP
+    emp_age := EXTRACT(YEAR FROM age(CURRENT_DATE, emp_record.birth_date));
+
+    IF emp_age = 50 THEN
+      -- Dedup: skip if a notification was already created for this employee
+      IF EXISTS (
+        SELECT 1 FROM public.notifications
+        WHERE related_entity_type = 'employee_age_50'
+          AND related_entity_id = emp_record.id
+      ) THEN
+        CONTINUE;
+      END IF;
+
+      emp_name := emp_record.first_name || ' ' || emp_record.last_name;
+
+      FOR admin_record IN
+        SELECT ur.user_id FROM public.user_roles ur WHERE ur.role = 'admin'
+      LOOP
+        INSERT INTO public.notifications (
+          user_id, title, message, type, related_entity_type, related_entity_id
+        ) VALUES (
+          admin_record.user_id,
+          'Zaměstnanec dosáhl věku 50 let',
+          'Zaměstnanec ' || emp_name || ' dosáhl věku 50 let. Podle platné legislativy ' ||
+          '(vyhláška č. 79/2013 Sb., o pracovnělékařských službách) se u zaměstnanců ' ||
+          'vykonávajících práci zařazenou do kategorie 2 a vyšší od tohoto věku zkracuje ' ||
+          'interval pravidelných lékařských prohlídek. Zkontrolujte prosím zařazení do ' ||
+          'rizikové kategorie a v případě potřeby naplánujte mimořádnou lékařskou prohlídku ' ||
+          'a upravte periodicitu dalších prohlídek.',
+          'warning',
+          'employee_age_50',
+          emp_record.id
+        );
+      END LOOP;
+
+      notified_count := notified_count + 1;
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object('employees_notified', notified_count, 'checked_at', now());
+END;
+$function$;
+
+-- Keep the write-time trigger in sync with the same, more informative message text so
+-- both paths (immediate trigger + daily periodic check) read identically.
+CREATE OR REPLACE FUNCTION public.notify_employee_age_50()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  admin_record RECORD;
+  emp_name TEXT;
+  emp_age INT;
+BEGIN
+  IF NEW.birth_date IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  emp_age := EXTRACT(YEAR FROM age(CURRENT_DATE, NEW.birth_date));
+
+  IF emp_age = 50 THEN
+    IF EXISTS (
+      SELECT 1 FROM public.notifications
+      WHERE related_entity_type = 'employee_age_50'
+        AND related_entity_id = NEW.id
+    ) THEN
+      RETURN NEW;
+    END IF;
+
+    emp_name := NEW.first_name || ' ' || NEW.last_name;
+
+    FOR admin_record IN
+      SELECT ur.user_id FROM public.user_roles ur WHERE ur.role = 'admin'
+    LOOP
+      INSERT INTO public.notifications (
+        user_id, title, message, type, related_entity_type, related_entity_id
+      ) VALUES (
+        admin_record.user_id,
+        'Zaměstnanec dosáhl věku 50 let',
+        'Zaměstnanec ' || emp_name || ' dosáhl věku 50 let. Podle platné legislativy ' ||
+        '(vyhláška č. 79/2013 Sb., o pracovnělékařských službách) se u zaměstnanců ' ||
+        'vykonávajících práci zařazenou do kategorie 2 a vyšší od tohoto věku zkracuje ' ||
+        'interval pravidelných lékařských prohlídek. Zkontrolujte prosím zařazení do ' ||
+        'rizikové kategorie a v případě potřeby naplánujte mimořádnou lékařskou prohlídku ' ||
+        'a upravte periodicitu dalších prohlídek.',
+        'warning',
+        'employee_age_50',
+        NEW.id
+      );
+    END LOOP;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+    `.trim(),
+  },
+  {
+    version: "20260827091500",
+    name: "fix_duplicate_default_role_trigger",
+    sql: `
+-- CRITICAL FIX: two triggers on public.profiles both call assign_default_role()
+-- after every INSERT:
+--   - assign_default_role_on_signup   (created 2025-11-11, never removed)
+--   - on_profile_created_assign_role  (created 2026-02-16 to harden search_path,
+--                                       the author assumed it was renaming the
+--                                       trigger above but only dropped its own
+--                                       older copy, leaving both attached)
+--
+-- assign_default_role() does a plain INSERT INTO public.user_roles(user_id, role)
+-- with no ON CONFLICT clause. With both triggers firing for the same row, the
+-- second call always hits the (user_id, role) unique constraint and raises an
+-- exception — which aborts the profiles INSERT itself. handle_new_user() catches
+-- that, retries a minimal insert, hits the same duplicate trigger again, and
+-- gives up silently (RAISE WARNING only). Net effect: every new user (self-signup
+-- AND admin-created) ends up with an auth.users row but NO profiles row, so they
+-- can log in but see nothing and cannot be approved/managed from the UI.
+
+DROP TRIGGER IF EXISTS assign_default_role_on_signup ON public.profiles;
+
+-- Defense in depth: make the function idempotent regardless of how many times
+-- (or from how many trigger names) it ends up firing for the same user/role.
+CREATE OR REPLACE FUNCTION public.assign_default_role()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  admin_exists BOOLEAN;
+  reg_mode text;
+  invite_record RECORD;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles WHERE role = 'admin'
+  ) INTO admin_exists;
+
+  IF NOT admin_exists THEN
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
+
+    UPDATE public.profiles SET approval_status = 'approved', approved_at = now() WHERE id = NEW.id;
+
+    RAISE NOTICE 'First user registered - assigned admin role to user %', NEW.id;
+    RETURN NEW;
+  END IF;
+
+  reg_mode := get_registration_mode();
+
+  SELECT * INTO invite_record
+  FROM public.user_invites
+  WHERE email = NEW.email
+    AND status = 'pending'
+    AND expires_at > now()
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF invite_record.id IS NOT NULL THEN
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, invite_record.role)
+    ON CONFLICT (user_id, role) DO NOTHING;
+
+    UPDATE public.user_invites
+    SET status = 'used', used_at = now(), used_by = NEW.id
+    WHERE id = invite_record.id;
+
+    UPDATE public.profiles
+    SET approval_status = 'approved', approved_at = now(), approved_by = invite_record.invited_by
+    WHERE id = NEW.id;
+
+    INSERT INTO public.audit_logs (table_name, record_id, action, new_data, user_email, user_name)
+    VALUES ('user_invites', invite_record.id, 'INVITE_USED',
+      jsonb_build_object('email', NEW.email, 'role', invite_record.role, 'invited_by', invite_record.invited_by),
+      NEW.email, COALESCE(NEW.first_name, '') || ' ' || COALESCE(NEW.last_name, ''));
+
+    RAISE NOTICE 'User % registered via invite with role %', NEW.id, invite_record.role;
+    RETURN NEW;
+  END IF;
+
+  IF reg_mode = 'invite_only' THEN
+    RAISE NOTICE 'User % registered in invite-only mode without invite - pending approval', NEW.id;
+  ELSE
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'user')
+    ON CONFLICT (user_id, role) DO NOTHING;
+
+    RAISE NOTICE 'User % registered in self-signup mode - pending approval', NEW.id;
+  END IF;
+
+  INSERT INTO public.audit_logs (table_name, record_id, action, new_data, user_email, user_name)
+  VALUES ('profiles', NEW.id, 'REGISTRATION_PENDING',
+    jsonb_build_object('email', NEW.email, 'mode', reg_mode),
+    NEW.email, COALESCE(NEW.first_name, '') || ' ' || COALESCE(NEW.last_name, ''));
+
+  RETURN NEW;
+END;
+$function$;
+    `.trim(),
+  },
+  {
+    version: "20260827093000",
+    name: "fix_all_duplicate_triggers",
+    sql: `
+-- Systemic cleanup: the same mistake found in the profiles trigger (two trigger
+-- names both calling the same function on the same table/event, from a migration
+-- that re-created triggers under a "hardened" name but forgot to drop the older
+-- one) exists on 12 tables. Most calls are idempotent (recompute the same value),
+-- but a few insert audit_logs / notifications rows and were firing TWICE per
+-- change (confirmed: seeded trainings had exactly 2x the expected audit_logs
+-- rows). This drops the redundant/legacy trigger in each pair, keeping exactly
+-- one attachment per function per table.
+
+-- Type -> record date recalculation on period_days change (semafor/expiration
+-- propagation for Školení / Technické události / PLP). Both triggers are
+-- idempotent, but keep only the narrower one (fires on period_days change only).
+DROP TRIGGER IF EXISTS recalculate_training_dates_on_type_change ON public.training_types;
+DROP TRIGGER IF EXISTS recalculate_deadline_dates_on_type_change ON public.deadline_types;
+DROP TRIGGER IF EXISTS recalculate_medical_dates_on_type_change ON public.medical_examination_types;
+
+-- Employee status/activation side-effects on trainings, deadlines, medical exams
+DROP TRIGGER IF EXISTS recalculate_training_status_trigger ON public.employees;
+DROP TRIGGER IF EXISTS recalculate_examination_status_on_activation_trigger ON public.employees;
+DROP TRIGGER IF EXISTS trigger_update_training_active_status ON public.employees;
+DROP TRIGGER IF EXISTS update_medical_examination_active_status_trigger ON public.employees;
+
+-- Equipment status -> deadline active-status propagation
+DROP TRIGGER IF EXISTS update_deadlines_on_equipment_status ON public.equipment;
+
+-- Audit logging (was writing two identical rows per change)
+DROP TRIGGER IF EXISTS training_audit_log_trigger ON public.trainings;
+DROP TRIGGER IF EXISTS log_module_access_changes ON public.user_module_access;
+DROP TRIGGER IF EXISTS user_roles_audit_log_trigger ON public.user_roles;
+
+-- Last-admin-removal safety check (redundant, not harmful, but wasteful)
+DROP TRIGGER IF EXISTS prevent_last_admin_trigger ON public.user_roles;
+    `.trim(),
+  },
+  {
+    version: "20260827094500",
+    name: "drop_equipment_inventory_number_uniqueness",
+    sql: `
+-- The hard UNIQUE constraint on equipment.inventory_number blocked legitimate
+-- cases where two genuinely different pieces of equipment share the same
+-- inventory number (e.g. numbering reused per facility, or numbers assigned by
+-- an external system the company doesn't fully control). There was no way to
+-- enter such equipment through the UI at all — the insert was rejected outright.
+--
+-- Duplicate detection already happens at the application layer where it
+-- actually matters (bulk import, see src/components/BulkEquipmentImport.tsx),
+-- using a composite key of inventory_number + name + equipment_type +
+-- manufacturer + serial_number — i.e. equipment only counts as "the same
+-- record" when ALL of those match, not just the inventory number.
+
+ALTER TABLE public.equipment DROP CONSTRAINT IF EXISTS equipment_inventory_number_key;
+    `.trim(),
+  },
+  {
+    version: "20260827100000",
+    name: "unify_reminder_cadence",
+    sql: `
+-- Reminders were previously sent using inconsistent logic per module:
+--   - trainings/medical: resent every \`repeat_days_after\` days continuously,
+--     starting the moment a record entered its remind_days_before window (so a
+--     30-day-before warning kept repeating every N days all the way through
+--     expiration too, not just once).
+--   - deadlines: had NO per-record deduplication at all — every time the
+--     function ran and found deadlines in-window, it re-sent the full digest
+--     (and the individual "responsible person" emails) again, every time,
+--     regardless of \`repeat_days_after\`.
+--
+-- This adds a \`reminder_stage\` column so each module can track, per record,
+-- whether the one-shot "before" and "due" reminders were already sent, and
+-- when the last repeating "overdue" reminder went out — see
+-- supabase/functions/_shared/reminder-cadence.ts for the actual scheduling
+-- logic now shared by all three reminder functions.
+
+ALTER TABLE public.reminder_logs ADD COLUMN IF NOT EXISTS reminder_stage TEXT
+  CHECK (reminder_stage IS NULL OR reminder_stage IN ('before', 'due', 'overdue'));
+
+ALTER TABLE public.deadline_reminder_logs ADD COLUMN IF NOT EXISTS reminder_stage TEXT
+  CHECK (reminder_stage IS NULL OR reminder_stage IN ('before', 'due', 'overdue'));
+
+ALTER TABLE public.medical_reminder_logs ADD COLUMN IF NOT EXISTS reminder_stage TEXT
+  CHECK (reminder_stage IS NULL OR reminder_stage IN ('before', 'due', 'overdue'));
+
+CREATE INDEX IF NOT EXISTS idx_reminder_logs_training_stage ON public.reminder_logs (training_id, reminder_stage, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deadline_reminder_logs_deadline_stage ON public.deadline_reminder_logs (deadline_id, reminder_stage, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_medical_reminder_logs_exam_stage ON public.medical_reminder_logs (examination_id, reminder_stage, created_at DESC);
+
+-- "Type" tables get their own default reminder timing so new records can be
+-- pre-filled consistently instead of everyone independently starting at the
+-- hardcoded 30/30 default. NULL means "no type-level default configured yet",
+-- in which case the app falls back to the existing per-record default (30).
+ALTER TABLE public.training_types ADD COLUMN IF NOT EXISTS default_remind_days_before INTEGER;
+ALTER TABLE public.training_types ADD COLUMN IF NOT EXISTS default_repeat_days_after INTEGER;
+
+ALTER TABLE public.deadline_types ADD COLUMN IF NOT EXISTS default_remind_days_before INTEGER;
+ALTER TABLE public.deadline_types ADD COLUMN IF NOT EXISTS default_repeat_days_after INTEGER;
+
+ALTER TABLE public.medical_examination_types ADD COLUMN IF NOT EXISTS default_remind_days_before INTEGER;
+ALTER TABLE public.medical_examination_types ADD COLUMN IF NOT EXISTS default_repeat_days_after INTEGER;
+
+-- The weekly "run-reminders" digest duplicated/overlapped with the per-record
+-- send-training-reminders function and is being retired in favor of the
+-- module-specific reminders. Soft-disable it via its existing settings flag
+-- rather than deleting the function outright, so it stays available if ever
+-- needed again.
+UPDATE public.system_settings
+SET value = jsonb_set(COALESCE(value, '{}'::jsonb), '{enabled}', 'false'::jsonb)
+WHERE key = 'reminder_frequency';
+    `.trim(),
+  },
+  {
+    version: "20260827110000",
+    name: "wire_medical_reminder_templates",
+    sql: `
+-- medical_reminder_templates already existed (with a working admin UI under
+-- Administrace → Emaily & Šablony → Šablony individuálních připomínek → PLP,
+-- and a real FK from medical_examinations.reminder_template_id) but the actual
+-- run-medical-reminders function never read from it — it only used the
+-- system_settings "medical_email_template" blob. Editing a PLP template in
+-- that UI silently had no effect on what was actually sent.
+--
+-- run-medical-reminders now reads its base subject/body from this table (see
+-- supabase/functions/run-medical-reminders/index.ts), matching how trainings
+-- and deadlines already work, with the settings blob kept as an optional
+-- override on top (same pattern as deadlines).
+--
+-- Seed one active template from whatever was configured in the settings blob,
+-- so existing configurations keep working instead of silently reverting to
+-- the hardcoded default text.
+INSERT INTO public.medical_reminder_templates (name, email_subject, email_body, is_active)
+SELECT
+  'Výchozí šablona (migrováno z nastavení)',
+  COALESCE(s.value->>'subject', 'Souhrn lékařských prohlídek - {reportDate}'),
+  COALESCE(s.value->>'body', 'Dobrý den,' || E'\n\n' || 'zasíláme přehled lékařských prohlídek vyžadujících pozornost.' || E'\n\n' || 'Celkem: {totalCount}' || E'\n' || '- Brzy vypršuje: {expiringCount}' || E'\n' || '- Prošlé: {expiredCount}'),
+  true
+FROM (SELECT 1) AS one_row
+LEFT JOIN public.system_settings s ON s.key = 'medical_email_template'
+WHERE NOT EXISTS (SELECT 1 FROM public.medical_reminder_templates);
+    `.trim(),
+  },
+  {
+    version: "20260827120000",
+    name: "fix_manager_notifications_rpc",
+    sql: `
+-- "Notifikace nadřízeným" (manager notification emails) for Školení and PLP
+-- was silently sending to nobody, ever. send-training-reminders and
+-- run-medical-reminders call public.get_subordinate_employee_ids(...) using
+-- the service-role key (no end-user JWT), so auth.uid() is NULL inside that
+-- function. Its own access check reads:
+--
+--   IF NOT has_role(auth.uid(), 'admin') THEN
+--     IF root_employee_id IS DISTINCT FROM (SELECT employee_id FROM profiles WHERE id = auth.uid()) THEN
+--       RETURN;  -- empty
+--     END IF;
+--   END IF;
+--
+-- auth.uid() = NULL, has_role(NULL, 'admin') = false, and the subquery with
+-- "WHERE id = NULL" matches nothing, so root_employee_id is always "distinct
+-- from NULL" and the function always returns an empty set for any manager,
+-- for every single scheduled run. That check is correct and necessary when a
+-- logged-in user calls this RPC from the frontend (e.g. equipment responsible
+-- pickers) — it must not be loosened there. Instead, add a second, equivalent
+-- function with no auth.uid() gate, and restrict who can call it at the
+-- database privilege level to service_role only (i.e. only trusted backend
+-- edge functions authenticated with the service role key — never a logged-in
+-- user's own token).
+
+CREATE OR REPLACE FUNCTION public.get_subordinate_employee_ids_for_service(root_employee_id uuid)
+RETURNS TABLE(employee_id uuid)
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  WITH RECURSIVE tree AS (
+    SELECT e.id, 0 AS depth
+    FROM public.employees e
+    WHERE e.id = root_employee_id
+    UNION
+    SELECT e2.id, t.depth + 1
+    FROM public.employees e2
+    JOIN tree t ON e2.manager_employee_id = t.id
+    WHERE t.depth < 20
+  )
+  SELECT tree.id FROM tree;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.get_subordinate_employee_ids_for_service(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_subordinate_employee_ids_for_service(uuid) TO service_role;
+    `.trim(),
+  },
+  {
+    version: "20260827130000",
+    name: "access_debug_tools",
+    sql: `
+-- RLS diagnostic tooling (backported from a later app version):
+--   - employee_access_logs: best-effort audit trail of who listed/viewed employees
+--   - debug_employee_visibility(uuid): admin-only "what would this user see and why"
+--   - debug_medical_document_access(uuid): same, for medical examination documents
+-- Intentionally does NOT touch any real RLS policy or the audit_logs table —
+-- these are read-only diagnostic helpers, not behavior changes.
+
+-- 1) Audit log table for employees reads
+CREATE TABLE IF NOT EXISTS public.employee_access_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid,
+  user_email text,
+  user_role text,
+  action text NOT NULL DEFAULT 'list',
+  rows_returned integer,
+  filters jsonb,
+  source text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_emp_access_logs_user_created
+  ON public.employee_access_logs(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_emp_access_logs_created
+  ON public.employee_access_logs(created_at DESC);
+
+ALTER TABLE public.employee_access_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can read employee access logs" ON public.employee_access_logs;
+CREATE POLICY "Admins can read employee access logs"
+ON public.employee_access_logs
+FOR SELECT
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+
+DROP POLICY IF EXISTS "Authenticated users can insert their access logs" ON public.employee_access_logs;
+CREATE POLICY "Authenticated users can insert their access logs"
+ON public.employee_access_logs
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  auth.uid() IS NOT NULL
+  AND user_id = auth.uid()
+  AND action IN ('list', 'detail', 'inactive_list', 'export')
+  AND (rows_returned IS NULL OR rows_returned BETWEEN 0 AND 100000)
+);
+
+DROP POLICY IF EXISTS "Admins can delete employee access logs" ON public.employee_access_logs;
+CREATE POLICY "Admins can delete employee access logs"
+ON public.employee_access_logs
+FOR DELETE
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+
+-- 2) Debug RPC: which employees would the given user see and why?
+DROP FUNCTION IF EXISTS public.debug_employee_visibility(uuid);
+
+CREATE OR REPLACE FUNCTION public.debug_employee_visibility(_target_user_id uuid)
+RETURNS TABLE(
+  employee_id uuid,
+  employee_name text,
+  employee_email text,
+  reason text,
+  policy_name text,
+  policy_branch text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  is_admin boolean;
+  own_employee uuid;
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin'::public.app_role) THEN
+    RAISE EXCEPTION 'Only admins can run employee visibility debug';
+  END IF;
+
+  is_admin := public.has_role(_target_user_id, 'admin'::public.app_role);
+  own_employee := public.get_user_employee_id(_target_user_id);
+
+  IF is_admin THEN
+    RETURN QUERY
+      SELECT
+        e.id,
+        (e.first_name || ' ' || e.last_name),
+        e.email,
+        'admin: full access'::text,
+        'Role-based employee visibility'::text,
+        'has_role(auth.uid(), ''admin'')'::text
+      FROM public.employees e
+      ORDER BY e.last_name;
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+    SELECT
+      e.id,
+      (e.first_name || ' ' || e.last_name) AS employee_name,
+      e.email,
+      CASE
+        WHEN e.id = own_employee THEN 'self: linked profile'
+        WHEN public.is_manager_of(_target_user_id, e.id) THEN 'manager: in subordinate hierarchy'
+        ELSE 'other'
+      END AS reason,
+      'Role-based employee visibility'::text AS policy_name,
+      CASE
+        WHEN e.id = own_employee THEN 'id = get_user_employee_id(auth.uid())'
+        WHEN public.is_manager_of(_target_user_id, e.id) THEN 'is_manager_of(auth.uid(), id)'
+        ELSE 'none'
+      END AS policy_branch
+    FROM public.employees e
+    WHERE e.id = own_employee
+       OR public.is_manager_of(_target_user_id, e.id)
+    ORDER BY e.last_name;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.debug_employee_visibility(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.debug_employee_visibility(uuid) TO authenticated;
+
+-- 3) Debug RPC: which medical documents would the given user see and why?
+CREATE OR REPLACE FUNCTION public.debug_medical_document_access(_target_user_id uuid)
+RETURNS TABLE (
+  document_id uuid,
+  examination_id uuid,
+  file_name text,
+  file_path text,
+  uploaded_by uuid,
+  reason text,
+  policy_name text,
+  policy_branch text
+)
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  is_admin boolean;
+  own_employee uuid;
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin'::app_role) THEN
+    RAISE EXCEPTION 'Only admins can run medical document access debug';
+  END IF;
+
+  is_admin := public.has_role(_target_user_id, 'admin'::app_role);
+  own_employee := public.get_user_employee_id(_target_user_id);
+
+  RETURN QUERY
+  SELECT
+    d.id AS document_id,
+    d.examination_id,
+    d.file_name,
+    d.file_path,
+    d.uploaded_by,
+    CASE
+      WHEN is_admin THEN 'admin: full access'
+      WHEN d.uploaded_by = _target_user_id THEN 'self: uploaded by user'
+      WHEN me.employee_id = own_employee THEN 'self: linked employee'
+      WHEN public.is_manager_of(_target_user_id, me.employee_id) THEN 'manager: in subordinate hierarchy'
+      ELSE 'denied: no matching branch'
+    END AS reason,
+    'Storage medical-documents access (table can_access_medical_examination)'::text AS policy_name,
+    CASE
+      WHEN is_admin THEN 'has_role(uid, admin)'
+      WHEN d.uploaded_by = _target_user_id THEN 'document.uploaded_by = uid'
+      WHEN me.employee_id = own_employee THEN 'examination.employee_id = get_user_employee_id(uid)'
+      WHEN public.is_manager_of(_target_user_id, me.employee_id) THEN 'is_manager_of(uid, examination.employee_id)'
+      ELSE 'none'
+    END AS policy_branch
+  FROM public.medical_examination_documents d
+  JOIN public.medical_examinations me ON me.id = d.examination_id
+  ORDER BY d.uploaded_at DESC
+  LIMIT 500;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.debug_medical_document_access(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.debug_medical_document_access(uuid) TO authenticated;
+    `.trim(),
+  },
 ];
 
 /**

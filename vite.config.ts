@@ -26,4 +26,9 @@ export default defineConfig(({ mode }) => ({
   worker: {
     format: "es",
   },
+  test: {
+    environment: "node",
+    globals: true,
+    include: ["src/test/**/*.test.ts"],
+  },
 }));

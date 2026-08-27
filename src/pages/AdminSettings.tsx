@@ -18,6 +18,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Settings, Mail, Clock, Users, Save, Plus, X, Eye, EyeOff, AlertCircle, UserCheck, Calendar, Shield, History, UserPlus, Palette, GraduationCap, Wrench, Stethoscope } from "lucide-react";
 import { ReminderTemplates } from "@/components/ReminderTemplates";
 import { ReminderLogs } from "@/components/ReminderLogs";
+import { EmployeeAccessDebug } from "@/components/EmployeeAccessDebug";
+import { MedicalDocsAccessDebug } from "@/components/MedicalDocsAccessDebug";
 import { SendTestDeadlineEmail } from "@/components/SendTestDeadlineEmail";
 import { SendTestMedicalEmail } from "@/components/SendTestMedicalEmail";
 import { SendSingleTestEmail } from "@/components/SendSingleTestEmail";
@@ -49,7 +51,8 @@ export default function AdminSettings() {
   const validTabs = ["onboarding", "user-management", "reminders", "email", "history"];
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "onboarding";
   const [activeTab, setActiveTab] = useState(initialTab);
-  
+  const [showAccessDebug, setShowAccessDebug] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
@@ -1010,6 +1013,40 @@ export default function AdminSettings() {
         {/* User Management Tab */}
         <TabsContent value="user-management" className="space-y-6">
           <UserManagementPanel />
+
+          <Card className="border-primary/40 bg-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Eye className="w-4 h-4 text-primary" />
+                Diagnostika přístupových oprávnění (RLS)
+              </CardTitle>
+              <CardDescription>
+                Vývojářské nástroje pro ověření, zda RLS politiky správně omezují viditelnost dat.
+                Defaultně skryto kvůli přehlednosti.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <Label htmlFor="show-debug" className="font-medium">Zobrazit debug panely přístupů</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Zaměstnanci a lékařské dokumenty – kdo na co vidí.
+                  </p>
+                </div>
+                <Switch
+                  id="show-debug"
+                  checked={showAccessDebug}
+                  onCheckedChange={setShowAccessDebug}
+                />
+              </div>
+            </CardContent>
+          </Card>
+          {showAccessDebug && (
+            <>
+              <EmployeeAccessDebug />
+              <MedicalDocsAccessDebug />
+            </>
+          )}
         </TabsContent>
 
 
