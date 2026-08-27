@@ -3,6 +3,7 @@ import {
   Plus, RefreshCw, Edit, Trash2, Search, Clock, Download, Upload, Loader2, CheckCircle2, AlertCircle, AlertTriangle,
 } from "lucide-react";
 import { formatPeriodicity, parsePeriodicityText } from "@/lib/utils";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -281,7 +282,7 @@ export default function DeadlineTypes() {
                   <TableRow key={type.id}>
                     <TableCell className="font-medium">{type.name}</TableCell>
                     <TableCell>{getFacilityName(type.facility)}</TableCell>
-                    <TableCell>{formatPeriodicity(type.period_days)}</TableCell>
+                    <TableCell>{formatPeriodicityDual(type.period_days)}</TableCell>
                     <TableCell className="text-muted-foreground">{type.description || "-"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

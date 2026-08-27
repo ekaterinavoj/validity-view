@@ -53,7 +53,6 @@ const formSchema = z.object({
   doctor: z.string().optional(),
   medicalFacility: z.string().optional(),
   result: z.string().optional(),
-  reminderTemplateId: z.string().min(1, "Vyberte šablonu připomenutí"),
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   note: z.string().optional(),
@@ -66,7 +65,7 @@ const formSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: additional
-        ? "Při označení dlouhodobé ztráty způsobilosti musíte napsat poznámku (za co a jak zaměstnanec pozbyl(a) způsobilost)."
+        ? "Při označení dlouhodobé ztráty způsobilosti musíte napsat poznámku (za co a jak zaměstnanec pozbyl(a) způsobilosti)."
         : "U výsledku s podmínkou nebo omezením musíte doplnit poznámku.",
       path: ["note"],
     });
@@ -90,7 +89,6 @@ export default function NewMedicalExamination() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
-  const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const [healthRisks, setHealthRisks] = useState<HealthRisks>(createEmptyHealthRisks());
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -116,16 +114,6 @@ export default function NewMedicalExamination() {
       result: "passed",
     },
   });
-
-  useEffect(() => {
-    const loadTemplates = async () => {
-      const { data, error } = await supabase.from("medical_reminder_templates").select("*").eq("is_active", true).order("name");
-      if (!error && data) {
-        setReminderTemplates(data);
-      }
-    };
-    loadTemplates();
-  }, []);
 
   const selectedTypeId = form.watch("examinationTypeId");
   const selectedType = examinationTypes.find((t) => t.id === selectedTypeId);
@@ -220,7 +208,6 @@ export default function NewMedicalExamination() {
               doctor: data.doctor || undefined,
               medical_facility: data.medicalFacility || undefined,
               result: data.result || undefined,
-              reminder_template_id: data.reminderTemplateId || undefined,
               period_days_override: overridePeriodDays,
               remind_days_before: parseInt(data.remindDaysBefore) || 30,
               repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
@@ -525,25 +512,13 @@ export default function NewMedicalExamination() {
               <FileUploader files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={10} maxSize={20} acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} />
             </div>
 
-            <FormField control={form.control} name="reminderTemplateId" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Šablona připomenutí *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Vyberte šablonu" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    {reminderTemplates.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="remindDaysBefore" render={({ field }) => (
-                <FormItem><FormLabel>Připomenout dopředu (dní) *</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Připomenout před expirací (dní) *</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="repeatDaysAfter" render={({ field }) => (
-                <FormItem><FormLabel>Opakovat po (dní)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Opakovat po expiraci (dní)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
 
@@ -558,7 +533,7 @@ export default function NewMedicalExamination() {
                       rows={3}
                       placeholder={
                         form.watch("hasAdditionalLongTermLoss")
-                          ? "Popište, za co a jak zaměstnanec pozbyl(a) dlouhodobou způsobilost"
+                          ? "Popište, za co a jak zaměstnanec pozbyl(a) dlouhodobé způsobilosti"
                           : medicalExaminationResultRequiresNote(selectedResult)
                             ? "Popište podmínku nebo omezení"
                             : undefined

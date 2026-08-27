@@ -20,11 +20,12 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { DateInput } from "@/components/ui/date-input";
 import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download, Loader2, RefreshCw, List, GitBranch } from "lucide-react";
-import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
+import { BulkEmployeeImport, type BulkEmployeeImportHandle } from "@/components/BulkEmployeeImport";
+import { ImportExportMenu } from "@/components/ImportExportMenu";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
@@ -81,6 +82,7 @@ interface EmployeeDependencies {
 }
 
 export default function Employees() {
+  const bulkImportRef = useRef<BulkEmployeeImportHandle>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<EmployeeWithDepartment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -470,11 +472,12 @@ export default function Employees() {
         <h2 className="text-3xl font-bold text-foreground">Zaměstnanci</h2>
 
         <div className="flex gap-2">
-          <BulkEmployeeImport />
-          <Button variant="outline" onClick={exportToCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+          <BulkEmployeeImport ref={bulkImportRef} hideTrigger />
+          <ImportExportMenu
+            onExport={exportToCSV}
+            onToggleImport={() => bulkImportRef.current?.openFilePicker()}
+            onDownloadTemplate={() => bulkImportRef.current?.downloadTemplate()}
+          />
           <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button>

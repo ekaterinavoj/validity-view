@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { format } from "date-fns";
@@ -62,7 +62,8 @@ import { EquipmentResponsiblesManager } from "@/components/EquipmentResponsibles
 import { EquipmentResponsiblesBadges } from "@/components/EquipmentResponsiblesBadges";
 import { ResponsiblePersonsPicker } from "@/components/ResponsiblePersonsPicker";
 import { useAllEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
-import { BulkEquipmentImport } from "@/components/BulkEquipmentImport";
+import { BulkEquipmentImport, type BulkEquipmentImportHandle } from "@/components/BulkEquipmentImport";
+import { ImportExportMenu } from "@/components/ImportExportMenu";
 import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColors } from "@/types/equipment";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
@@ -72,6 +73,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 
 export default function Equipment() {
+  const bulkImportRef = useRef<BulkEquipmentImportHandle>(null);
   const { toast } = useToast();
   const { equipment, isLoading, error, refetch, createEquipment, updateEquipment, deleteEquipment, checkDependencies, isCreating, isUpdating, isDeleting } = useEquipment();
   const { facilities } = useFacilities();
@@ -288,11 +290,12 @@ export default function Equipment() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <BulkEquipmentImport onImportComplete={() => refetch()} />
-          <Button variant="outline" size="sm" onClick={exportToCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+          <BulkEquipmentImport ref={bulkImportRef} onImportComplete={() => refetch()} hideTrigger />
+          <ImportExportMenu
+            onExport={exportToCSV}
+            onToggleImport={() => bulkImportRef.current?.openFilePicker()}
+            onDownloadTemplate={() => bulkImportRef.current?.downloadTemplate()}
+          />
           <Button size="sm" onClick={openCreateDialog}>
             <Plus className="w-4 h-4 mr-2" />
             Nové zařízení

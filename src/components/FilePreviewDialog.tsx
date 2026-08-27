@@ -1,8 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Layers, FileText, File, List } from "lucide-react";
+import { Download, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Layers, FileText, File, List, Table as TableIcon } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import * as XLSX from "xlsx";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -201,6 +202,98 @@ function ImageViewer({ url, fileName, showHeader = false }: { url: string; fileN
   );
 }
 
+// Single Excel (XLS/XLSX) Viewer Component — renders sheets as HTML tables using
+// the `xlsx` (SheetJS) library already used elsewhere in the app for import/export.
+function ExcelViewer({ url, fileName, showHeader = false }: { url: string; fileName: string; showHeader?: boolean }) {
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [activeSheet, setActiveSheet] = useState<string>("");
+  const [tableHtml, setTableHtml] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const workbookRef = useRef<XLSX.WorkBook | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    (async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const buffer = await res.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        if (cancelled) return;
+        workbookRef.current = workbook;
+        setSheetNames(workbook.SheetNames);
+        setActiveSheet(workbook.SheetNames[0] || "");
+      } catch (err) {
+        console.error("Náhled Excel souboru se nepodařilo načíst:", fileName, err);
+        if (!cancelled) setError("Náhled se nepodařilo načíst.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [url, fileName]);
+
+  useEffect(() => {
+    if (!activeSheet || !workbookRef.current) return;
+    const sheet = workbookRef.current.Sheets[activeSheet];
+    if (!sheet) return;
+    setTableHtml(XLSX.utils.sheet_to_html(sheet, { editable: false }));
+  }, [activeSheet]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <p className="text-muted-foreground text-sm">{error}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {showHeader && (
+        <div className="flex items-center gap-2 px-2">
+          <TableIcon className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium truncate">{fileName}</span>
+        </div>
+      )}
+      {sheetNames.length > 1 && (
+        <div className="flex flex-wrap gap-1 px-1">
+          {sheetNames.map((name) => (
+            <Button
+              key={name}
+              type="button"
+              size="sm"
+              variant={name === activeSheet ? "secondary" : "outline"}
+              onClick={() => setActiveSheet(name)}
+            >
+              {name}
+            </Button>
+          ))}
+        </div>
+      )}
+      <div
+        className="overflow-auto max-h-[600px] rounded border bg-background [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_td]:text-sm [&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-1 [&_th]:text-sm [&_th]:bg-muted"
+        dangerouslySetInnerHTML={{ __html: tableHtml }}
+      />
+    </div>
+  );
+}
+
 export function FilePreviewDialog({
   open,
   onOpenChange,
@@ -372,6 +465,14 @@ export function FilePreviewDialog({
     return f.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f.name);
   };
 
+  const isFileExcel = (f: PreviewFile) => {
+    return (
+      f.type === "application/vnd.ms-excel" ||
+      f.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      /\.(xls|xlsx)$/i.test(f.name)
+    );
+  };
+
   const goToPrevDoc = () => {
     setCurrentDocIndex((prev) => Math.max(prev - 1, 0));
     contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -396,7 +497,7 @@ export function FilePreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden" aria-describedby={undefined}>
+      <DialogContent className="max-w-6xl w-[95vw] h-[95vh] flex flex-col p-0 overflow-hidden" aria-describedby={undefined}>
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between pr-8">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -563,6 +664,12 @@ export function FilePreviewDialog({
                 />
               ) : isFileImage(currentFile) ? (
                 <ImageViewer
+                  url={getFileUrl(currentFile)}
+                  fileName={currentFile.name}
+                  showHeader={false}
+                />
+              ) : isFileExcel(currentFile) ? (
+                <ExcelViewer
                   url={getFileUrl(currentFile)}
                   fileName={currentFile.name}
                   showHeader={false}

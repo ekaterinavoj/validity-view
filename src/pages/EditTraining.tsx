@@ -49,7 +49,6 @@ const formSchema = z.object({
   periodUnit: z.enum(["days", "months", "years"]),
   trainer: z.string().optional(),
   company: z.string().optional(),
-  reminderTemplateId: z.string().optional(),
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   result: z.enum(["passed", "passed_with_reservations", "failed"]),
@@ -76,7 +75,6 @@ export default function EditTraining() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
-  const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const { toast } = useToast();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
@@ -136,7 +134,6 @@ export default function EditTraining() {
             periodUnit: overridePeriod?.unit ?? typeUnit,
             trainer: training.trainer || "",
             company: training.company || "",
-            reminderTemplateId: training.reminder_template_id || "",
             remindDaysBefore: String(training.remind_days_before || 30),
             repeatDaysAfter: String(training.repeat_days_after || 30),
             result: (training.result as "passed" | "passed_with_reservations" | "failed") || "passed",
@@ -158,21 +155,6 @@ export default function EditTraining() {
 
     loadTraining();
   }, [id, form, toast, navigate]);
-
-  // Load reminder templates
-  useEffect(() => {
-    const loadTemplates = async () => {
-      const { data, error } = await supabase
-        .from("reminder_templates")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-      if (!error && data) {
-        setReminderTemplates(data);
-      }
-    };
-    loadTemplates();
-  }, []);
 
   const selectedTrainingTypeId = form.watch("trainingTypeId");
   const selectedTrainingType = trainingTypes.find((type) => type.id === selectedTrainingTypeId);
@@ -246,7 +228,6 @@ export default function EditTraining() {
           next_training_date: nextTrainingDate,
           trainer: data.trainer || null,
           company: data.company || null,
-          reminder_template_id: data.reminderTemplateId || null,
           period_days_override: overridePeriodDays,
           remind_days_before: parseInt(data.remindDaysBefore) || 30,
           repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
@@ -548,39 +529,13 @@ export default function EditTraining() {
               </div>
             )}
 
-            <FormField
-              control={form.control}
-              name="reminderTemplateId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Šablona připomenutí</FormLabel>
-                  <Select onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} value={field.value || "__none__"} disabled={!canEdit}>
-                    <FormControl>
-                      <SelectTrigger disabled={!canEdit}>
-                        <SelectValue placeholder="Výchozí šablona (nepovinné)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="__none__">— Bez šablony (výchozí) —</SelectItem>
-                      {reminderTemplates.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="remindDaysBefore"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Připomenout dopředu (dní) *</FormLabel>
+                    <FormLabel>Připomenout před expirací (dní) *</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} disabled={!canEdit} />
                     </FormControl>
@@ -594,7 +549,7 @@ export default function EditTraining() {
                 name="repeatDaysAfter"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Opakovat po (dní)</FormLabel>
+                    <FormLabel>Opakovat po expiraci (dní)</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} disabled={!canEdit} />
                     </FormControl>

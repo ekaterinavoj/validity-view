@@ -244,7 +244,11 @@ export default function Documents() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const canPreview = (type: string) => type === "application/pdf" || type.startsWith("image/");
+  const canPreview = (type: string) =>
+    type === "application/pdf" ||
+    type.startsWith("image/") ||
+    type === "application/vnd.ms-excel" ||
+    type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
   const renderActions = (doc: GeneralDocument) => (
     <div className="flex items-center justify-end gap-1">
@@ -334,7 +338,7 @@ export default function Documents() {
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Podporované formáty: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, TXT. Náhled: PDF, JPG, PNG.
+                  Podporované formáty: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, TXT. Náhled: PDF, JPG, PNG, XLS, XLSX.
                 </p>
               </div>
               <Button onClick={handleUpload} disabled={uploading} className="w-full gap-2">

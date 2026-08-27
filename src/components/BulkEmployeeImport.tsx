@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -47,9 +47,17 @@ interface ImportedEmployee {
 
 interface BulkEmployeeImportProps {
   onImportComplete?: () => void;
+  /** Hide this component's own trigger buttons — use the imperative handle
+   *  (openFilePicker/downloadTemplate) from a parent's own menu instead. */
+  hideTrigger?: boolean;
 }
 
-export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps) {
+export interface BulkEmployeeImportHandle {
+  openFilePicker: () => void;
+  downloadTemplate: () => void;
+}
+
+export const BulkEmployeeImport = forwardRef<BulkEmployeeImportHandle, BulkEmployeeImportProps>(function BulkEmployeeImport({ onImportComplete, hideTrigger }, ref) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importedData, setImportedData] = useState<ImportedEmployee[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -548,6 +556,11 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     ]);
   };
 
+  useImperativeHandle(ref, () => ({
+    openFilePicker: () => document.getElementById("employee-import")?.click(),
+    downloadTemplate: handleDownloadTemplate,
+  }));
+
   return (
     <>
       <input
@@ -557,24 +570,26 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         onChange={handleFileUpload}
         className="hidden"
       />
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleDownloadTemplate}
-        >
-          <FileDown className="w-4 h-4 mr-2" />
-          Šablona CSV
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => document.getElementById('employee-import')?.click()}
-          disabled={isProcessing}
-        >
-          <Upload className="w-4 h-4 mr-2" />
-          {isProcessing ? "Zpracovávám..." : "Import z Excel/CSV"}
-        </Button>
-      </div>
+      {!hideTrigger && (
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadTemplate}
+          >
+            <FileDown className="w-4 h-4 mr-2" />
+            Šablona CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => document.getElementById('employee-import')?.click()}
+            disabled={isProcessing}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            {isProcessing ? "Zpracovávám..." : "Import z Excel/CSV"}
+          </Button>
+        </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!isImporting) setDialogOpen(open); }}>
         <DialogContent className="max-w-6xl max-h-[90vh]">
@@ -783,4 +798,4 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       </Dialog>
     </>
   );
-}
+});

@@ -44,6 +44,8 @@ import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { BulkEditTrainingsDialog } from "@/components/BulkEditTrainingsDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
+import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
+import { ImportExportMenu } from "@/components/ImportExportMenu";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
@@ -367,19 +369,11 @@ export default function ScheduledTrainings() {
               <CalendarClock className="w-4 h-4 mr-2" />
               Vybrat expirující (30 dní)
             </Button>
-            <Button variant="outline" onClick={exportToCSV}>
-              <Download className="w-4 h-4 mr-2" />
-              {selectedTrainings.size > 0 
-                ? `Export CSV (${selectedTrainings.size})`
-                : "Export CSV"
-              }
-            </Button>
-            {canEdit && (
-              <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
-                <Upload className="w-4 h-4 mr-2" />
-                Import
-              </Button>
-            )}
+            <ImportExportMenu
+              onExport={exportToCSV}
+              exportCount={selectedTrainings.size}
+              onToggleImport={canEdit ? () => setShowImport(!showImport) : undefined}
+            />
             {canEdit && (
               <Button onClick={() => navigate("/new-training")}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -511,7 +505,12 @@ export default function ScheduledTrainings() {
                           <TableCell className="whitespace-nowrap">
                             {formatDisplayDate(training.date)}
                           </TableCell>
-                          <TableCell className="font-medium">{training.type}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {training.type}
+                              <PeriodOverrideIcon overrideDays={training.periodDaysOverride} typeDays={training.typePeriodDays} />
+                            </div>
+                          </TableCell>
                           <TableCell>{training.employeeNumber}</TableCell>
                           <TableCell className="whitespace-nowrap">{training.employeeName}</TableCell>
                           <TableCell><DepartmentCell code={training.department} name={training.departmentName} /></TableCell>

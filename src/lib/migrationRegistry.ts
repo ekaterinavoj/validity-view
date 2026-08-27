@@ -1877,6 +1877,28 @@ $function$;
 
     `.trim(),
   },
+  {
+    version: "20260827200000",
+    name: "fix_storage_admin_role_grants",
+    sql: `
+-- Fix: supabase_storage_admin was missing membership in anon/authenticated/service_role.
+--
+-- storage-api (the Supabase Storage service) connects to Postgres as
+-- supabase_storage_admin and, on every request, issues \`set_config('role', <jwt role>, true)\`
+-- to switch into whichever role the caller's JWT claims (anon / authenticated / service_role)
+-- before evaluating RLS on storage.objects/storage.buckets. That role switch is a plain
+-- Postgres \`SET ROLE\`, which requires supabase_storage_admin to be a member of the target role.
+--
+-- On this instance that membership was missing (only \`authenticator\`, used by PostgREST,
+-- had it), so every storage.object upload and every signed-URL request failed with
+-- "new row violates row-level security policy" / 42501 (Postgres's error for a denied
+-- SET ROLE, mis-reported by storage-api as an RLS violation) - regardless of bucket,
+-- file type, or caller. This broke general-document uploads (Dokumenty) and was also the
+-- likely cause of attached PDFs failing to preview in production (signed URL creation for
+-- the PDF viewer went through the same broken path).
+GRANT anon, authenticated, service_role TO supabase_storage_admin;
+    `.trim(),
+  },
 ];
 
 /**

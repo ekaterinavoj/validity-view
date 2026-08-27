@@ -168,7 +168,7 @@ export function BulkEditExaminationsDialog({
             <DateInput
               value={formData.lastExaminationDate}
               onChange={(date) => setFormData({ ...formData, lastExaminationDate: date })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
 
@@ -178,7 +178,7 @@ export function BulkEditExaminationsDialog({
               id="bulk-doctor"
               value={formData.doctor}
               onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
 
@@ -188,7 +188,7 @@ export function BulkEditExaminationsDialog({
               id="bulk-medical-facility"
               value={formData.medicalFacility}
               onChange={(e) => setFormData({ ...formData, medicalFacility: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
 
@@ -198,7 +198,7 @@ export function BulkEditExaminationsDialog({
               id="bulk-result"
               value={formData.result}
               onChange={(e) => setFormData({ ...formData, result: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
 
@@ -227,7 +227,7 @@ export function BulkEditExaminationsDialog({
               id="bulk-note"
               value={formData.note}
               onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
         </div>

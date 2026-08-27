@@ -163,7 +163,7 @@ export function BulkEditDeadlinesDialog({
             <DateInput
               value={formData.lastCheckDate}
               onChange={(date) => setFormData({ ...formData, lastCheckDate: date })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
 
@@ -173,7 +173,7 @@ export function BulkEditDeadlinesDialog({
               id="bulk-performer"
               value={formData.performer}
               onChange={(e) => setFormData({ ...formData, performer: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
 
@@ -183,7 +183,7 @@ export function BulkEditDeadlinesDialog({
               id="bulk-company"
               value={formData.company}
               onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
 
@@ -212,7 +212,7 @@ export function BulkEditDeadlinesDialog({
               id="bulk-note"
               value={formData.note}
               onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
         </div>

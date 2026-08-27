@@ -24,6 +24,10 @@ export interface MedicalExaminationWithDetails {
   result: string;
   requester: string;
   period: number;
+  /** Raw per-record periodicity override (null when the record uses the type's default). */
+  periodDaysOverride: number | null;
+  /** The examination type's own default periodicity, for comparison against periodDaysOverride. */
+  typePeriodDays: number | null;
   reminderTemplate: string;
   note: string;
   healthRisks: HealthRisks;
@@ -147,6 +151,8 @@ export function useMedicalExaminations(activeOnly: boolean = true) {
           result: e.result || "",
           requester: e.requester || "",
           period: e.period_days_override ?? e.medical_examination_types?.period_days ?? 365,
+          periodDaysOverride: e.period_days_override ?? null,
+          typePeriodDays: e.medical_examination_types?.period_days ?? null,
           reminderTemplate: e.medical_reminder_templates?.name || "",
           note: e.note || "",
           healthRisks: fromDbHealthRisks(e.zdravotni_rizika),

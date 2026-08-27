@@ -43,6 +43,8 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { BulkMedicalImport } from "@/components/BulkMedicalImport";
+import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
+import { ImportExportMenu } from "@/components/ImportExportMenu";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -246,16 +248,10 @@ export default function ScheduledExaminations() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <Button variant="outline" size="sm" onClick={exportToCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-          {canEdit && (
-            <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
-              <Upload className="w-4 h-4 mr-2" />
-              Import
-            </Button>
-          )}
+          <ImportExportMenu
+            onExport={exportToCSV}
+            onToggleImport={canEdit ? () => setShowImport(!showImport) : undefined}
+          />
           {canEdit && (
             <Button onClick={() => navigate("/plp/new")}>
               <Plus className="w-4 h-4 mr-2" />
@@ -356,7 +352,12 @@ export default function ScheduledExaminations() {
                         <StatusBadge status={exam.status} />
                       </TableCell>
                       <TableCell>{formatDisplayDate(exam.nextExaminationDate)}</TableCell>
-                      <TableCell className="font-medium">{exam.type}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {exam.type}
+                          <PeriodOverrideIcon overrideDays={exam.periodDaysOverride} typeDays={exam.typePeriodDays} />
+                        </div>
+                      </TableCell>
                       <TableCell>{exam.employeeNumber}</TableCell>
                       <TableCell>{exam.employeeName}</TableCell>
                       

@@ -67,7 +67,6 @@ const formSchema = z.object({
   company: z.string().optional(),
   result: z.enum(["passed", "passed_with_reservations", "failed"]),
   note: z.string().optional(),
-  reminder_template_id: z.string().min(1, "Vyberte šablonu připomenutí"),
   remind_days_before: z.number().min(1, "Zadejte počet dní"),
   repeat_days_after: z.number().optional(),
 }).refine((data) => {
@@ -96,7 +95,6 @@ export default function EditDeadline() {
   const { facilities } = useFacilities();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const [requester, setRequester] = useState<string>("");
   
   // Document management state
@@ -156,21 +154,6 @@ export default function EditDeadline() {
     ? calculateNextDateFromPeriodDays(lastCheckDate, overridePeriodDays, selectedType.period_days)
     : null;
 
-  // Load reminder templates
-  useEffect(() => {
-    const loadTemplates = async () => {
-      const { data, error } = await supabase
-        .from("deadline_reminder_templates")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-
-      if (!error && data) {
-        setReminderTemplates(data);
-      }
-    };
-    loadTemplates();
-  }, []);
 
   // Load deadline data
   useEffect(() => {
@@ -213,7 +196,6 @@ export default function EditDeadline() {
         company: data.company || "",
         result: (data.result as "passed" | "passed_with_reservations" | "failed") || "passed",
         note: data.note || "",
-        reminder_template_id: data.reminder_template_id || "",
         remind_days_before: data.remind_days_before || 30,
         repeat_days_after: data.repeat_days_after || 30,
       });
@@ -294,7 +276,6 @@ export default function EditDeadline() {
           note: data.note || null,
           result: data.result,
           period_days_override: overridePeriodDays,
-          reminder_template_id: data.reminder_template_id,
           remind_days_before: data.remind_days_before,
           repeat_days_after: data.repeat_days_after || 30,
         })
@@ -631,38 +612,13 @@ export default function EditDeadline() {
                 </div>
               )}
 
-              <FormField
-                 control={form.control}
-                 name="reminder_template_id"
-                 render={({ field }) => (
-                   <FormItem>
-                     <FormLabel>Šablona připomenutí *</FormLabel>
-                     <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
-                       <FormControl>
-                         <SelectTrigger disabled={!canEdit}>
-                           <SelectValue placeholder="Vyberte šablonu" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {reminderTemplates.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="remind_days_before"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Připomenout dopředu (dní) *</FormLabel>
+                      <FormLabel>Připomenout před expirací (dní) *</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -680,7 +636,7 @@ export default function EditDeadline() {
                   name="repeat_days_after"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Opakovat po (dní)</FormLabel>
+                      <FormLabel>Opakovat po expiraci (dní)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"

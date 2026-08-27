@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,6 +33,14 @@ interface ImportedEquipment {
 
 interface BulkEquipmentImportProps {
   onImportComplete?: () => void;
+  /** Hide this component's own trigger buttons — use the imperative handle
+   *  (openFilePicker/downloadTemplate) from a parent's own menu instead. */
+  hideTrigger?: boolean;
+}
+
+export interface BulkEquipmentImportHandle {
+  openFilePicker: () => void;
+  downloadTemplate: () => void;
 }
 
 const STATUS_MAP: Record<string, string> = {
@@ -49,7 +57,7 @@ const STATUS_MAP: Record<string, string> = {
   'decommissioned': 'decommissioned',
 };
 
-export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportProps) {
+export const BulkEquipmentImport = forwardRef<BulkEquipmentImportHandle, BulkEquipmentImportProps>(function BulkEquipmentImport({ onImportComplete, hideTrigger }, ref) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importedData, setImportedData] = useState<ImportedEquipment[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -520,6 +528,11 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
     ]);
   };
 
+  useImperativeHandle(ref, () => ({
+    openFilePicker: () => document.getElementById("equipment-import")?.click(),
+    downloadTemplate: handleDownloadTemplate,
+  }));
+
   return (
     <>
       <input
@@ -529,6 +542,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
         onChange={handleFileUpload}
         className="hidden"
       />
+      {!hideTrigger && (
       <div className="flex gap-2">
         <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
           <FileDown className="w-4 h-4 mr-2" />
@@ -544,6 +558,7 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
           {isProcessing ? "Zpracovávám..." : "Import zařízení"}
         </Button>
       </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!isImporting) setDialogOpen(open); }}>
         <DialogContent className="max-w-6xl max-h-[90vh]">
@@ -767,4 +782,4 @@ export function BulkEquipmentImport({ onImportComplete }: BulkEquipmentImportPro
       </Dialog>
     </>
   );
-}
+});

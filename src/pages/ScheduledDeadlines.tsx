@@ -41,6 +41,8 @@ import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { BulkEditDeadlinesDialog } from "@/components/BulkEditDeadlinesDialog";
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { BulkDeadlineImport } from "@/components/BulkDeadlineImport";
+import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
+import { ImportExportMenu } from "@/components/ImportExportMenu";
 import { cn, formatPeriodicity } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -247,16 +249,10 @@ export default function ScheduledDeadlines() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Obnovit
           </Button>
-          <Button variant="outline" size="sm" onClick={exportToCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-          {canEdit && (
-            <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
-              <Upload className="w-4 h-4 mr-2" />
-              Import
-            </Button>
-          )}
+          <ImportExportMenu
+            onExport={exportToCSV}
+            onToggleImport={canEdit ? () => setShowImport(!showImport) : undefined}
+          />
           {canEdit && (
             <Link to="/deadlines/new">
               <Button size="sm">
@@ -382,8 +378,13 @@ export default function ScheduledDeadlines() {
                         <TableCell className="font-medium">
                           {deadline.equipment?.name}
                         </TableCell>
-                        <TableCell>{deadline.deadline_type?.name}</TableCell>
-                        
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {deadline.deadline_type?.name}
+                            <PeriodOverrideIcon overrideDays={deadline.period_days_override} typeDays={deadline.deadline_type?.period_days ?? null} />
+                          </div>
+                        </TableCell>
+
                         <TableCell>
                           {format(new Date(deadline.last_check_date), "dd.MM.yyyy")}
                         </TableCell>

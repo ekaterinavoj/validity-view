@@ -86,8 +86,10 @@ const sections: GuideSection[] = [
           "Přehled (Dashboard) – úvodní stránka se souhrny prošlých / dnešních / nadcházejících záznamů a rychlými odkazy.",
           "Přepínač modulů (Školení / Tech. události / PLP) v záhlaví – přepíná podnabídku v levé části panelu.",
           "Dokumenty – centrální úložiště souborů, dostupné všem schváleným uživatelům.",
-          "Správa dat (admin/manažer) – Zaměstnanci, Provozovny, Střediska, Přehled typů událostí, Statistiky.",
-          "Systém – Návody (všichni); Stav systému, Migrace DB, Administrace (admin only).",
+          "Návody – tato stránka, dostupná úplně všem rolím (i „Uživatel“).",
+          "Správa dat (admin/manažer) – sdílená referenční data napříč moduly: Zaměstnanci, Střediska, Provozovny, Přehled typů událostí, Statistika (jen u Školení).",
+          "Ostatní (admin/manažer, podle aktuálního modulu) – Typy školení/Pozastavená u Školení, obdobně u ostatních modulů.",
+          "Systém (jen admin) – čistě technická administrace: Audit log, Stav systému, Administrace, Migrace DB.",
           "Profil – ikona vpravo nahoře (osobní údaje, oprávnění, změna hesla, oznámení, odhlášení).",
         ],
       },
@@ -208,9 +210,9 @@ const sections: GuideSection[] = [
         a: [
           "👤 Zaměstnanci (/employees) – evidence osob, status, kategorie práce (admin/manažer).",
           "🌲 Hierarchie zaměstnanců – tlačítko „Zobrazit hierarchii“ v Zaměstnancích.",
-          "🏢 Provozovny (/facilities), Střediska (/departments) – číselníky (admin/manažer).",
+          "🏢 Střediska (/departments), Provozovny (/facilities) – číselníky, vše v menu Správa dat (admin/manažer).",
           "📚 Přehled typů událostí (/event-types) – sjednocený přehled všech typů napříč moduly (admin/manažer).",
-          "📊 Statistiky (/statistics) – grafy (admin/manažer).",
+          "📊 Statistika (/statistics) – grafy, jen v modulu Školení (admin/manažer).",
           "📁 Dokumenty (/documents) – centrální úložiště firemních souborů (všichni).",
         ],
       },
@@ -336,7 +338,7 @@ const sections: GuideSection[] = [
       {
         q: "Jak přidat nové zařízení?",
         a: [
-          "1. Hlavní menu → Správa dat → „Zařízení“ → „Nové zařízení“.",
+          "1. Hlavní menu → Ostatní → „Zařízení“ → „Nové zařízení“.",
           "2. Vyplňte: Inventární číslo (povinné, unikátní), Název, Typ zařízení, Provozovnu.",
           "3. Volitelně: Výrobce, Model, Sériové číslo, Datum nákupu, Umístění, Poznámka.",
           "4. Přiřaďte Středisko a Odpovědné osoby (lze více – picker s vyhledáváním).",
@@ -365,7 +367,7 @@ const sections: GuideSection[] = [
           {
             when: "Když zařízení odejde do odpisu",
             then: [
-              "1. Správa dat → Zařízení → smažte zařízení (admin/manažer).",
+              "1. Ostatní → Zařízení → smažte zařízení (admin/manažer).",
               "2. Všechny aktivní lhůty se přesunou do historie (limbo).",
               "3. Generování upozornění se zastaví.",
             ],
@@ -431,13 +433,13 @@ const sections: GuideSection[] = [
             ],
           },
           {
-            when: "Když lékař napíše, že zaměstnanec dlouhodobě pozbyl(a) způsobilost k jiné činnosti (ale jinak je aktuálně způsobilý)",
+            when: "Když lékař napíše, že zaměstnanec dlouhodobě pozbyl(a) způsobilosti k jiné činnosti (ale jinak je aktuálně způsobilý)",
             then: [
               "1. DŮLEŽITÉ: toto NENÍ neplatná/nevyhovující prohlídka — hlavní výsledek zůstane „Vyhovuje“ a prohlídka zůstává platná.",
               "2. Zaškrtněte „Současně pozbyl(a) dlouhodobě zdravotní způsobilosti“ (objeví se u výsledků Vyhovuje / S výhradami / Nevyhovuje).",
               "3. Vyplňte povinné datum pozbytí a povinnou poznámku — musíte napsat, ZA CO a JAK zaměstnanec způsobilost pozbyl(a) (ať je to viditelné i zpětně).",
               "4. V přehledu se u záznamu zobrazí normální výsledek + varovná ikona s touto poznámkou v tooltipu; v historii a exportech je vidět datum pozbytí.",
-              "5. Použijte např. po návratu z nemocenské, kdy je zaměstnanec aktuálně způsobilý pro svou práci, ale trvale pozbyl(a) způsobilost k jiné konkrétní činnosti.",
+              "5. Použijte např. po návratu z nemocenské, kdy je zaměstnanec aktuálně způsobilý pro svou práci, ale trvale pozbyl(a) způsobilosti k jiné konkrétní činnosti.",
             ],
           },
           {
@@ -545,48 +547,38 @@ const sections: GuideSection[] = [
     title: "Dokumenty",
     icon: FolderOpen,
     description: "Centrální úložiště firemních dokumentů a souborů u záznamů.",
-    keywords: ["dokumenty", "soubor", "upload", "PDF", "limit", "evidenční číslo"],
+    keywords: ["dokumenty", "soubor", "upload", "PDF", "Excel", "náhled"],
     items: [
       {
         q: "Modul Dokumenty – co tam najdu?",
         a: [
-          "Hlavní menu → „Dokumenty“. Centrální úložiště firemních souborů organizovaných do virtuálních složek (Accordion).",
-          "Typické složky: Akreditace, Směrnice, Šablony, Manuály, Externí dokumenty.",
-          "Soubory u jednotlivých školení / PLP / lhůt jsou uložené odděleně v detailu daného záznamu.",
+          "Hlavní menu → „Dokumenty“. Centrální úložiště firemních souborů, rozdělené do složek (skupin) zobrazených jako rozbalovací seznam (Accordion).",
+          "Skupinu/složku si zadáte při nahrávání sami (např. Akreditace, Směrnice, Manuály) – pokud ještě neexistuje, vytvoří se automaticky.",
+          "Soubory u jednotlivých školení / PLP / technických lhůt jsou uložené odděleně, přímo v detailu daného záznamu – nejsou v tomto centrálním úložišti.",
         ],
       },
       {
-        q: "Limity nahrávání souborů",
+        q: "Jaké formáty lze nahrát a zobrazit v náhledu?",
         a: [
-          "• Maximální velikost: 40 MB / soubor.",
-          "• Akceptované formáty: PDF, DOCX, XLSX, JPG, PNG, ZIP.",
-          "• Princip „vždy přidat“ – nový upload nepřepíše existující, ale přidá novou verzi.",
-          "• Při překročení limitu systém zobrazí chybu a soubor odmítne (validace na klientu i serveru).",
+          "• Akceptované formáty pro nahrání: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, TXT.",
+          "• Náhled přímo v aplikaci: PDF, JPG, PNG a nově i XLS/XLSX (zobrazí se jako tabulka, u vícelistových sešitů lze přepínat mezi listy).",
+          "• Ostatní formáty (DOC, DOCX, TXT) náhled nemají – místo tlačítka „Náhled“ je k dispozici jen „Stáhnout“.",
         ],
       },
       {
         q: "Mohu smazat nahraný soubor?",
         a: [
-          "• Vlastní soubor (kde jste uploaded_by) – smí mazat každý.",
-          "• Cizí soubor – smí mazat jen Admin nebo Manažer s oprávněním k danému záznamu.",
+          "• Tlačítko „Smazat“ vidí jen Admin nebo Manažer.",
           "• Smazání je nevratné – soubor zmizí ze storage i z databáze.",
           "• Před smazáním systém zobrazí potvrzovací dialog.",
         ],
       },
       {
-        q: "Evidenční čísla dokumentů",
-        a: [
-          "Při nahrávání dokumentu k záznamu (školení, PLP, lhůta) systém automaticky přidělí jedinečné evidenční číslo (formát: TYP-YYYYMMDD-XXXX).",
-          "Číslo se zobrazí v detailu záznamu, v náhledu dokumentu i v exportu CSV/PDF.",
-          "Slouží pro účetní/auditní účely a pro zpětné dohledání.",
-        ],
-      },
-      {
         q: "Náhled dokumentů",
         a: [
-          "Klik na dokument otevře sjednocený FilePreviewDialog.",
-          "Podporuje náhled PDF (vestavěný viewer), obrázků (JPG/PNG) a stažení pro ostatní typy.",
-          "Vpravo nahoře tlačítka: Stáhnout, Smazat (oprávněným), Zavřít.",
+          "Klik na tlačítko „Náhled“ u dokumentu otevře sjednocené okno náhledu.",
+          "Podporuje náhled PDF (vestavěný viewer se zoomem a přepínáním stránek), obrázků (JPG/PNG), tabulek XLS/XLSX a stažení pro ostatní typy.",
+          "Vpravo nahoře tlačítka: Stáhnout, Smazat (jen Admin/Manažer), Zavřít.",
         ],
       },
     ],

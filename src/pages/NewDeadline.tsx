@@ -65,7 +65,6 @@ const formSchema = z.object({
   company: z.string().optional(),
   result: z.enum(["passed", "passed_with_reservations", "failed"]),
   note: z.string().optional(),
-  reminder_template_id: z.string().min(1, "Vyberte šablonu připomenutí"),
   remind_days_before: z.number().min(1, "Zadejte počet dní"),
   repeat_days_after: z.number().optional(),
 }).refine((data) => {
@@ -92,7 +91,6 @@ export default function NewDeadline() {
   const { facilities, loading: facilitiesLoading } = useFacilities();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const [responsibles, setResponsibles] = useState<ResponsiblesSelection>({ profileIds: [], groupIds: [] });
   const [responsiblesError, setResponsiblesError] = useState<string | null>(null);
   const { addResponsibles } = useDeadlineResponsibles();
@@ -108,22 +106,6 @@ export default function NewDeadline() {
       result: "passed" as const,
     },
   });
-
-  // Load reminder templates for deadlines
-  useEffect(() => {
-    const loadTemplates = async () => {
-      const { data, error } = await supabase
-        .from("deadline_reminder_templates")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-
-      if (!error && data) {
-        setReminderTemplates(data);
-      }
-    };
-    loadTemplates();
-  }, []);
 
   const selectedTypeId = form.watch("deadline_type_id");
   const selectedType = deadlineTypes.find(t => t.id === selectedTypeId);
@@ -224,7 +206,6 @@ export default function NewDeadline() {
         note: data.note || null,
         result: data.result,
         period_days_override: overridePeriodDays,
-        reminder_template_id: data.reminder_template_id,
         remind_days_before: data.remind_days_before,
         repeat_days_after: data.repeat_days_after || 30,
         requester: profile ? `${profile.first_name} ${profile.last_name}` : null,
@@ -522,38 +503,13 @@ export default function NewDeadline() {
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="reminder_template_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Šablona připomenutí *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Vyberte šablonu" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {reminderTemplates.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="remind_days_before"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Připomenout dopředu (dní) *</FormLabel>
+                      <FormLabel>Připomenout před expirací (dní) *</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -571,7 +527,7 @@ export default function NewDeadline() {
                   name="repeat_days_after"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Opakovat po (dní)</FormLabel>
+                      <FormLabel>Opakovat po expiraci (dní)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"

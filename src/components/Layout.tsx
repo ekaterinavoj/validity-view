@@ -89,8 +89,6 @@ export const Layout = ({
   // Deadline mode "Ostatní" dropdown active state (facilities removed - now global)
   const isDeadlineOstatniActive = ["/deadlines/equipment", "/deadlines/types", "/deadlines/groups"].some(path => location.pathname === path);
 
-  // System/Data dropdown active state (includes facilities and employees)
-  const isSystemDataActive = location.pathname === "/facilities" || location.pathname === "/employees";
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   // Always navigate when clicking a module tab (even if already active)
@@ -219,12 +217,6 @@ export const Layout = ({
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
-                            <Building2 className="w-4 h-4" />
-                            Střediska
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
                           <Link to="/inactive" className="flex items-center gap-2 cursor-pointer">
                             <UserX className="w-4 h-4" />
                             Pozastavená
@@ -342,18 +334,18 @@ export const Layout = ({
                 Dokumenty
               </NavLink>
 
-              {/* Statistics only visible in Training mode and for admin/manager */}
-              {isTrainingMode && (isAdmin || isManager) && <NavLink to="/statistics" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
-                  <BarChart3 className="w-4 h-4" />
-                  Statistika
-                </NavLink>}
+              {/* Návody - dostupné všem rolím, nezávisle na módu */}
+              <NavLink to="/guides" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors" activeClassName="text-foreground bg-card border-b-2 border-primary">
+                <HelpCircle className="w-4 h-4" />
+                Návody
+              </NavLink>
 
-              {/* Global "Systém" section - visible to admin/manager, independent of mode */}
+              {/* "Správa dat" - sdílená referenční data napříč moduly, viditelné adminovi/manažerovi */}
               {(isAdmin || isManager) && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/audit-log" || location.pathname.startsWith("/admin") || location.pathname === "/facilities" || location.pathname === "/event-types") && "text-foreground bg-card border-b-2 border-primary")}>
-                      <Settings className="w-4 h-4" />
-                      Systém
+                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/employees" || location.pathname === "/departments" || location.pathname === "/facilities" || location.pathname === "/event-types" || location.pathname === "/statistics") && "text-foreground bg-card border-b-2 border-primary")}>
+                      <Database className="w-4 h-4" />
+                      Správa dat
                       <ChevronDown className="w-4 h-4" />
                     </button>
                   </DropdownMenuTrigger>
@@ -368,6 +360,12 @@ export const Layout = ({
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem asChild>
+                      <Link to="/departments" className="flex items-center gap-2 cursor-pointer">
+                        <Building2 className="w-4 h-4" />
+                        Střediska
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to="/facilities" className="flex items-center gap-2 cursor-pointer">
                         <Building2 className="w-4 h-4" />
                         Provozovny
@@ -379,38 +377,51 @@ export const Layout = ({
                         Přehled typů událostí
                       </Link>
                     </DropdownMenuItem>
+                    {isTrainingMode && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/statistics" className="flex items-center gap-2 cursor-pointer">
+                          <BarChart3 className="w-4 h-4" />
+                          Statistika
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>}
+
+              {/* "Systém" - čistě technická administrace, jen admin */}
+              {isAdmin && <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className={cn("flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-t-lg transition-colors", (location.pathname === "/audit-log" || location.pathname.startsWith("/admin")) && "text-foreground bg-card border-b-2 border-primary")}>
+                      <Settings className="w-4 h-4" />
+                      Systém
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
                     <DropdownMenuItem asChild>
-                      <Link to="/guides" className="flex items-center gap-2 cursor-pointer">
-                        <HelpCircle className="w-4 h-4" />
-                        Návody
-                      </Link>
-                    </DropdownMenuItem>
-                    {isAdmin && <DropdownMenuItem asChild>
                       <Link to="/audit-log" className="flex items-center gap-2 cursor-pointer">
                         <FileText className="w-4 h-4" />
                         Audit log
                       </Link>
-                    </DropdownMenuItem>}
-                    {isAdmin && <>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/status" className="flex items-center gap-2 cursor-pointer">
-                            <Activity className="w-4 h-4" />
-                            Stav systému
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/settings" className="flex items-center gap-2 cursor-pointer">
-                            <Settings className="w-4 h-4" />
-                            Administrace
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/migrations" className="flex items-center gap-2 cursor-pointer">
-                            <Database className="w-4 h-4" />
-                            Migrace DB
-                          </Link>
-                        </DropdownMenuItem>
-                      </>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/status" className="flex items-center gap-2 cursor-pointer">
+                        <Activity className="w-4 h-4" />
+                        Stav systému
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/settings" className="flex items-center gap-2 cursor-pointer">
+                        <Settings className="w-4 h-4" />
+                        Administrace
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/migrations" className="flex items-center gap-2 cursor-pointer">
+                        <Database className="w-4 h-4" />
+                        Migrace DB
+                      </Link>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>}
             </div>
@@ -513,10 +524,6 @@ export const Layout = ({
                     <BookOpen className="w-4 h-4" />
                     Typy školení
                   </Link>
-                  <Link to="/departments" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/departments" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                    <Building2 className="w-4 h-4" />
-                    Střediska
-                  </Link>
                   <Link to="/inactive" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/inactive" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <UserX className="w-4 h-4" />
                     Pozastavená
@@ -548,49 +555,52 @@ export const Layout = ({
                   Zaměstnanci
                 </Link>
               )}
-              <Link to="/facilities" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/facilities" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                <Building2 className="w-4 h-4" />
-                Provozovny
+              <Link to="/guides" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/guides" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                <HelpCircle className="w-4 h-4" />
+                Návody
               </Link>
-              {(isAdmin || isManager) && (
+            </div>
+
+            {/* Správa dat - sdílená referenční data napříč moduly */}
+            {(isAdmin || isManager) && <div className="space-y-1 pt-2 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Správa dat</p>
+                <Link to="/departments" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/departments" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Building2 className="w-4 h-4" />
+                  Střediska
+                </Link>
+                <Link to="/facilities" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/facilities" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Building2 className="w-4 h-4" />
+                  Provozovny
+                </Link>
                 <Link to="/event-types" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/event-types" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                   <BookOpen className="w-4 h-4" />
                   Přehled typů událostí
                 </Link>
-              )}
-              {(isAdmin || isManager) && (
-                <Link to="/guides" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/guides" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                  <HelpCircle className="w-4 h-4" />
-                  Návody
-                </Link>
-              )}
-            </div>
-
-            {/* Global System section - independent of mode */}
-            {(isAdmin || isManager) && <div className="space-y-1 pt-2 border-t border-border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Systém</p>
                 {isTrainingMode && <Link to="/statistics" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/statistics" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                     <BarChart3 className="w-4 h-4" />
                     Statistika
                   </Link>}
-                {isAdmin && <Link to="/audit-log" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/audit-log" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+              </div>}
+
+            {/* Systém - čistě technická administrace, jen admin */}
+            {isAdmin && <div className="space-y-1 pt-2 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Systém</p>
+                <Link to="/audit-log" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/audit-log" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                   <FileText className="w-4 h-4" />
                   Audit log
-                </Link>}
-                {isAdmin && <>
-                    <Link to="/admin/status" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/status" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                      <Activity className="w-4 h-4" />
-                      Stav systému
-                    </Link>
-                    <Link to="/admin/settings" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                      <Settings className="w-4 h-4" />
-                      Administrace
-                    </Link>
-                    <Link to="/admin/migrations" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/migrations" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                      <Database className="w-4 h-4" />
-                      Migrace DB
-                    </Link>
-                  </>}
+                </Link>
+                <Link to="/admin/status" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/status" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Activity className="w-4 h-4" />
+                  Stav systému
+                </Link>
+                <Link to="/admin/settings" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Settings className="w-4 h-4" />
+                  Administrace
+                </Link>
+                <Link to="/admin/migrations" onClick={closeMobileMenu} className={cn("flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors", location.pathname === "/admin/migrations" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                  <Database className="w-4 h-4" />
+                  Migrace DB
+                </Link>
               </div>}
 
             <div className="space-y-1 pt-2 border-t border-border">
