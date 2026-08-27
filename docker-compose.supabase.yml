@@ -143,6 +143,16 @@ services:
       GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
       GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
 
+      # Send Email Auth Hook — when enabled, routes ALL auth emails (password
+      # recovery, invite, signup confirmation, ...) through our own edge function
+      # (auth-send-email-hook) instead of GOTRUE_SMTP_* above, so they go out via
+      # the same OAuth2-capable sender already configured for training reminders
+      # in Administrace → Připomínky. Off by default — the basic GOTRUE_SMTP_*
+      # settings above are only used when this is false.
+      GOTRUE_HOOK_SEND_EMAIL_ENABLED: ${AUTH_HOOK_SEND_EMAIL_ENABLED:-false}
+      GOTRUE_HOOK_SEND_EMAIL_URI: ${AUTH_HOOK_SEND_EMAIL_URI:-}
+      GOTRUE_HOOK_SEND_EMAIL_SECRETS: ${AUTH_HOOK_SECRET:-}
+
       GOTRUE_EXTERNAL_PHONE_ENABLED: ${ENABLE_PHONE_SIGNUP:-false}
       GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM:-false}
     networks:
@@ -278,6 +288,7 @@ services:
       - ./supabase/functions/admin-link-employee:/home/deno/functions/admin-link-employee:Z
       - ./supabase/functions/list-users:/home/deno/functions/list-users:Z
       - ./supabase/functions/apply-migrations:/home/deno/functions/apply-migrations:Z
+      - ./supabase/functions/auth-send-email-hook:/home/deno/functions/auth-send-email-hook:Z
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
@@ -285,6 +296,12 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT:-false}"
+      # Public URL used to build the /auth/v1/verify links in emails sent by
+      # auth-send-email-hook — must be reachable from the end user's browser.
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:8000}
+      # Shared secret auth-send-email-hook uses to verify GOTRUE_HOOK_SEND_EMAIL_SECRETS
+      # requests actually came from GoTrue (Standard Webhooks signature).
+      AUTH_HOOK_SECRET: ${AUTH_HOOK_SECRET:-}
       # SMTP Configuration for edge functions
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
