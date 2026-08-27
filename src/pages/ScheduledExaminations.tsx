@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Plus, Download, RefreshCw, Eye, Upload } from "lucide-react";
+import { Edit, Plus, Download, RefreshCw, Eye, Upload, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ResultBadge } from "@/components/ResultBadge";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
@@ -36,7 +37,7 @@ import { BulkEditExaminationsDialog } from "@/components/BulkEditExaminationsDia
 import { BulkArchiveDialog } from "@/components/BulkArchiveDialog";
 import { HealthRisksSummary } from "@/components/HealthRisksSummary";
 import { getMedicalExaminationResultLabel } from "@/lib/medicalExaminationResults";
-import { EmployeeStatusBadge } from "@/components/EmployeeStatusBadge";
+import { EmployeeStatusBadge, getEmployeeStatusLabel } from "@/components/EmployeeStatusBadge";
 import { HEALTH_RISK_FIELDS } from "@/lib/healthRisks";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePagination } from "@/hooks/usePagination";
@@ -176,7 +177,7 @@ export default function ScheduledExaminations() {
       "Typ prohlídky": e.type,
       "Os. číslo": e.employeeNumber,
       "Jméno": e.employeeName,
-      "Stav zaměstnance": e.employeeStatus,
+      "Stav zaměstnance": getEmployeeStatusLabel(e.employeeStatus),
       "Datum narození": e.employeeBirthDate ? formatDisplayDate(e.employeeBirthDate, "") : "",
       "Věk": e.employeeBirthDate ? String(calculateAge(e.employeeBirthDate) ?? "") : "",
       "Kategorie": e.employeeWorkCategory ? `Kategorie ${e.employeeWorkCategory}` : "-",
@@ -366,11 +367,28 @@ export default function ScheduledExaminations() {
                         <HealthRisksSummary value={exam.healthRisks} />
                       </TableCell>
                       <TableCell>
-                        <ResultBadge
-                          result={(exam.result as any) || "passed"}
-                          context="medical"
-                          note={exam.note || undefined}
-                        />
+                        <div className="flex items-center gap-1">
+                          <ResultBadge
+                            result={(exam.result as any) || "passed"}
+                            context="medical"
+                            note={exam.note || undefined}
+                          />
+                          {exam.longTermFitnessLossDate && exam.result !== "lost_long_term" && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertTriangle className="w-4 h-4 text-status-warning cursor-help shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-sm">
+                                    Současně pozbyl(a) dlouhodobě zdravotní způsobilosti
+                                    {exam.longTermFitnessLossDate ? ` (${formatDisplayDate(exam.longTermFitnessLossDate)})` : ""}.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <NoteTooltipText note={exam.note} />
@@ -395,7 +413,7 @@ export default function ScheduledExaminations() {
                         colSpan={totalColumns}
                         fields={[
                           { label: "Provozovna", value: getFacilityName(exam.facility) },
-                          { label: "Stav zaměstnance", value: exam.employeeStatus },
+                          { label: "Stav zaměstnance", value: getEmployeeStatusLabel(exam.employeeStatus) },
                           { label: "Datum narození", value: exam.employeeBirthDate ? formatDisplayDate(exam.employeeBirthDate) : null },
                           { label: "Věk", value: exam.employeeBirthDate ? calculateAge(exam.employeeBirthDate) : null },
                           { label: "Periodicita", value: formatPeriodicity(exam.period) },

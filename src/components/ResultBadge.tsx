@@ -60,13 +60,38 @@ export function resultRequiresComment(result: ResultValue): boolean {
 export function ResultBadge({ result, context, note, className }: ResultBadgeProps) {
   const label = getResultLabel(result, context);
   const showWarningIcon = result === "passed_with_reservations";
-  const isNegativeResult = result === "failed" || result === "lost_long_term";
+  // For PLP: lost_long_term (legacy value) is rendered as positive + warning, NOT as a negative result —
+  // pozbytí způsobilosti není neplatná prohlídka, jen poznámka od lékaře, která musí zůstat viditelná.
+  const isMedicalLostLongTerm = context === "medical" && result === "lost_long_term";
+  const isNegativeResult = (result === "failed" || result === "lost_long_term") && !isMedicalLostLongTerm;
 
   if (isNegativeResult) {
     return (
       <span className={cn("inline-flex items-center gap-1 text-sm font-medium text-status-expired", className)}>
         {label}
       </span>
+    );
+  }
+
+  if (isMedicalLostLongTerm) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn("inline-flex items-center gap-1 text-sm font-medium text-status-valid cursor-help flex-wrap", className)}>
+              Zdravotně způsobilý / způsobilá
+              <AlertTriangle className="w-4 h-4 text-status-warning" />
+              <span className="text-status-warning">Pozbyl(a) dlouhodobě zdravotní způsobilosti</span>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <p className="text-sm">
+              Zaměstnanec je zdravotně způsobilý a zároveň pozbyl(a) dlouhodobě zdravotní způsobilosti.
+              {note ? ` ${note}` : ""}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 

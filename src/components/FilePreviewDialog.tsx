@@ -39,16 +39,22 @@ interface FilePreviewDialogProps {
 type ViewMode = "single" | "scroll";
 
 // Single PDF Viewer Component
-function PDFViewer({ 
-  url, 
-  fileName, 
-  scale, 
+function PDFViewer({
+  url,
+  originalUrl,
+  fileName,
+  scale,
   viewMode,
   showHeader = false,
-}: { 
-  url: string; 
-  fileName: string; 
-  scale: number; 
+}: {
+  url: string;
+  /** The raw remote (signed) URL, even when `url` is a blob: object URL — used as a
+   *  fallback the browser can navigate to directly when the in-app preview fails
+   *  (e.g. the storage response lacks CORS headers, which blocks pdf.js's fetch
+   *  but not a plain link/tab navigation). */
+  originalUrl?: string;
+  fileName: string;
+  scale: number;
   viewMode: ViewMode;
   showHeader?: boolean;
 }) {
@@ -61,9 +67,12 @@ function PDFViewer({
     setPdfError(false);
   }, []);
 
-  const onDocumentLoadError = useCallback(() => {
+  const onDocumentLoadError = useCallback((err: Error) => {
+    // Log so the actual cause (most often a CORS-blocked fetch of the storage
+    // signed URL) is visible in devtools instead of just the generic message below.
+    console.error("Náhled PDF se nepodařilo načíst:", fileName, err);
     setPdfError(true);
-  }, []);
+  }, [fileName]);
 
   const pageNumbers = useMemo(() => {
     return Array.from({ length: numPages }, (_, i) => i + 1);
@@ -94,8 +103,15 @@ function PDFViewer({
         error={
           <div className="flex flex-col items-center justify-center h-32 space-y-2">
             <p className="text-muted-foreground text-sm text-center">
-              Náhled PDF se nepodařilo načíst.
+              Náhled PDF se nepodařilo načíst v aplikaci.
             </p>
+            {originalUrl && (
+              <Button variant="outline" size="sm" asChild>
+                <a href={originalUrl} target="_blank" rel="noopener noreferrer">
+                  Otevřít soubor v novém okně
+                </a>
+              </Button>
+            )}
           </div>
         }
       >
@@ -276,8 +292,13 @@ export function FilePreviewDialog({
               const objUrl = URL.createObjectURL(blob);
               blobUrls.push(objUrl);
               return [fileKey, objUrl];
-            } catch {
-              // Fallback to direct URL
+            } catch (err) {
+              // Most often a CORS-blocked fetch of the storage signed URL (the
+              // request never reaches this catch with a useful message in that
+              // case — check the Network tab for a red/failed request to the
+              // storage host). Fall back to the raw URL; react-pdf's own fetch
+              // will fail the same way and show the "open in new tab" fallback.
+              console.error(`Nepodařilo se stáhnout PDF pro náhled (${f.name}):`, err);
               return [fileKey, remoteUrl];
             }
           }
@@ -319,7 +340,11 @@ export function FilePreviewDialog({
       const a = document.createElement("a");
       a.href = url;
       a.download = currentFile.name || "soubor";
-      a.rel = "noreferrer";
+      // `download` is ignored by browsers for cross-origin URLs (which the storage
+      // signed URL always is) — without target="_blank" that means the click would
+      // just navigate this tab away from the app instead of downloading.
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -530,6 +555,7 @@ export function FilePreviewDialog({
               {isFilePDF(currentFile) ? (
                 <PDFViewer
                   url={getFileUrl(currentFile)}
+                  originalUrl={currentFile.url}
                   fileName={currentFile.name}
                   scale={scale}
                   viewMode={viewMode}

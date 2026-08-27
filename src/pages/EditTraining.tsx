@@ -4,8 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateInput } from "@/components/ui/date-input";
 import { CalendarIcon, Loader2, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -29,6 +28,8 @@ import { useFacilities } from "@/hooks/useFacilities";
 import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeOrCustomInput } from "@/components/EmployeeOrCustomInput";
+import { SuggestedTextInput } from "@/components/SuggestedTextInput";
+import { useDistinctColumnValues } from "@/hooks/useDistinctColumnValues";
 import { getResultOptions, type ResultValue } from "@/components/ResultBadge";
 import {
   PeriodicityInput,
@@ -79,6 +80,7 @@ export default function EditTraining() {
   const { toast } = useToast();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
+  const companySuggestions = useDistinctColumnValues("trainings", "company");
   const { trainingTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useTrainingTypes();
   const { facilities, loading: facilitiesLoading, error: facilitiesError, refetch: refetchFacilities } = useFacilities();
 
@@ -428,29 +430,9 @@ export default function EditTraining() {
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Datum školení *</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                          disabled={!canEdit}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={canEdit ? field.onChange : undefined}
-                        initialFocus
-                        disabled={!canEdit}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <FormControl>
+                    <DateInput value={field.value} onChange={field.onChange} disabled={!canEdit} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -522,7 +504,14 @@ export default function EditTraining() {
                 <FormItem>
                   <FormLabel>Školící firma</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Název firmy" disabled={!canEdit} />
+                    <SuggestedTextInput
+                      id="training-company"
+                      suggestions={companySuggestions}
+                      value={field.value || ""}
+                      onChange={field.onChange}
+                      placeholder="Název firmy"
+                      disabled={!canEdit}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

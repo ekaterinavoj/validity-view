@@ -415,9 +415,10 @@ const sections: GuideSection[] = [
           "2. Vyberte zaměstnance, Typ prohlídky (vstupní, periodická, mimořádná, výstupní).",
           "3. Datum poslední prohlídky + Datum příští (auto-výpočet).",
           "4. Lékař, Zdravotnické zařízení, Žadatel.",
-          "5. Výsledek: Vyhovuje / S výhradami / Nevyhovuje / Dlouhodobá ztráta zdravotní způsobilosti.",
-          "6. Sekce „Zdravotní rizika“ – zaškrtněte konkrétní expozice (viz níže).",
-          "7. Nahrajte lékařský posudek (PDF, JPG, PNG).",
+          "5. Výsledek: Vyhovuje / S výhradami / Nevyhovuje.",
+          "6. Volitelně zaškrtněte „Současně pozbyl(a) dlouhodobě zdravotní způsobilosti“ (viz scénář níže) — lze i spolu s „Vyhovuje“.",
+          "7. Sekce „Zdravotní rizika“ – zaškrtněte konkrétní expozice (viz níže).",
+          "8. Nahrajte lékařský posudek (PDF, JPG, PNG).",
         ],
         scenarios: [
           {
@@ -430,12 +431,21 @@ const sections: GuideSection[] = [
             ],
           },
           {
-            when: "Když lékař označí „Nevyhovuje“ nebo „Dlouhodobá ztráta“",
+            when: "Když lékař napíše, že zaměstnanec dlouhodobě pozbyl(a) způsobilost k jiné činnosti (ale jinak je aktuálně způsobilý)",
             then: [
-              "1. Vyplňte výsledek + datum dlouhodobé ztráty (long_term_fitness_loss_date).",
-              "2. Adminové dostanou notifikaci.",
-              "3. HR řeší pracovněprávní kroky (převedení na jinou pozici, ukončení PP).",
-              "4. Záznam zůstane v historii pro audit.",
+              "1. DŮLEŽITÉ: toto NENÍ neplatná/nevyhovující prohlídka — hlavní výsledek zůstane „Vyhovuje“ a prohlídka zůstává platná.",
+              "2. Zaškrtněte „Současně pozbyl(a) dlouhodobě zdravotní způsobilosti“ (objeví se u výsledků Vyhovuje / S výhradami / Nevyhovuje).",
+              "3. Vyplňte povinné datum pozbytí a povinnou poznámku — musíte napsat, ZA CO a JAK zaměstnanec způsobilost pozbyl(a) (ať je to viditelné i zpětně).",
+              "4. V přehledu se u záznamu zobrazí normální výsledek + varovná ikona s touto poznámkou v tooltipu; v historii a exportech je vidět datum pozbytí.",
+              "5. Použijte např. po návratu z nemocenské, kdy je zaměstnanec aktuálně způsobilý pro svou práci, ale trvale pozbyl(a) způsobilost k jiné konkrétní činnosti.",
+            ],
+          },
+          {
+            when: "Když lékař označí „Nevyhovuje“",
+            then: [
+              "1. Adminové dostanou notifikaci.",
+              "2. HR řeší pracovněprávní kroky (převedení na jinou pozici, ukončení PP).",
+              "3. Záznam zůstane v historii pro audit.",
             ],
           },
         ],

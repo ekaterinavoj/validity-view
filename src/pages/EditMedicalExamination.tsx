@@ -4,8 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -36,8 +34,13 @@ import {
   medicalExaminationResultOptions,
   medicalExaminationResultRequiresLossDate,
   medicalExaminationResultRequiresNote,
+  medicalExaminationResultAllowsAdditionalLossFlag,
   getMedicalExaminationStatusFromResult,
 } from "@/lib/medicalExaminationResults";
+import { DateInput } from "@/components/ui/date-input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { SuggestedTextInput } from "@/components/SuggestedTextInput";
+import { useDistinctColumnValues } from "@/hooks/useDistinctColumnValues";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -54,16 +57,21 @@ const formSchema = z.object({
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   note: z.string().optional(),
   longTermFitnessLossDate: z.date().optional(),
+  hasAdditionalLongTermLoss: z.boolean().optional(),
 }).superRefine((values, ctx) => {
-  if (medicalExaminationResultRequiresNote(values.result) && !values.note?.trim()) {
+  const additional = !!values.hasAdditionalLongTermLoss && medicalExaminationResultAllowsAdditionalLossFlag(values.result);
+
+  if ((medicalExaminationResultRequiresNote(values.result) || additional) && !values.note?.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "U výsledku s podmínkou nebo omezením musíte doplnit poznámku.",
+      message: additional
+        ? "Při označení dlouhodobé ztráty způsobilosti musíte napsat poznámku (za co a jak zaměstnanec pozbyl(a) způsobilost)."
+        : "U výsledku s podmínkou nebo omezením musíte doplnit poznámku.",
       path: ["note"],
     });
   }
 
-  if (medicalExaminationResultRequiresLossDate(values.result) && !values.longTermFitnessLossDate) {
+  if ((medicalExaminationResultRequiresLossDate(values.result) || additional) && !values.longTermFitnessLossDate) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Vyberte datum pozbytí dlouhodobé zdravotní způsobilosti.",
@@ -77,6 +85,8 @@ type FormValues = z.infer<typeof formSchema>;
 export default function EditMedicalExamination() {
   const { id } = useParams();
   const { profile, user, isAdmin, isManager } = useAuth();
+  const doctorSuggestions = useDistinctColumnValues("medical_examinations", "doctor");
+  const facilitySuggestions = useDistinctColumnValues("medical_examinations", "medical_facility");
   const canEdit = isAdmin || isManager;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -149,6 +159,9 @@ export default function EditMedicalExamination() {
             repeatDaysAfter: String(exam.repeat_days_after || 30),
             note: exam.note || "",
             longTermFitnessLossDate: exam.long_term_fitness_loss_date ? new Date(exam.long_term_fitness_loss_date) : undefined,
+            // Legacy records store this as result="lost_long_term" directly (no separate flag needed);
+            // newer records have the date set independently of result — check the checkbox for those too.
+            hasAdditionalLongTermLoss: exam.result !== "lost_long_term" && !!exam.long_term_fitness_loss_date,
           });
           setHealthRisks(fromDbHealthRisks(exam.zdravotni_rizika));
           setPeriodUnit(overridePeriod?.unit ?? typeUnit);
@@ -421,19 +434,9 @@ export default function EditMedicalExamination() {
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Datum prohlídky *</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={!canEdit}>
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={canEdit ? field.onChange : undefined} initialFocus disabled={!canEdit} />
-                    </PopoverContent>
-                  </Popover>
+                  <FormControl>
+                    <DateInput value={field.value} onChange={field.onChange} disabled={!canEdit} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -475,7 +478,7 @@ export default function EditMedicalExamination() {
                   <FormItem>
                     <FormLabel>Lékař</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Jméno lékaře" disabled={!canEdit} />
+                      <SuggestedTextInput id="medical-doctor" suggestions={doctorSuggestions} value={field.value || ""} onChange={field.onChange} placeholder="Jméno lékaře" disabled={!canEdit} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -488,7 +491,7 @@ export default function EditMedicalExamination() {
                   <FormItem>
                     <FormLabel>Zdravotnické zařízení</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Název zařízení" disabled={!canEdit} />
+                      <SuggestedTextInput id="medical-facility" suggestions={facilitySuggestions} value={field.value || ""} onChange={field.onChange} placeholder="Název zařízení" disabled={!canEdit} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -521,26 +524,50 @@ export default function EditMedicalExamination() {
               )}
             />
 
-            {medicalExaminationResultRequiresLossDate(selectedResult) && (
+            {medicalExaminationResultAllowsAdditionalLossFlag(selectedResult) && (
+              <FormField
+                control={form.control}
+                name="hasAdditionalLongTermLoss"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start gap-3 rounded-lg border border-status-warning/40 bg-status-warning/10 p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={!!field.value}
+                        disabled={!canEdit}
+                        onCheckedChange={(checked) => {
+                          field.onChange(!!checked);
+                          if (!checked) {
+                            form.setValue("longTermFitnessLossDate", undefined);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="cursor-pointer text-sm font-medium">
+                        Současně pozbyl(a) dlouhodobě zdravotní způsobilosti
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Použijte např. po návratu z nemocenské, kdy je zaměstnanec aktuálně způsobilý, ale dlouhodobě
+                        pozbyl(a) způsobilosti k jiné činnosti. Prohlídka zůstává platná — jde jen o poznámku od lékaře,
+                        která ale musí zůstat viditelná. Vyžaduje datum pozbytí a poznámku (za co a jak).
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {(medicalExaminationResultRequiresLossDate(selectedResult) ||
+              (form.watch("hasAdditionalLongTermLoss") && medicalExaminationResultAllowsAdditionalLossFlag(selectedResult))) && (
               <FormField
                 control={form.control}
                 name="longTermFitnessLossDate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Datum pozbytí dlouhodobé zdravotní způsobilosti</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={!canEdit}>
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {field.value ? formatDisplayDate(field.value) : "Vyberte datum"}
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={canEdit ? field.onChange : undefined} initialFocus disabled={!canEdit} />
-                      </PopoverContent>
-                    </Popover>
+                    <FormLabel>Datum pozbytí dlouhodobé zdravotní způsobilosti *</FormLabel>
+                    <FormControl>
+                      <DateInput value={field.value} onChange={field.onChange} disabled={!canEdit} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -643,15 +670,28 @@ export default function EditMedicalExamination() {
             <FormField
               control={form.control}
               name="note"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{medicalExaminationResultRequiresNote(selectedResult) ? "Podmínka / omezení *" : "Poznámka"}</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} rows={3} placeholder={medicalExaminationResultRequiresNote(selectedResult) ? "Popište podmínku nebo omezení" : undefined} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const requiresNote = medicalExaminationResultRequiresNote(selectedResult) || form.watch("hasAdditionalLongTermLoss");
+                return (
+                  <FormItem>
+                    <FormLabel>{requiresNote ? "Poznámka *" : "Poznámka"}</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        rows={3}
+                        placeholder={
+                          form.watch("hasAdditionalLongTermLoss")
+                            ? "Popište, za co a jak zaměstnanec pozbyl(a) dlouhodobou způsobilost"
+                            : medicalExaminationResultRequiresNote(selectedResult)
+                              ? "Popište podmínku nebo omezení"
+                              : undefined
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <div className="flex gap-4">

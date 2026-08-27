@@ -29,6 +29,11 @@ const statusConfig: Record<EmployeeStatus, { label: string; className: string }>
   },
 };
 
+/** Plain Czech label for a status value — use in CSV exports, detail lists, tooltips etc. where a full badge isn't appropriate. */
+export function getEmployeeStatusLabel(status: string | null | undefined): string {
+  return statusConfig[status as EmployeeStatus]?.label ?? (status || "—");
+}
+
 export const EmployeeStatusBadge = ({ status, statusStartDate, className }: EmployeeStatusBadgeProps) => {
   const config = statusConfig[status] ?? {
     label: status || "—",

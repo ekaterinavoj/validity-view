@@ -28,12 +28,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { DateInput } from "@/components/ui/date-input";
+import { SuggestedTextInput } from "@/components/SuggestedTextInput";
+import { useDistinctColumnValues } from "@/hooks/useDistinctColumnValues";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEquipment } from "@/hooks/useEquipment";
 import { useDeadlineTypes } from "@/hooks/useDeadlineTypes";
@@ -93,6 +90,8 @@ export default function EditDeadline() {
   const { profile, isAdmin, isManager } = useAuth();
   const canEdit = isAdmin || isManager;
   const { equipment } = useEquipment();
+  const performerSuggestions = useDistinctColumnValues("deadlines", "performer");
+  const companySuggestions = useDistinctColumnValues("deadlines", "company");
   const { deadlineTypes } = useDeadlineTypes();
   const { facilities } = useFacilities();
   const [isLoading, setIsLoading] = useState(true);
@@ -489,36 +488,9 @@ export default function EditDeadline() {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Datum poslední kontroly *</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                           <Button
-                             variant="outline"
-                             className={cn(
-                               "w-full pl-3 text-left font-normal",
-                               !field.value && "text-muted-foreground"
-                             )}
-                             disabled={!canEdit}
-                           >
-                            {field.value ? (
-                              formatDisplayDate(field.value)
-                            ) : (
-                              "Vyberte datum"
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                         <Calendar
-                           mode="single"
-                           selected={field.value}
-                           onSelect={canEdit ? field.onChange : undefined}
-                           locale={cs}
-                           disabled={!canEdit}
-                         />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <DateInput value={field.value} onChange={field.onChange} disabled={!canEdit} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -565,7 +537,14 @@ export default function EditDeadline() {
                     <FormItem>
                       <FormLabel>Provádějící</FormLabel>
                        <FormControl>
-                         <Input {...field} placeholder="Jméno technika" disabled={!canEdit} />
+                         <SuggestedTextInput
+                           id="deadline-performer"
+                           suggestions={performerSuggestions}
+                           value={field.value || ""}
+                           onChange={field.onChange}
+                           placeholder="Jméno technika"
+                           disabled={!canEdit}
+                         />
                        </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -579,7 +558,14 @@ export default function EditDeadline() {
                     <FormItem>
                       <FormLabel>Firma</FormLabel>
                        <FormControl>
-                         <Input {...field} placeholder="Servisní firma" disabled={!canEdit} />
+                         <SuggestedTextInput
+                           id="deadline-company"
+                           suggestions={companySuggestions}
+                           value={field.value || ""}
+                           onChange={field.onChange}
+                           placeholder="Servisní firma"
+                           disabled={!canEdit}
+                         />
                        </FormControl>
                       <FormMessage />
                     </FormItem>
