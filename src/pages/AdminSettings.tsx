@@ -691,17 +691,17 @@ export default function AdminSettings() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="basic">Základní (LOGIN / PLAIN)</SelectItem>
+                        <SelectItem value="basic">Základní (jakýkoliv SMTP server)</SelectItem>
                         <SelectItem value="oauth2_m365">Microsoft 365 OAuth2</SelectItem>
                         <SelectItem value="oauth2_gmail">Gmail / Google Workspace OAuth2</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      {emailProvider.smtp_auth_type === "oauth2_m365" 
+                      {emailProvider.smtp_auth_type === "oauth2_m365"
                         ? "OAuth2 client credentials s XOAUTH2 pro Microsoft 365 / Exchange Online"
                         : emailProvider.smtp_auth_type === "oauth2_gmail"
                         ? "OAuth2 s refresh tokenem a XOAUTH2 pro Gmail / Google Workspace"
-                        : "Klasické přihlášení uživatelským jménem a heslem"}
+                        : "Klasické přihlášení uživatelským jménem a heslem — funguje s libovolným SMTP serverem (Gmail s heslem aplikace, Seznam.cz, vlastní firemní server, SendGrid apod.), nejen s M365/Google."}
                     </p>
                   </div>
 

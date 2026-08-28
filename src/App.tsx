@@ -104,8 +104,8 @@ const App = () => (
             <Route path="/deadlines/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="deadlines"><DeadlineHistory /></ProtectedLayout>} />
             <Route path="/deadlines/new" element={<ProtectedLayout requiredModule="deadlines"><NewDeadline /></ProtectedLayout>} />
             <Route path="/deadlines/edit/:id" element={<ProtectedLayout requiredModule="deadlines"><EditDeadline /></ProtectedLayout>} />
-            <Route path="/deadlines/equipment" element={<ProtectedLayout requiredModule="deadlines"><Equipment /></ProtectedLayout>} />
-            <Route path="/deadlines/types" element={<ProtectedLayout requiredModule="deadlines"><DeadlineTypes /></ProtectedLayout>} />
+            <Route path="/deadlines/equipment" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="deadlines"><Equipment /></ProtectedLayout>} />
+            <Route path="/deadlines/types" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="deadlines"><DeadlineTypes /></ProtectedLayout>} />
             <Route path="/deadlines/groups" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="deadlines"><ResponsibilityGroups /></ProtectedLayout>} />
             
             
@@ -114,16 +114,16 @@ const App = () => (
             <Route path="/plp/scheduled" element={<ProtectedLayout requiredModule="plp"><ScheduledExaminations /></ProtectedLayout>} />
             <Route path="/plp/new" element={<ProtectedLayout requiredModule="plp"><NewMedicalExamination /></ProtectedLayout>} />
             <Route path="/plp/edit/:id" element={<ProtectedLayout requiredModule="plp"><EditMedicalExamination /></ProtectedLayout>} />
-            <Route path="/plp/types" element={<ProtectedLayout requiredModule="plp"><MedicalExaminationTypes /></ProtectedLayout>} />
+            <Route path="/plp/types" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="plp"><MedicalExaminationTypes /></ProtectedLayout>} />
             <Route path="/plp/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="plp"><MedicalExaminationHistory /></ProtectedLayout>} />
             
             {/* ============ SHARED / SETTINGS ============ */}
             <Route path="/statistics" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Statistics /></ProtectedLayout>} />
-            <Route path="/employees" element={<ProtectedLayout><Employees /></ProtectedLayout>} />
-            <Route path="/training-types" element={<ProtectedLayout><TrainingTypes /></ProtectedLayout>} />
-            <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
-            <Route path="/facilities" element={<ProtectedLayout><Facilities /></ProtectedLayout>} />
-            <Route path="/inactive" element={<ProtectedLayout><InactiveEmployeesReport /></ProtectedLayout>} />
+            <Route path="/employees" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Employees /></ProtectedLayout>} />
+            <Route path="/training-types" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><TrainingTypes /></ProtectedLayout>} />
+            <Route path="/departments" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Departments /></ProtectedLayout>} />
+            <Route path="/facilities" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Facilities /></ProtectedLayout>} />
+            <Route path="/inactive" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><InactiveEmployeesReport /></ProtectedLayout>} />
             
             {/* Audit log - admin only */}
             <Route path="/audit-log" element={<ProtectedLayout requiredRoles={["admin"]}><AuditLog /></ProtectedLayout>} />
