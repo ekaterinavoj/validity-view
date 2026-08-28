@@ -43,6 +43,15 @@ export function MfaSettings() {
       console.error("Error listing MFA factors:", listError);
     } else {
       setVerifiedFactor(data?.totp?.find((f) => f.status === "verified") || null);
+
+      // Clean up any unverified factor left behind by an abandoned enrollment
+      // (e.g. the user closed the tab mid-QR-scan instead of clicking Zrušit) —
+      // it's never usable for login, and leaving it around risks piling up
+      // indefinitely with no other way to discover or remove it.
+      const stale = data?.totp?.filter((f) => f.status !== "verified") || [];
+      for (const factor of stale) {
+        await supabase.auth.mfa.unenroll({ factorId: factor.id }).catch(() => {});
+      }
     }
     setLoading(false);
   }, []);

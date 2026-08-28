@@ -95,9 +95,14 @@ export const ProtectedRoute = ({ children, requiredRoles, requiredModule }: Prot
   }
 
   // Require the second (aal2) step for users with a verified TOTP factor,
-  // before anything else — including the forced password-change screen.
+  // before anything else — including the forced password-change screen. Carry
+  // the current location along so MfaChallenge can send them back to it
+  // afterward instead of always landing on "/" — otherwise a password-recovery
+  // link (which lands on /change-password) would get hijacked: the user
+  // completes the 2FA step and ends up on the dashboard, having never actually
+  // set their new password.
   if (mfaPending && location.pathname !== "/mfa-challenge") {
-    return <Navigate to="/mfa-challenge" replace />;
+    return <Navigate to="/mfa-challenge" state={{ from: location }} replace />;
   }
 
   // Force password change if flagged by admin

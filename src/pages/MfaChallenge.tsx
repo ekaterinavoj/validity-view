@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Loader2, ShieldCheck, LogOut } from "lucide-react";
 
 export default function MfaChallenge() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { verifyMfaCode, signOut } = useAuth();
   const { toast } = useToast();
   const [code, setCode] = useState("");
@@ -37,7 +38,11 @@ export default function MfaChallenge() {
     }
 
     toast({ title: "Ověřeno", description: "Dvoufázové ověření dokončeno." });
-    navigate("/", { replace: true });
+    // Return to wherever ProtectedRoute intercepted the user (e.g. a password
+    // recovery link landing on /change-password) instead of always "/" —
+    // otherwise a pending password reset would get silently skipped.
+    const from = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
+    navigate(from ? `${from.pathname}${from.search || ""}` : "/", { replace: true });
   };
 
   return (
