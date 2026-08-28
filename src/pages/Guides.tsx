@@ -693,6 +693,15 @@ const sections: GuideSection[] = [
         ],
       },
       {
+        q: "Požadavky na heslo",
+        a: [
+          "Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslici.",
+          "Platí pro všechna hesla bez výjimky – vlastní změnu v profilu, dočasné heslo od administrátora, i svépomocnou obnovu přes email.",
+          "Vynucuje to přímo Supabase Auth (GOTRUE_PASSWORD_MIN_LENGTH / GOTRUE_PASSWORD_REQUIRED_CHARACTERS v .env), takže to nejde obejít ani přes přímé volání API – aplikace navíc hned ukáže konkrétní chybějící požadavek.",
+          "Chcete-li pravidla zpřísnit nebo zmírnit, upravte tyto proměnné v .env a odpovídající text v src/lib/passwordPolicy.ts, ať UI nápověda sedí s tím, co server skutečně vyžaduje.",
+        ],
+      },
+      {
         q: "Reset hesla uživatele administrátorem",
         a: [
           "Menu (⋮) v řádku → „Reset hesla“.",

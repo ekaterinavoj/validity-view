@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { validatePassword, PASSWORD_POLICY_HINT } from "@/lib/passwordPolicy";
 
 interface Employee {
   id: string;
@@ -31,12 +32,30 @@ interface AddUserModalProps {
 }
 
 function generatePassword(length = 12): string {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  const lower = "abcdefghijklmnopqrstuvwxyz";
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const digits = "0123456789";
+  const symbols = "!@#$%";
+  const all = lower + upper + digits + symbols;
+
+  const array = new Uint32Array(length);
+  crypto.getRandomValues(array);
+  const pick = (set: string, i: number) => set.charAt(array[i] % set.length);
+
+  // Guarantee at least one of each required class up front (a fully random
+  // draw has a small but real chance of missing a class entirely on a
+  // 12-char password), then fill the rest randomly and shuffle.
+  const chars = [pick(lower, 0), pick(upper, 1), pick(digits, 2)];
+  for (let i = 3; i < length; i++) chars.push(pick(all, i));
+
+  const shuffleOrder = new Uint32Array(length);
+  crypto.getRandomValues(shuffleOrder);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = shuffleOrder[i] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
   }
-  return password;
+
+  return chars.join("");
 }
 
 export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModalProps) {
@@ -136,6 +155,16 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
       toast({
         title: "Neplatný email",
         description: "Zadejte platnou emailovou adresu.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const passwordErrors = validatePassword(trimmedPassword);
+    if (passwordErrors.length > 0) {
+      toast({
+        title: "Heslo nesplňuje požadavky",
+        description: passwordErrors.join(" "),
         variant: "destructive",
       });
       return;
@@ -340,7 +369,7 @@ export function AddUserModal({ open, onOpenChange, onUserCreated }: AddUserModal
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Heslo předejte uživateli bezpečným způsobem.</p>
+            <p className="text-xs text-muted-foreground">{PASSWORD_POLICY_HINT} Heslo předejte uživateli bezpečným způsobem.</p>
           </div>
 
           {/* Modules - disabled for admin */}

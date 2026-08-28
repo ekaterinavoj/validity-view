@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DisplaySettings } from "@/components/DisplaySettings";
 import { MfaSettings } from "@/components/MfaSettings";
+import { validatePassword, PASSWORD_POLICY_HINT } from "@/lib/passwordPolicy";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Profile = () => {
@@ -61,8 +62,9 @@ const Profile = () => {
       toast({ title: "Hesla se neshodují", description: "Nové heslo a potvrzení hesla musí být stejné.", variant: "destructive" });
       return;
     }
-    if (newPassword.length < 6) {
-      toast({ title: "Heslo je příliš krátké", description: "Heslo musí mít alespoň 6 znaků.", variant: "destructive" });
+    const passwordErrors = validatePassword(newPassword);
+    if (passwordErrors.length > 0) {
+      toast({ title: "Heslo nesplňuje požadavky", description: passwordErrors.join(" "), variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -166,7 +168,7 @@ const Profile = () => {
           <DialogHeader>
             <DialogTitle>Změnit heslo</DialogTitle>
             <DialogDescription>
-              Zadejte nové heslo. Heslo musí mít alespoň 6 znaků.
+              Zadejte nové heslo. {PASSWORD_POLICY_HINT}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

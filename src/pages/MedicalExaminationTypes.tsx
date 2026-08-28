@@ -441,7 +441,7 @@ export default function MedicalExaminationTypes() {
                         <TableCell>{row.rowNumber}</TableCell>
                         <TableCell className="font-medium">{row.name}</TableCell>
                         <TableCell>{row.facilityRaw}</TableCell>
-                        <TableCell>{row.periodDays ? `${row.periodDays} dní` : "-"}</TableCell>
+                        <TableCell>{row.periodDays ? formatPeriodicityDual(row.periodDays) : "-"}</TableCell>
                         <TableCell>
                           {!row.isValid ? <Badge variant="destructive">{row.errors.join(", ")}</Badge> : row.isDuplicate ? <Badge variant="outline" className="text-amber-600 border-amber-600">Duplicitní</Badge> : <Badge variant="default">Nový</Badge>}
                         </TableCell>

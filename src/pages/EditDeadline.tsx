@@ -42,6 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { TableSkeleton } from "@/components/LoadingSkeletons";
 import { cn } from "@/lib/utils";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadDeadlineDocument } from "@/lib/deadlineDocuments";
 import { ResponsiblesPicker, ResponsiblesSelection } from "@/components/ResponsiblesPicker";
@@ -376,7 +377,7 @@ export default function EditDeadline() {
                       <SelectContent>
                         {deadlineTypes.map(type => (
                           <SelectItem key={type.id} value={type.id}>
-                            {type.name}
+                            {type.name} ({formatPeriodicityDual(type.period_days)})
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -9,9 +9,15 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { z } from "zod";
+import { validatePassword, PASSWORD_POLICY_HINT } from "@/lib/passwordPolicy";
 
 const passwordSchema = z.object({
-  password: z.string().min(6, "Heslo musí mít alespoň 6 znaků"),
+  password: z.string().superRefine((password, ctx) => {
+    const errors = validatePassword(password);
+    if (errors.length > 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: errors.join(" ") });
+    }
+  }),
   confirmPassword: z.string(),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Hesla se neshodují",
@@ -107,6 +113,7 @@ export default function ChangePassword() {
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               required
             />
+            <p className="text-xs text-muted-foreground">{PASSWORD_POLICY_HINT}</p>
             {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
           </div>
 

@@ -131,6 +131,16 @@ services:
       GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS:-false}
       GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-true}
 
+      # Password policy — enforced server-side by GoTrue itself (so it applies
+      # no matter what sets the password: the app's own forms, an admin action,
+      # or a direct API call), not just by client-side validation. Required
+      # character classes are colon-separated; the password must contain at
+      # least one character from each class. Mirror any change here in
+      # src/lib/passwordPolicy.ts so the UI shows a matching hint/error instead
+      # of just surfacing GoTrue's generic rejection.
+      GOTRUE_PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-8}
+      GOTRUE_PASSWORD_REQUIRED_CHARACTERS: ${PASSWORD_REQUIRED_CHARACTERS:-abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789}
+
       GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@example.com}
       GOTRUE_SMTP_HOST: ${SMTP_HOST:-supabase-mail}
       GOTRUE_SMTP_PORT: ${SMTP_PORT:-2500}

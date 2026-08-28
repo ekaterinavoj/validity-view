@@ -1,3 +1,4 @@
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -345,7 +346,7 @@ export default function EditTraining() {
                     <SelectContent>
                       {trainingTypes.map((type) => (
                         <SelectItem key={type.id} value={type.id}>
-                          {type.name} ({type.periodDays} dní)
+                          {type.name} ({formatPeriodicityDual(type.periodDays)})
                         </SelectItem>
                       ))}
                     </SelectContent>
