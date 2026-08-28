@@ -57,7 +57,7 @@ const sections: GuideSection[] = [
     title: "Začínáme",
     icon: BookOpen,
     description: "Základní orientace v aplikaci pro nové uživatele.",
-    keywords: ["úvod", "začátek", "přihlášení", "menu", "navigace", "hesla"],
+    keywords: ["úvod", "začátek", "přihlášení", "menu", "navigace", "hesla", "2FA", "dvoufázové ověření", "authenticator"],
     items: [
       {
         q: "Co je tato aplikace?",
@@ -91,6 +91,16 @@ const sections: GuideSection[] = [
           "Ostatní (admin/manažer, podle aktuálního modulu) – Typy školení/Pozastavená u Školení, obdobně u ostatních modulů.",
           "Systém (jen admin) – čistě technická administrace: Audit log, Stav systému, Administrace, Migrace DB.",
           "Profil – ikona vpravo nahoře (osobní údaje, oprávnění, změna hesla, oznámení, odhlášení).",
+        ],
+      },
+      {
+        q: "Dvoufázové ověření (2FA)",
+        a: [
+          "Profil → záložka „Můj profil“ → sekce „Dvoufázové ověření“ → „Nastavit dvoufázové ověření“.",
+          "Naskenujte zobrazený QR kód aplikací Google Authenticator, Microsoft Authenticator apod. (nebo opište kód ručně) a potvrďte 6místným kódem z aplikace.",
+          "Od té chvíle systém při každém přihlášení kromě hesla vyžaduje i aktuální kód z aplikace.",
+          "Vypnout ho můžete kdykoliv ve stejné sekci tlačítkem „Vypnout dvoufázové ověření“.",
+          "Je čistě dobrovolné a nastavuje si ho každý uživatel sám u sebe — admin ho nikomu nemůže nastavit ani vynutit centrálně, jen ho v nouzi odebrat (viz sekce Uživatelé pro adminy).",
         ],
       },
     ],
@@ -650,7 +660,7 @@ const sections: GuideSection[] = [
     icon: UserCog,
     adminOnly: true,
     description: "Vytváření, deaktivace, role a oprávnění uživatelských účtů.",
-    keywords: ["uživatel", "role", "admin", "manažer", "deaktivace", "reset", "zapomenuté heslo"],
+    keywords: ["uživatel", "role", "admin", "manažer", "deaktivace", "reset", "zapomenuté heslo", "2FA", "dvoufázové ověření"],
     items: [
       {
         q: "Jak vytvořit nového uživatele?",
@@ -690,6 +700,14 @@ const sections: GuideSection[] = [
           "Edge funkce admin-reset-password nastaví nové heslo + flag must_change_password.",
           "Předejte heslo uživateli bezpečným kanálem (osobně, šifrovaný chat).",
           "Při prvním přihlášení uživatel musí heslo změnit (modal nelze odložit).",
+        ],
+      },
+      {
+        q: "Uživatel ztratil telefon s autentifikátorem – co teď?",
+        a: [
+          "Menu (⋮) u uživatele v tabulce → „Odebrat 2FA“ (admin).",
+          "Odebere se mu nastavené dvoufázové ověření — příště se přihlásí jen heslem a může si ho v profilu nastavit znovu (s novým telefonem/aplikací).",
+          "Bez tohoto kroku by se takový uživatel do systému vůbec nedostal — dvoufázové ověření nemá vlastní záložní kódy.",
         ],
       },
       {

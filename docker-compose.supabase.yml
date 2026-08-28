@@ -282,6 +282,7 @@ services:
       - ./supabase/functions/seed-initial-admin:/home/deno/functions/seed-initial-admin:Z
       - ./supabase/functions/admin-create-user:/home/deno/functions/admin-create-user:Z
       - ./supabase/functions/admin-reset-password:/home/deno/functions/admin-reset-password:Z
+      - ./supabase/functions/admin-reset-mfa:/home/deno/functions/admin-reset-mfa:Z
       - ./supabase/functions/admin-change-email:/home/deno/functions/admin-change-email:Z
       - ./supabase/functions/admin-deactivate-user:/home/deno/functions/admin-deactivate-user:Z
       - ./supabase/functions/admin-delete-user:/home/deno/functions/admin-delete-user:Z

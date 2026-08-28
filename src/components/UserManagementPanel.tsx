@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck, Settings2, Download, Trash2 } from "lucide-react";
+import { Loader2, Search, RefreshCw, FileSpreadsheet, FileDown, AlertTriangle, Shield, UserPlus, Info, MoreHorizontal, Key, Mail, UserX, UserCheck, Settings2, Download, Trash2, ShieldOff } from "lucide-react";
 import { ProfileEmployeeLink } from "@/components/ProfileEmployeeLink";
 import { AddUserModal } from "@/components/AddUserModal";
 import { ResetPasswordModal } from "@/components/ResetPasswordModal";
@@ -112,6 +112,17 @@ export function UserManagementPanel() {
     action: "deactivate" | "reactivate";
   } | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
+
+  // MFA reset states — recovery path for a user locked out after losing their
+  // authenticator device (lost phone, etc). No self-service equivalent exists
+  // on purpose: a user who still has their factor can unenroll it themselves
+  // from Profile → Dvoufázové ověření.
+  const [pendingMfaReset, setPendingMfaReset] = useState<{
+    userId: string;
+    userName: string;
+    userEmail: string;
+  } | null>(null);
+  const [isResettingMfa, setIsResettingMfa] = useState(false);
 
   // Permanent deletion states
   const [pendingDeletion, setPendingDeletion] = useState<{
@@ -287,9 +298,37 @@ export function UserManagementPanel() {
     }
   };
 
+  const handleMfaReset = async () => {
+    if (!pendingMfaReset) return;
+
+    setIsResettingMfa(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-reset-mfa", {
+        body: { userId: pendingMfaReset.userId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: "Dvoufázové ověření odebráno",
+        description: `Uživatel ${pendingMfaReset.userEmail} se nyní přihlásí jen heslem a bude si moci znovu nastavit dvoufázové ověření v profilu.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Chyba",
+        description: error.message || "Nepodařilo se odebrat dvoufázové ověření.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResettingMfa(false);
+      setPendingMfaReset(null);
+    }
+  };
+
   const handlePermanentDeletion = async () => {
     if (!pendingDeletion) return;
-    
+
     setIsDeleting(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-delete-user", {
@@ -643,6 +682,16 @@ export function UserManagementPanel() {
                                 Změnit email
                               </DropdownMenuItem>
                               <DropdownMenuItem
+                                onClick={() => setPendingMfaReset({
+                                  userId: user.id,
+                                  userEmail: user.email,
+                                  userName,
+                                })}
+                              >
+                                <ShieldOff className="h-4 w-4 mr-2" />
+                                Odebrat 2FA
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 onClick={() => setModuleAccessModal({
                                   open: true,
                                   userId: user.id,
@@ -718,6 +767,28 @@ export function UserManagementPanel() {
         userName={resetPasswordModal.userName}
         onSuccess={loadUsers}
       />
+
+      {/* MFA Reset Confirmation */}
+      <AlertDialog open={!!pendingMfaReset} onOpenChange={(open) => !open && setPendingMfaReset(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Odebrat dvoufázové ověření?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Uživateli <strong>{pendingMfaReset?.userName}</strong> ({pendingMfaReset?.userEmail}) bude odebráno
+              nastavené dvoufázové ověření. Při dalším přihlášení mu bude stačit heslo — dvoufázové ověření si
+              může kdykoliv znovu nastavit ve svém profilu. Použijte jen když ztratil přístup ke svému
+              autentifikátoru.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušit</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMfaReset} disabled={isResettingMfa}>
+              {isResettingMfa && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Odebrat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Change Email Modal */}
       <ChangeEmailModal

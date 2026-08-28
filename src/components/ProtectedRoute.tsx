@@ -29,6 +29,8 @@ export const ProtectedRoute = ({ children, requiredRoles, requiredModule }: Prot
     hasModuleAccess,
     signOut,
     refreshProfile,
+    mfaPending,
+    mfaChecked,
   } = useAuth();
 
   // Show loader while initial auth check is in progress
@@ -80,6 +82,22 @@ export const ProtectedRoute = ({ children, requiredRoles, requiredModule }: Prot
         </Card>
       </div>
     );
+  }
+
+  // Wait for the MFA check itself before deciding — otherwise a user who
+  // needs the aal2 step could flash into the app while it's still resolving.
+  if (!mfaChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Require the second (aal2) step for users with a verified TOTP factor,
+  // before anything else — including the forced password-change screen.
+  if (mfaPending && location.pathname !== "/mfa-challenge") {
+    return <Navigate to="/mfa-challenge" replace />;
   }
 
   // Force password change if flagged by admin

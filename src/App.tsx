@@ -20,6 +20,7 @@ import Facilities from "./pages/Facilities";
 import InactiveEmployeesReport from "./pages/InactiveEmployeesReport";
 import Auth from "./pages/Auth";
 import ChangePassword from "./pages/ChangePassword";
+import MfaChallenge from "./pages/MfaChallenge";
 import AuditLog from "./pages/AuditLog";
 import Profile from "./pages/Profile";
 import AdminSettings from "./pages/AdminSettings";
@@ -83,6 +84,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+            <Route path="/mfa-challenge" element={<ProtectedRoute><MfaChallenge /></ProtectedRoute>} />
             
             <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
 

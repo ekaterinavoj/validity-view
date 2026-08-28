@@ -10,6 +10,7 @@ import { User, Save, KeyRound, Palette } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DisplaySettings } from "@/components/DisplaySettings";
+import { MfaSettings } from "@/components/MfaSettings";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Profile = () => {
@@ -134,6 +135,13 @@ const Profile = () => {
                   <KeyRound className="w-4 h-4 mr-2" />
                   Změnit heslo
                 </Button>
+              </div>
+
+              <Separator className="my-4" />
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Dvoufázové ověření</h3>
+                <MfaSettings />
               </div>
 
               <div className="flex justify-end mt-6">
