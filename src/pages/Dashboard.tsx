@@ -78,7 +78,6 @@ export default function Dashboard() {
     if (canP && isAdmin) items.push({ id: "sys-new-plp", label: "+ Nová PLP", path: "/plp/new" });
     items.push({ id: "sys-documents", label: "Dokumenty", path: "/documents" });
     items.push({ id: "sys-guides", label: "Návody", path: "/guides" });
-    items.push({ id: "sys-permissions", label: "Moje oprávnění", path: "/profile?tab=permissions" });
     return items;
   }, [canT, canD, canP, isAdmin]);
 
@@ -101,13 +100,12 @@ export default function Dashboard() {
             ? supabase.from("trainings").select("next_training_date").is("deleted_at", null)
             : Promise.resolve({ data: [] as any[] }),
           canD
-            ? supabase.from("deadlines").select("next_check_date").is("deleted_at", null)
+            ? supabase.from("deadlines").select("next_check_date")
             : Promise.resolve({ data: [] as any[] }),
           canP
             ? supabase
                 .from("medical_examinations")
                 .select("next_examination_date")
-                .is("deleted_at", null)
             : Promise.resolve({ data: [] as any[] }),
         ]);
         if (!mounted) return;

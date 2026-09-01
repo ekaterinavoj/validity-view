@@ -28,6 +28,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DateInput } from "@/components/ui/date-input";
+import { SuggestedTextInput } from "@/components/SuggestedTextInput";
+import { useDistinctColumnValues } from "@/hooks/useDistinctColumnValues";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEquipment } from "@/hooks/useEquipment";
 import { useDeadlineTypes } from "@/hooks/useDeadlineTypes";
@@ -38,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { FileUploader, UploadedFile } from "@/components/FileUploader";
 import { uploadDeadlineDocument } from "@/lib/deadlineDocuments";
 import {
@@ -64,7 +67,6 @@ const formSchema = z.object({
   company: z.string().optional(),
   result: z.enum(["passed", "passed_with_reservations", "failed"]),
   note: z.string().optional(),
-  reminder_template_id: z.string().min(1, "Vyberte šablonu připomenutí"),
   remind_days_before: z.number().min(1, "Zadejte počet dní"),
   repeat_days_after: z.number().optional(),
 }).refine((data) => {
@@ -85,11 +87,12 @@ export default function NewDeadline() {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
   const { equipment, isLoading: equipmentLoading } = useEquipment();
+  const performerSuggestions = useDistinctColumnValues("deadlines", "performer");
+  const companySuggestions = useDistinctColumnValues("deadlines", "company");
   const { deadlineTypes, isLoading: typesLoading } = useDeadlineTypes();
   const { facilities, loading: facilitiesLoading } = useFacilities();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const [responsibles, setResponsibles] = useState<ResponsiblesSelection>({ profileIds: [], groupIds: [] });
   const [responsiblesError, setResponsiblesError] = useState<string | null>(null);
   const { addResponsibles } = useDeadlineResponsibles();
@@ -105,22 +108,6 @@ export default function NewDeadline() {
       result: "passed" as const,
     },
   });
-
-  // Load reminder templates for deadlines
-  useEffect(() => {
-    const loadTemplates = async () => {
-      const { data, error } = await supabase
-        .from("deadline_reminder_templates")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-
-      if (!error && data) {
-        setReminderTemplates(data);
-      }
-    };
-    loadTemplates();
-  }, []);
 
   const selectedTypeId = form.watch("deadline_type_id");
   const selectedType = deadlineTypes.find(t => t.id === selectedTypeId);
@@ -157,6 +144,15 @@ export default function NewDeadline() {
         form.setValue("period_unit", unit);
       }
       form.setValue("facility", selectedType.facility);
+
+      // Pre-fill reminder timing from the type's defaults (if configured), same
+      // as trainings — only while the user hasn't already touched these fields.
+      if (!form.formState.dirtyFields.remind_days_before && selectedType.default_remind_days_before != null) {
+        form.setValue("remind_days_before", selectedType.default_remind_days_before);
+      }
+      if (!form.formState.dirtyFields.repeat_days_after && selectedType.default_repeat_days_after != null) {
+        form.setValue("repeat_days_after", selectedType.default_repeat_days_after);
+      }
     }
   }, [selectedType, form]);
 
@@ -209,7 +205,6 @@ export default function NewDeadline() {
         note: data.note || null,
         result: data.result,
         period_days_override: overridePeriodDays,
-        reminder_template_id: data.reminder_template_id,
         remind_days_before: data.remind_days_before,
         repeat_days_after: data.repeat_days_after || 30,
         requester: profile ? `${profile.first_name} ${profile.last_name}` : null,
@@ -310,19 +305,11 @@ export default function NewDeadline() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {deadlineTypes.map(type => {
-                          const periodLabel = formatPeriodicityDual(type.period_days);
-                          return (
-                            <SelectItem key={type.id} value={type.id}>
-                              <div className="flex flex-col items-start">
-                                <span>{type.name} ({periodLabel})</span>
-                                {type.description && (
-                                  <span className="text-xs text-muted-foreground">{type.description}</span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
+                        {deadlineTypes.map(type => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.name} ({formatPeriodicityDual(type.period_days)})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -451,7 +438,13 @@ export default function NewDeadline() {
                     <FormItem>
                       <FormLabel>Provádějící</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Jméno technika" />
+                        <SuggestedTextInput
+                          id="deadline-performer"
+                          suggestions={performerSuggestions}
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Jméno technika"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -465,7 +458,13 @@ export default function NewDeadline() {
                     <FormItem>
                       <FormLabel>Firma</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Servisní firma" />
+                        <SuggestedTextInput
+                          id="deadline-company"
+                          suggestions={companySuggestions}
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Servisní firma"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -507,38 +506,13 @@ export default function NewDeadline() {
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="reminder_template_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Šablona připomenutí *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Vyberte šablonu" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {reminderTemplates.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="remind_days_before"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Připomenout dopředu (dní) *</FormLabel>
+                      <FormLabel>Připomenout před expirací (dní) *</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -556,7 +530,7 @@ export default function NewDeadline() {
                   name="repeat_days_after"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Opakovat po (dní)</FormLabel>
+                      <FormLabel>Opakovat po expiraci (dní)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"

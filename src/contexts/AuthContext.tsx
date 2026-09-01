@@ -42,6 +42,10 @@ interface AuthContextType {
   isAdmin: boolean;
   isManager: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  resetPasswordForEmail: (email: string) => Promise<{ error: any }>;
+  mfaPending: boolean;
+  mfaChecked: boolean;
+  verifyMfaCode: (code: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, firstName: string, lastName: string, position?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -61,6 +65,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [moduleAccessLoaded, setModuleAccessLoaded] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
+  // True when the user has a verified TOTP factor and this session hasn't
+  // completed the second (aal2) step yet — blocks app access until verifyMfaCode()
+  // succeeds. Checked fresh on every session change (sign-in, token refresh, etc).
+  const [mfaPending, setMfaPending] = useState(false);
+  // Start true, mirroring rolesLoaded/moduleAccessLoaded — no spinner before we
+  // know if there's a session at all; flips false while a real check is pending.
+  const [mfaChecked, setMfaChecked] = useState(true);
   const { toast } = useToast();
 
   const loadProfile = async (userId: string): Promise<Profile | null> => {
@@ -150,10 +161,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const checkMfaStatus = async () => {
+    setMfaChecked(false);
+    try {
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (error) throw error;
+      setMfaPending(!!data && data.currentLevel === "aal1" && data.nextLevel === "aal2");
+    } catch (error) {
+      console.error("Error checking MFA status:", error);
+      // Fail closed would lock everyone out on a transient error — fail open instead,
+      // consistent with treating MFA as an added layer rather than the sole gate.
+      setMfaPending(false);
+    } finally {
+      setMfaChecked(true);
+    }
+  };
+
   const loadUserData = async (userId: string) => {
-    const [, userRoles] = await Promise.all([loadProfile(userId), loadRoles(userId)]);
+    const [, userRoles] = await Promise.all([loadProfile(userId), loadRoles(userId), checkMfaStatus()]);
     // Load module access after roles (needs to know if admin)
     await loadModuleAccess(userId, userRoles);
+  };
+
+  // Completes the aal2 step-up: challenges the user's verified TOTP factor with
+  // the given code. On success, mfaPending clears and the app becomes reachable.
+  const verifyMfaCode = async (code: string) => {
+    try {
+      const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError) throw factorsError;
+
+      const factor = factorsData?.totp?.find((f) => f.status === "verified");
+      if (!factor) {
+        return { error: new Error("Nebyl nalezen žádný nastavený dvoufázový faktor") };
+      }
+
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: factor.id,
+      });
+      if (challengeError) throw challengeError;
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: factor.id,
+        challengeId: challengeData.id,
+        code,
+      });
+      if (verifyError) throw verifyError;
+
+      await checkMfaStatus();
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
   };
 
   const hasRole = (role: UserRole): boolean => {
@@ -205,6 +263,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setRolesLoaded(false);
         setModuleAccessLoaded(false);
         setProfileError(null);
+        setMfaPending(false);
+        setMfaChecked(false);
 
         // Load user data and WAIT for it before setting loading=false
         try {
@@ -225,6 +285,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setProfileLoaded(true);
         setRolesLoaded(true);
         setModuleAccessLoaded(true);
+        setMfaPending(false);
+        setMfaChecked(true);
       }
 
       // Only the latest handleSession call should set loading=false
@@ -414,6 +476,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error: lastError };
   };
 
+  // Sends a password-recovery email via Supabase Auth (GoTrue). The link lands
+  // the user back on /change-password with a valid session already established,
+  // where they can set a new password. Requires GoTrue's SMTP to be configured
+  // with real credentials and the account to have a real, reachable email —
+  // this app's seeded admin account uses a placeholder @system.local address,
+  // which cannot receive mail.
+  const resetPasswordForEmail = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/change-password`,
+      });
+      return { error: error ?? null };
+    } catch (error: any) {
+      return { error };
+    }
+  };
+
   const signUp = async (
     email: string,
     password: string,
@@ -520,6 +599,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAdmin,
         isManager,
         signIn,
+        resetPasswordForEmail,
+        mfaPending,
+        mfaChecked,
+        verifyMfaCode,
         signUp,
         signOut,
         refreshProfile,

@@ -48,13 +48,7 @@ import { BulkEditTrainingsDialog } from "@/components/BulkEditTrainingsDialog";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { BulkTrainingImport } from "@/components/BulkTrainingImport";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
-import { HelpButton } from "@/components/HelpButton";
-import { downloadTrainingMatrixXLSX, type CellState, type MatrixEmployee, type MatrixEventType, type MatrixEntry } from "@/lib/matrixExport";
-import { useEmployees } from "@/hooks/useEmployees";
-import { useTrainingTypes } from "@/hooks/useTrainingTypes";
-import { Grid3x3 } from "lucide-react";
-import { RefreshButton } from "@/components/RefreshButton";
-import { buildExportFilename, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { ImportExportMenu } from "@/components/ImportExportMenu";
 
 export default function ScheduledTrainings() {
   const { toast } = useToast();
@@ -475,29 +469,11 @@ export default function ScheduledTrainings() {
               <CalendarClock className="w-4 h-4 mr-2" />
               Vybrat expirující (30 dní)
             </Button>
-            <Button variant="outline" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
-              <Download className="w-4 h-4 mr-2" />
-              {selectedTrainings.size > 0 
-                ? `Export (${selectedTrainings.size})`
-                : "Export"
-              }
-            </Button>
-            <Button
-              variant="outline"
-              onClick={exportMatrix}
-              disabled={exportingMatrix || allEmployees.length === 0 || allTrainingTypes.length === 0}
-              title="Formát: CSV — zaměstnanci × typy školení (✓ má / prázdné nemá)"
-            >
-              <Grid3x3 className="w-4 h-4 mr-2" />
-              {exportingMatrix ? "Generuji…" : "Matice"}
-            </Button>
-            {canEdit && (
-              <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
-                <Upload className="w-4 h-4 mr-2" />
-                Import
-              </Button>
-            )}
-            <RefreshButton onRefresh={() => refetch()} loading={trainingsLoading} />
+            <ImportExportMenu
+              onExport={exportToCSV}
+              exportCount={selectedTrainings.size}
+              onToggleImport={canEdit ? () => setShowImport(!showImport) : undefined}
+            />
             {canEdit && (
               <Button onClick={() => navigate("/new-training")}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -630,10 +606,10 @@ export default function ScheduledTrainings() {
                           <TableCell className="whitespace-nowrap">
                             {formatDisplayDate(training.date)}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
-                              <TypePeriodicityCell typeName={training.type} periodDays={training.typePeriodDays} description={training.typeDescription} />
-                              <PeriodOverrideIcon overrideDays={training.period !== training.typePeriodDays ? training.period : null} typeDays={training.typePeriodDays} />
+                              {training.type}
+                              <PeriodOverrideIcon overrideDays={training.periodDaysOverride} typeDays={training.typePeriodDays} />
                             </div>
                           </TableCell>
                           <TableCell>{training.employeeNumber}</TableCell>

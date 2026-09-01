@@ -318,20 +318,14 @@ export function AdvancedFilters({
             <label className="text-sm font-medium text-muted-foreground">
               Datum od:
             </label>
-            <DateInput
-              value={filters.dateFrom}
-              onChange={(date) => onFilterChange("dateFrom", date)}
-            />
+            <DateInput value={filters.dateFrom} onChange={(date) => onFilterChange("dateFrom", date)} />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground">
               Datum do:
             </label>
-            <DateInput
-              value={filters.dateTo}
-              onChange={(date) => onFilterChange("dateTo", date)}
-            />
+            <DateInput value={filters.dateTo} onChange={(date) => onFilterChange("dateTo", date)} />
           </div>
         </div>
 

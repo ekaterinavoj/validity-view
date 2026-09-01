@@ -19,13 +19,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { DateInput } from "@/components/ui/date-input";
-import { Edit, Plus, Trash2, Search, X, Download, Loader2, RefreshCw, List, GitBranch } from "lucide-react";
-import { BulkEmployeeImport } from "@/components/BulkEmployeeImport";
+import { CalendarIcon, Edit, Plus, Trash2, Search, X, Download, Loader2, RefreshCw, List, GitBranch } from "lucide-react";
+import { BulkEmployeeImport, type BulkEmployeeImportHandle } from "@/components/BulkEmployeeImport";
+import { ImportExportMenu } from "@/components/ImportExportMenu";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { useToast } from "@/hooks/use-toast";
@@ -129,6 +129,7 @@ interface EmployeeDependencies {
 }
 
 export default function Employees() {
+  const bulkImportRef = useRef<BulkEmployeeImportHandle>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<EmployeeWithDepartment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -274,11 +275,9 @@ export default function Employees() {
         "Kategorie práce": employee.workCategory ? `Kategorie ${employee.workCategory}` : "",
         "Datum narození": employee.birthDate ? formatDisplayDate(employee.birthDate, "") : "",
         "Věk": employee.birthDate ? String(calculateAge(employee.birthDate) ?? "") : "",
-        "Datum nástupu": employee.startDate ? formatDisplayDate(employee.startDate, "") : "",
-        "Konec zkušební doby": employee.probationEndDate ? formatDisplayDate(employee.probationEndDate, "") : "",
-        "Zkušební doba (měsíce)": employee.probationMonths != null ? String(employee.probationMonths) : "",
+        "Kategorie práce": employee.workCategory || "",
         "Email nadřízeného": employee.managerEmail || "",
-        "Datum od": employee.statusStartDate || employee.terminationDate 
+        "Datum od": employee.statusStartDate || employee.terminationDate
           ? formatDisplayDate(employee.statusStartDate || employee.terminationDate, "")
           : "",
       }));
@@ -607,12 +606,12 @@ export default function Employees() {
         </div>
 
         <div className="flex gap-2">
-          <RefreshButton onRefresh={() => refetch()} loading={employeesLoading} />
-          <BulkEmployeeImport />
-          <Button variant="outline" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
+          <BulkEmployeeImport ref={bulkImportRef} hideTrigger />
+          <ImportExportMenu
+            onExport={exportToCSV}
+            onToggleImport={() => bulkImportRef.current?.openFilePicker()}
+            onDownloadTemplate={() => bulkImportRef.current?.downloadTemplate()}
+          />
           <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button>

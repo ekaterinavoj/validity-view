@@ -16,7 +16,7 @@ import { Search } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { parsePeriodicityText } from "@/lib/utils";
+import { formatPeriodicity, parsePeriodicityText } from "@/lib/utils";
 import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { useFacilities } from "@/hooks/useFacilities";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -32,12 +32,15 @@ const formSchema = z.object({
   periodValue: z.string().min(1, "Zadejte periodicitu"),
   periodUnit: z.enum(["days", "months", "years"]),
   description: z.string().optional(),
+  defaultRemindDaysBefore: z.string().optional(),
+  defaultRepeatDaysAfter: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 interface ExaminationType {
   id: string; facility: string; name: string; period_days: number; description: string | null; created_at: string;
+  default_remind_days_before: number | null; default_repeat_days_after: number | null;
 }
 
 export default function MedicalExaminationTypes() {
@@ -78,7 +81,7 @@ export default function MedicalExaminationTypes() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { periodValue: "2", periodUnit: "years", description: "" },
+    defaultValues: { periodValue: "2", periodUnit: "years", description: "", defaultRemindDaysBefore: "30", defaultRepeatDaysAfter: "30" },
   });
 
   const loadExaminationTypes = async () => {
@@ -214,7 +217,14 @@ export default function MedicalExaminationTypes() {
     setIsSubmitting(true);
     try {
       const periodDays = convertToDays(parseFloat(data.periodValue), data.periodUnit);
-      const typeData = { facility: data.facility, name: data.name, period_days: periodDays, description: data.description || null };
+      const typeData = {
+        facility: data.facility,
+        name: data.name,
+        period_days: periodDays,
+        description: data.description || null,
+        default_remind_days_before: data.defaultRemindDaysBefore ? parseInt(data.defaultRemindDaysBefore) : null,
+        default_repeat_days_after: data.defaultRepeatDaysAfter ? parseInt(data.defaultRepeatDaysAfter) : null,
+      };
       if (editingType) {
         const { error } = await supabase.from("medical_examination_types").update(typeData).eq("id", editingType.id);
         if (error) throw error;
@@ -239,7 +249,11 @@ export default function MedicalExaminationTypes() {
     setEditingType(type);
     const periodUnit: "days" | "months" | "years" = type.period_days % 365 === 0 ? "years" : type.period_days % 30 === 0 ? "months" : "days";
     const periodValue = convertFromDays(type.period_days, periodUnit);
-    form.reset({ facility: type.facility, name: type.name, periodValue: periodValue.toString(), periodUnit, description: type.description || "" });
+    form.reset({
+      facility: type.facility, name: type.name, periodValue: periodValue.toString(), periodUnit, description: type.description || "",
+      defaultRemindDaysBefore: String(type.default_remind_days_before ?? 30),
+      defaultRepeatDaysAfter: String(type.default_repeat_days_after ?? 30),
+    });
     setDialogOpen(true);
   };
 
@@ -324,6 +338,17 @@ export default function MedicalExaminationTypes() {
                   <FormField control={form.control} name="description" render={({ field }) => (
                     <FormItem><FormLabel>Popis</FormLabel><FormControl><Textarea placeholder="Volitelný popis..." rows={3} {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
+                  <div className="space-y-2 rounded-md border p-3">
+                    <FormLabel className="text-sm text-muted-foreground">Výchozí připomínky pro nové prohlídky tohoto typu</FormLabel>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField control={form.control} name="defaultRemindDaysBefore" render={({ field }) => (
+                        <FormItem><FormLabel>Upozornit dní předem</FormLabel><FormControl><Input type="number" min="0" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="defaultRepeatDaysAfter" render={({ field }) => (
+                        <FormItem><FormLabel>Opakovat po expiraci (dní)</FormLabel><FormControl><Input type="number" min="0" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                    </div>
+                  </div>
                   <div className="flex gap-4 pt-4">
                     <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{isSubmitting ? "Ukládá se..." : "Uložit"}</Button>
                     <Button type="button" variant="outline" onClick={() => handleDialogClose(false)} disabled={isSubmitting}>Zrušit</Button>
@@ -414,7 +439,7 @@ export default function MedicalExaminationTypes() {
                         <TableCell>{row.rowNumber}</TableCell>
                         <TableCell className="font-medium">{row.name}</TableCell>
                         <TableCell>{row.facilityRaw}</TableCell>
-                        <TableCell>{row.periodDays ? `${row.periodDays} dní` : "-"}</TableCell>
+                        <TableCell>{row.periodDays ? formatPeriodicityDual(row.periodDays) : "-"}</TableCell>
                         <TableCell>
                           {!row.isValid ? <Badge variant="destructive">{row.errors.join(", ")}</Badge> : row.isDuplicate ? <Badge variant="outline" className="text-amber-600 border-amber-600">Duplicitní</Badge> : <Badge variant="default">Nový</Badge>}
                         </TableCell>

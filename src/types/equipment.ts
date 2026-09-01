@@ -49,6 +49,8 @@ export interface DeadlineType {
   period_days: number;
   description: string | null;
   created_at: string;
+  default_remind_days_before: number | null;
+  default_repeat_days_after: number | null;
 }
 
 export interface Deadline {

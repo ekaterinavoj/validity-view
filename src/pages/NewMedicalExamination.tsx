@@ -1,11 +1,11 @@
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DateInput } from "@/components/ui/date-input";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Loader2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { formatDisplayDate } from "@/lib/dateFormat";
@@ -40,7 +40,10 @@ import {
   medicalExaminationResultAllowsAdditionalLossFlag,
   getMedicalExaminationStatusFromResult,
 } from "@/lib/medicalExaminationResults";
+import { DateInput } from "@/components/ui/date-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SuggestedTextInput } from "@/components/SuggestedTextInput";
+import { useDistinctColumnValues } from "@/hooks/useDistinctColumnValues";
 
 const formSchema = z.object({
   facility: z.string().min(1, "Vyberte provozovnu"),
@@ -52,7 +55,6 @@ const formSchema = z.object({
   doctor: z.string().optional(),
   medicalFacility: z.string().optional(),
   result: z.string().optional(),
-  reminderTemplateId: z.string().min(1, "Vyberte šablonu připomenutí"),
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   note: z.string().optional(),
@@ -65,7 +67,7 @@ const formSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: additional
-        ? "Při označení dlouhodobé ztráty způsobilosti musíte doplnit poznámku."
+        ? "Při označení dlouhodobé ztráty způsobilosti musíte napsat poznámku (za co a jak zaměstnanec pozbyl(a) způsobilosti)."
         : "U výsledku s podmínkou nebo omezením musíte doplnit poznámku.",
       path: ["note"],
     });
@@ -89,12 +91,13 @@ export default function NewMedicalExamination() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
-  const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const [healthRisks, setHealthRisks] = useState<HealthRisks>(createEmptyHealthRisks());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
+  const doctorSuggestions = useDistinctColumnValues("medical_examinations", "doctor");
+  const facilitySuggestions = useDistinctColumnValues("medical_examinations", "medical_facility");
   const { examinationTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useMedicalExaminationTypes();
   const { facilities, loading: facilitiesLoading, error: facilitiesError, refetch: refetchFacilities } = useFacilities();
 
@@ -114,16 +117,6 @@ export default function NewMedicalExamination() {
     },
   });
 
-  useEffect(() => {
-    const loadTemplates = async () => {
-      const { data, error } = await supabase.from("medical_reminder_templates").select("*").eq("is_active", true).order("name");
-      if (!error && data) {
-        setReminderTemplates(data);
-      }
-    };
-    loadTemplates();
-  }, []);
-
   const selectedTypeId = form.watch("examinationTypeId");
   const selectedType = examinationTypes.find((t) => t.id === selectedTypeId);
 
@@ -135,6 +128,15 @@ export default function NewMedicalExamination() {
         setPeriodUnit(unit);
       }
       form.setValue("facility", selectedType.facility);
+
+      // Pre-fill reminder timing from the type's defaults (if configured), same
+      // as trainings/deadlines — only while the user hasn't touched these fields.
+      if (!form.formState.dirtyFields.remindDaysBefore && selectedType.defaultRemindDaysBefore != null) {
+        form.setValue("remindDaysBefore", String(selectedType.defaultRemindDaysBefore));
+      }
+      if (!form.formState.dirtyFields.repeatDaysAfter && selectedType.defaultRepeatDaysAfter != null) {
+        form.setValue("repeatDaysAfter", String(selectedType.defaultRepeatDaysAfter));
+      }
     }
   }, [selectedType, form]);
 
@@ -205,7 +207,6 @@ export default function NewMedicalExamination() {
               doctor: data.doctor || undefined,
               medical_facility: data.medicalFacility || undefined,
               result: data.result || undefined,
-              reminder_template_id: data.reminderTemplateId || undefined,
               period_days_override: overridePeriodDays,
               remind_days_before: parseInt(data.remindDaysBefore) || 30,
               repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
@@ -304,19 +305,11 @@ export default function NewMedicalExamination() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {examinationTypes.map((type) => {
-                        const periodLabel = formatPeriodicityDual(type.periodDays);
-                        return (
-                          <SelectItem key={type.id} value={type.id}>
-                            <div className="flex flex-col items-start">
-                              <span>{type.name} ({periodLabel})</span>
-                              {type.description && (
-                                <span className="text-xs text-muted-foreground">{type.description}</span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
+                      {examinationTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name} ({formatPeriodicityDual(type.periodDays)})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -406,10 +399,22 @@ export default function NewMedicalExamination() {
 
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="doctor" render={({ field }) => (
-                <FormItem><FormLabel>Lékař</FormLabel><FormControl><Input {...field} placeholder="Jméno lékaře" /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Lékař</FormLabel>
+                  <FormControl>
+                    <SuggestedTextInput id="medical-doctor" suggestions={doctorSuggestions} value={field.value || ""} onChange={field.onChange} placeholder="Jméno lékaře" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
               <FormField control={form.control} name="medicalFacility" render={({ field }) => (
-                <FormItem><FormLabel>Zdravotnické zařízení</FormLabel><FormControl><Input {...field} placeholder="Název zařízení" /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Zdravotnické zařízení</FormLabel>
+                  <FormControl>
+                    <SuggestedTextInput id="medical-facility" suggestions={facilitySuggestions} value={field.value || ""} onChange={field.onChange} placeholder="Název zařízení" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
             </div>
 
@@ -457,10 +462,12 @@ export default function NewMedicalExamination() {
                     </FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel className="cursor-pointer text-sm font-medium">
-                        Současně pozbyl dlouhodobě zdravotní způsobilosti
+                        Současně pozbyl(a) dlouhodobě zdravotní způsobilosti
                       </FormLabel>
                       <p className="text-xs text-muted-foreground">
-                        Použijte např. po návratu z nemocenské, kdy zaměstnanec je aktuálně způsobilý, ale dlouhodobě pozbyl způsobilosti k jiné činnosti. Vyžaduje datum pozbytí a poznámku.
+                        Použijte např. po návratu z nemocenské, kdy je zaměstnanec aktuálně způsobilý, ale dlouhodobě
+                        pozbyl(a) způsobilosti k jiné činnosti. Prohlídka zůstává platná — jde jen o poznámku od lékaře,
+                        která ale musí zůstat viditelná. Vyžaduje datum pozbytí a poznámku (za co a jak).
                       </p>
                     </div>
                   </FormItem>
@@ -475,7 +482,7 @@ export default function NewMedicalExamination() {
                 name="longTermFitnessLossDate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Datum pozbytí dlouhodobé zdravotní způsobilosti</FormLabel>
+                    <FormLabel>Datum pozbytí dlouhodobé zdravotní způsobilosti *</FormLabel>
                     <FormControl>
                       <DateInput value={field.value} onChange={field.onChange} />
                     </FormControl>
@@ -504,31 +511,38 @@ export default function NewMedicalExamination() {
               <FileUploader files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={10} maxSize={40} acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} />
             </div>
 
-            <FormField control={form.control} name="reminderTemplateId" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Šablona připomenutí *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Vyberte šablonu" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    {reminderTemplates.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="remindDaysBefore" render={({ field }) => (
-                <FormItem><FormLabel>Připomenout dopředu (dní) *</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Připomenout před expirací (dní) *</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="repeatDaysAfter" render={({ field }) => (
-                <FormItem><FormLabel>Opakovat po (dní)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Opakovat po expiraci (dní)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
 
-            <FormField control={form.control} name="note" render={({ field }) => (
-              <FormItem><FormLabel>{medicalExaminationResultRequiresNote(selectedResult) ? "Podmínka / omezení *" : "Poznámka"}</FormLabel><FormControl><Textarea {...field} rows={3} placeholder={medicalExaminationResultRequiresNote(selectedResult) ? "Popište podmínku nebo omezení" : undefined} /></FormControl><FormMessage /></FormItem>
-            )} />
+            <FormField control={form.control} name="note" render={({ field }) => {
+              const requiresNote = medicalExaminationResultRequiresNote(selectedResult) || form.watch("hasAdditionalLongTermLoss");
+              return (
+                <FormItem>
+                  <FormLabel>{requiresNote ? "Poznámka *" : "Poznámka"}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      rows={3}
+                      placeholder={
+                        form.watch("hasAdditionalLongTermLoss")
+                          ? "Popište, za co a jak zaměstnanec pozbyl(a) dlouhodobé způsobilosti"
+                          : medicalExaminationResultRequiresNote(selectedResult)
+                            ? "Popište podmínku nebo omezení"
+                            : undefined
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }} />
 
             <div className="space-y-2">
               <Label>Zadavatel</Label>

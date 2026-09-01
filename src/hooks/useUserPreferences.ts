@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+export interface DashboardQuickLink {
+  id: string;
+  label: string;
+  path: string;
+}
+
 export interface UserPreferences {
   // UI & Display
   theme: "light" | "dark" | "system";
@@ -24,25 +30,8 @@ export interface UserPreferences {
   autoRefresh: boolean;
   autoRefreshInterval: number; // in seconds
 
-  // Page-specific (synced cross-device)
-  probationsCompactMode: boolean; // /probations: hide history tab entirely (no audit query)
-
-  // Notification bell filters (synced cross-device)
-  notificationCategory: "all" | "probation" | "training" | "deadline" | "medical" | "other";
-  notificationOnlyUnread: boolean;
-
-  // Password review modal (synced cross-device — opt-out from rotation reminder)
-  passwordReviewSnoozedForever: boolean;
-
-  // Dashboard – uživatelské rychlé odkazy (synced cross-device)
+  // Dashboard quick links — empty array means "use the role-based defaults"
   dashboardQuickLinks: DashboardQuickLink[];
-}
-
-export interface DashboardQuickLink {
-  id: string;
-  label: string;
-  path: string; // interní cesta nebo absolutní URL
-  icon?: string; // klíč z lucide-react (volitelný); fallback = "Link"
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -60,11 +49,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   showQuickStats: true,
   autoRefresh: false,
   autoRefreshInterval: 60,
-  probationsCompactMode: false,
-  notificationCategory: "all",
-  notificationOnlyUnread: false,
-  passwordReviewSnoozedForever: false,
-  dashboardQuickLinks: [], // prázdné = použijí se výchozí systémové odkazy
+  dashboardQuickLinks: [],
 };
 
 const getStorageKey = (userId: string | null) => {

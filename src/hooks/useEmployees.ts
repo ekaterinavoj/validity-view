@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Logs an access event for the employees table (best-effort, never throws).
- * Captures user role + filter context for security auditing.
+ * Captures user role + filter context for security auditing — feeds the
+ * "Diagnostika přístupových oprávnění" panel in Administrace.
  */
 async function logEmployeeAccess(
   action: "list" | "detail" | "inactive_list" | "export",
@@ -197,10 +198,7 @@ export function useEmployees(statusFilter?: string) {
 
       const mapped = resolveManagers((data || []).map(mapEmployee));
       setEmployees(mapped);
-      await logEmployeeAccess("list", mapped.length, {
-        statusFilter,
-        scope: allowedIds === null ? "all" : "restricted",
-      });
+      await logEmployeeAccess("list", mapped.length, { statusFilter: statusFilter ?? "all" });
     } catch (err: any) {
       console.error("Error fetching employees:", err);
       setError("Nepodařilo se načíst zaměstnance. Zkuste to prosím znovu.");
@@ -247,9 +245,7 @@ export function useInactiveEmployees() {
 
       const mapped = resolveManagers((data || []).map(mapEmployee));
       setEmployees(mapped);
-      await logEmployeeAccess("inactive_list", mapped.length, {
-        statuses: ["parental_leave", "sick_leave", "terminated"],
-      });
+      await logEmployeeAccess("inactive_list", mapped.length, {});
     } catch (err: any) {
       console.error("Error fetching inactive employees:", err);
       setError("Nepodařilo se načíst neaktivní zaměstnance. Zkuste to prosím znovu.");

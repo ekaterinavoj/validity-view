@@ -47,9 +47,8 @@ export function SendSingleTestEmail({ isEnabled }: SendSingleTestEmailProps) {
     setResult(null);
     
     try {
-      const { data, error } = await supabase.functions.invoke("run-reminders", {
-        body: { 
-          triggered_by: "single_test",
+      const { data, error } = await supabase.functions.invoke("send-training-reminders", {
+        body: {
           test_mode: true,
           single_recipient_email: testEmail,
         },
@@ -112,7 +111,8 @@ export function SendSingleTestEmail({ isEnabled }: SendSingleTestEmailProps) {
             Odeslat testovací náhled
           </DialogTitle>
           <DialogDescription>
-            Odešlete náhled souhrnného emailu na jednu testovací adresu pro ověření formátování.
+            Spustí skutečnou kontrolu školení (send-training-reminders) a pošle jí vygenerované připomínky
+            na jednu testovací adresu místo skutečných příjemců, pro ověření formátování.
           </DialogDescription>
         </DialogHeader>
 

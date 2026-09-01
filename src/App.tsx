@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { Layout } from "./components/Layout";
+import Dashboard from "./pages/Dashboard";
+import Guides from "./pages/Guides";
 import Statistics from "./pages/Statistics";
 import ScheduledTrainings from "./pages/ScheduledTrainings";
 import History from "./pages/History";
@@ -18,7 +20,8 @@ import Facilities from "./pages/Facilities";
 import InactiveEmployeesReport from "./pages/InactiveEmployeesReport";
 import Auth from "./pages/Auth";
 import ChangePassword from "./pages/ChangePassword";
-import { Navigate } from "react-router-dom";
+import MfaChallenge from "./pages/MfaChallenge";
+import AuditLog from "./pages/AuditLog";
 import Profile from "./pages/Profile";
 import AdminSettings from "./pages/AdminSettings";
 import SystemStatus from "./pages/SystemStatus";
@@ -27,8 +30,6 @@ import SecurityChecklist from "./pages/SecurityChecklist";
 import NotFound from "./pages/NotFound";
 import NoAccess from "./pages/NoAccess";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { ModuleRedirect } from "./components/ModuleRedirect";
-import Dashboard from "./pages/Dashboard";
 
 // Deadline module pages
 import ScheduledDeadlines from "./pages/ScheduledDeadlines";
@@ -87,9 +88,11 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+            <Route path="/mfa-challenge" element={<ProtectedRoute><MfaChallenge /></ProtectedRoute>} />
             
-            {/* ============ TRAININGS MODULE ============ */}
             <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+
+            {/* ============ TRAININGS MODULE ============ */}
             <Route path="/trainings" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
             <Route path="/trainings/scheduled" element={<ProtectedLayout requiredModule="trainings"><ScheduledTrainings /></ProtectedLayout>} />
             <Route path="/trainings/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="trainings"><History /></ProtectedLayout>} />
@@ -107,8 +110,8 @@ const App = () => (
             <Route path="/deadlines/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="deadlines"><DeadlineHistory /></ProtectedLayout>} />
             <Route path="/deadlines/new" element={<ProtectedLayout requiredModule="deadlines"><NewDeadline /></ProtectedLayout>} />
             <Route path="/deadlines/edit/:id" element={<ProtectedLayout requiredModule="deadlines"><EditDeadline /></ProtectedLayout>} />
-            <Route path="/deadlines/equipment" element={<ProtectedLayout requiredModule="deadlines"><Equipment /></ProtectedLayout>} />
-            <Route path="/deadlines/types" element={<ProtectedLayout requiredModule="deadlines"><DeadlineTypes /></ProtectedLayout>} />
+            <Route path="/deadlines/equipment" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="deadlines"><Equipment /></ProtectedLayout>} />
+            <Route path="/deadlines/types" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="deadlines"><DeadlineTypes /></ProtectedLayout>} />
             <Route path="/deadlines/groups" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="deadlines"><ResponsibilityGroups /></ProtectedLayout>} />
             
             
@@ -116,9 +119,8 @@ const App = () => (
             {/* List/scheduled — všichni s přístupem k PLP modulu */}
             <Route path="/plp" element={<ProtectedLayout requiredModule="plp"><ScheduledExaminations /></ProtectedLayout>} />
             <Route path="/plp/scheduled" element={<ProtectedLayout requiredModule="plp"><ScheduledExaminations /></ProtectedLayout>} />
-            {/* Vytváření / úprava / typy / historie — pouze admin (PLP je citlivé, uživatel ani manažer nesmí přes URL) */}
-            <Route path="/plp/new" element={<ProtectedLayout requiredRoles={["admin"]} requiredModule="plp"><NewMedicalExamination /></ProtectedLayout>} />
-            <Route path="/plp/edit/:id" element={<ProtectedLayout requiredRoles={["admin"]} requiredModule="plp"><EditMedicalExamination /></ProtectedLayout>} />
+            <Route path="/plp/new" element={<ProtectedLayout requiredModule="plp"><NewMedicalExamination /></ProtectedLayout>} />
+            <Route path="/plp/edit/:id" element={<ProtectedLayout requiredModule="plp"><EditMedicalExamination /></ProtectedLayout>} />
             <Route path="/plp/types" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="plp"><MedicalExaminationTypes /></ProtectedLayout>} />
             <Route path="/plp/history" element={<ProtectedLayout requiredRoles={["admin", "manager"]} requiredModule="plp"><MedicalExaminationHistory /></ProtectedLayout>} />
             
@@ -129,7 +131,6 @@ const App = () => (
             <Route path="/departments" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Departments /></ProtectedLayout>} />
             <Route path="/facilities" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Facilities /></ProtectedLayout>} />
             <Route path="/inactive" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><InactiveEmployeesReport /></ProtectedLayout>} />
-            <Route path="/probations" element={<ProtectedLayout requiredRoles={["admin", "manager"]}><Probations /></ProtectedLayout>} />
             
             {/* Audit log byl sloučen do Administrace → tab "audit-log" */}
             <Route path="/audit-log" element={<Navigate to="/admin/settings?tab=audit-log" replace />} />

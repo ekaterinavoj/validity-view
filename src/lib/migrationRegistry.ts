@@ -1229,16 +1229,89 @@ WHERE me.is_active = true
 SELECT public.recalculate_all_statuses();
     `.trim(),
   },
+
+  // ===== Added in this session (2026-08-27): reminder cadence overhaul,
+  //      duplicate-trigger fixes, self-hosted bug fixes =====
   {
-    version: "20260412001000",
-    name: "shorten_age_50_notification_text",
+    version: "20260827090000",
+    name: "periodic_age_milestone_check",
     sql: `
+-- The existing notify_employee_age_50() trigger only fires on INSERT/UPDATE of the
+-- employees row itself. In practice an employee record is rarely touched exactly on
+-- their birthday, so the notification silently never fires for most people who turn 50.
+-- This adds a callable, idempotent function that re-checks ALL active employees and can
+-- be invoked from a daily/hourly job (see run-medical-reminders), independent of any
+-- write to the employees table.
+
+CREATE OR REPLACE FUNCTION public.check_employee_age_milestones()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  admin_record RECORD;
+  emp_record RECORD;
+  emp_name TEXT;
+  emp_age INT;
+  notified_count INT := 0;
+BEGIN
+  FOR emp_record IN
+    SELECT id, first_name, last_name, birth_date
+    FROM public.employees
+    WHERE birth_date IS NOT NULL
+      AND status = 'employed'
+  LOOP
+    emp_age := EXTRACT(YEAR FROM age(CURRENT_DATE, emp_record.birth_date));
+
+    IF emp_age = 50 THEN
+      -- Dedup: skip if a notification was already created for this employee
+      IF EXISTS (
+        SELECT 1 FROM public.notifications
+        WHERE related_entity_type = 'employee_age_50'
+          AND related_entity_id = emp_record.id
+      ) THEN
+        CONTINUE;
+      END IF;
+
+      emp_name := emp_record.first_name || ' ' || emp_record.last_name;
+
+      FOR admin_record IN
+        SELECT ur.user_id FROM public.user_roles ur WHERE ur.role = 'admin'
+      LOOP
+        INSERT INTO public.notifications (
+          user_id, title, message, type, related_entity_type, related_entity_id
+        ) VALUES (
+          admin_record.user_id,
+          'Zaměstnanec dosáhl věku 50 let',
+          'Zaměstnanec ' || emp_name || ' dosáhl věku 50 let. Podle platné legislativy ' ||
+          '(vyhláška č. 79/2013 Sb., o pracovnělékařských službách) se u zaměstnanců ' ||
+          'vykonávajících práci zařazenou do kategorie 2 a vyšší od tohoto věku zkracuje ' ||
+          'interval pravidelných lékařských prohlídek. Zkontrolujte prosím zařazení do ' ||
+          'rizikové kategorie a v případě potřeby naplánujte mimořádnou lékařskou prohlídku ' ||
+          'a upravte periodicitu dalších prohlídek.',
+          'warning',
+          'employee_age_50',
+          emp_record.id
+        );
+      END LOOP;
+
+      notified_count := notified_count + 1;
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object('employees_notified', notified_count, 'checked_at', now());
+END;
+$function$;
+
+-- Keep the write-time trigger in sync with the same, more informative message text so
+-- both paths (immediate trigger + daily periodic check) read identically.
 CREATE OR REPLACE FUNCTION public.notify_employee_age_50()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
-AS $$
+SET search_path TO 'public'
+AS $function$
 DECLARE
   admin_record RECORD;
   emp_name TEXT;
@@ -1269,7 +1342,12 @@ BEGIN
       ) VALUES (
         admin_record.user_id,
         'Zaměstnanec dosáhl věku 50 let',
-        'Zaměstnanec ' || emp_name || ' dosáhl věku 50 let.',
+        'Zaměstnanec ' || emp_name || ' dosáhl věku 50 let. Podle platné legislativy ' ||
+        '(vyhláška č. 79/2013 Sb., o pracovnělékařských službách) se u zaměstnanců ' ||
+        'vykonávajících práci zařazenou do kategorie 2 a vyšší od tohoto věku zkracuje ' ||
+        'interval pravidelných lékařských prohlídek. Zkontrolujte prosím zařazení do ' ||
+        'rizikové kategorie a v případě potřeby naplánujte mimořádnou lékařskou prohlídku ' ||
+        'a upravte periodicitu dalších prohlídek.',
         'warning',
         'employee_age_50',
         NEW.id
@@ -1279,1032 +1357,320 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$function$;
     `.trim(),
   },
   {
-    version: "20260414145300",
-    name: "update_type_period_triggers_recalc_status",
+    version: "20260827091500",
+    name: "fix_duplicate_default_role_trigger",
     sql: `
-CREATE OR REPLACE FUNCTION public.recalculate_training_dates_on_type_change()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE trainings
-    SET next_training_date = last_training_date + (NEW.period_days * INTERVAL '1 day'),
-        status = calculate_training_status((last_training_date + (NEW.period_days * INTERVAL '1 day'))::text),
-        updated_at = now()
-    WHERE training_type_id = NEW.id
-      AND is_active = true
-      AND deleted_at IS NULL
-      AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
+-- CRITICAL FIX: two triggers on public.profiles both call assign_default_role()
+-- after every INSERT:
+--   - assign_default_role_on_signup   (created 2025-11-11, never removed)
+--   - on_profile_created_assign_role  (created 2026-02-16 to harden search_path,
+--                                       the author assumed it was renaming the
+--                                       trigger above but only dropped its own
+--                                       older copy, leaving both attached)
+--
+-- assign_default_role() does a plain INSERT INTO public.user_roles(user_id, role)
+-- with no ON CONFLICT clause. With both triggers firing for the same row, the
+-- second call always hits the (user_id, role) unique constraint and raises an
+-- exception — which aborts the profiles INSERT itself. handle_new_user() catches
+-- that, retries a minimal insert, hits the same duplicate trigger again, and
+-- gives up silently (RAISE WARNING only). Net effect: every new user (self-signup
+-- AND admin-created) ends up with an auth.users row but NO profiles row, so they
+-- can log in but see nothing and cannot be approved/managed from the UI.
 
-CREATE OR REPLACE FUNCTION public.recalculate_medical_dates_on_type_change()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE medical_examinations
-    SET next_examination_date = last_examination_date + (NEW.period_days * INTERVAL '1 day'),
-        status = calculate_examination_status((last_examination_date + (NEW.period_days * INTERVAL '1 day'))::text),
-        updated_at = now()
-    WHERE examination_type_id = NEW.id
-      AND is_active = true
-      AND deleted_at IS NULL
-      AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
+DROP TRIGGER IF EXISTS assign_default_role_on_signup ON public.profiles;
 
-CREATE OR REPLACE FUNCTION public.recalculate_deadline_dates_on_type_change()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE deadlines
-    SET next_check_date = last_check_date + (NEW.period_days * INTERVAL '1 day'),
-        status = calculate_deadline_status((last_check_date + (NEW.period_days * INTERVAL '1 day'))::text),
-        updated_at = now()
-    WHERE deadline_type_id = NEW.id
-      AND is_active = true
-      AND deleted_at IS NULL
-      AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-    `.trim(),
-  },
-  {
-    version: "20260414145900",
-    name: "fix_type_period_triggers_date_cast",
-    sql: `
-CREATE OR REPLACE FUNCTION public.recalculate_training_dates_on_type_change()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE trainings
-    SET next_training_date = last_training_date + (NEW.period_days * INTERVAL '1 day'),
-        status = calculate_training_status((last_training_date + (NEW.period_days * INTERVAL '1 day'))::date),
-        updated_at = now()
-    WHERE training_type_id = NEW.id
-      AND is_active = true
-      AND deleted_at IS NULL
-      AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.recalculate_medical_dates_on_type_change()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE medical_examinations
-    SET next_examination_date = last_examination_date + (NEW.period_days * INTERVAL '1 day'),
-        status = calculate_examination_status((last_examination_date + (NEW.period_days * INTERVAL '1 day'))::date),
-        updated_at = now()
-    WHERE examination_type_id = NEW.id
-      AND is_active = true
-      AND deleted_at IS NULL
-      AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.recalculate_deadline_dates_on_type_change()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE deadlines
-    SET next_check_date = last_check_date + (NEW.period_days * INTERVAL '1 day'),
-        status = calculate_deadline_status((last_check_date + (NEW.period_days * INTERVAL '1 day'))::date),
-        updated_at = now()
-    WHERE deadline_type_id = NEW.id
-      AND is_active = true
-      AND deleted_at IS NULL
-      AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-    `.trim(),
-  },
-  {
-    version: "20260414150200",
-    name: "remove_duplicate_type_period_triggers",
-    sql: `
-DROP TRIGGER IF EXISTS recalculate_training_dates_on_type_change ON public.training_types;
-DROP TRIGGER IF EXISTS recalculate_medical_dates_on_type_change ON public.medical_examination_types;
-DROP TRIGGER IF EXISTS recalculate_deadline_dates_on_type_change ON public.deadline_types;
-    `.trim(),
-  },
-  {
-    version: "20260414151400",
-    name: "fix_type_triggers_respect_negative_results",
-    sql: `
-CREATE OR REPLACE FUNCTION public.recalculate_medical_dates_on_type_change()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE medical_examinations
-    SET next_examination_date = last_examination_date + (NEW.period_days * INTERVAL '1 day'),
-        status = CASE
-          WHEN result IN ('failed', 'lost_long_term') THEN 'expired'
-          ELSE calculate_examination_status((last_examination_date + (NEW.period_days * INTERVAL '1 day'))::date)
-        END,
-        updated_at = now()
-    WHERE examination_type_id = NEW.id AND is_active = true AND deleted_at IS NULL AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.recalculate_training_dates_on_type_change()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE trainings
-    SET next_training_date = last_training_date + (NEW.period_days * INTERVAL '1 day'),
-        status = CASE
-          WHEN result IN ('failed', 'non_compliant', 'unfit') THEN 'expired'
-          ELSE calculate_training_status((last_training_date + (NEW.period_days * INTERVAL '1 day'))::date)
-        END,
-        updated_at = now()
-    WHERE training_type_id = NEW.id AND is_active = true AND deleted_at IS NULL AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.recalculate_deadline_dates_on_type_change()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE deadlines
-    SET next_check_date = last_check_date + (NEW.period_days * INTERVAL '1 day'),
-        status = CASE
-          WHEN result IN ('failed', 'non_compliant') THEN 'expired'
-          ELSE calculate_deadline_status((last_check_date + (NEW.period_days * INTERVAL '1 day'))::date)
-        END,
-        updated_at = now()
-    WHERE deadline_type_id = NEW.id AND is_active = true AND deleted_at IS NULL AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-    `.trim(),
-  },
-  {
-    version: "20260414151900",
-    name: "fix_all_status_recalc_respect_negative_results",
-    sql: `
-CREATE OR REPLACE FUNCTION public.recalculate_all_statuses()
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE
-  t_updated integer := 0;
-  d_updated integer := 0;
-  m_updated integer := 0;
-BEGIN
-  UPDATE public.trainings
-  SET status = calculate_training_status(next_training_date)
-  WHERE is_active = true AND deleted_at IS NULL
-    AND (result IS NULL OR result NOT IN ('failed', 'non_compliant', 'unfit'))
-    AND status IS DISTINCT FROM calculate_training_status(next_training_date);
-  GET DIAGNOSTICS t_updated = ROW_COUNT;
-
-  UPDATE public.deadlines
-  SET status = calculate_deadline_status(next_check_date)
-  WHERE is_active = true AND deleted_at IS NULL
-    AND (result IS NULL OR result NOT IN ('failed', 'non_compliant'))
-    AND status IS DISTINCT FROM calculate_deadline_status(next_check_date);
-  GET DIAGNOSTICS d_updated = ROW_COUNT;
-
-  UPDATE public.medical_examinations
-  SET status = calculate_examination_status(next_examination_date)
-  WHERE is_active = true AND deleted_at IS NULL
-    AND (result IS NULL OR result NOT IN ('failed', 'lost_long_term'))
-    AND status IS DISTINCT FROM calculate_examination_status(next_examination_date);
-  GET DIAGNOSTICS m_updated = ROW_COUNT;
-
-  RETURN jsonb_build_object(
-    'trainings_updated', t_updated,
-    'deadlines_updated', d_updated,
-    'medical_updated', m_updated
-  );
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.recalculate_training_status_on_activation()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  IF NEW.status = 'employed' AND OLD.status != 'employed' THEN
-    UPDATE public.trainings
-    SET status = CASE
-      WHEN result IN ('failed', 'non_compliant', 'unfit') THEN 'expired'
-      ELSE calculate_training_status(next_training_date)
-    END
-    WHERE employee_id = NEW.id;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.recalculate_examination_status_on_activation()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  IF NEW.status = 'employed' AND OLD.status != 'employed' THEN
-    UPDATE public.medical_examinations
-    SET status = CASE
-      WHEN result IN ('failed', 'lost_long_term') THEN 'expired'
-      ELSE calculate_examination_status(next_examination_date)
-    END
-    WHERE employee_id = NEW.id;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-    `.trim(),
-  },
-  {
-    version: "20260417124200",
-    name: "plp_allow_loss_date_for_any_result",
-    sql: `
--- Allow long_term_fitness_loss_date to be set for ANY result, not only 'lost_long_term'.
--- The date is now treated as an independent fact: an employee can be 'passed' AND have lost long-term fitness.
--- Previous trigger forced the column to NULL whenever result != 'lost_long_term'. That blocked the new combined flow.
-CREATE OR REPLACE FUNCTION public.validate_medical_examination_result_fields()
-RETURNS trigger
-LANGUAGE plpgsql
-SET search_path TO 'public'
-AS $$
-BEGIN
-  -- If the main result is 'lost_long_term', the date is mandatory (legacy behaviour).
-  IF NEW.result = 'lost_long_term' AND NEW.long_term_fitness_loss_date IS NULL THEN
-    RAISE EXCEPTION 'long_term_fitness_loss_date is required when result = lost_long_term';
-  END IF;
-
-  -- The date is now allowed independently for any result, so do NOT clear it any more.
-  RETURN NEW;
-END;
-$$;
-    `.trim(),
-  },
-  {
-    version: "20260417125053",
-    name: "trainings_deadlines_fixed_tracking",
-    sql: `
--- Add "Fixed" tracking columns to trainings and deadlines
-ALTER TABLE public.trainings
-  ADD COLUMN IF NOT EXISTS fixed_at date,
-  ADD COLUMN IF NOT EXISTS fixed_by_profile_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS fixed_by_name text,
-  ADD COLUMN IF NOT EXISTS fixed_note text;
-
-ALTER TABLE public.deadlines
-  ADD COLUMN IF NOT EXISTS fixed_at date,
-  ADD COLUMN IF NOT EXISTS fixed_by_profile_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS fixed_by_name text,
-  ADD COLUMN IF NOT EXISTS fixed_note text;
-
--- Update archive trigger for trainings to include fixed_* fields in snapshot + change detection
-CREATE OR REPLACE FUNCTION public.archive_training_before_edit()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  snapshot_id uuid;
-BEGIN
-  IF OLD.deleted_at IS DISTINCT FROM NEW.deleted_at THEN RETURN NEW; END IF;
-  IF OLD.is_active IS DISTINCT FROM NEW.is_active THEN RETURN NEW; END IF;
-  IF OLD.original_record_id IS NOT NULL THEN RETURN NEW; END IF;
-
-  IF OLD.last_training_date IS DISTINCT FROM NEW.last_training_date
-     OR OLD.training_type_id IS DISTINCT FROM NEW.training_type_id
-     OR OLD.employee_id IS DISTINCT FROM NEW.employee_id
-     OR OLD.facility IS DISTINCT FROM NEW.facility
-     OR OLD.trainer IS DISTINCT FROM NEW.trainer
-     OR OLD.company IS DISTINCT FROM NEW.company
-     OR OLD.requester IS DISTINCT FROM NEW.requester
-     OR OLD.note IS DISTINCT FROM NEW.note
-     OR OLD.period_days_override IS DISTINCT FROM NEW.period_days_override
-     OR OLD.result IS DISTINCT FROM NEW.result
-     OR OLD.fixed_at IS DISTINCT FROM NEW.fixed_at
-     OR OLD.fixed_by_profile_id IS DISTINCT FROM NEW.fixed_by_profile_id
-     OR OLD.fixed_by_name IS DISTINCT FROM NEW.fixed_by_name
-     OR OLD.fixed_note IS DISTINCT FROM NEW.fixed_note
-  THEN
-    snapshot_id := gen_random_uuid();
-    INSERT INTO trainings (
-      id, employee_id, training_type_id, facility, last_training_date, next_training_date,
-      trainer, company, requester, note, status, is_active, deleted_at,
-      period_days_override, result, reminder_template_id, remind_days_before,
-      repeat_days_after, reminder_template, created_by, created_at, original_record_id,
-      fixed_at, fixed_by_profile_id, fixed_by_name, fixed_note
-    ) VALUES (
-      snapshot_id, OLD.employee_id, OLD.training_type_id, OLD.facility, OLD.last_training_date, OLD.next_training_date,
-      OLD.trainer, OLD.company, OLD.requester, OLD.note, OLD.status, false, now(),
-      OLD.period_days_override, OLD.result, OLD.reminder_template_id, OLD.remind_days_before,
-      OLD.repeat_days_after, OLD.reminder_template, OLD.created_by, OLD.created_at, OLD.id,
-      OLD.fixed_at, OLD.fixed_by_profile_id, OLD.fixed_by_name, OLD.fixed_note
-    );
-    INSERT INTO training_documents (training_id, file_name, file_path, file_type, file_size, document_type, description, uploaded_by, uploaded_at)
-    SELECT snapshot_id, file_name, file_path, file_type, file_size, document_type, description, uploaded_by, uploaded_at
-    FROM training_documents WHERE training_id = OLD.id;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.archive_deadline_before_edit()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  snapshot_id uuid;
-BEGIN
-  IF OLD.deleted_at IS DISTINCT FROM NEW.deleted_at THEN RETURN NEW; END IF;
-  IF OLD.is_active IS DISTINCT FROM NEW.is_active THEN RETURN NEW; END IF;
-  IF OLD.original_record_id IS NOT NULL THEN RETURN NEW; END IF;
-
-  IF OLD.last_check_date IS DISTINCT FROM NEW.last_check_date
-     OR OLD.deadline_type_id IS DISTINCT FROM NEW.deadline_type_id
-     OR OLD.equipment_id IS DISTINCT FROM NEW.equipment_id
-     OR OLD.facility IS DISTINCT FROM NEW.facility
-     OR OLD.performer IS DISTINCT FROM NEW.performer
-     OR OLD.company IS DISTINCT FROM NEW.company
-     OR OLD.requester IS DISTINCT FROM NEW.requester
-     OR OLD.note IS DISTINCT FROM NEW.note
-     OR OLD.period_days_override IS DISTINCT FROM NEW.period_days_override
-     OR OLD.result IS DISTINCT FROM NEW.result
-     OR OLD.fixed_at IS DISTINCT FROM NEW.fixed_at
-     OR OLD.fixed_by_profile_id IS DISTINCT FROM NEW.fixed_by_profile_id
-     OR OLD.fixed_by_name IS DISTINCT FROM NEW.fixed_by_name
-     OR OLD.fixed_note IS DISTINCT FROM NEW.fixed_note
-  THEN
-    snapshot_id := gen_random_uuid();
-    INSERT INTO deadlines (
-      id, equipment_id, deadline_type_id, facility, last_check_date, next_check_date,
-      performer, company, requester, note, status, is_active, deleted_at,
-      period_days_override, result, reminder_template_id, remind_days_before,
-      repeat_days_after, created_by, created_at, original_record_id,
-      fixed_at, fixed_by_profile_id, fixed_by_name, fixed_note
-    ) VALUES (
-      snapshot_id, OLD.equipment_id, OLD.deadline_type_id, OLD.facility, OLD.last_check_date, OLD.next_check_date,
-      OLD.performer, OLD.company, OLD.requester, OLD.note, OLD.status, false, now(),
-      OLD.period_days_override, OLD.result, OLD.reminder_template_id, OLD.remind_days_before,
-      OLD.repeat_days_after, OLD.created_by, OLD.created_at, OLD.id,
-      OLD.fixed_at, OLD.fixed_by_profile_id, OLD.fixed_by_name, OLD.fixed_note
-    );
-    INSERT INTO deadline_documents (deadline_id, file_name, file_path, file_type, file_size, document_type, description, uploaded_by, uploaded_at)
-    SELECT snapshot_id, file_name, file_path, file_type, file_size, document_type, description, uploaded_by, uploaded_at
-    FROM deadline_documents WHERE deadline_id = OLD.id;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-    `.trim(),
-  },
-  {
-    version: "20260417125146",
-    name: "fixed_at_overrides_negative_status",
-    sql: `
--- Make fixed_at override the negative-result lockdown across status logic
-CREATE OR REPLACE FUNCTION public.recalculate_all_statuses()
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  t_updated integer := 0;
-  d_updated integer := 0;
-  m_updated integer := 0;
-BEGIN
-  UPDATE public.trainings
-  SET status = calculate_training_status(next_training_date)
-  WHERE is_active = true
-    AND deleted_at IS NULL
-    AND (fixed_at IS NOT NULL OR result IS NULL OR result NOT IN ('failed', 'non_compliant', 'unfit'))
-    AND status IS DISTINCT FROM calculate_training_status(next_training_date);
-  GET DIAGNOSTICS t_updated = ROW_COUNT;
-
-  UPDATE public.deadlines
-  SET status = calculate_deadline_status(next_check_date)
-  WHERE is_active = true
-    AND deleted_at IS NULL
-    AND (fixed_at IS NOT NULL OR result IS NULL OR result NOT IN ('failed', 'non_compliant'))
-    AND status IS DISTINCT FROM calculate_deadline_status(next_check_date);
-  GET DIAGNOSTICS d_updated = ROW_COUNT;
-
-  UPDATE public.medical_examinations
-  SET status = calculate_examination_status(next_examination_date)
-  WHERE is_active = true
-    AND deleted_at IS NULL
-    AND (result IS NULL OR result NOT IN ('failed', 'lost_long_term'))
-    AND status IS DISTINCT FROM calculate_examination_status(next_examination_date);
-  GET DIAGNOSTICS m_updated = ROW_COUNT;
-
-  RETURN jsonb_build_object(
-    'trainings_updated', t_updated,
-    'deadlines_updated', d_updated,
-    'medical_updated', m_updated
-  );
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.recalculate_training_dates_on_type_change()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE trainings
-    SET next_training_date = last_training_date + (NEW.period_days * INTERVAL '1 day'),
-        status = CASE
-          WHEN result IN ('failed', 'non_compliant', 'unfit') AND fixed_at IS NULL THEN 'expired'
-          ELSE calculate_training_status((last_training_date + (NEW.period_days * INTERVAL '1 day'))::date)
-        END,
-        updated_at = now()
-    WHERE training_type_id = NEW.id
-      AND is_active = true
-      AND deleted_at IS NULL
-      AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.recalculate_deadline_dates_on_type_change()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-BEGIN
-  IF OLD.period_days IS DISTINCT FROM NEW.period_days THEN
-    UPDATE deadlines
-    SET next_check_date = last_check_date + (NEW.period_days * INTERVAL '1 day'),
-        status = CASE
-          WHEN result IN ('failed', 'non_compliant') AND fixed_at IS NULL THEN 'expired'
-          ELSE calculate_deadline_status((last_check_date + (NEW.period_days * INTERVAL '1 day'))::date)
-        END,
-        updated_at = now()
-    WHERE deadline_type_id = NEW.id
-      AND is_active = true
-      AND deleted_at IS NULL
-      AND period_days_override IS NULL;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.recalculate_training_status_on_activation()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-BEGIN
-  IF NEW.status = 'employed' AND OLD.status != 'employed' THEN
-    UPDATE public.trainings
-    SET status = CASE
-      WHEN result IN ('failed', 'non_compliant', 'unfit') AND fixed_at IS NULL THEN 'expired'
-      ELSE calculate_training_status(next_training_date)
-    END
-    WHERE employee_id = NEW.id;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-    `.trim(),
-  },
-  {
-    version: "20260417125851",
-    name: "override_recalc_and_fixed_notifications",
-    sql: `
--- Auto-recalc next_*_date when period_days_override changes (or last date)
-CREATE OR REPLACE FUNCTION public.recalculate_training_on_override_change()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
-DECLARE effective_period integer; type_period integer;
-BEGIN
-  IF TG_OP = 'UPDATE' AND NEW.period_days_override IS NOT DISTINCT FROM OLD.period_days_override
-     AND NEW.last_training_date IS NOT DISTINCT FROM OLD.last_training_date THEN
-    RETURN NEW;
-  END IF;
-  IF NEW.period_days_override IS NOT NULL THEN
-    effective_period := NEW.period_days_override;
-  ELSE
-    SELECT period_days INTO type_period FROM public.training_types WHERE id = NEW.training_type_id;
-    effective_period := type_period;
-  END IF;
-  IF effective_period IS NOT NULL AND NEW.last_training_date IS NOT NULL THEN
-    NEW.next_training_date := (NEW.last_training_date + (effective_period * INTERVAL '1 day'))::date;
-    NEW.status := CASE
-      WHEN NEW.result IN ('failed','non_compliant','unfit') AND NEW.fixed_at IS NULL THEN 'expired'
-      ELSE calculate_training_status(NEW.next_training_date)
-    END;
-  END IF;
-  RETURN NEW;
-END;$$;
-DROP TRIGGER IF EXISTS trg_training_override_recalc ON public.trainings;
-CREATE TRIGGER trg_training_override_recalc BEFORE INSERT OR UPDATE OF period_days_override, last_training_date ON public.trainings
-FOR EACH ROW EXECUTE FUNCTION public.recalculate_training_on_override_change();
-
-CREATE OR REPLACE FUNCTION public.recalculate_deadline_on_override_change()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
-DECLARE effective_period integer; type_period integer;
-BEGIN
-  IF TG_OP = 'UPDATE' AND NEW.period_days_override IS NOT DISTINCT FROM OLD.period_days_override
-     AND NEW.last_check_date IS NOT DISTINCT FROM OLD.last_check_date THEN
-    RETURN NEW;
-  END IF;
-  IF NEW.period_days_override IS NOT NULL THEN
-    effective_period := NEW.period_days_override;
-  ELSE
-    SELECT period_days INTO type_period FROM public.deadline_types WHERE id = NEW.deadline_type_id;
-    effective_period := type_period;
-  END IF;
-  IF effective_period IS NOT NULL AND NEW.last_check_date IS NOT NULL THEN
-    NEW.next_check_date := (NEW.last_check_date + (effective_period * INTERVAL '1 day'))::date;
-    NEW.status := CASE
-      WHEN NEW.result IN ('failed','non_compliant') AND NEW.fixed_at IS NULL THEN 'expired'
-      ELSE calculate_deadline_status(NEW.next_check_date)
-    END;
-  END IF;
-  RETURN NEW;
-END;$$;
-DROP TRIGGER IF EXISTS trg_deadline_override_recalc ON public.deadlines;
-CREATE TRIGGER trg_deadline_override_recalc BEFORE INSERT OR UPDATE OF period_days_override, last_check_date ON public.deadlines
-FOR EACH ROW EXECUTE FUNCTION public.recalculate_deadline_on_override_change();
-
-CREATE OR REPLACE FUNCTION public.recalculate_examination_on_override_change()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
-DECLARE effective_period integer; type_period integer;
-BEGIN
-  IF TG_OP = 'UPDATE' AND NEW.period_days_override IS NOT DISTINCT FROM OLD.period_days_override
-     AND NEW.last_examination_date IS NOT DISTINCT FROM OLD.last_examination_date THEN
-    RETURN NEW;
-  END IF;
-  IF NEW.period_days_override IS NOT NULL THEN
-    effective_period := NEW.period_days_override;
-  ELSE
-    SELECT period_days INTO type_period FROM public.medical_examination_types WHERE id = NEW.examination_type_id;
-    effective_period := type_period;
-  END IF;
-  IF effective_period IS NOT NULL AND NEW.last_examination_date IS NOT NULL THEN
-    NEW.next_examination_date := (NEW.last_examination_date + (effective_period * INTERVAL '1 day'))::date;
-    NEW.status := CASE
-      WHEN NEW.result IN ('failed','lost_long_term') THEN 'expired'
-      ELSE calculate_examination_status(NEW.next_examination_date)
-    END;
-  END IF;
-  RETURN NEW;
-END;$$;
-DROP TRIGGER IF EXISTS trg_examination_override_recalc ON public.medical_examinations;
-CREATE TRIGGER trg_examination_override_recalc BEFORE INSERT OR UPDATE OF period_days_override, last_examination_date ON public.medical_examinations
-FOR EACH ROW EXECUTE FUNCTION public.recalculate_examination_on_override_change();
-
--- Notify responsibles/managers when expired record is fixed
-CREATE OR REPLACE FUNCTION public.notify_training_fixed()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
-DECLARE emp_record RECORD; manager_profile_id uuid; admin_user RECORD; notif_title text; notif_message text; fixer_label text;
-BEGIN
-  IF NEW.fixed_at IS NULL OR (TG_OP='UPDATE' AND OLD.fixed_at IS NOT DISTINCT FROM NEW.fixed_at) THEN RETURN NEW; END IF;
-  SELECT e.id, e.first_name, e.last_name, e.manager_employee_id INTO emp_record FROM public.employees e WHERE e.id = NEW.employee_id;
-  fixer_label := COALESCE(NEW.fixed_by_name, 'systém');
-  notif_title := 'Školení označeno jako opraveno';
-  notif_message := 'Záznam školení pro ' || COALESCE(emp_record.first_name || ' ' || emp_record.last_name, 'zaměstnance') || ' byl opraven dne ' || to_char(NEW.fixed_at, 'DD.MM.YYYY') || ' (' || fixer_label || ').';
-  IF emp_record.manager_employee_id IS NOT NULL THEN
-    SELECT p.id INTO manager_profile_id FROM public.profiles p WHERE p.employee_id = emp_record.manager_employee_id LIMIT 1;
-    IF manager_profile_id IS NOT NULL THEN
-      INSERT INTO public.notifications (user_id, title, message, type, related_entity_type, related_entity_id) VALUES (manager_profile_id, notif_title, notif_message, 'success', 'training', NEW.id);
-    END IF;
-  END IF;
-  FOR admin_user IN SELECT ur.user_id FROM public.user_roles ur WHERE ur.role='admin' LOOP
-    IF admin_user.user_id <> COALESCE(NEW.fixed_by_profile_id,'00000000-0000-0000-0000-000000000000'::uuid)
-       AND admin_user.user_id <> COALESCE(manager_profile_id,'00000000-0000-0000-0000-000000000000'::uuid) THEN
-      INSERT INTO public.notifications (user_id, title, message, type, related_entity_type, related_entity_id) VALUES (admin_user.user_id, notif_title, notif_message, 'success', 'training', NEW.id);
-    END IF;
-  END LOOP;
-  RETURN NEW;
-END;$$;
-DROP TRIGGER IF EXISTS trg_notify_training_fixed ON public.trainings;
-CREATE TRIGGER trg_notify_training_fixed AFTER UPDATE OF fixed_at ON public.trainings FOR EACH ROW EXECUTE FUNCTION public.notify_training_fixed();
-
-CREATE OR REPLACE FUNCTION public.notify_deadline_fixed()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
-DECLARE eq_name text; resp RECORD; admin_user RECORD; notif_title text; notif_message text; fixer_label text; notified_users uuid[] := ARRAY[]::uuid[];
-BEGIN
-  IF NEW.fixed_at IS NULL OR (TG_OP='UPDATE' AND OLD.fixed_at IS NOT DISTINCT FROM NEW.fixed_at) THEN RETURN NEW; END IF;
-  SELECT name INTO eq_name FROM public.equipment WHERE id = NEW.equipment_id;
-  fixer_label := COALESCE(NEW.fixed_by_name, 'systém');
-  notif_title := 'Technická událost označena jako opraveno';
-  notif_message := 'Záznam pro ' || COALESCE(eq_name, 'zařízení') || ' byl opraven dne ' || to_char(NEW.fixed_at, 'DD.MM.YYYY') || ' (' || fixer_label || ').';
-  FOR resp IN
-    SELECT DISTINCT profile_id FROM public.deadline_responsibles WHERE deadline_id = NEW.id AND profile_id IS NOT NULL
-    UNION
-    SELECT DISTINCT rgm.profile_id FROM public.deadline_responsibles dr JOIN public.responsibility_group_members rgm ON rgm.group_id = dr.group_id WHERE dr.deadline_id = NEW.id AND dr.group_id IS NOT NULL
-    UNION
-    SELECT DISTINCT er.profile_id FROM public.equipment_responsibles er WHERE er.equipment_id = NEW.equipment_id
-  LOOP
-    IF resp.profile_id IS NOT NULL AND resp.profile_id <> COALESCE(NEW.fixed_by_profile_id,'00000000-0000-0000-0000-000000000000'::uuid) AND NOT (resp.profile_id = ANY(notified_users)) THEN
-      INSERT INTO public.notifications (user_id, title, message, type, related_entity_type, related_entity_id) VALUES (resp.profile_id, notif_title, notif_message, 'success', 'deadline', NEW.id);
-      notified_users := array_append(notified_users, resp.profile_id);
-    END IF;
-  END LOOP;
-  FOR admin_user IN SELECT ur.user_id FROM public.user_roles ur WHERE ur.role='admin' LOOP
-    IF admin_user.user_id <> COALESCE(NEW.fixed_by_profile_id,'00000000-0000-0000-0000-000000000000'::uuid) AND NOT (admin_user.user_id = ANY(notified_users)) THEN
-      INSERT INTO public.notifications (user_id, title, message, type, related_entity_type, related_entity_id) VALUES (admin_user.user_id, notif_title, notif_message, 'success', 'deadline', NEW.id);
-      notified_users := array_append(notified_users, admin_user.user_id);
-    END IF;
-  END LOOP;
-  RETURN NEW;
-END;$$;
-DROP TRIGGER IF EXISTS trg_notify_deadline_fixed ON public.deadlines;
-CREATE TRIGGER trg_notify_deadline_fixed AFTER UPDATE OF fixed_at ON public.deadlines FOR EACH ROW EXECUTE FUNCTION public.notify_deadline_fixed();
-    `.trim(),
-  },
-  {
-    version: "20260417130500",
-    name: "fix_dialog_promotes_result_to_passed",
-    sql: `-- UI semantics change: MarkAsFixedDialog now also sets result='passed' (in addition to fixed_at + status='valid')
--- and lets the user attach new protocol documents.
--- The original negative result remains preserved in the auto-archived snapshot row
--- (see archive_training_before_edit / archive_deadline_before_edit which fire when result IS DISTINCT FROM).
--- No schema change is required, but we record this version so the migration log captures the behavioural change.
-SELECT 1;`,
-  },
-  {
-    version: "20260417140000",
-    name: "reset_fixed_state_on_negative_result",
-    sql: `
--- When a previously fixed record is changed back to a negative result
--- (failed / non_compliant / unfit), the fixed_at / fixed_by_* fields must
--- be cleared so the "Mark as fixed" action becomes available again, and
--- status should fall back to expired. This trigger runs BEFORE UPDATE so
--- it cooperates with the existing override-recalc triggers.
-
--- ============ Trainings ============
-CREATE OR REPLACE FUNCTION public.reset_training_fixed_on_negative_result()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-BEGIN
-  IF NEW.result IS DISTINCT FROM OLD.result
-     AND NEW.result IN ('failed', 'non_compliant', 'unfit') THEN
-    NEW.fixed_at := NULL;
-    NEW.fixed_by_profile_id := NULL;
-    NEW.fixed_by_name := NULL;
-    NEW.fixed_note := NULL;
-    NEW.status := 'expired';
-  END IF;
-  RETURN NEW;
-END;$$;
-DROP TRIGGER IF EXISTS trg_reset_training_fixed_on_negative ON public.trainings;
-CREATE TRIGGER trg_reset_training_fixed_on_negative
-  BEFORE UPDATE OF result ON public.trainings
-  FOR EACH ROW EXECUTE FUNCTION public.reset_training_fixed_on_negative_result();
-
--- ============ Deadlines ============
-CREATE OR REPLACE FUNCTION public.reset_deadline_fixed_on_negative_result()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-BEGIN
-  IF NEW.result IS DISTINCT FROM OLD.result
-     AND NEW.result IN ('failed', 'non_compliant', 'unfit') THEN
-    NEW.fixed_at := NULL;
-    NEW.fixed_by_profile_id := NULL;
-    NEW.fixed_by_name := NULL;
-    NEW.fixed_note := NULL;
-    NEW.status := 'expired';
-  END IF;
-  RETURN NEW;
-END;$$;
-DROP TRIGGER IF EXISTS trg_reset_deadline_fixed_on_negative ON public.deadlines;
-CREATE TRIGGER trg_reset_deadline_fixed_on_negative
-  BEFORE UPDATE OF result ON public.deadlines
-  FOR EACH ROW EXECUTE FUNCTION public.reset_deadline_fixed_on_negative_result();
-`.trim(),
-  },
-  {
-    version: "20260417150000",
-    name: "drop_equipment_inventory_number_unique",
-    sql: `
--- Allow multiple equipment records to share the same inventory number
--- (e.g. legacy "Různé" records). Duplicate prevention is now handled
--- in the UI with a soft warning instead of a hard DB constraint.
-ALTER TABLE public.equipment
-  DROP CONSTRAINT IF EXISTS equipment_inventory_number_key;
-`.trim(),
-  },
-  {
-    version: "20260417160000",
-    name: "deadlines_equipment_id_optional",
-    sql: `
--- Make equipment_id optional on deadlines so that general inspections
--- (not tied to a specific piece of equipment) can be recorded.
-ALTER TABLE public.deadlines
-  ALTER COLUMN equipment_id DROP NOT NULL;
-`.trim(),
-  },
-  {
-    version: "20260424092039",
-    name: "auth_admin_grants",
-    sql: `
--- Grant supabase_auth_admin permissions on public schema so that
--- handle_new_user / assign_default_role triggers don't fail with
--- "Database error granting user" during signIn / token refresh.
-GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO supabase_auth_admin;
-
-DO $$
-DECLARE
-  t text;
-BEGIN
-  FOREACH t IN ARRAY ARRAY[
-    'profiles', 'user_roles', 'user_module_access',
-    'user_invites', 'audit_logs', 'system_settings'
-  ]
-  LOOP
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = t) THEN
-      EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO supabase_auth_admin', t);
-    END IF;
-  END LOOP;
-END $$;
-
-DO $$
-DECLARE
-  fn text;
-BEGIN
-  FOREACH fn IN ARRAY ARRAY[
-    'handle_new_user()', 'assign_default_role()', 'grant_default_modules()',
-    'get_registration_mode()', 'is_email_allowed(text)'
-  ]
-  LOOP
-    BEGIN
-      EXECUTE format('GRANT EXECUTE ON FUNCTION public.%s TO supabase_auth_admin', fn);
-    EXCEPTION WHEN undefined_function THEN
-      NULL;
-    END;
-  END LOOP;
-END $$;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO supabase_auth_admin;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT USAGE ON SEQUENCES TO supabase_auth_admin;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT EXECUTE ON FUNCTIONS TO supabase_auth_admin;
-`.trim(),
-  },
-  {
-    version: "20260424092509",
-    name: "harden_assign_default_role_trigger",
-    sql: `
--- Wrap each step of assign_default_role in its own EXCEPTION block so a single
--- failure (e.g. audit log insert) cannot block user creation / token grant.
--- Also fix search_path on doc-number trigger functions.
-
+-- Defense in depth: make the function idempotent regardless of how many times
+-- (or from how many trigger names) it ends up firing for the same user/role.
 CREATE OR REPLACE FUNCTION public.assign_default_role()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
-AS $func$
+AS $function$
 DECLARE
   admin_exists BOOLEAN;
   reg_mode text;
   invite_record RECORD;
 BEGIN
-  BEGIN
-    SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE role = 'admin') INTO admin_exists;
-  EXCEPTION WHEN others THEN
-    RAISE WARNING 'assign_default_role: admin check failed for %: %', NEW.id, SQLERRM;
-    admin_exists := true;
-  END;
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles WHERE role = 'admin'
+  ) INTO admin_exists;
 
   IF NOT admin_exists THEN
-    BEGIN
-      INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'admin') ON CONFLICT DO NOTHING;
-      UPDATE public.profiles SET approval_status = 'approved', approved_at = now() WHERE id = NEW.id;
-    EXCEPTION WHEN others THEN
-      RAISE WARNING 'assign_default_role: first-admin assign failed for %: %', NEW.id, SQLERRM;
-    END;
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
+
+    UPDATE public.profiles SET approval_status = 'approved', approved_at = now() WHERE id = NEW.id;
+
+    RAISE NOTICE 'First user registered - assigned admin role to user %', NEW.id;
     RETURN NEW;
   END IF;
 
-  BEGIN
-    reg_mode := public.get_registration_mode();
-  EXCEPTION WHEN others THEN
-    reg_mode := 'self_signup_approval';
-  END;
+  reg_mode := get_registration_mode();
 
-  BEGIN
-    SELECT * INTO invite_record FROM public.user_invites
-      WHERE email = NEW.email AND status = 'pending' AND expires_at > now()
-      ORDER BY created_at DESC LIMIT 1;
-  EXCEPTION WHEN others THEN
-    invite_record := NULL;
-  END;
+  SELECT * INTO invite_record
+  FROM public.user_invites
+  WHERE email = NEW.email
+    AND status = 'pending'
+    AND expires_at > now()
+  ORDER BY created_at DESC
+  LIMIT 1;
 
   IF invite_record.id IS NOT NULL THEN
-    BEGIN
-      INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, invite_record.role) ON CONFLICT DO NOTHING;
-      UPDATE public.user_invites SET status = 'used', used_at = now(), used_by = NEW.id WHERE id = invite_record.id;
-      UPDATE public.profiles SET approval_status = 'approved', approved_at = now(), approved_by = invite_record.invited_by WHERE id = NEW.id;
-    EXCEPTION WHEN others THEN
-      RAISE WARNING 'assign_default_role: invite apply failed for %: %', NEW.id, SQLERRM;
-    END;
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, invite_record.role)
+    ON CONFLICT (user_id, role) DO NOTHING;
+
+    UPDATE public.user_invites
+    SET status = 'used', used_at = now(), used_by = NEW.id
+    WHERE id = invite_record.id;
+
+    UPDATE public.profiles
+    SET approval_status = 'approved', approved_at = now(), approved_by = invite_record.invited_by
+    WHERE id = NEW.id;
+
+    INSERT INTO public.audit_logs (table_name, record_id, action, new_data, user_email, user_name)
+    VALUES ('user_invites', invite_record.id, 'INVITE_USED',
+      jsonb_build_object('email', NEW.email, 'role', invite_record.role, 'invited_by', invite_record.invited_by),
+      NEW.email, COALESCE(NEW.first_name, '') || ' ' || COALESCE(NEW.last_name, ''));
+
+    RAISE NOTICE 'User % registered via invite with role %', NEW.id, invite_record.role;
     RETURN NEW;
   END IF;
 
-  IF reg_mode != 'invite_only' THEN
-    BEGIN
-      INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'user') ON CONFLICT DO NOTHING;
-    EXCEPTION WHEN others THEN
-      RAISE WARNING 'assign_default_role: default user role failed for %: %', NEW.id, SQLERRM;
-    END;
+  IF reg_mode = 'invite_only' THEN
+    RAISE NOTICE 'User % registered in invite-only mode without invite - pending approval', NEW.id;
+  ELSE
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'user')
+    ON CONFLICT (user_id, role) DO NOTHING;
+
+    RAISE NOTICE 'User % registered in self-signup mode - pending approval', NEW.id;
   END IF;
 
-  RETURN NEW;
-EXCEPTION WHEN others THEN
-  RAISE WARNING 'assign_default_role: unexpected error for %: %', NEW.id, SQLERRM;
+  INSERT INTO public.audit_logs (table_name, record_id, action, new_data, user_email, user_name)
+  VALUES ('profiles', NEW.id, 'REGISTRATION_PENDING',
+    jsonb_build_object('email', NEW.email, 'mode', reg_mode),
+    NEW.email, COALESCE(NEW.first_name, '') || ' ' || COALESCE(NEW.last_name, ''));
+
   RETURN NEW;
 END;
-$func$;
-
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'generate_training_doc_number') THEN
-    EXECUTE 'ALTER FUNCTION public.generate_training_doc_number() SET search_path = public';
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'generate_deadline_doc_number') THEN
-    EXECUTE 'ALTER FUNCTION public.generate_deadline_doc_number() SET search_path = public';
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'generate_medical_doc_number') THEN
-    EXECUTE 'ALTER FUNCTION public.generate_medical_doc_number() SET search_path = public';
-  END IF;
-END $$;
-`.trim(),
+$function$;
+    `.trim(),
   },
   {
-    version: "20260424093646",
-    name: "security_hardening_extension_rls_diagnostics",
+    version: "20260827093000",
+    name: "fix_all_duplicate_triggers",
     sql: `
--- Move pg_net out of public + tighten RLS on system tables + add signin diagnostics
-CREATE SCHEMA IF NOT EXISTS extensions;
-GRANT USAGE ON SCHEMA extensions TO postgres, anon, authenticated, service_role;
+-- Systemic cleanup: the same mistake found in the profiles trigger (two trigger
+-- names both calling the same function on the same table/event, from a migration
+-- that re-created triggers under a "hardened" name but forgot to drop the older
+-- one) exists on 12 tables. Most calls are idempotent (recompute the same value),
+-- but a few insert audit_logs / notifications rows and were firing TWICE per
+-- change (confirmed: seeded trainings had exactly 2x the expected audit_logs
+-- rows). This drops the redundant/legacy trigger in each pair, keeping exactly
+-- one attachment per function per table.
 
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace
-    WHERE e.extname = 'pg_net' AND n.nspname = 'public'
-  ) THEN
-    EXECUTE 'DROP EXTENSION pg_net CASCADE';
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net') THEN
-    EXECUTE 'CREATE EXTENSION pg_net WITH SCHEMA extensions';
-  END IF;
-END $$;
+-- Type -> record date recalculation on period_days change (semafor/expiration
+-- propagation for Školení / Technické události / PLP). Both triggers are
+-- idempotent, but keep only the narrower one (fires on period_days change only).
+DROP TRIGGER IF EXISTS recalculate_training_dates_on_type_change ON public.training_types;
+DROP TRIGGER IF EXISTS recalculate_deadline_dates_on_type_change ON public.deadline_types;
+DROP TRIGGER IF EXISTS recalculate_medical_dates_on_type_change ON public.medical_examination_types;
 
-DROP POLICY IF EXISTS "System can insert reminder logs" ON public.reminder_logs;
-CREATE POLICY "Admins or service can insert reminder logs"
-ON public.reminder_logs FOR INSERT TO authenticated
-WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+-- Employee status/activation side-effects on trainings, deadlines, medical exams
+DROP TRIGGER IF EXISTS recalculate_training_status_trigger ON public.employees;
+DROP TRIGGER IF EXISTS recalculate_examination_status_on_activation_trigger ON public.employees;
+DROP TRIGGER IF EXISTS trigger_update_training_active_status ON public.employees;
+DROP TRIGGER IF EXISTS update_medical_examination_active_status_trigger ON public.employees;
 
-DROP POLICY IF EXISTS "System can insert deadline reminder logs" ON public.deadline_reminder_logs;
-CREATE POLICY "Admins or service can insert deadline reminder logs"
-ON public.deadline_reminder_logs FOR INSERT TO authenticated
-WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+-- Equipment status -> deadline active-status propagation
+DROP TRIGGER IF EXISTS update_deadlines_on_equipment_status ON public.equipment;
 
-DROP POLICY IF EXISTS "System can insert medical reminder logs" ON public.medical_reminder_logs;
-CREATE POLICY "Admins or service can insert medical reminder logs"
-ON public.medical_reminder_logs FOR INSERT TO authenticated
-WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+-- Audit logging (was writing two identical rows per change)
+DROP TRIGGER IF EXISTS training_audit_log_trigger ON public.trainings;
+DROP TRIGGER IF EXISTS log_module_access_changes ON public.user_module_access;
+DROP TRIGGER IF EXISTS user_roles_audit_log_trigger ON public.user_roles;
 
-DROP POLICY IF EXISTS "System can insert reminder runs" ON public.reminder_runs;
-CREATE POLICY "Admins or service can insert reminder runs"
-ON public.reminder_runs FOR INSERT TO authenticated
-WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
-
-DROP POLICY IF EXISTS "System can update reminder runs" ON public.reminder_runs;
-CREATE POLICY "Admins or service can update reminder runs"
-ON public.reminder_runs FOR UPDATE TO authenticated
-USING (public.has_role(auth.uid(), 'admin'::public.app_role))
-WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
-
-DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
-CREATE POLICY "Admins or service can insert notifications"
-ON public.notifications FOR INSERT TO authenticated
-WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
-
-CREATE TABLE IF NOT EXISTS public.auth_signin_attempts (
-  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  email text NOT NULL,
-  attempt_number integer NOT NULL DEFAULT 1,
-  status text NOT NULL,
-  http_status integer,
-  error_code text,
-  error_message text,
-  request_id text,
-  user_agent text,
-  ip_address text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_auth_signin_attempts_email_created
-  ON public.auth_signin_attempts(email, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_auth_signin_attempts_request
-  ON public.auth_signin_attempts(request_id);
-
-ALTER TABLE public.auth_signin_attempts ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Validated signin attempt logging" ON public.auth_signin_attempts;
-CREATE POLICY "Validated signin attempt logging"
-ON public.auth_signin_attempts FOR INSERT TO anon, authenticated
-WITH CHECK (
-  email IS NOT NULL
-  AND length(email) BETWEEN 3 AND 320
-  AND email ~* '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'
-  AND status IN ('success', 'failure', 'retry')
-  AND (error_message IS NULL OR length(error_message) <= 2000)
-  AND attempt_number BETWEEN 1 AND 10
-);
-
-DROP POLICY IF EXISTS "Admins can read signin attempts" ON public.auth_signin_attempts;
-CREATE POLICY "Admins can read signin attempts"
-ON public.auth_signin_attempts FOR SELECT TO authenticated
-USING (public.has_role(auth.uid(), 'admin'::public.app_role));
-
-DROP POLICY IF EXISTS "Admins can delete signin attempts" ON public.auth_signin_attempts;
-CREATE POLICY "Admins can delete signin attempts"
-ON public.auth_signin_attempts FOR DELETE TO authenticated
-USING (public.has_role(auth.uid(), 'admin'::public.app_role));
-`.trim(),
+-- Last-admin-removal safety check (redundant, not harmful, but wasteful)
+DROP TRIGGER IF EXISTS prevent_last_admin_trigger ON public.user_roles;
+    `.trim(),
   },
   {
-    version: "20260424100000",
-    name: "tighten_employees_select_rls",
+    version: "20260827094500",
+    name: "drop_equipment_inventory_number_uniqueness",
     sql: `
--- Tighten SELECT RLS on public.employees
--- Previously: any approved user could read all employees (PII exposure).
--- Now: admin sees all, manager sees subordinates, user sees only own employee record.
+-- The hard UNIQUE constraint on equipment.inventory_number blocked legitimate
+-- cases where two genuinely different pieces of equipment share the same
+-- inventory number (e.g. numbering reused per facility, or numbers assigned by
+-- an external system the company doesn't fully control). There was no way to
+-- enter such equipment through the UI at all — the insert was rejected outright.
+--
+-- Duplicate detection already happens at the application layer where it
+-- actually matters (bulk import, see src/components/BulkEquipmentImport.tsx),
+-- using a composite key of inventory_number + name + equipment_type +
+-- manufacturer + serial_number — i.e. equipment only counts as "the same
+-- record" when ALL of those match, not just the inventory number.
 
-DROP POLICY IF EXISTS "Approved users can view employees" ON public.employees;
-DROP POLICY IF EXISTS "Role-based employee visibility" ON public.employees;
+ALTER TABLE public.equipment DROP CONSTRAINT IF EXISTS equipment_inventory_number_key;
+    `.trim(),
+  },
+  {
+    version: "20260827100000",
+    name: "unify_reminder_cadence",
+    sql: `
+-- Reminders were previously sent using inconsistent logic per module:
+--   - trainings/medical: resent every \`repeat_days_after\` days continuously,
+--     starting the moment a record entered its remind_days_before window (so a
+--     30-day-before warning kept repeating every N days all the way through
+--     expiration too, not just once).
+--   - deadlines: had NO per-record deduplication at all — every time the
+--     function ran and found deadlines in-window, it re-sent the full digest
+--     (and the individual "responsible person" emails) again, every time,
+--     regardless of \`repeat_days_after\`.
+--
+-- This adds a \`reminder_stage\` column so each module can track, per record,
+-- whether the one-shot "before" and "due" reminders were already sent, and
+-- when the last repeating "overdue" reminder went out — see
+-- supabase/functions/_shared/reminder-cadence.ts for the actual scheduling
+-- logic now shared by all three reminder functions.
 
-CREATE POLICY "Role-based employee visibility"
-ON public.employees
-FOR SELECT
-TO authenticated
-USING (
-  auth.uid() IS NOT NULL
-  AND public.is_user_approved(auth.uid())
-  AND (
-    public.has_role(auth.uid(), 'admin'::public.app_role)
-    OR public.is_manager_of(auth.uid(), id)
-    OR id = public.get_user_employee_id(auth.uid())
+ALTER TABLE public.reminder_logs ADD COLUMN IF NOT EXISTS reminder_stage TEXT
+  CHECK (reminder_stage IS NULL OR reminder_stage IN ('before', 'due', 'overdue'));
+
+ALTER TABLE public.deadline_reminder_logs ADD COLUMN IF NOT EXISTS reminder_stage TEXT
+  CHECK (reminder_stage IS NULL OR reminder_stage IN ('before', 'due', 'overdue'));
+
+ALTER TABLE public.medical_reminder_logs ADD COLUMN IF NOT EXISTS reminder_stage TEXT
+  CHECK (reminder_stage IS NULL OR reminder_stage IN ('before', 'due', 'overdue'));
+
+CREATE INDEX IF NOT EXISTS idx_reminder_logs_training_stage ON public.reminder_logs (training_id, reminder_stage, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deadline_reminder_logs_deadline_stage ON public.deadline_reminder_logs (deadline_id, reminder_stage, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_medical_reminder_logs_exam_stage ON public.medical_reminder_logs (examination_id, reminder_stage, created_at DESC);
+
+-- "Type" tables get their own default reminder timing so new records can be
+-- pre-filled consistently instead of everyone independently starting at the
+-- hardcoded 30/30 default. NULL means "no type-level default configured yet",
+-- in which case the app falls back to the existing per-record default (30).
+ALTER TABLE public.training_types ADD COLUMN IF NOT EXISTS default_remind_days_before INTEGER;
+ALTER TABLE public.training_types ADD COLUMN IF NOT EXISTS default_repeat_days_after INTEGER;
+
+ALTER TABLE public.deadline_types ADD COLUMN IF NOT EXISTS default_remind_days_before INTEGER;
+ALTER TABLE public.deadline_types ADD COLUMN IF NOT EXISTS default_repeat_days_after INTEGER;
+
+ALTER TABLE public.medical_examination_types ADD COLUMN IF NOT EXISTS default_remind_days_before INTEGER;
+ALTER TABLE public.medical_examination_types ADD COLUMN IF NOT EXISTS default_repeat_days_after INTEGER;
+
+-- The weekly "run-reminders" digest duplicated/overlapped with the per-record
+-- send-training-reminders function and is being retired in favor of the
+-- module-specific reminders. Soft-disable it via its existing settings flag
+-- rather than deleting the function outright, so it stays available if ever
+-- needed again.
+UPDATE public.system_settings
+SET value = jsonb_set(COALESCE(value, '{}'::jsonb), '{enabled}', 'false'::jsonb)
+WHERE key = 'reminder_frequency';
+    `.trim(),
+  },
+  {
+    version: "20260827110000",
+    name: "wire_medical_reminder_templates",
+    sql: `
+-- medical_reminder_templates already existed (with a working admin UI under
+-- Administrace → Emaily & Šablony → Šablony individuálních připomínek → PLP,
+-- and a real FK from medical_examinations.reminder_template_id) but the actual
+-- run-medical-reminders function never read from it — it only used the
+-- system_settings "medical_email_template" blob. Editing a PLP template in
+-- that UI silently had no effect on what was actually sent.
+--
+-- run-medical-reminders now reads its base subject/body from this table (see
+-- supabase/functions/run-medical-reminders/index.ts), matching how trainings
+-- and deadlines already work, with the settings blob kept as an optional
+-- override on top (same pattern as deadlines).
+--
+-- Seed one active template from whatever was configured in the settings blob,
+-- so existing configurations keep working instead of silently reverting to
+-- the hardcoded default text.
+INSERT INTO public.medical_reminder_templates (name, email_subject, email_body, is_active)
+SELECT
+  'Výchozí šablona (migrováno z nastavení)',
+  COALESCE(s.value->>'subject', 'Souhrn lékařských prohlídek - {reportDate}'),
+  COALESCE(s.value->>'body', 'Dobrý den,' || E'\n\n' || 'zasíláme přehled lékařských prohlídek vyžadujících pozornost.' || E'\n\n' || 'Celkem: {totalCount}' || E'\n' || '- Brzy vypršuje: {expiringCount}' || E'\n' || '- Prošlé: {expiredCount}'),
+  true
+FROM (SELECT 1) AS one_row
+LEFT JOIN public.system_settings s ON s.key = 'medical_email_template'
+WHERE NOT EXISTS (SELECT 1 FROM public.medical_reminder_templates);
+    `.trim(),
+  },
+  {
+    version: "20260827120000",
+    name: "fix_manager_notifications_rpc",
+    sql: `
+-- "Notifikace nadřízeným" (manager notification emails) for Školení and PLP
+-- was silently sending to nobody, ever. send-training-reminders and
+-- run-medical-reminders call public.get_subordinate_employee_ids(...) using
+-- the service-role key (no end-user JWT), so auth.uid() is NULL inside that
+-- function. Its own access check reads:
+--
+--   IF NOT has_role(auth.uid(), 'admin') THEN
+--     IF root_employee_id IS DISTINCT FROM (SELECT employee_id FROM profiles WHERE id = auth.uid()) THEN
+--       RETURN;  -- empty
+--     END IF;
+--   END IF;
+--
+-- auth.uid() = NULL, has_role(NULL, 'admin') = false, and the subquery with
+-- "WHERE id = NULL" matches nothing, so root_employee_id is always "distinct
+-- from NULL" and the function always returns an empty set for any manager,
+-- for every single scheduled run. That check is correct and necessary when a
+-- logged-in user calls this RPC from the frontend (e.g. equipment responsible
+-- pickers) — it must not be loosened there. Instead, add a second, equivalent
+-- function with no auth.uid() gate, and restrict who can call it at the
+-- database privilege level to service_role only (i.e. only trusted backend
+-- edge functions authenticated with the service role key — never a logged-in
+-- user's own token).
+
+CREATE OR REPLACE FUNCTION public.get_subordinate_employee_ids_for_service(root_employee_id uuid)
+RETURNS TABLE(employee_id uuid)
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  WITH RECURSIVE tree AS (
+    SELECT e.id, 0 AS depth
+    FROM public.employees e
+    WHERE e.id = root_employee_id
+    UNION
+    SELECT e2.id, t.depth + 1
+    FROM public.employees e2
+    JOIN tree t ON e2.manager_employee_id = t.id
+    WHERE t.depth < 20
   )
-);
-`.trim(),
+  SELECT tree.id FROM tree;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.get_subordinate_employee_ids_for_service(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_subordinate_employee_ids_for_service(uuid) TO service_role;
+    `.trim(),
   },
   {
-    version: "20260424102258",
-    name: "employee_access_audit_and_debug_rpc",
+    version: "20260827130000",
+    name: "access_debug_tools",
     sql: `
--- Audit log table for employees reads
+-- RLS diagnostic tooling (backported from a later app version):
+--   - employee_access_logs: best-effort audit trail of who listed/viewed employees
+--   - debug_employee_visibility(uuid): admin-only "what would this user see and why"
+--   - debug_medical_document_access(uuid): same, for medical examination documents
+-- Intentionally does NOT touch any real RLS policy or the audit_logs table —
+-- these are read-only diagnostic helpers, not behavior changes.
+
+-- 1) Audit log table for employees reads
 CREATE TABLE IF NOT EXISTS public.employee_access_logs (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid,
@@ -2326,12 +1692,16 @@ ALTER TABLE public.employee_access_logs ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Admins can read employee access logs" ON public.employee_access_logs;
 CREATE POLICY "Admins can read employee access logs"
-ON public.employee_access_logs FOR SELECT TO authenticated
+ON public.employee_access_logs
+FOR SELECT
+TO authenticated
 USING (public.has_role(auth.uid(), 'admin'::public.app_role));
 
 DROP POLICY IF EXISTS "Authenticated users can insert their access logs" ON public.employee_access_logs;
 CREATE POLICY "Authenticated users can insert their access logs"
-ON public.employee_access_logs FOR INSERT TO authenticated
+ON public.employee_access_logs
+FOR INSERT
+TO authenticated
 WITH CHECK (
   auth.uid() IS NOT NULL
   AND user_id = auth.uid()
@@ -2341,70 +1711,16 @@ WITH CHECK (
 
 DROP POLICY IF EXISTS "Admins can delete employee access logs" ON public.employee_access_logs;
 CREATE POLICY "Admins can delete employee access logs"
-ON public.employee_access_logs FOR DELETE TO authenticated
+ON public.employee_access_logs
+FOR DELETE
+TO authenticated
 USING (public.has_role(auth.uid(), 'admin'::public.app_role));
 
-CREATE OR REPLACE FUNCTION public.debug_employee_visibility(_target_user_id uuid)
-RETURNS TABLE (
-  employee_id uuid,
-  employee_name text,
-  employee_email text,
-  reason text
-)
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
-AS $fn$
-DECLARE
-  is_admin boolean;
-  own_employee uuid;
-BEGIN
-  IF NOT public.has_role(auth.uid(), 'admin'::public.app_role) THEN
-    RAISE EXCEPTION 'Only admins can run employee visibility debug';
-  END IF;
-  is_admin := public.has_role(_target_user_id, 'admin'::public.app_role);
-  own_employee := public.get_user_employee_id(_target_user_id);
-  IF is_admin THEN
-    RETURN QUERY SELECT e.id, (e.first_name || ' ' || e.last_name), e.email,
-      'admin: full access'::text
-      FROM public.employees e ORDER BY e.last_name;
-    RETURN;
-  END IF;
-  RETURN QUERY SELECT e.id, (e.first_name || ' ' || e.last_name), e.email,
-    CASE
-      WHEN e.id = own_employee THEN 'self: linked profile'
-      WHEN public.is_manager_of(_target_user_id, e.id) THEN 'manager: in subordinate hierarchy'
-      ELSE 'other'
-    END
-    FROM public.employees e
-    WHERE e.id = own_employee OR public.is_manager_of(_target_user_id, e.id)
-    ORDER BY e.last_name;
-END;
-$fn$;
-
-REVOKE ALL ON FUNCTION public.debug_employee_visibility(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.debug_employee_visibility(uuid) TO authenticated;
-`.trim(),
-  },
-  {
-    version: "20260424104244",
-    name: "debug_visibility_policy_info_and_pgnet_relocation",
-    sql: `
--- Move pg_net to dedicated 'extensions' schema (drop+recreate to avoid SET SCHEMA pitfalls)
-CREATE SCHEMA IF NOT EXISTS extensions;
-
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net') THEN
-    EXECUTE 'DROP EXTENSION pg_net CASCADE';
-  END IF;
-END $$;
-
-CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
-
--- Enhanced debug RPC: also returns the RLS policy name and the matching branch
+-- 2) Debug RPC: which employees would the given user see and why?
 DROP FUNCTION IF EXISTS public.debug_employee_visibility(uuid);
 
 CREATE OR REPLACE FUNCTION public.debug_employee_visibility(_target_user_id uuid)
-RETURNS TABLE (
+RETURNS TABLE(
   employee_id uuid,
   employee_name text,
   employee_email text,
@@ -2412,8 +1728,11 @@ RETURNS TABLE (
   policy_name text,
   policy_branch text
 )
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
-AS $fn$
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
 DECLARE
   is_admin boolean;
   own_employee uuid;
@@ -2426,234 +1745,61 @@ BEGIN
   own_employee := public.get_user_employee_id(_target_user_id);
 
   IF is_admin THEN
-    RETURN QUERY SELECT
-      e.id,
-      (e.first_name || ' ' || e.last_name),
-      e.email,
-      'admin: full access'::text,
-      'Role-based employee visibility'::text,
-      'has_role(auth.uid(), ''admin'')'::text
-    FROM public.employees e ORDER BY e.last_name;
+    RETURN QUERY
+      SELECT
+        e.id,
+        (e.first_name || ' ' || e.last_name),
+        e.email,
+        'admin: full access'::text,
+        'Role-based employee visibility'::text,
+        'has_role(auth.uid(), ''admin'')'::text
+      FROM public.employees e
+      ORDER BY e.last_name;
     RETURN;
   END IF;
 
-  RETURN QUERY SELECT
-    e.id,
-    (e.first_name || ' ' || e.last_name) AS employee_name,
-    e.email,
-    CASE
-      WHEN e.id = own_employee THEN 'self: linked profile'
-      WHEN public.is_manager_of(_target_user_id, e.id) THEN 'manager: in subordinate hierarchy'
-      ELSE 'other'
-    END AS reason,
-    'Role-based employee visibility'::text AS policy_name,
-    CASE
-      WHEN e.id = own_employee THEN 'id = get_user_employee_id(auth.uid())'
-      WHEN public.is_manager_of(_target_user_id, e.id) THEN 'is_manager_of(auth.uid(), id)'
-      ELSE 'none'
-    END AS policy_branch
-  FROM public.employees e
-  WHERE e.id = own_employee OR public.is_manager_of(_target_user_id, e.id)
-  ORDER BY e.last_name;
+  RETURN QUERY
+    SELECT
+      e.id,
+      (e.first_name || ' ' || e.last_name) AS employee_name,
+      e.email,
+      CASE
+        WHEN e.id = own_employee THEN 'self: linked profile'
+        WHEN public.is_manager_of(_target_user_id, e.id) THEN 'manager: in subordinate hierarchy'
+        ELSE 'other'
+      END AS reason,
+      'Role-based employee visibility'::text AS policy_name,
+      CASE
+        WHEN e.id = own_employee THEN 'id = get_user_employee_id(auth.uid())'
+        WHEN public.is_manager_of(_target_user_id, e.id) THEN 'is_manager_of(auth.uid(), id)'
+        ELSE 'none'
+      END AS policy_branch
+    FROM public.employees e
+    WHERE e.id = own_employee
+       OR public.is_manager_of(_target_user_id, e.id)
+    ORDER BY e.last_name;
 END;
-$fn$;
+$function$;
 
 REVOKE ALL ON FUNCTION public.debug_employee_visibility(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.debug_employee_visibility(uuid) TO authenticated;
-`.trim(),
-  },
-  {
-    version: "20260424104837",
-    name: "security_hardening_storage_realtime_responsibility_groups",
-    sql: `
--- ============================================================
--- SECURITY HARDENING MIGRATION
--- 1) Storage RLS for medical-documents (align with table RLS)
--- 2) RLS on realtime.messages (scope subscriptions)
--- 3) Fix broken responsibility_groups manager policy
--- ============================================================
 
--- 1) STORAGE: medical-documents bucket
-DROP POLICY IF EXISTS "Users can view medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated users can upload medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Users can update medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated users can view medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated users can delete medical documents" ON storage.objects;
-
-CREATE OR REPLACE FUNCTION public.can_access_medical_examination(_user_id uuid, _examination_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $fn$
-  SELECT
-    public.has_role(_user_id, 'admin'::public.app_role)
-    OR EXISTS (
-      SELECT 1 FROM public.medical_examinations me
-      WHERE me.id = _examination_id
-        AND (
-          me.employee_id = public.get_user_employee_id(_user_id)
-          OR public.is_manager_of(_user_id, me.employee_id)
-        )
-    );
-$fn$;
-
-CREATE POLICY "medical_docs_select_authorized"
-ON storage.objects FOR SELECT TO authenticated
-USING (
-  bucket_id = 'medical-documents'
-  AND auth.uid() IS NOT NULL
-  AND public.is_user_approved(auth.uid())
-  AND public.can_access_medical_examination(auth.uid(), ((storage.foldername(name))[1])::uuid)
-);
-
-CREATE POLICY "medical_docs_insert_authorized"
-ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (
-  bucket_id = 'medical-documents'
-  AND auth.uid() IS NOT NULL
-  AND public.is_user_approved(auth.uid())
-  AND public.can_access_medical_examination(auth.uid(), ((storage.foldername(name))[1])::uuid)
-);
-
-CREATE POLICY "medical_docs_update_authorized"
-ON storage.objects FOR UPDATE TO authenticated
-USING (
-  bucket_id = 'medical-documents'
-  AND auth.uid() IS NOT NULL
-  AND public.is_user_approved(auth.uid())
-  AND public.can_access_medical_examination(auth.uid(), ((storage.foldername(name))[1])::uuid)
-);
-
-CREATE POLICY "medical_docs_delete_authorized"
-ON storage.objects FOR DELETE TO authenticated
-USING (
-  bucket_id = 'medical-documents'
-  AND auth.uid() IS NOT NULL
-  AND public.is_user_approved(auth.uid())
-  AND public.can_access_medical_examination(auth.uid(), ((storage.foldername(name))[1])::uuid)
-);
-
--- 2) REALTIME: scope channel subscriptions
-ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "authenticated can subscribe" ON realtime.messages;
-DROP POLICY IF EXISTS "approved_users_realtime_access" ON realtime.messages;
-DROP POLICY IF EXISTS "block_client_realtime_writes" ON realtime.messages;
-
-CREATE POLICY "approved_users_realtime_access"
-ON realtime.messages FOR SELECT TO authenticated
-USING (
-  auth.uid() IS NOT NULL
-  AND public.is_user_approved(auth.uid())
-);
-
-CREATE POLICY "block_client_realtime_writes"
-ON realtime.messages FOR INSERT TO authenticated
-WITH CHECK (false);
-
--- 3) FIX: responsibility_groups manager visibility policy
-DROP POLICY IF EXISTS "Managers can view groups they are members of" ON public.responsibility_groups;
-
-CREATE POLICY "Managers can view groups they are members of"
-ON public.responsibility_groups FOR SELECT TO authenticated
-USING (
-  auth.uid() IS NOT NULL
-  AND is_active = true
-  AND EXISTS (
-    SELECT 1 FROM public.responsibility_group_members rgm
-    WHERE rgm.group_id = public.responsibility_groups.id
-      AND rgm.profile_id = auth.uid()
-  )
-);
-`.trim(),
-  },
-  {
-    version: "20260424105523",
-    name: "audit_target_user_debug_medical_docs_storage_hardening",
-    sql: `
--- ============================================================
--- AUDIT TARGET USER + DEBUG MEDICAL DOCS + STORAGE HARDENING
--- ============================================================
-
--- 1) audit_logs: target_user_id + indexes
-ALTER TABLE public.audit_logs
-  ADD COLUMN IF NOT EXISTS target_user_id uuid;
-
-CREATE INDEX IF NOT EXISTS idx_audit_logs_target_user_id ON public.audit_logs(target_user_id);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON public.audit_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON public.audit_logs(action);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON public.audit_logs(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_table_name ON public.audit_logs(table_name);
-
-UPDATE public.audit_logs
-SET target_user_id = COALESCE(
-  (new_data->>'user_id')::uuid,
-  (old_data->>'user_id')::uuid,
-  CASE WHEN table_name = 'profiles' THEN record_id ELSE NULL END
-)
-WHERE target_user_id IS NULL
-  AND table_name IN ('user_roles','user_module_access','profiles');
-
--- 2) Server-side filtered audit logs RPC (admin only)
-CREATE OR REPLACE FUNCTION public.get_filtered_audit_logs(
-  _user_id uuid DEFAULT NULL,
-  _target_user_id uuid DEFAULT NULL,
-  _role text DEFAULT NULL,
-  _action text DEFAULT NULL,
-  _table_name text DEFAULT NULL,
-  _from timestamptz DEFAULT NULL,
-  _to timestamptz DEFAULT NULL,
-  _limit int DEFAULT 200,
-  _offset int DEFAULT 0
-)
-RETURNS TABLE (
-  id uuid, table_name text, record_id uuid, action text,
-  user_id uuid, user_email text, user_name text,
-  target_user_id uuid, changed_fields text[], created_at timestamptz,
-  actor_role text, total_count bigint
-)
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
-AS $fn$
-BEGIN
-  IF NOT public.has_role(auth.uid(), 'admin'::app_role) THEN
-    RAISE EXCEPTION 'Only admins can read audit logs';
-  END IF;
-
-  RETURN QUERY
-  WITH base AS (
-    SELECT al.*, (
-      SELECT ur.role::text FROM public.user_roles ur
-      WHERE ur.user_id = al.user_id
-      ORDER BY (ur.role = 'admin') DESC, (ur.role = 'manager') DESC LIMIT 1
-    ) AS actor_role
-    FROM public.audit_logs al
-    WHERE (_user_id IS NULL OR al.user_id = _user_id)
-      AND (_target_user_id IS NULL OR al.target_user_id = _target_user_id)
-      AND (_action IS NULL OR al.action = _action)
-      AND (_table_name IS NULL OR al.table_name = _table_name)
-      AND (_from IS NULL OR al.created_at >= _from)
-      AND (_to IS NULL OR al.created_at <= _to)
-  ),
-  filtered AS (SELECT * FROM base WHERE (_role IS NULL OR base.actor_role = _role)),
-  counted AS (SELECT count(*) AS c FROM filtered)
-  SELECT f.id, f.table_name, f.record_id, f.action, f.user_id, f.user_email, f.user_name,
-         f.target_user_id, f.changed_fields, f.created_at, f.actor_role, c.c
-  FROM filtered f, counted c
-  ORDER BY f.created_at DESC
-  LIMIT GREATEST(_limit, 1) OFFSET GREATEST(_offset, 0);
-END;
-$fn$;
-
-REVOKE ALL ON FUNCTION public.get_filtered_audit_logs(uuid,uuid,text,text,text,timestamptz,timestamptz,int,int) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_filtered_audit_logs(uuid,uuid,text,text,text,timestamptz,timestamptz,int,int) TO authenticated;
-
--- 3) Debug medical document access RPC (admin only)
+-- 3) Debug RPC: which medical documents would the given user see and why?
 CREATE OR REPLACE FUNCTION public.debug_medical_document_access(_target_user_id uuid)
 RETURNS TABLE (
-  document_id uuid, examination_id uuid, file_name text, file_path text,
-  uploaded_by uuid, reason text, policy_name text, policy_branch text
+  document_id uuid,
+  examination_id uuid,
+  file_name text,
+  file_path text,
+  uploaded_by uuid,
+  reason text,
+  policy_name text,
+  policy_branch text
 )
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
-AS $fn$
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   is_admin boolean;
   own_employee uuid;
@@ -2661,1776 +1807,97 @@ BEGIN
   IF NOT public.has_role(auth.uid(), 'admin'::app_role) THEN
     RAISE EXCEPTION 'Only admins can run medical document access debug';
   END IF;
+
   is_admin := public.has_role(_target_user_id, 'admin'::app_role);
   own_employee := public.get_user_employee_id(_target_user_id);
 
   RETURN QUERY
-  SELECT d.id, d.examination_id, d.file_name, d.file_path, d.uploaded_by,
+  SELECT
+    d.id AS document_id,
+    d.examination_id,
+    d.file_name,
+    d.file_path,
+    d.uploaded_by,
     CASE
       WHEN is_admin THEN 'admin: full access'
       WHEN d.uploaded_by = _target_user_id THEN 'self: uploaded by user'
       WHEN me.employee_id = own_employee THEN 'self: linked employee'
       WHEN public.is_manager_of(_target_user_id, me.employee_id) THEN 'manager: in subordinate hierarchy'
       ELSE 'denied: no matching branch'
-    END,
-    'Storage medical-documents access (table can_access_medical_examination)'::text,
+    END AS reason,
+    'Storage medical-documents access (table can_access_medical_examination)'::text AS policy_name,
     CASE
       WHEN is_admin THEN 'has_role(uid, admin)'
       WHEN d.uploaded_by = _target_user_id THEN 'document.uploaded_by = uid'
       WHEN me.employee_id = own_employee THEN 'examination.employee_id = get_user_employee_id(uid)'
       WHEN public.is_manager_of(_target_user_id, me.employee_id) THEN 'is_manager_of(uid, examination.employee_id)'
       ELSE 'none'
-    END
+    END AS policy_branch
   FROM public.medical_examination_documents d
   JOIN public.medical_examinations me ON me.id = d.examination_id
-  ORDER BY d.uploaded_at DESC LIMIT 500;
+  ORDER BY d.uploaded_at DESC
+  LIMIT 500;
 END;
-$fn$;
+$$;
 
 REVOKE ALL ON FUNCTION public.debug_medical_document_access(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.debug_medical_document_access(uuid) TO authenticated;
-
--- 4) Extended can_access_medical_examination (also for examination author + uploader)
-CREATE OR REPLACE FUNCTION public.can_access_medical_examination(_user_id uuid, _examination_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $fn$
-  SELECT
-    public.has_role(_user_id, 'admin'::public.app_role)
-    OR EXISTS (
-      SELECT 1 FROM public.medical_examinations me
-      WHERE me.id = _examination_id
-        AND (
-          me.employee_id = public.get_user_employee_id(_user_id)
-          OR public.is_manager_of(_user_id, me.employee_id)
-          OR me.created_by = _user_id
-        )
-    )
-    OR EXISTS (
-      SELECT 1 FROM public.medical_examination_documents d
-      WHERE d.examination_id = _examination_id AND d.uploaded_by = _user_id
-    );
-$fn$;
-
--- 5) Storage: medical-documents — strict policies only
-DROP POLICY IF EXISTS "Users can upload medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Users can view medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated can upload medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated can view medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated can delete medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "medical_docs_select_authorized" ON storage.objects;
-DROP POLICY IF EXISTS "medical_docs_insert_authorized" ON storage.objects;
-DROP POLICY IF EXISTS "medical_docs_delete_authorized" ON storage.objects;
-
-CREATE POLICY "medical_docs_select_authorized" ON storage.objects FOR SELECT TO authenticated
-USING (
-  bucket_id = 'medical-documents' AND public.is_user_approved(auth.uid())
-  AND public.can_access_medical_examination(auth.uid(), ((storage.foldername(name))[1])::uuid)
-);
-CREATE POLICY "medical_docs_insert_authorized" ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (
-  bucket_id = 'medical-documents' AND public.is_user_approved(auth.uid())
-  AND public.can_access_medical_examination(auth.uid(), ((storage.foldername(name))[1])::uuid)
-);
-CREATE POLICY "medical_docs_delete_authorized" ON storage.objects FOR DELETE TO authenticated
-USING (
-  bucket_id = 'medical-documents' AND public.is_user_approved(auth.uid())
-  AND (
-    public.has_role(auth.uid(), 'admin'::app_role)
-    OR owner = auth.uid()
-    OR public.can_access_medical_examination(auth.uid(), ((storage.foldername(name))[1])::uuid)
-  )
-);
-
--- 6) Storage: training-documents — add approval + ownership/role
-DROP POLICY IF EXISTS "Users can upload training documents" ON storage.objects;
-DROP POLICY IF EXISTS "Users can view training documents" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete training documents" ON storage.objects;
-DROP POLICY IF EXISTS "training_docs_select_authorized" ON storage.objects;
-DROP POLICY IF EXISTS "training_docs_insert_authorized" ON storage.objects;
-DROP POLICY IF EXISTS "training_docs_delete_authorized" ON storage.objects;
-
-CREATE POLICY "training_docs_select_authorized" ON storage.objects FOR SELECT TO authenticated
-USING (
-  bucket_id = 'training-documents' AND public.is_user_approved(auth.uid())
-  AND (
-    public.has_role(auth.uid(), 'admin'::app_role)
-    OR EXISTS (
-      SELECT 1 FROM public.training_documents td
-      JOIN public.trainings t ON t.id = td.training_id
-      WHERE td.file_path = storage.objects.name
-        AND (
-          t.created_by = auth.uid()
-          OR td.uploaded_by = auth.uid()
-          OR t.employee_id = public.get_user_employee_id(auth.uid())
-          OR public.is_manager_of(auth.uid(), t.employee_id)
-        )
-    )
-  )
-);
-CREATE POLICY "training_docs_insert_authorized" ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (
-  bucket_id = 'training-documents' AND public.is_user_approved(auth.uid()) AND owner = auth.uid()
-);
-CREATE POLICY "training_docs_delete_authorized" ON storage.objects FOR DELETE TO authenticated
-USING (
-  bucket_id = 'training-documents' AND public.is_user_approved(auth.uid())
-  AND (public.has_role(auth.uid(), 'admin'::app_role) OR owner = auth.uid())
-);
-
--- 7) Realtime denied logger
-CREATE OR REPLACE FUNCTION public.log_realtime_denied(_topic text, _reason text)
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
-AS $fn$
-BEGIN
-  INSERT INTO public.audit_logs (table_name, record_id, action, new_data, user_id, user_email, target_user_id)
-  VALUES ('realtime', gen_random_uuid(), 'REALTIME_DENIED',
-    jsonb_build_object('topic', COALESCE(_topic,''), 'reason', COALESCE(_reason,'unknown')),
-    auth.uid(),
-    (SELECT email FROM public.profiles WHERE id = auth.uid()),
-    auth.uid());
-END;
-$fn$;
-
-REVOKE ALL ON FUNCTION public.log_realtime_denied(text, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.log_realtime_denied(text, text) TO authenticated;
-`.trim(),
+    `.trim(),
   },
   {
-    version: "20260424110430",
-    name: "harden_storage_and_realtime_policies",
-    sql: `-- 1) general-documents: vyžadovat schválený účet
-DROP POLICY IF EXISTS "Approved users can view general docs" ON storage.objects;
-DROP POLICY IF EXISTS "Approved users can upload general docs" ON storage.objects;
-DROP POLICY IF EXISTS "Admins can delete general docs" ON storage.objects;
-DROP POLICY IF EXISTS "general_docs_select_approved" ON storage.objects;
-DROP POLICY IF EXISTS "general_docs_insert_approved" ON storage.objects;
-DROP POLICY IF EXISTS "general_docs_update_admin" ON storage.objects;
-DROP POLICY IF EXISTS "general_docs_delete_admin" ON storage.objects;
-
-CREATE POLICY "general_docs_select_approved" ON storage.objects FOR SELECT TO authenticated
-USING (bucket_id = 'general-documents' AND public.is_user_approved(auth.uid()));
-
-CREATE POLICY "general_docs_insert_approved" ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'general-documents' AND public.is_user_approved(auth.uid()));
-
-CREATE POLICY "general_docs_update_admin" ON storage.objects FOR UPDATE TO authenticated
-USING (bucket_id = 'general-documents' AND public.is_user_approved(auth.uid())
-  AND (public.has_role(auth.uid(), 'admin'::public.app_role) OR owner = auth.uid()))
-WITH CHECK (bucket_id = 'general-documents' AND public.is_user_approved(auth.uid())
-  AND (public.has_role(auth.uid(), 'admin'::public.app_role) OR owner = auth.uid()));
-
-CREATE POLICY "general_docs_delete_admin" ON storage.objects FOR DELETE TO authenticated
-USING (bucket_id = 'general-documents' AND public.is_user_approved(auth.uid())
-  AND (public.has_role(auth.uid(), 'admin'::public.app_role) OR owner = auth.uid()));
-
--- 2) medical-documents: odstranit příliš volné politiky
-DROP POLICY IF EXISTS "Users can delete their medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Users can view their medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Users can upload their medical documents" ON storage.objects;
-DROP POLICY IF EXISTS "Users can update their medical documents" ON storage.objects;
-
--- 3) training-documents: explicitní UPDATE politika
-DROP POLICY IF EXISTS "training_docs_update_authorized" ON storage.objects;
-CREATE POLICY "training_docs_update_authorized" ON storage.objects FOR UPDATE TO authenticated
-USING (bucket_id = 'training-documents' AND public.is_user_approved(auth.uid())
-  AND (public.has_role(auth.uid(), 'admin'::public.app_role) OR owner = auth.uid()))
-WITH CHECK (bucket_id = 'training-documents' AND public.is_user_approved(auth.uid())
-  AND (public.has_role(auth.uid(), 'admin'::public.app_role) OR owner = auth.uid()));
-
--- 4) deadline-documents: explicitní UPDATE politika
-DROP POLICY IF EXISTS "deadline_docs_update_authorized" ON storage.objects;
-CREATE POLICY "deadline_docs_update_authorized" ON storage.objects FOR UPDATE TO authenticated
-USING (bucket_id = 'deadline-documents' AND public.is_user_approved(auth.uid())
-  AND (public.has_role(auth.uid(), 'admin'::public.app_role) OR owner = auth.uid()))
-WITH CHECK (bucket_id = 'deadline-documents' AND public.is_user_approved(auth.uid())
-  AND (public.has_role(auth.uid(), 'admin'::public.app_role) OR owner = auth.uid()));
-
--- 5) realtime.messages: zúžit podle topicu
-DROP POLICY IF EXISTS "approved_users_realtime_access" ON realtime.messages;
-DROP POLICY IF EXISTS "realtime_topic_scoped_select" ON realtime.messages;
-
-CREATE POLICY "realtime_topic_scoped_select" ON realtime.messages FOR SELECT TO authenticated
-USING (
-  public.is_user_approved(auth.uid())
-  AND (
-    public.has_role(auth.uid(), 'admin'::public.app_role)
-    OR (
-      public.has_role(auth.uid(), 'manager'::public.app_role)
-      AND (
-        realtime.topic() LIKE 'manager:%'
-        OR realtime.topic() LIKE 'public:%'
-        OR realtime.topic() = 'notifications:' || auth.uid()::text
-      )
-    )
-    OR realtime.topic() = 'notifications:' || auth.uid()::text
-    OR realtime.topic() LIKE 'public:%'
-  )
-);`,
-  },
-  {
-    version: "20260424113000",
-    name: "restrict_realtime_public_topic_and_cleanup_medical_delete",
-    sql: `-- 1) REALTIME: Zúžit public:* topic jen na admin + manager
-DROP POLICY IF EXISTS "realtime_topic_scoped_select" ON realtime.messages;
-
-CREATE POLICY "realtime_topic_scoped_select" ON realtime.messages
-FOR SELECT TO authenticated
-USING (
-  public.is_user_approved(auth.uid()) AND (
-    public.has_role(auth.uid(), 'admin'::public.app_role)
-    OR (
-      public.has_role(auth.uid(), 'manager'::public.app_role)
-      AND (
-        realtime.topic() LIKE 'manager:%'
-        OR realtime.topic() LIKE 'public:%'
-        OR realtime.topic() = 'notifications:' || auth.uid()::text
-      )
-    )
-    OR realtime.topic() = 'notifications:' || auth.uid()::text
-  )
-);
-
--- 2) STORAGE: Úklid duplicitních DELETE politik na medical-documents
-DO $$
-DECLARE
-  pol record;
-BEGIN
-  FOR pol IN
-    SELECT polname
-    FROM pg_policy p
-    JOIN pg_class c ON c.oid = p.polrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'storage'
-      AND c.relname = 'objects'
-      AND p.polcmd = 'd'
-      AND p.polname <> 'medical_docs_delete_authorized'
-      AND (
-        p.polname ILIKE '%medical%'
-        OR pg_get_expr(p.polqual, p.polrelid) ILIKE '%medical-documents%'
-      )
-  LOOP
-    EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', pol.polname);
-  END LOOP;
-END $$;
-
-DROP POLICY IF EXISTS "medical_docs_delete_authorized" ON storage.objects;
-CREATE POLICY "medical_docs_delete_authorized" ON storage.objects
-FOR DELETE TO authenticated
-USING (
-  bucket_id = 'medical-documents'
-  AND public.is_user_approved(auth.uid())
-  AND (
-    public.has_role(auth.uid(), 'admin'::public.app_role)
-    OR owner = auth.uid()
-    OR EXISTS (
-      SELECT 1
-      FROM public.medical_examination_documents d
-      JOIN public.medical_examinations me ON me.id = d.examination_id
-      WHERE d.file_path = storage.objects.name
-        AND (
-          d.uploaded_by = auth.uid()
-          OR me.employee_id = public.get_user_employee_id(auth.uid())
-          OR public.is_manager_of(auth.uid(), me.employee_id)
-        )
-    )
-  )
-);`,
-  },
-  {
-    version: "20260424111235",
-    name: "harden_anon_rls_and_deadline_storage_ownership",
-    sql: `-- 1) profiles & user_roles: explicit TO authenticated
-DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
-DROP POLICY IF EXISTS "Approved users can view approved profiles" ON public.profiles;
-DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Admins can update any profile" ON public.profiles;
-
-CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
-CREATE POLICY "Admins can view all profiles" ON public.profiles FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role));
-CREATE POLICY "Approved users can view approved profiles" ON public.profiles FOR SELECT TO authenticated USING (public.is_user_approved(auth.uid()) AND approval_status = 'approved');
-CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
-CREATE POLICY "Admins can update any profile" ON public.profiles FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
-
-DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Users can view own roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Admins can insert user roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Admins can update user roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Admins can delete user roles" ON public.user_roles;
-
-CREATE POLICY "Users can view own roles" ON public.user_roles FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Admins can view all roles" ON public.user_roles FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role));
-CREATE POLICY "Admins can insert user roles" ON public.user_roles FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
-CREATE POLICY "Admins can update user roles" ON public.user_roles FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
-CREATE POLICY "Admins can delete user roles" ON public.user_roles FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role));
-
--- 2) deadline-documents storage ownership
-CREATE OR REPLACE FUNCTION public.can_access_deadline_file(_user_id uuid, _file_path text)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $fn$
-  SELECT public.has_role(_user_id, 'admin'::public.app_role)
-    OR EXISTS (
-      SELECT 1 FROM public.deadline_documents dd
-      JOIN public.deadlines d ON d.id = dd.deadline_id
-      LEFT JOIN public.equipment_responsibles er ON er.equipment_id = d.equipment_id
-      WHERE dd.file_path = _file_path
-        AND (d.created_by = _user_id OR public.is_deadline_responsible(_user_id, d.id) OR er.profile_id = _user_id)
-    );
-$fn$;
-REVOKE ALL ON FUNCTION public.can_access_deadline_file(uuid, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.can_access_deadline_file(uuid, text) TO authenticated;
-
-DROP POLICY IF EXISTS "Approved users can upload deadline documents to storage" ON storage.objects;
-DROP POLICY IF EXISTS "Approved users can view deadline documents in storage" ON storage.objects;
-DROP POLICY IF EXISTS "Approved users can delete their deadline documents from storage" ON storage.objects;
-DROP POLICY IF EXISTS "deadline_docs_update_authorized" ON storage.objects;
-DROP POLICY IF EXISTS "deadline_docs_select_authorized" ON storage.objects;
-DROP POLICY IF EXISTS "deadline_docs_insert_authorized" ON storage.objects;
-DROP POLICY IF EXISTS "deadline_docs_delete_authorized" ON storage.objects;
-
-CREATE POLICY "deadline_docs_select_authorized" ON storage.objects FOR SELECT TO authenticated
-USING (bucket_id = 'deadline-documents' AND public.is_user_approved(auth.uid()) AND public.can_access_deadline_file(auth.uid(), name));
-
-CREATE POLICY "deadline_docs_insert_authorized" ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (
-  bucket_id = 'deadline-documents' AND public.is_user_approved(auth.uid()) AND (
-    public.has_role(auth.uid(), 'admin'::public.app_role)
-    OR EXISTS (
-      SELECT 1 FROM public.deadlines d
-      LEFT JOIN public.equipment_responsibles er ON er.equipment_id = d.equipment_id
-      WHERE d.id::text = (storage.foldername(storage.objects.name))[1]
-        AND (d.created_by = auth.uid() OR public.is_deadline_responsible(auth.uid(), d.id) OR er.profile_id = auth.uid())
-    )
-  )
-);
-
-CREATE POLICY "deadline_docs_update_authorized" ON storage.objects FOR UPDATE TO authenticated
-USING (bucket_id = 'deadline-documents' AND public.is_user_approved(auth.uid()) AND (public.has_role(auth.uid(), 'admin'::public.app_role) OR owner = auth.uid()))
-WITH CHECK (bucket_id = 'deadline-documents' AND public.is_user_approved(auth.uid()) AND (public.has_role(auth.uid(), 'admin'::public.app_role) OR owner = auth.uid()));
-
-CREATE POLICY "deadline_docs_delete_authorized" ON storage.objects FOR DELETE TO authenticated
-USING (bucket_id = 'deadline-documents' AND public.is_user_approved(auth.uid()) AND (public.has_role(auth.uid(), 'admin'::public.app_role) OR owner = auth.uid() OR public.can_access_deadline_file(auth.uid(), name)));
-
--- 3) Realtime: odebrat citlivé tabulky z publikace
-DO $do$
-DECLARE tbl text;
-BEGIN
-  FOREACH tbl IN ARRAY ARRAY['employees','medical_examinations','medical_examination_documents','audit_logs','profiles','user_roles','user_invites','deadlines','deadline_documents','equipment','trainings','training_documents'] LOOP
-    BEGIN
-      EXECUTE format('ALTER PUBLICATION supabase_realtime DROP TABLE public.%I', tbl);
-    EXCEPTION WHEN undefined_object OR undefined_table THEN NULL;
-    END;
-  END LOOP;
-END $do$;`,
-  },
-  {
-    version: "20260424120000",
-    name: "ui_unify_role_based_navigation_guards",
-    sql: `-- UI-only: sjednocení role-based přístupu napříč záložkami.
--- Přidány ProtectedRoute guards (admin/manager) na stránky Správa dat
--- (/employees, /training-types, /departments, /facilities, /inactive),
--- aktualizována matice oprávnění (RolePermissionsInfo) a text stránky NoAccess.
--- Žádné databázové změny nejsou potřeba — RLS politiky už striktně vynucují
--- role na úrovni databáze; tato migrace pouze ladí UI tak, aby odpovídalo
--- skutečným oprávněním a uživatelé nedostávali prázdné stránky / chyby RLS.
-SELECT 1;`,
-  },
-  {
-    version: "20260424130000",
-    name: "ui_role_audit_and_plp_write_lock",
-    sql: `-- UI-only: další zpřísnění role guardů a transparentnost oprávnění.
--- 1) PLP zápis (/plp/new, /plp/edit/:id) je nyní v App.tsx omezen na admin
---    (manažeři ani s modulovým přístupem nemohou vytvářet/upravovat prohlídky).
--- 2) Catch-all 404 route je obalena ProtectedRoute, takže nepřihlášený uživatel
---    je přesměrován na /auth místo zobrazení interní 404 stránky.
--- 3) Přidána stránka /my-permissions (MyPermissions), která uživateli ukazuje
---    aktuální role, přiřazené moduly a kompletní seznam stránek s indikací
---    přístupu (mirror logiky ProtectedRoute v helperu canAccessRoute).
--- 4) Stránka NoAccess nyní nabízí konkrétní dostupné odkazy podle role
---    (Dokumenty, Profil, Moje oprávnění; manažer + Zaměstnanci/Statistiky).
--- 5) Přidány vitest unit testy (src/test/route-access.test.ts) pokrývající
---    matici Admin/Manager/User × klíčové stránky, včetně PLP write-locku.
--- Databázové změny nejsou potřeba — RLS na DB úrovni už zápis PLP omezuje
--- pomocí policy 'only admins can write medical_examinations'.
-SELECT 1;`,
-  },
-  {
-    version: "20260424140000",
-    name: "ui_statistics_page_bugfixes",
-    sql: `-- UI-only: oprava 3 bugů na stránce /statistics.
--- 1) Tabulka "Odškolené hodiny podle roků" — rok se nyní parsuje přímo z ISO
---    řetězce (lastTrainingDate.slice(0,4)) místo new Date(...).getFullYear(),
---    aby se data ze začátku/konce roku nepřesouvala do sousedního roku kvůli
---    časovému pásmu (typicky chyběl rok 2025 v záporných TZ).
---    Stejné parsování bylo aplikováno i na filtr roku (yearFilteredTrainings)
---    a na seznam dostupných roků v <Select>.
--- 2) Graf "Školení podle oddělení" — popisek na ose X už nezobrazuje surový
---    kód střediska (např. "2002000001 - LOG"), ale lidsky čitelný název
---    s kódem v závorce ("LOG (2002000001)"). Nezařazené záznamy zůstávají
---    pod popiskem "Nezařazeno".
--- 3) Statistiky doručování emailů — "Průměr pokusů" ukazoval 1.0 i při
---    nulovém datasetu. Default 1 byl nahrazen 0 a v UI se při 0 odeslaných
---    + 0 neúspěšných emailech zobrazí pomlčka "—".
--- Žádné databázové změny nejsou potřeba.
-SELECT 1;`,
-  },
-  {
-    version: "20260424150000",
-    name: "ui_statistics_test_coverage_and_empty_states",
-    sql: `-- UI-only: rozšíření testovacího pokrytí a hardening empty states pro /statistics.
--- 1) Vytvořen modul src/lib/statisticsHelpers.ts s čistými helpery:
---    parseYearFromISO, parseMonthFromISO, isInYear, buildDepartmentLabel,
---    computeAvgAttempts, formatAvgAttempts, formatStatCount.
---    Helpery jsou nyní jediným zdrojem pravdy pro:
---      • parsování roku/měsíce nezávislé na časovém pásmu (tabulky i grafy),
---      • mapování čitelného popisku oddělení v grafech,
---      • výpočet průměru pokusů emailů (0 místo 1 při prázdném datasetu).
--- 2) Statistics.tsx a EmailDeliveryStats.tsx byly refaktorovány tak, aby
---    používaly tyto helpery — sjednocení parsování dat napříč všemi tabulkami
---    i grafy (rok, měsíc, filtr, dropdown).
--- 3) Měsíční přehled (monthlyDistribution) nyní také parsuje měsíc bez
---    new Date() — odstraněn poslední TZ-citlivý bod na stránce.
--- 4) Empty state pro prázdný rok: pokud uživatel vybere rok, pro který nejsou
---    žádná školení, ale jiné roky data mají, zobrazí se nápověda „Zkuste vybrat
---    jiný rok / Všechny roky" místo generického „přidejte školení".
--- 5) Přidány vitest unit testy:
---      • src/test/statistics-regressions.test.ts — pokrývá všechny 3 bugy
---        z migrace 20260424140000 + parseMonthFromISO TZ edge cases.
---      • src/test/statistics-route-access.test.ts — pinuje matici
---        Admin/Manager/User × /statistics tak, aby budoucí změna guardů
---        v App.tsx / routeAccess.ts neuvolnila přístup pro běžné uživatele.
--- Žádné databázové změny nejsou potřeba.
-SELECT 1;`,
-  },
-  {
-    version: "20260424160000",
-    name: "probation_period_tracking",
-    sql: `-- Sledování zkušební doby zaměstnanců (Zákoník práce 2026: 4 měs. běžní / 8 měs. vedoucí)
-ALTER TABLE public.employees
-  ADD COLUMN IF NOT EXISTS start_date date,
-  ADD COLUMN IF NOT EXISTS probation_end_date date,
-  ADD COLUMN IF NOT EXISTS probation_months integer;
-
-CREATE OR REPLACE FUNCTION public.is_managerial_position(_position text)
-RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path = public AS $f$
-  SELECT _position IS NOT NULL AND (
-    LOWER(_position) LIKE '%vedouc%' OR LOWER(_position) LIKE '%manaž%' OR
-    LOWER(_position) LIKE '%manag%' OR LOWER(_position) LIKE '%ředitel%' OR
-    LOWER(_position) LIKE '%reditel%' OR LOWER(_position) LIKE '%head%' OR
-    LOWER(_position) LIKE '%chief%' OR LOWER(_position) LIKE '%director%'
-  )
-$f$;
-
-CREATE OR REPLACE FUNCTION public.calculate_probation_end_date()
-RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $f$
-DECLARE v_months integer;
-BEGIN
-  IF NEW.start_date IS NULL THEN NEW.probation_end_date := NULL; RETURN NEW; END IF;
-  IF NEW.probation_months IS NOT NULL THEN v_months := NEW.probation_months;
-  ELSIF public.is_managerial_position(NEW.position) THEN v_months := 8; NEW.probation_months := 8;
-  ELSE v_months := 4; NEW.probation_months := 4; END IF;
-  IF TG_OP = 'INSERT' AND NEW.probation_end_date IS NULL THEN
-    NEW.probation_end_date := NEW.start_date + (v_months || ' months')::interval;
-  ELSIF TG_OP = 'UPDATE' AND (
-    OLD.start_date IS DISTINCT FROM NEW.start_date OR OLD.probation_months IS DISTINCT FROM NEW.probation_months
-  ) AND (NEW.probation_end_date IS NULL OR NEW.probation_end_date = OLD.probation_end_date) THEN
-    NEW.probation_end_date := NEW.start_date + (v_months || ' months')::interval;
-  END IF;
-  RETURN NEW;
-END; $f$;
-
-DROP TRIGGER IF EXISTS trg_calculate_probation_end_date ON public.employees;
-CREATE TRIGGER trg_calculate_probation_end_date BEFORE INSERT OR UPDATE ON public.employees
-  FOR EACH ROW EXECUTE FUNCTION public.calculate_probation_end_date();
-
-CREATE INDEX IF NOT EXISTS idx_employees_probation_end_date
-  ON public.employees(probation_end_date) WHERE probation_end_date IS NOT NULL AND status = 'employed';
-
-CREATE OR REPLACE FUNCTION public.check_probation_period_endings()
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $f$
-DECLARE
-  v_today date := CURRENT_DATE; v_warn date := CURRENT_DATE + INTERVAL '14 days';
-  v_emp RECORD; v_admin RECORD; v_mgr_uid uuid;
-  v_type text; v_title text; v_msg text; v_days int; v_exists int; v_total int := 0;
-BEGIN
-  FOR v_emp IN SELECT id, first_name, last_name, position, probation_end_date, manager_employee_id
-    FROM public.employees WHERE status = 'employed'
-      AND probation_end_date IS NOT NULL AND probation_end_date IN (v_today, v_warn)
-  LOOP
-    v_days := v_emp.probation_end_date - v_today;
-    IF v_days = 0 THEN v_type := 'warning'; v_title := 'Konec zkušební doby DNES';
-      v_msg := format('Zaměstnanci %s %s (%s) dnes končí zkušební doba.',
-        v_emp.first_name, v_emp.last_name, COALESCE(v_emp.position, ''));
-    ELSE v_type := 'info'; v_title := 'Zkušební doba končí za 14 dní';
-      v_msg := format('Zaměstnanci %s %s (%s) končí zkušební doba %s.',
-        v_emp.first_name, v_emp.last_name, COALESCE(v_emp.position, ''),
-        to_char(v_emp.probation_end_date, 'DD.MM.YYYY'));
-    END IF;
-    FOR v_admin IN SELECT DISTINCT user_id FROM public.user_roles WHERE role = 'admin' LOOP
-      SELECT COUNT(*) INTO v_exists FROM public.notifications
-        WHERE user_id = v_admin.user_id AND related_entity_type = 'probation_period'
-          AND related_entity_id = v_emp.id AND type = v_type AND created_at::date = v_today;
-      IF v_exists = 0 THEN
-        INSERT INTO public.notifications (user_id, title, message, type, related_entity_type, related_entity_id)
-        VALUES (v_admin.user_id, v_title, v_msg, v_type, 'probation_period', v_emp.id);
-        v_total := v_total + 1;
-      END IF;
-    END LOOP;
-    IF v_emp.manager_employee_id IS NOT NULL THEN
-      SELECT id INTO v_mgr_uid FROM public.profiles WHERE employee_id = v_emp.manager_employee_id LIMIT 1;
-      IF v_mgr_uid IS NOT NULL THEN
-        SELECT COUNT(*) INTO v_exists FROM public.notifications
-          WHERE user_id = v_mgr_uid AND related_entity_type = 'probation_period'
-            AND related_entity_id = v_emp.id AND type = v_type AND created_at::date = v_today;
-        IF v_exists = 0 THEN
-          INSERT INTO public.notifications (user_id, title, message, type, related_entity_type, related_entity_id)
-          VALUES (v_mgr_uid, v_title, v_msg, v_type, 'probation_period', v_emp.id);
-          v_total := v_total + 1;
-        END IF;
-      END IF;
-    END IF;
-  END LOOP;
-  RETURN jsonb_build_object('notifications_created', v_total, 'run_at', now());
-END; $f$;
-
-UPDATE public.employees SET probation_months = CASE WHEN public.is_managerial_position(position) THEN 8 ELSE 4 END
-  WHERE start_date IS NOT NULL AND probation_months IS NULL;
-UPDATE public.employees SET probation_end_date = start_date + (probation_months || ' months')::interval
-  WHERE start_date IS NOT NULL AND probation_end_date IS NULL AND probation_months IS NOT NULL;
-
-DO $f$ BEGIN
-  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    PERFORM cron.unschedule('check-probation-period-endings-daily')
-      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'check-probation-period-endings-daily');
-    PERFORM cron.schedule('check-probation-period-endings-daily', '0 8 * * *',
-      $cron$ SELECT public.check_probation_period_endings(); $cron$);
-  END IF;
-END $f$;`,
-  },
-  {
-    version: "20260424180000",
-    name: "probation_obstacles_and_audit",
-    sql: `-- Tabulka překážek v práci během zkušební doby + audit triggery
--- (start_date, probation_months, probation_end_date, override, obstacles).
--- Manuální override v UI zachován; auto-přepočet uvažuje SUM dnů překážek.
-
-CREATE OR REPLACE FUNCTION public.can_view_employee(_user_id uuid, _employee_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $f$
-  SELECT _user_id IS NOT NULL AND public.is_user_approved(_user_id) AND (
-    public.has_role(_user_id, 'admin'::app_role)
-    OR public.is_manager_of(_user_id, _employee_id)
-    OR _employee_id = public.get_user_employee_id(_user_id)
-  );
-$f$;
-
-CREATE TABLE IF NOT EXISTS public.probation_obstacles (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  employee_id uuid NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
-  date_from date NOT NULL,
-  date_to date NOT NULL,
-  reason text NOT NULL,
-  created_by uuid,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT probation_obstacles_dates_chk CHECK (date_to >= date_from)
-);
-CREATE INDEX IF NOT EXISTS idx_probation_obstacles_employee ON public.probation_obstacles(employee_id);
-ALTER TABLE public.probation_obstacles ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "View probation obstacles by employee visibility" ON public.probation_obstacles;
-CREATE POLICY "View probation obstacles by employee visibility" ON public.probation_obstacles
-  FOR SELECT USING (public.can_view_employee(auth.uid(), employee_id));
-
-DROP POLICY IF EXISTS "Admins and managers can insert probation obstacles" ON public.probation_obstacles;
-CREATE POLICY "Admins and managers can insert probation obstacles" ON public.probation_obstacles
-  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL AND public.is_user_approved(auth.uid()) AND (
-    public.has_role(auth.uid(), 'admin'::app_role)
-    OR (public.has_role(auth.uid(), 'manager'::app_role) AND public.is_manager_of(auth.uid(), employee_id))));
-
-DROP POLICY IF EXISTS "Admins and managers can update probation obstacles" ON public.probation_obstacles;
-CREATE POLICY "Admins and managers can update probation obstacles" ON public.probation_obstacles
-  FOR UPDATE USING (public.is_user_approved(auth.uid()) AND (
-    public.has_role(auth.uid(), 'admin'::app_role)
-    OR (public.has_role(auth.uid(), 'manager'::app_role) AND public.is_manager_of(auth.uid(), employee_id))));
-
-DROP POLICY IF EXISTS "Admins and managers can delete probation obstacles" ON public.probation_obstacles;
-CREATE POLICY "Admins and managers can delete probation obstacles" ON public.probation_obstacles
-  FOR DELETE USING (public.is_user_approved(auth.uid()) AND (
-    public.has_role(auth.uid(), 'admin'::app_role)
-    OR (public.has_role(auth.uid(), 'manager'::app_role) AND public.is_manager_of(auth.uid(), employee_id))));
-
-CREATE OR REPLACE FUNCTION public.validate_probation_obstacles_no_overlap()
-RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $f$
-BEGIN
-  IF EXISTS (SELECT 1 FROM public.probation_obstacles po
-    WHERE po.employee_id = NEW.employee_id
-      AND po.id <> COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid)
-      AND NOT (po.date_to < NEW.date_from OR po.date_from > NEW.date_to)) THEN
-    RAISE EXCEPTION 'Překážka se překrývá s jiným záznamem pro tohoto zaměstnance';
-  END IF;
-  RETURN NEW;
-END; $f$;
-
-DROP TRIGGER IF EXISTS trg_probation_obstacles_no_overlap ON public.probation_obstacles;
-CREATE TRIGGER trg_probation_obstacles_no_overlap BEFORE INSERT OR UPDATE ON public.probation_obstacles
-  FOR EACH ROW EXECUTE FUNCTION public.validate_probation_obstacles_no_overlap();
-
-CREATE OR REPLACE FUNCTION public.sum_probation_obstacle_days(_employee_id uuid)
-RETURNS integer LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $f$
-  SELECT COALESCE(SUM((date_to - date_from) + 1), 0)::integer
-  FROM public.probation_obstacles WHERE employee_id = _employee_id;
-$f$;
-
-CREATE OR REPLACE FUNCTION public.recalc_probation_end_after_obstacle()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $f$
-DECLARE emp_id uuid;
-BEGIN
-  emp_id := COALESCE(NEW.employee_id, OLD.employee_id);
-  UPDATE public.employees SET updated_at = now() WHERE id = emp_id;
-  RETURN NULL;
-END; $f$;
-
-DROP TRIGGER IF EXISTS trg_probation_obstacles_recalc ON public.probation_obstacles;
-CREATE TRIGGER trg_probation_obstacles_recalc AFTER INSERT OR UPDATE OR DELETE ON public.probation_obstacles
-  FOR EACH ROW EXECUTE FUNCTION public.recalc_probation_end_after_obstacle();
-
--- Přepočet konce ZD s ohledem na součet dnů překážek
-CREATE OR REPLACE FUNCTION public.calculate_probation_end_date()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $f$
-DECLARE default_months integer; obstacle_days integer; auto_end date;
-BEGIN
-  IF NEW.probation_months IS NULL THEN
-    NEW.probation_months := CASE WHEN public.is_managerial_position(NEW.position) THEN 8 ELSE 4 END;
-  END IF;
-  IF NEW.start_date IS NULL THEN
-    NEW.probation_end_date := NULL; NEW.probation_override_reason := NULL; RETURN NEW;
-  END IF;
-  obstacle_days := public.sum_probation_obstacle_days(NEW.id);
-  auto_end := (NEW.start_date + (NEW.probation_months || ' months')::interval + (obstacle_days || ' days')::interval)::date;
-  IF NEW.probation_end_date IS NULL OR NEW.probation_end_date = auto_end THEN
-    NEW.probation_end_date := auto_end; NEW.probation_override_reason := NULL;
-  END IF;
-  RETURN NEW;
-END; $f$;
-
--- Audit changes on employees probation fields → audit_logs (table_name='employees_probation')
-CREATE OR REPLACE FUNCTION public.audit_employee_probation_changes()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $f$
-DECLARE changed text[] := ARRAY[]::text[]; actor_email text; actor_name text;
-BEGIN
-  IF TG_OP = 'UPDATE' THEN
-    IF OLD.start_date IS DISTINCT FROM NEW.start_date THEN changed := array_append(changed, 'start_date'); END IF;
-    IF OLD.probation_months IS DISTINCT FROM NEW.probation_months THEN changed := array_append(changed, 'probation_months'); END IF;
-    IF OLD.probation_end_date IS DISTINCT FROM NEW.probation_end_date THEN changed := array_append(changed, 'probation_end_date'); END IF;
-    IF OLD.probation_override_reason IS DISTINCT FROM NEW.probation_override_reason THEN changed := array_append(changed, 'probation_override_reason'); END IF;
-    IF array_length(changed, 1) IS NULL THEN RETURN NEW; END IF;
-    SELECT email, (first_name || ' ' || last_name) INTO actor_email, actor_name FROM public.profiles WHERE id = auth.uid();
-    INSERT INTO public.audit_logs (table_name, record_id, action, old_data, new_data, changed_fields, user_id, user_email, user_name)
-    VALUES ('employees_probation', NEW.id, 'UPDATE',
-      jsonb_build_object('start_date', OLD.start_date, 'probation_months', OLD.probation_months,
-        'probation_end_date', OLD.probation_end_date, 'probation_override_reason', OLD.probation_override_reason),
-      jsonb_build_object('start_date', NEW.start_date, 'probation_months', NEW.probation_months,
-        'probation_end_date', NEW.probation_end_date, 'probation_override_reason', NEW.probation_override_reason),
-      changed, auth.uid(), actor_email, actor_name);
-  END IF;
-  RETURN NEW;
-END; $f$;
-
-DROP TRIGGER IF EXISTS trg_audit_employee_probation ON public.employees;
-CREATE TRIGGER trg_audit_employee_probation AFTER UPDATE ON public.employees
-  FOR EACH ROW EXECUTE FUNCTION public.audit_employee_probation_changes();
-
-CREATE OR REPLACE FUNCTION public.audit_probation_obstacles()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $f$
-DECLARE actor_email text; actor_name text; rec_id uuid; action_name text;
-BEGIN
-  SELECT email, (first_name || ' ' || last_name) INTO actor_email, actor_name FROM public.profiles WHERE id = auth.uid();
-  IF TG_OP = 'DELETE' THEN rec_id := OLD.id; action_name := 'DELETE';
-  ELSE rec_id := NEW.id; action_name := TG_OP; END IF;
-  INSERT INTO public.audit_logs (table_name, record_id, action, old_data, new_data, changed_fields, user_id, user_email, user_name)
-  VALUES ('probation_obstacles', rec_id, action_name,
-    CASE WHEN TG_OP = 'INSERT' THEN NULL ELSE jsonb_build_object('employee_id', OLD.employee_id, 'date_from', OLD.date_from, 'date_to', OLD.date_to, 'reason', OLD.reason) END,
-    CASE WHEN TG_OP = 'DELETE' THEN NULL ELSE jsonb_build_object('employee_id', NEW.employee_id, 'date_from', NEW.date_from, 'date_to', NEW.date_to, 'reason', NEW.reason) END,
-    ARRAY['date_from','date_to','reason']::text[], auth.uid(), actor_email, actor_name);
-  RETURN COALESCE(NEW, OLD);
-END; $f$;
-
-DROP TRIGGER IF EXISTS trg_audit_probation_obstacles ON public.probation_obstacles;
-CREATE TRIGGER trg_audit_probation_obstacles AFTER INSERT OR UPDATE OR DELETE ON public.probation_obstacles
-  FOR EACH ROW EXECUTE FUNCTION public.audit_probation_obstacles();
-
-DROP TRIGGER IF EXISTS trg_probation_obstacles_updated_at ON public.probation_obstacles;
-CREATE TRIGGER trg_probation_obstacles_updated_at BEFORE UPDATE ON public.probation_obstacles
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();`,
-  },
-  {
-    version: "20260424170000",
-    name: "probation_override_reason",
-    sql: `-- Důvod ručního přepsání data konce zkušební doby
-ALTER TABLE public.employees
-  ADD COLUMN IF NOT EXISTS probation_override_reason text;
-
-COMMENT ON COLUMN public.employees.probation_override_reason IS
-  'Důvod ručního přepsání data konce zkušební doby (povinné při manuální úpravě, např. překážky v práci dle ZP 2026)';
-
--- Aktualizace triggeru: vyčistí důvod při auto-přepočtu
-CREATE OR REPLACE FUNCTION public.calculate_probation_end_date()
-RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $f$
-DECLARE
-  v_months integer;
-  v_auto_end date;
-BEGIN
-  IF NEW.start_date IS NULL THEN
-    NEW.probation_end_date := NULL;
-    NEW.probation_override_reason := NULL;
-    RETURN NEW;
-  END IF;
-
-  IF NEW.probation_months IS NOT NULL THEN v_months := NEW.probation_months;
-  ELSIF public.is_managerial_position(NEW.position) THEN v_months := 8; NEW.probation_months := 8;
-  ELSE v_months := 4; NEW.probation_months := 4; END IF;
-
-  v_auto_end := NEW.start_date + (v_months || ' months')::interval;
-
-  IF TG_OP = 'INSERT' THEN
-    IF NEW.probation_end_date IS NULL THEN
-      NEW.probation_end_date := v_auto_end;
-      NEW.probation_override_reason := NULL;
-    ELSIF NEW.probation_end_date = v_auto_end THEN
-      NEW.probation_override_reason := NULL;
-    END IF;
-  ELSIF TG_OP = 'UPDATE' THEN
-    IF (OLD.start_date IS DISTINCT FROM NEW.start_date OR OLD.probation_months IS DISTINCT FROM NEW.probation_months)
-       AND (NEW.probation_end_date IS NULL OR NEW.probation_end_date = OLD.probation_end_date) THEN
-      NEW.probation_end_date := v_auto_end;
-      NEW.probation_override_reason := NULL;
-    ELSIF NEW.probation_end_date = v_auto_end THEN
-      NEW.probation_override_reason := NULL;
-    END IF;
-  END IF;
-
-  RETURN NEW;
-END; $f$;`,
-  },
-  {
-    version: "20260424190000",
-    name: "probations_compact_view_and_adaptive_preview",
-    sql: `-- UI-only změny:
---   • /probations: přepínač pro zobrazení bez záložek (jen přehled)
---   • FilePreviewDialog: adaptivní rozměry dialogu podle formátu (PDF/obrázek)
---   • Vitest kontrakty pro RLS audit_logs a probation_obstacles
--- Žádná změna databázového schématu.
-SELECT 1;`,
-  },
-  {
-    version: "20260424200000",
-    name: "user_preferences_table",
-    sql: `-- Per-user UI preferences synced across devices.
--- Client uses localStorage as a cache; this table is the source of truth.
-CREATE TABLE IF NOT EXISTS public.user_preferences (
-  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  preferences jsonb NOT NULL DEFAULT '{}'::jsonb,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view their own preferences" ON public.user_preferences;
-CREATE POLICY "Users can view their own preferences"
-  ON public.user_preferences FOR SELECT TO authenticated
-  USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can insert their own preferences" ON public.user_preferences;
-CREATE POLICY "Users can insert their own preferences"
-  ON public.user_preferences FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can update their own preferences" ON public.user_preferences;
-CREATE POLICY "Users can update their own preferences"
-  ON public.user_preferences FOR UPDATE TO authenticated
-  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can delete their own preferences" ON public.user_preferences;
-CREATE POLICY "Users can delete their own preferences"
-  ON public.user_preferences FOR DELETE TO authenticated
-  USING (auth.uid() = user_id);
-
-DROP TRIGGER IF EXISTS trg_user_preferences_updated_at ON public.user_preferences;
-CREATE TRIGGER trg_user_preferences_updated_at
-  BEFORE UPDATE ON public.user_preferences
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();`,
-  },
-  {
-    version: "20260424210000",
-    name: "probation_deeplinks_and_notification_routing",
-    sql: `-- UI-only změny:
---   • /probations: klikací řádky + tlačítko „Upravit ZD" otevře editaci zaměstnance
---     a scrollne přímo na sekci „Zkušební doba" (?edit=<id>&focus=probation)
---   • Employees: deep-link handler v useEffect (useSearchParams), id="probation-section"
---   • NotificationBell: kliknutí na notifikaci routuje podle related_entity_type
---     (probation_period → /employees?edit=<empId>&focus=probation)
---   • Popover „Kde najdu ZD" rozšířen o tip ke klikání řádků
--- Žádná změna databázového schématu (využívá stávající related_entity_type='probation_period').
-SELECT 1;`,
-  },
-  {
-    version: "20260424220000",
-    name: "notification_filter_and_hierarchy_tree_filter",
-    sql: `-- UI-only změny:
---   • NotificationBell: filtr podle kategorie (ZD / Školení / Lhůty / PLP / Ostatní)
---     + přepínač „jen nepřečtené"; badge počtů per kategorie z lokálních dat.
---   • EmployeeHierarchyTree: skrývá zaměstnance se status='terminated' a „povyšuje"
---     jejich podřízené pod nejbližšího aktivního manažera (řetězení nahoru).
---     Plochý přehled zaměstnanců (status='all'/'terminated') zůstává nezměněn –
---     bývalý nadřízený je tedy stále vidí v seznamu (RLS: is_manager_of dle
---     manager_employee_id, který se při ukončení nemaže).
--- Žádná změna databázového schématu.
-SELECT 1;`,
-  },
-  {
-    version: "20260424230000",
-    name: "notification_action_button_and_tree_hint",
-    sql: `-- UI-only změny:
---   • NotificationBell: explicitní akční tlačítko ("Otevřít ZD zaměstnance" /
---     "Otevřít školení" / "Otevřít lhůtu" / "Otevřít PLP") v každé notifikaci
---     vedle časového razítka. Stav nepřečtených je persistovaný v notifications.is_read
---     (server-side, cross-device přes existující RLS).
---   • EmployeeHierarchyTree: info banner "Skryto N ukončených" + nápověda,
---     jak je dohledat v tabulkovém zobrazení (filtr stavu = Ukončený / Všichni).
---     RLS is_manager_of zachovává přístup bývalého nadřízeného.
---   • Employees deep-link (?edit=<id>&focus=probation):
---     - ResizeObserver na #probation-section + window resize listener,
---     - re-scroll a obnova ring-highlight při změně velikosti / responsivního layoutu.
---   • Validace override "Konec ZD": probíhá přes superRefine v zod schema +
---     existující DB trigger trg_audit_employee_probation zapisuje JEDEN konzistentní
---     audit_logs záznam (table_name='employees_probation') s old/new pro všechna
---     4 ZD pole (start_date, probation_months, probation_end_date, probation_override_reason)
---     a polem changed_fields. Žádná schema změna není potřeba.
---   • Export ZD do CSV/PDF (vč. sloupců Datum nástupu, Konec ZD, Důvod úpravy)
---     je již implementován na /probations.
-SELECT 1;`,
-  },
-  {
-    version: "20260424235000",
-    name: "notification_filters_cross_device_persistence",
-    sql: `-- UI-only změna (žádné schema):
---   • NotificationBell filtry (kategorie ZD/Školení/Lhůty/PLP/Ostatní + "Jen nepřečtené")
---     se nyní ukládají do tabulky public.user_preferences přes useUserPreferences hook,
---     takže se přenášejí napříč zařízeními.
---   • Stav nepřečtených notifikací per kategorie je řízen sloupcem notifications.is_read,
---     který je v DB od počátku — agregace per kategorie probíhá na klientovi z DB záznamů,
---     takže je konzistentní napříč zařízeními bez nutnosti nové tabulky.
---   • ZD notifikace (check_probation_period_endings): běží denně přes pg_cron,
---     generuje 14-denní (info) a 0-denní (warning) notifikace pro adminy a přímého
---     manažera, s deduplikací per den. Žádná změna není potřeba.
-SELECT 1;`,
-  },
-  {
-    version: "20260424240000",
-    name: "auditlog_probation_labels_and_filters",
-    sql: `-- UI-only změna (žádné DB schema):
---   • AuditLog.tsx: přidány lokalizované labely pro tabulky 'employees_probation',
---     'probation_obstacles', 'deadlines', 'medical_examinations'.
---   • Field labels rozšířeny o ZD pole: start_date, probation_months,
---     probation_end_date, probation_override_reason, date_from, date_to, reason.
---   • formatChangeDetails formátuje datumová pole dd.MM.yyyy a override reason
---     se zobrazuje plně (i prázdná hodnota "—") pro tři scénáře:
---       (1) ruční úprava end_date,
---       (2) zadání/změna probation_override_reason,
---       (3) změna start_date / probation_months → trigger zachytí všechna
---           změněná pole v jednom audit_logs záznamu (changed_fields).
---   • Filtr "Tabulka" v AuditLogu nyní zahrnuje Zkušební dobu, Překážky v ZD,
---     Technické události, PLP — admin si může vyfiltrovat jen ZD audit.
---   • Historie ZD je dohledatelná na třech místech:
---       (a) /probations záložka "Historie" (filtr na 'employees_probation' a 'probation_obstacles'),
---       (b) /audit-log s filtrem tabulky,
---       (c) DB triggery trg_audit_employee_probation + trg_audit_probation_obstacles
---           zapisují JEDEN konzistentní záznam per UPDATE napříč všemi vstupy
---           (formulář editace zaměstnance, hromadné úpravy, override end_date).
-SELECT 1;`,
-  },
-  {
-    version: "20260424250000",
-    name: "ui_simplified_matrix_export_and_import_buttons",
-    sql: `-- UI-only změna (žádné DB schema):
---   • Maticový export školení (ScheduledTrainings → "Matice") nyní obsahuje pouze
---     sloupec "Zaměstnanec" + sloupce typů školení s ✓ (má) / prázdné (nemá).
---     Odstraněny sloupce Středisko, Pozice, Stav, Nadřízený a souhrnný řádek.
---   • PLP přehled (ScheduledExaminations → "Přehled") nyní obsahuje pouze:
---     Zaměstnanec | Datum prohlídky | Konec platnosti | Typ prohlídky |
---     Kategorie práce | Zdravotní rizika | Výsledek | Poznámka.
---   • Z tlačítek Export/Import odstraněn suffix s formátem (CSV/XLSX).
---     Formát se nyní zobrazuje pouze jako tooltip při najetí myší (HTML title attr).
---   • Z bulk importů (Školení, PLP, Zařízení, Tech. lhůty, Zaměstnanci) odstraněna
---     tlačítka "Šablona CSV / XLSX" — uživatelé používají export jako šablonu
---     díky obousměrné kompatibilitě hlaviček (export → editace → import).
-SELECT 1;`,
-  },
-  {
-    version: "20260424260000",
-    name: "ui_unified_filters_and_equipment_export_responsibles",
-    sql: `-- UI-only změna (žádné DB schema):
---   • PLP filtry (ScheduledExaminations) rozšířeny o "Výsledek" a "Kategorie práce".
---     Sjednocené filtry napříč rolemi: stejné UI, různý obsah dle RLS
---     (admin = vše, manager = podřízení, user = vlastní).
---   • Export Zařízení (Equipment) obsahuje nový sloupec "Odpovědné osoby"
---     jako e-maily oddělené středníkem (";") pro round-trip kompatibilitu
---     s BulkEquipmentImport (který tyto e-maily mapuje na profily).
---     Sloupec "Odpovědná osoba" zůstává zachován (volný text — legacy).
---   • Z hlavních seznamů (Equipment, ScheduledTrainings, ScheduledDeadlines,
---     ScheduledExaminations) odstraněna manuální tlačítka "Obnovit" — všechny
---     hooky využívají Supabase realtime kanály a aktualizují se automaticky
---     při INSERT/UPDATE/DELETE. Tlačítka zůstávají v sekcích bez realtime
---     (Historie, Administrace migrací, SystemStatus, PendingUsersPanel).
---   • useAdvancedFilters: backward-compatible — uložené filtry z localStorage
---     se doplní o nová pole resultFilter/workCategoryFilter s hodnotou "all".
-SELECT 1;`,
-  },
-  {
-    version: "20260424270000",
-    name: "ui_unified_csv_only_import_export",
-    sql: `-- UI-only změna (žádné DB schema):
---   • Sjednocení formátu souborů pro import i export napříč všemi moduly:
---     POUZE CSV (středník ";", UTF-8 s BOM, Excel-kompatibilní).
---   • Odstraněna podpora XLSX/XLS pro vstup u všech bulk importů
---     (Employees, Equipment, Trainings, Medical, Deadlines, Types).
---   • Maticový export (ScheduledTrainings = "Matice", ScheduledExaminations
---     = "Přehled") převeden z XLSX na CSV. Funkce v src/lib/matrixExport.ts
---     nyní používají Papa.unparse; aliasy downloadTrainingMatrixXLSX a
---     downloadPLPDetailXLSX zachovány pro zpětnou kompatibilitu volání.
---   • Chybové exporty z bulk importů (chyby_import_*.csv) sjednoceny na CSV.
---   • Tlačítka "Export XLSX" odstraněna; zůstává jen jediné "Export chyb".
---   • Tooltipy ("title") všech import/export tlačítek nyní popisují formát:
---     "Formát: CSV (středník, UTF-8)".
---   • Realtime aktualizace ověřeny — všechny hlavní hooky (useEmployees,
---     useTrainings, useMedicalExaminations, useDeadlines, useEquipment)
---     mají aktivní postgres_changes subscriptions a invalidují cache
---     automaticky při INSERT/UPDATE/DELETE bez nutnosti manuálního refresh.
-SELECT 1;`,
-  },
-  {
-    version: "20260424280000",
-    name: "ui_unified_filename_filters_legend_refresh",
-    sql: `-- UI-only změna (žádné DB schema):
---   • Nový helper src/lib/exportFilename.ts (buildExportFilename) — všechny
---     CSV exporty/chybové soubory napříč moduly nyní používají jednotný
---     název ve formátu "{modul}_{YYYY-MM-DD}.csv" (UTF-8 BOM, ; delimiter).
---   • Bulk importy (Employees, Equipment, Trainings, Medical) sjednoceny:
---     tlačítko jen "Import" + tooltip CSV_IMPORT_TOOLTIP, chybové soubory
---     pojmenovány "{modul}-chyby_{YYYY-MM-DD}.csv".
---   • Maticové exporty (Trainings, PLP) doplněny o LEGENDU symbolů přímo
---     do hlavního CSV listu: ✓ platné, ⚠ brzy vyprší, ✗ prošlé, — chybí.
---     Symbol "warning" v matici nyní rozlišen od "ok" (dříve oba ✓).
---   • Sdílený helper src/lib/importValidation.ts (checkRequiredHeaders,
---     downloadErrorCSV, ImportErrorRow) pro per-řádkové chyby s odkazem.
---   • Nová komponenta src/components/RefreshButton.tsx (záložní mechanismus
---     k Realtime, použitelný napříč všemi přehledy).
---   • useAdvancedFilters rozšířen o setDefaultFilter (★ označení výchozího
---     filtru) + auto-perzistenci posledního stavu filtrů (per-user, localStorage).
---     AdvancedFilters UI: hvězdička pro toggle výchozího, tooltips na
---     akčních ikonách badge.
---   • Souhrnné (weekly) připomínky se v UI skryjí — zůstává jen per-záznam
---     (alert) konfigurace; edge funkce a logy zachovány pro historii,
---     pg_cron joby uživatel deaktivuje samostatně přes Cloud.
-SELECT 1;`,
-  },
-  {
-    version: "20260424300000",
-    name: "ui_summary_reminders_hidden_and_refresh_button",
-    sql: `-- UI-only změny – databázové schéma se neupravuje.
--- 
--- Tato migrace dokumentuje:
---   • Skrytí UI souhrnných (weekly) připomínek v Administraci → Připomínky
---     a v Administraci → Emaily & Šablony. Edge funkce (run-reminders,
---     run-deadline-reminders, run-medical-reminders) zůstávají nasazené
---     pro historii, ale uživatel je v UI nevidí. Per-záznam (alert)
---     připomínky zůstávají plně funkční.
---   • Tlačítko „Znovu načíst" (RefreshButton) přidáno do hlavních přehledů
---     (Equipment, ScheduledTrainings, ScheduledExaminations,
---     ScheduledDeadlines, Employees) jako záložní mechanismus k Realtime.
---   • Propagace volby výchozího filtru (★) napříč všemi stránkami
---     používajícími AdvancedFilters: DeadlineHistory, History,
---     ScheduledDeadlines, ScheduledExaminations, ScheduledTrainings.
---     Hook useAdvancedFilters již obsahuje setDefaultFilter +
---     auto-perzistenci posledního stavu (per-user localStorage).
-SELECT 1;`,
-  },
-  {
-    version: "20260424320000",
-    name: "ui_bulk_import_header_validation",
-    sql: `-- UI-only změna – databázové schéma se neupravuje.
+    version: "20260827150000",
+    name: "allow_independent_long_term_fitness_loss",
+    sql: `
+-- Allow long_term_fitness_loss_date to be set for ANY result, not only 'lost_long_term'.
+-- The date is now treated as an independent fact: an employee can be 'passed' AND have
+-- lost long-term fitness for a different, specific activity (e.g. after returning from
+-- sick leave). This is NOT an invalid examination — it's a doctor's note that must stay
+-- visible (see the "Současně pozbyl(a) dlouhodobě zdravotní způsobilosti" checkbox in
+-- NewMedicalExamination/EditMedicalExamination and the additional badge in ResultBadge/
+-- ScheduledExaminations).
 --
--- Sjednocená validace hlaviček CSV ve všech bulk importech:
---   • BulkEmployeeImport (Jméno, Příjmení, Email, Pozice)
---   • BulkEquipmentImport (Inventární číslo, Název, Typ zařízení, Provozovna)
---   • BulkTrainingImport (Typ školení, Provozovna, Datum školení)
---   • BulkMedicalImport (Typ prohlídky, Provozovna, Datum prohlídky)
---   • BulkDeadlineImport (Typ události, Provozovna, Datum kontroly + Inventární číslo, Název pro Equipment)
+-- The previous trigger (20260318175404) forced this column to NULL whenever
+-- result != 'lost_long_term', which blocked the combined flow entirely.
+CREATE OR REPLACE FUNCTION public.validate_medical_examination_result_fields()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  -- Legacy behaviour: if the main result is still the old 'lost_long_term' value,
+  -- the date remains mandatory.
+  IF NEW.result = 'lost_long_term' AND NEW.long_term_fitness_loss_date IS NULL THEN
+    RAISE EXCEPTION 'long_term_fitness_loss_date is required when result = lost_long_term';
+  END IF;
+
+  -- The date is now allowed independently for any result — do NOT clear it any more.
+  RETURN NEW;
+END;
+$function$;
+
+    `.trim(),
+  },
+  {
+    version: "20260827200000",
+    name: "fix_storage_admin_role_grants",
+    sql: `
+-- Fix: supabase_storage_admin was missing membership in anon/authenticated/service_role.
 --
--- Při chybějících povinných sloupcích se zobrazí toast/error s konkrétním
--- výčtem chybějících hlaviček a doporučením stáhnout vzorovou šablonu.
--- Funkcionalita per-row chybové reporty + export chyb (downloadErrorCSV)
--- již existuje v src/lib/importValidation.ts a pokrývá všechny moduly.
-SELECT 1;`,
-  },
-  {
-    version: "20260424340000",
-    name: "ui_per_module_reminders_and_records_table",
-    sql: `-- UI/edge-only změna – databázové schéma se neupravuje.
+-- storage-api (the Supabase Storage service) connects to Postgres as
+-- supabase_storage_admin and, on every request, issues \`set_config('role', <jwt role>, true)\`
+-- to switch into whichever role the caller's JWT claims (anon / authenticated / service_role)
+-- before evaluating RLS on storage.objects/storage.buckets. That role switch is a plain
+-- Postgres \`SET ROLE\`, which requires supabase_storage_admin to be a member of the target role.
 --
--- 1) Vráceny per-modul nastavení per-záznam upozornění (Školení, PLP, Tech. lhůty)
---    – komponenta ModuleReminderSettings ukládá konfiguraci do system_settings
---    pod klíči alert_defaults_trainings / alert_defaults_deadlines /
---    alert_defaults_medical (enabled, remind_days_before, repeat_days_after).
---    Tyto hodnoty slouží jako výchozí pro nové záznamy; každý záznam
---    má vlastní override (sloupce remind_days_before / repeat_days_after
---    / reminder_template_id) – ten řídí skutečné odesílání v edge funkcích
---    (run-deadline-reminders, run-medical-reminders, send-training-reminders).
---
--- 2) Šablony připomínek nyní podporují proměnnou {{records_table}}, která
---    se v těle e-mailu nahradí auto-generovanou HTML tabulkou záznamů.
---    Pokud šablona proměnnou neobsahuje, tabulka se připojí pod tělo
---    (zachována zpětná kompatibilita).
---
--- 3) MissingHeadersAlert – inline UI komponenta zvýrazňující chybějící CSV
---    hlavičky a očekávané aliasy (BulkEmployeeImport, BulkEquipmentImport).
---    BulkTrainingImport / BulkMedicalImport / BulkDeadlineImport zobrazují
---    detailní chybu s výčtem akceptovaných názvů přes formatMissingHeadersMessage.
-SELECT 1;`,
-  },
-  {
-    version: "20260424350000",
-    name: "seed_alert_defaults_per_module",
-    sql: `-- Seed výchozí konfigurace per-modul per-záznam připomínek do system_settings.
--- Idempotentní – existující hodnoty zůstanou nedotčené.
--- UI komponenta ModuleReminderSettings tyto hodnoty čte jako defaulty pro nové záznamy.
-INSERT INTO public.system_settings (key, value, description)
-VALUES
-  ('alert_defaults_trainings',
-   '{"enabled": true, "remind_days_before": 30, "repeat_days_after": 30}'::jsonb,
-   'Výchozí per-záznam připomínky pro modul Školení'),
-  ('alert_defaults_deadlines',
-   '{"enabled": true, "remind_days_before": 30, "repeat_days_after": 30}'::jsonb,
-   'Výchozí per-záznam připomínky pro modul Technické lhůty'),
-  ('alert_defaults_medical',
-   '{"enabled": true, "remind_days_before": 30, "repeat_days_after": 30}'::jsonb,
-   'Výchozí per-záznam připomínky pro modul PLP')
-ON CONFLICT (key) DO NOTHING;`,
-  },
-  {
-    version: "20260424360000",
-    name: "reminders_per_recipient_grouping_and_simulation",
-    sql: `-- UI/Edge-only změny:
--- 1) send-training-reminders nyní seskupuje záznamy per příjemce – jeden e-mail
---    s tabulkou všech záznamů místo N samostatných e-mailů. Idempotency
---    (repeat_days_after) je zachována per záznam.
--- 2) Nová admin komponenta ReminderSimulationPreview – simuluje odeslání
---    pro vybraný modul + šablonu, zobrazí per-příjemce digest s tabulkou
---    a diagnostiku přeskočených záznamů (recent log v okně repeat_days_after).
--- 3) Bulk import komponenty resetují stav MissingHeadersAlert při novém uploadu.
--- Žádné změny DB schématu.
-SELECT 1;`,
-  },
-  {
-    version: "20260424370000",
-    name: "unified_import_export_tooltips_and_recipient_toggles_audit",
-    sql: `-- UI-only změny (žádný zásah do DB schématu):
--- 1) Sjednoceno UI tlačítek Import/Export napříč celou aplikací – konzistentní
---    text "Import" / "Export" (případně "Export chyb") s tooltipy přes konstanty
---    CSV_FORMAT_TOOLTIP a CSV_IMPORT_TOOLTIP ze src/lib/exportFilename.ts.
---    Dotčené stránky: Departments, Facilities, DeadlineTypes, MedicalExaminationTypes,
---    TrainingTypes, Statistics, ScheduledTrainings, ScheduledExaminations,
---    ScheduledDeadlines, Equipment, InactiveEmployeesReport, Employees, History,
---    DeadlineHistory, UserManagement, Probations + komponenty SecurityAuditPanel,
---    EmployeeAccessDebug, EmailDeliveryStats, BulkEmployeeImport, BulkEquipmentImport,
---    BulkTrainingImport.
--- 2) Audit nastavení příjemců per modul – ModuleRecipientsSelector ukládá tři klíče
---    'reminder_recipients' (školení), 'deadline_reminder_recipients' (lhůty),
---    'medical_reminder_recipients' (PLP) a tři toggles
---    'training_manager_notifications', 'medical_manager_notifications',
---    'deadline_responsible_notifications'. Všechny edge funkce
---    (send-training-reminders, run-medical-reminders, run-deadline-reminders)
---    už tato nastavení respektují – pokud je toggle vypnutý, vedoucím /
---    odpovědným osobám se neposílá nic.
-SELECT 1;`,
-  },
-  {
-    version: "20260424151317",
-    name: "drop_duplicate_training_documents_delete_policy",
-    sql: `-- Odstranění duplicitní (a nedostatečně přísné) DELETE policy
--- pro storage bucket 'training-documents'.
--- Stará policy 'Users can delete their own training documents' kontrolovala
--- pouze vlastnictví složky podle UUID v cestě a NEKONTROLOVALA, zda je
--- uživatel schválený. Ponecháváme přísnější 'training_docs_delete_authorized'
--- (vyžaduje is_user_approved + owner = auth.uid()).
-DROP POLICY IF EXISTS "Users can delete their own training documents" ON storage.objects;`,
-  },
-  {
-    version: "20260424380000",
-    name: "ui_pagination_probations_and_recipient_diagnostics",
-    sql: `-- UI-only změny (žádný zásah do DB schématu):
--- 1) Probations: přidáno stránkování (TablePagination + usePagination, 25/stránku)
---    pro velký seznam zaměstnanců se zkušební dobou.
--- 2) ModuleRecipientsSelector: přidána diagnostika přepínačů 'Notifikace nadřízeným'
---    (varování, pokud v systému není žádný uživatel s rolí Manažer) a
---    'Notifikace odpovědným osobám' (varování, pokud není vybrána žádná skupina).
--- 3) UserManagementPanel a ExportReminderLogs: tlačítka exportu přejmenována
---    na "Export"/"Export PDF" a doplněny tooltipy s formátem souboru.
-SELECT 1;`,
-  },
-  {
-    version: "20260424400000",
-    name: "ui_security_hardening_and_sticky_table_scroll",
-    sql: `-- UI / infrastructure-only změny (žádný zásah do DB schématu):
--- 1) nginx.conf: přidána CSP, HSTS, Permissions-Policy, X-Frame-Options,
---    rate-limit zóny (auth_zone, api_zone) a limit_conn per IP.
--- 2) selfhosted-resources/nginx-reverseproxy/frontend a frontend-api:
---    HTTP→HTTPS redirect, modern TLS (1.2/1.3), HSTS, CSP, OCSP stapling,
---    a striktní rate-limiting na /auth/v1/(token|signup|recover|otp|magiclink)
---    s limitem 5 req/min (anti brute-force).
--- 3) Nová stránka /admin/security-checklist (SecurityChecklist.tsx) —
---    interaktivní checklist hardeningu (CSP, HSTS, RLS, rate limiting,
---    secrets rotace, zálohy, audit). Stav je uložen v localStorage,
---    export do Markdown.
--- 4) Nová komponenta SecurityScanRunner v Administraci → Bezpečnost —
---    spouští klientský sken (RLS test, HTTP hlavičky, secrets audit),
---    ukládá historii posledních 20 běhů s detailem zjištění.
--- 5) FilePreviewDialog: přidán režim "Fit to page" (auto-scale podle
---    rozměru dialogu) + manuální zoom controls i pro obrázky.
--- 6) shadcn/ui Table: globální wrapper s plovoucím horizontálním
---    scrollbarem přilepeným ke spodku viewportu — uživatel nemusí
---    skrolovat na konec dlouhých tabulek (100+ řádků), aby viděl
---    nativní posuvník. Aktivuje se jen při skutečném horizontálním
---    přetečení a respektuje pozici tabulky v okně.
-SELECT 1;`,
-  },
-  {
-    version: "20260424153213",
-    name: "security_scan_rls_coverage_rpc",
-    sql: `-- RPC pro security scan: vrátí tabulky v public schématu, kde RLS je vypnutá
--- nebo neexistuje žádná RLS politika. Volat smí pouze admini.
-CREATE OR REPLACE FUNCTION public.security_scan_rls_coverage()
-RETURNS TABLE (
-  table_name text,
-  rls_enabled boolean,
-  policy_count integer,
-  status text
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_catalog
-AS $func$
-BEGIN
-  IF NOT public.has_role(auth.uid(), 'admin'::app_role) THEN
-    RAISE EXCEPTION 'access denied: admin role required';
-  END IF;
-
-  RETURN QUERY
-  SELECT
-    c.relname::text AS table_name,
-    c.relrowsecurity AS rls_enabled,
-    COALESCE(p.cnt, 0)::integer AS policy_count,
-    CASE
-      WHEN NOT c.relrowsecurity THEN 'rls_disabled'
-      WHEN COALESCE(p.cnt, 0) = 0 THEN 'no_policies'
-      ELSE 'ok'
-    END AS status
-  FROM pg_class c
-  JOIN pg_namespace n ON n.oid = c.relnamespace
-  LEFT JOIN (
-    SELECT polrelid, COUNT(*) AS cnt
-    FROM pg_policy
-    GROUP BY polrelid
-  ) p ON p.polrelid = c.oid
-  WHERE n.nspname = 'public'
-    AND c.relkind = 'r'
-    AND c.relname NOT LIKE 'pg_%'
-  ORDER BY
-    CASE
-      WHEN NOT c.relrowsecurity THEN 0
-      WHEN COALESCE(p.cnt, 0) = 0 THEN 1
-      ELSE 2
-    END,
-    c.relname;
-END;
-$func$;
-
-REVOKE ALL ON FUNCTION public.security_scan_rls_coverage() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.security_scan_rls_coverage() TO authenticated;`,
-  },
-  {
-    version: "20260424160000",
-    name: "session_timeout_settings_and_security_ux",
-    sql: `-- Konfigurovatelný auto-logout po neaktivitě + read policy pro klienta.
-INSERT INTO public.system_settings (key, value, description)
-VALUES
-  ('session_timeout',
-   '{"enabled": true, "idle_minutes": 60, "warn_seconds_before": 300}'::jsonb,
-   'Auto-logout uživatelů po neaktivitě. idle_minutes = doba neaktivity v minutách, warn_seconds_before = sekundy před vypršením pro varování.')
-ON CONFLICT (key) DO NOTHING;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'system_settings'
-      AND policyname = 'session_timeout_readable_by_authenticated'
-  ) THEN
-    CREATE POLICY "session_timeout_readable_by_authenticated"
-      ON public.system_settings
-      FOR SELECT
-      TO authenticated
-      USING (key = 'session_timeout');
-  END IF;
-END $$;
-
--- Souhrn UI změn (žádný další zásah do schématu):
---  • useSessionTimeout hook + Layout integrace (auto-logout, varování, prodloužení).
---  • Auth: zobrazení toastu po idle redirectu (?reason=idle).
---  • AuditLog: tlačítko Export (CSV s aktivními filtry, soubor audit-log_YYYY-MM-DD.csv).
---  • Profile: sekce „Aktivní přihlášení" s tlačítkem signOut(scope:'others')
---    + posílená validace změny hesla (10+ znaků, velké písmeno, číslice, speciální znak)
---    a indikátor síly hesla (PasswordStrengthMeter).
---  • ChangePassword: stejná silnější validace + indikátor síly + HIBP zpětná hláška.
---  • AdminSettings → Bezpečnost: SessionTimeoutSettings (enabled / idle_minutes / warn_seconds_before).
---  • Supabase Auth: zapnut password_hibp_enabled (kontrola uniklých hesel přes HIBP).
-SELECT 1;`,
-  },
-  {
-    version: "20260424155357",
-    name: "password_review_tracking",
-    sql: `-- Add password review tracking columns to profiles
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS password_updated_at timestamptz,
-  ADD COLUMN IF NOT EXISTS must_review_password boolean NOT NULL DEFAULT false;
-
--- Backfill: mark all existing users as needing password review
-UPDATE public.profiles
-SET must_review_password = true
-WHERE password_updated_at IS NULL;
-
--- Helper RPC: called by client after a successful password change with a strong password.
-CREATE OR REPLACE FUNCTION public.mark_password_reviewed()
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'Not authenticated';
-  END IF;
-
-  UPDATE public.profiles
-  SET must_review_password = false,
-      password_updated_at = now(),
-      updated_at = now()
-  WHERE id = auth.uid();
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.mark_password_reviewed() TO authenticated;
-
--- Admin overview RPC: list users whose password needs review.
-CREATE OR REPLACE FUNCTION public.get_password_review_summary()
-RETURNS TABLE(
-  user_id uuid,
-  email text,
-  first_name text,
-  last_name text,
-  password_updated_at timestamptz,
-  must_review_password boolean
-)
-LANGUAGE plpgsql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF NOT public.has_role(auth.uid(), 'admin'::public.app_role) THEN
-    RAISE EXCEPTION 'Forbidden';
-  END IF;
-
-  RETURN QUERY
-  SELECT p.id, p.email, p.first_name, p.last_name, p.password_updated_at, p.must_review_password
-  FROM public.profiles p
-  WHERE p.must_review_password = true
-  ORDER BY p.last_name, p.first_name;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_password_review_summary() TO authenticated;`,
-  },
-  {
-    version: "20260424161500",
-    name: "password_policy_settings",
-    sql: `-- Seed configurable password policy into system_settings
-INSERT INTO public.system_settings (key, value, description)
-VALUES (
-  'password_policy',
-  jsonb_build_object(
-    'min_length', 10,
-    'require_uppercase', true,
-    'require_lowercase', false,
-    'require_digit', true,
-    'require_special', true,
-    'max_age_enabled', false,
-    'max_age_days', 90
-  ),
-  'Pravidla síly hesla a volitelné vynucování změny hesla po N dnech (admin-only nastavení).'
-)
-ON CONFLICT (key) DO NOTHING;
-
--- Allow authenticated users to READ only the password_policy row
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'system_settings'
-      AND policyname = 'Authenticated can read password_policy'
-  ) THEN
-    CREATE POLICY "Authenticated can read password_policy"
-      ON public.system_settings
-      FOR SELECT
-      TO authenticated
-      USING (key = 'password_policy');
-    END IF;
-END$$;`,
-  },
-  {
-    version: "20260427072617",
-    name: "security_checklist_shared_state",
-    sql: `-- Sdílený stav Security Checklist (zaškrtnuté položky) pro adminy.
-INSERT INTO public.system_settings (key, value, description)
-VALUES (
-  'security_checklist_state',
-  jsonb_build_object('items', '{}'::jsonb, 'updated_by', NULL, 'updated_at', NULL),
-  'Sdílený stav položek Security Hardening Checklistu (zaškrtnuté/nezaškrtnuté). Editují pouze admini.'
-)
-ON CONFLICT (key) DO NOTHING;`,
-  },
-  {
-    version: "20260427074137",
-    name: "security_checklist_description_refresh",
-    sql: `-- Doplnění popisu k záznamu sdíleného Security Checklistu (čistě dokumentační).
-UPDATE public.system_settings
-SET description = 'Sdílený stav Security Hardening Checklistu (zaškrtnutí jsou viditelná všem administrátorům, ukládá se do DB).'
-WHERE key = 'security_checklist_state';`,
-  },
-  {
-    version: "20260427090000",
-    name: "ux_consolidation_dashboard_and_merged_pages",
-    // Čistě UI/routing change – žádná změna v DB schématu.
-    // Provádí se NOOP, aby byla migrace evidovaná v registru.
-    //  • /audit-log → sloučeno do Administrace (nový tab "audit-log")
-    //  • /my-permissions → sloučeno do Profile (nový tab "permissions")
-    //  • EmployeeAccessDebug + MedicalDocsAccessDebug schovány za přepínač v záložce Diagnostika
-    //  • Úvodní stránka "/" nahrazena Dashboardem se souhrnem napříč moduly (prošlé / dnes / do 30 dnů)
-    //  • V hlavičce přidán odkaz "Přehled" (Home) pro rychlý návrat na dashboard
-    sql: `SELECT 1; -- noop migration, viz komentář výše`,
-  },
-  {
-    version: "20260427120000",
-    name: "ux_merge_diagnostics_into_audit_log",
-    // Čistě UI change – žádná změna v DB schématu.
-    //  • Záložka "Diagnostika" v Administraci sloučena do "Audit log" jako sub-záložky:
-    //      - Přehled změn (AuditLogPanel)
-    //      - Pokročilý filtr (SecurityAuditPanel se server-side filtry)
-    //      - Diagnostika RLS (debug panely za přepínačem)
-    //  • ?tab=diagnostics se automaticky přesměruje na ?tab=audit-log
-    sql: `SELECT 1; -- noop migration, viz komentář výše`,
-  },
-  {
-    version: "20260427085532",
-    name: "ux_reminder_template_editor_improvements",
-    // Čistě UI change + úprava edge funkcí – žádná změna v DB schématu.
-    //  • ReminderTemplates: side-by-side živý náhled emailu místo samostatného dialogu
-    //  • Klikací chipy pro vložení proměnných na pozici kurzoru (předmět i tělo)
-    //  • HTML rámeček náhledu s ukázkovým záhlavím a vykreslenou {{records_table}}
-    //  • Přidána proměnná {{expiryDate}} / {{expiry_date}} pro datum vypršení
-    //    do edge funkcí: run-reminders, run-deadline-reminders,
-    //    run-medical-reminders, send-training-reminders
-    sql: `SELECT 1; -- noop migration, viz komentář výše`,
-  },
-  {
-    version: "20260427105248",
-    name: "security_log_retention_and_lockout",
-    // Doplnění zabezpečení pro self-hosted i cloud:
-    //  • system_settings: retence (audit 365d, reminder 90d, signin 180d) + lockout (5/15min/15min)
-    //  • get_security_setting_int(key, default) – helper pro načítání int z system_settings
-    //  • cleanup_old_security_logs() – maže staré záznamy z audit_logs, *_reminder_logs, auth_signin_attempts
-    //  • pg_cron job 'cleanup_old_security_logs_daily' – denně 03:30 UTC
-    //  • is_account_locked(email) – brute-force ochrana (callable i pro anon kvůli pre-login checku)
-    //  • get_locked_accounts() – admin přehled právě uzamčených účtů
-    sql: `
--- 1) Výchozí nastavení (idempotentní)
-INSERT INTO public.system_settings (key, value)
-VALUES
-  ('security_retention_audit_days', '365'::jsonb),
-  ('security_retention_reminder_days', '90'::jsonb),
-  ('security_retention_signin_days', '180'::jsonb),
-  ('security_lockout_max_attempts', '5'::jsonb),
-  ('security_lockout_window_minutes', '15'::jsonb),
-  ('security_lockout_duration_minutes', '15'::jsonb)
-ON CONFLICT (key) DO NOTHING;
-
--- 2) Helper
-CREATE OR REPLACE FUNCTION public.get_security_setting_int(_key text, _default int)
-RETURNS int LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $fn$
-  SELECT COALESCE((SELECT (value)::text::int FROM public.system_settings WHERE key = _key), _default);
-$fn$;
-REVOKE EXECUTE ON FUNCTION public.get_security_setting_int(text, int) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_security_setting_int(text, int) TO authenticated, service_role;
-
--- 3) Cleanup
-CREATE OR REPLACE FUNCTION public.cleanup_old_security_logs()
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $fn$
-DECLARE
-  v_audit_days int := public.get_security_setting_int('security_retention_audit_days', 365);
-  v_reminder_days int := public.get_security_setting_int('security_retention_reminder_days', 90);
-  v_signin_days int := public.get_security_setting_int('security_retention_signin_days', 180);
-  v_audit_deleted int := 0; v_rem_deleted int := 0; v_drem_deleted int := 0;
-  v_mrem_deleted int := 0; v_signin_deleted int := 0;
-BEGIN
-  DELETE FROM public.audit_logs WHERE created_at < NOW() - (v_audit_days || ' days')::interval;
-  GET DIAGNOSTICS v_audit_deleted = ROW_COUNT;
-  DELETE FROM public.reminder_logs WHERE sent_at < NOW() - (v_reminder_days || ' days')::interval;
-  GET DIAGNOSTICS v_rem_deleted = ROW_COUNT;
-  DELETE FROM public.deadline_reminder_logs WHERE sent_at < NOW() - (v_reminder_days || ' days')::interval;
-  GET DIAGNOSTICS v_drem_deleted = ROW_COUNT;
-  DELETE FROM public.medical_reminder_logs WHERE sent_at < NOW() - (v_reminder_days || ' days')::interval;
-  GET DIAGNOSTICS v_mrem_deleted = ROW_COUNT;
-  DELETE FROM public.auth_signin_attempts WHERE created_at < NOW() - (v_signin_days || ' days')::interval;
-  GET DIAGNOSTICS v_signin_deleted = ROW_COUNT;
-  BEGIN
-    INSERT INTO public.audit_logs (action, entity_type, details)
-    VALUES ('security_cleanup', 'system', jsonb_build_object(
-      'audit_deleted', v_audit_deleted, 'reminder_deleted', v_rem_deleted,
-      'deadline_reminder_deleted', v_drem_deleted, 'medical_reminder_deleted', v_mrem_deleted,
-      'signin_attempts_deleted', v_signin_deleted));
-  EXCEPTION WHEN OTHERS THEN NULL; END;
-  RETURN jsonb_build_object('audit_deleted', v_audit_deleted, 'reminder_deleted', v_rem_deleted,
-    'deadline_reminder_deleted', v_drem_deleted, 'medical_reminder_deleted', v_mrem_deleted,
-    'signin_attempts_deleted', v_signin_deleted);
-END;
-$fn$;
-REVOKE EXECUTE ON FUNCTION public.cleanup_old_security_logs() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.cleanup_old_security_logs() TO service_role;
-
--- 4) pg_cron job
-DO $do$
-DECLARE v_jobid int;
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    SELECT jobid INTO v_jobid FROM cron.job WHERE jobname = 'cleanup_old_security_logs_daily';
-    IF v_jobid IS NOT NULL THEN PERFORM cron.unschedule(v_jobid); END IF;
-    PERFORM cron.schedule('cleanup_old_security_logs_daily', '30 3 * * *',
-      $cron$ SELECT public.cleanup_old_security_logs(); $cron$);
-  END IF;
-END $do$;
-
--- 5) Brute-force lockout
-CREATE OR REPLACE FUNCTION public.is_account_locked(_email text)
-RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
-DECLARE
-  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
-  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
-  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
-  v_failed_count int; v_last_failed timestamptz;
-BEGIN
-  IF _email IS NULL OR length(_email) = 0 THEN RETURN false; END IF;
-  SELECT count(*), max(created_at) INTO v_failed_count, v_last_failed
-  FROM public.auth_signin_attempts
-  WHERE lower(email) = lower(_email) AND status = 'failed'
-    AND created_at > NOW() - (v_window_min || ' minutes')::interval;
-  IF v_failed_count >= v_max_attempts AND v_last_failed > NOW() - (v_lock_min || ' minutes')::interval THEN
-    RETURN true;
-  END IF;
-  RETURN false;
-END;
-$fn$;
-REVOKE EXECUTE ON FUNCTION public.is_account_locked(text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.is_account_locked(text) TO anon, authenticated, service_role;
-
--- 6) Lockout přehled pro admina
-CREATE OR REPLACE FUNCTION public.get_locked_accounts()
-RETURNS TABLE (email text, failed_attempts bigint, last_attempt timestamptz, unlock_at timestamptz)
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
-DECLARE
-  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
-  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
-  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
-BEGIN
-  IF NOT public.has_role(auth.uid(), 'admin'::app_role) THEN RAISE EXCEPTION 'Forbidden'; END IF;
-  RETURN QUERY
-  SELECT a.email::text, count(*)::bigint, max(a.created_at),
-    max(a.created_at) + (v_lock_min || ' minutes')::interval
-  FROM public.auth_signin_attempts a
-  WHERE a.status = 'failure' AND a.created_at > NOW() - (v_window_min || ' minutes')::interval
-  GROUP BY a.email
-  HAVING count(*) >= v_max_attempts AND max(a.created_at) > NOW() - (v_lock_min || ' minutes')::interval;
-END;
-$fn$;
-REVOKE EXECUTE ON FUNCTION public.get_locked_accounts() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_locked_accounts() TO authenticated, service_role;
-`,
-  },
-  {
-    version: "20260427105517",
-    name: "security_lockout_status_fix",
-    // Oprava: auth_signin_attempts.status je 'failure' (ne 'failed').
-    // Předchozí verze is_account_locked / get_locked_accounts hledala neexistující hodnotu
-    // a nikdy by účet nezamkla. Tato migrace opravuje WHERE klauzuli.
-    sql: `
-CREATE OR REPLACE FUNCTION public.is_account_locked(_email text)
-RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
-DECLARE
-  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
-  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
-  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
-  v_failed_count int; v_last_failed timestamptz;
-BEGIN
-  IF _email IS NULL OR length(_email) = 0 THEN RETURN false; END IF;
-  SELECT count(*), max(created_at) INTO v_failed_count, v_last_failed
-  FROM public.auth_signin_attempts
-  WHERE lower(email) = lower(_email) AND status = 'failure'
-    AND created_at > NOW() - (v_window_min || ' minutes')::interval;
-  IF v_failed_count >= v_max_attempts AND v_last_failed > NOW() - (v_lock_min || ' minutes')::interval THEN
-    RETURN true;
-  END IF;
-  RETURN false;
-END;
-$fn$;
-
-CREATE OR REPLACE FUNCTION public.get_locked_accounts()
-RETURNS TABLE (email text, failed_attempts bigint, last_attempt timestamptz, unlock_at timestamptz)
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
-DECLARE
-  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
-  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
-  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
-BEGIN
-  IF NOT public.has_role(auth.uid(), 'admin'::app_role) THEN RAISE EXCEPTION 'Forbidden'; END IF;
-  RETURN QUERY
-  SELECT a.email::text, count(*)::bigint, max(a.created_at),
-    max(a.created_at) + (v_lock_min || ' minutes')::interval
-  FROM public.auth_signin_attempts a
-  WHERE a.status = 'failure' AND a.created_at > NOW() - (v_window_min || ' minutes')::interval
-  GROUP BY a.email
-  HAVING count(*) >= v_max_attempts AND max(a.created_at) > NOW() - (v_lock_min || ' minutes')::interval;
-END;
-$fn$;
-`,
-  },
-  {
-    version: "20260427110501",
-    name: "lockout_status_and_high_risk_signins",
-    // Přidává:
-    //  - get_account_lockout_status(_email) → JSON s detailem uzamčení (pro Auth login UI)
-    //  - get_high_risk_signin_attempts(_threshold, _hours) → admin přehled e-mailů
-    //    s opakovanými neúspěšnými přihlášeními (pro admin dashboard).
-    sql: `
-CREATE OR REPLACE FUNCTION public.get_account_lockout_status(_email text)
-RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
-DECLARE
-  v_max_attempts int := public.get_security_setting_int('security_lockout_max_attempts', 5);
-  v_window_min int := public.get_security_setting_int('security_lockout_window_minutes', 15);
-  v_lock_min int := public.get_security_setting_int('security_lockout_duration_minutes', 15);
-  v_failed_count int := 0;
-  v_last_failed timestamptz;
-  v_is_locked boolean := false;
-  v_unlock_at timestamptz;
-BEGIN
-  IF _email IS NULL OR length(_email) = 0 THEN
-    RETURN jsonb_build_object(
-      'is_locked', false, 'failed_attempts', 0,
-      'max_attempts', v_max_attempts, 'window_minutes', v_window_min, 'lock_minutes', v_lock_min
-    );
-  END IF;
-
-  SELECT count(*), max(created_at) INTO v_failed_count, v_last_failed
-  FROM public.auth_signin_attempts
-  WHERE lower(email) = lower(_email) AND status = 'failure'
-    AND created_at > NOW() - (v_window_min || ' minutes')::interval;
-
-  IF v_failed_count >= v_max_attempts
-     AND v_last_failed > NOW() - (v_lock_min || ' minutes')::interval THEN
-    v_is_locked := true;
-    v_unlock_at := v_last_failed + (v_lock_min || ' minutes')::interval;
-  END IF;
-
-  RETURN jsonb_build_object(
-    'is_locked', v_is_locked, 'unlock_at', v_unlock_at,
-    'failed_attempts', v_failed_count, 'last_failed_at', v_last_failed,
-    'max_attempts', v_max_attempts, 'window_minutes', v_window_min, 'lock_minutes', v_lock_min
-  );
-END;
-$fn$;
-REVOKE EXECUTE ON FUNCTION public.get_account_lockout_status(text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_account_lockout_status(text) TO anon, authenticated, service_role;
-
-CREATE OR REPLACE FUNCTION public.get_high_risk_signin_attempts(_threshold int DEFAULT 3, _hours int DEFAULT 24)
-RETURNS TABLE (email text, failed_attempts bigint, last_attempt timestamptz, first_attempt timestamptz, distinct_user_agents bigint)
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $fn$
-BEGIN
-  IF NOT public.has_role(auth.uid(), 'admin'::app_role) THEN RAISE EXCEPTION 'Forbidden'; END IF;
-  RETURN QUERY
-  SELECT a.email::text, count(*)::bigint, max(a.created_at), min(a.created_at),
-    count(DISTINCT a.user_agent)::bigint
-  FROM public.auth_signin_attempts a
-  WHERE a.status = 'failure' AND a.created_at > NOW() - (_hours || ' hours')::interval
-  GROUP BY a.email
-  HAVING count(*) >= GREATEST(_threshold, 1)
-  ORDER BY count(*) DESC, max(a.created_at) DESC
-  LIMIT 50;
-END;
-$fn$;
-REVOKE EXECUTE ON FUNCTION public.get_high_risk_signin_attempts(int, int) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_high_risk_signin_attempts(int, int) TO authenticated, service_role;
-`,
-  },
-  {
-    version: "20260428150143",
-    name: "admin_unlock_account",
-    sql: `
-CREATE OR REPLACE FUNCTION public.admin_unlock_account(_email text)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $fn$
-DECLARE
-  v_caller uuid := auth.uid();
-  v_deleted_count int := 0;
-  v_normalized_email text;
-BEGIN
-  IF v_caller IS NULL OR NOT public.has_role(v_caller, 'admin'::app_role) THEN
-    RAISE EXCEPTION 'Forbidden: only admins can unlock accounts';
-  END IF;
-
-  IF _email IS NULL OR length(trim(_email)) = 0 THEN
-    RAISE EXCEPTION 'Email is required';
-  END IF;
-
-  v_normalized_email := lower(trim(_email));
-
-  DELETE FROM public.auth_signin_attempts
-  WHERE lower(email) = v_normalized_email
-    AND status = 'failure';
-  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
-
-  INSERT INTO public.audit_logs (
-    action, table_name, record_id, user_id, new_data
-  )
-  VALUES (
-    'admin_unlock_account',
-    'auth_signin_attempts',
-    gen_random_uuid(),
-    v_caller,
-    jsonb_build_object(
-      'target_email', v_normalized_email,
-      'deleted_failed_attempts', v_deleted_count,
-      'unlocked_at', now()
-    )
-  );
-
-  RETURN jsonb_build_object(
-    'success', true,
-    'email', v_normalized_email,
-    'deleted_attempts', v_deleted_count
-  );
-END;
-$fn$;
-
-REVOKE EXECUTE ON FUNCTION public.admin_unlock_account(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_unlock_account(text) TO authenticated, service_role;
-`,
-  },
-  {
-    version: "20260428151330",
-    name: "admin_lockout_policy_management",
-    sql: `
-INSERT INTO public.system_settings (key, value)
-VALUES
-  ('security_lockout_max_attempts', '5'::jsonb),
-  ('security_lockout_window_minutes', '15'::jsonb),
-  ('security_lockout_duration_minutes', '15'::jsonb)
-ON CONFLICT (key) DO NOTHING;
-
-CREATE OR REPLACE FUNCTION public.admin_update_lockout_policy(
-  _max_attempts int,
-  _window_minutes int,
-  _duration_minutes int
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $fn$
-DECLARE
-  v_uid uuid := auth.uid();
-BEGIN
-  IF v_uid IS NULL OR NOT public.has_role(v_uid, 'admin'::app_role) THEN
-    RAISE EXCEPTION 'Only admins can update lockout policy';
-  END IF;
-  IF _max_attempts IS NULL OR _max_attempts < 1 OR _max_attempts > 50 THEN
-    RAISE EXCEPTION 'max_attempts must be between 1 and 50';
-  END IF;
-  IF _window_minutes IS NULL OR _window_minutes < 1 OR _window_minutes > 1440 THEN
-    RAISE EXCEPTION 'window_minutes must be between 1 and 1440';
-  END IF;
-  IF _duration_minutes IS NULL OR _duration_minutes < 1 OR _duration_minutes > 1440 THEN
-    RAISE EXCEPTION 'duration_minutes must be between 1 and 1440';
-  END IF;
-
-  INSERT INTO public.system_settings (key, value) VALUES
-    ('security_lockout_max_attempts', to_jsonb(_max_attempts)),
-    ('security_lockout_window_minutes', to_jsonb(_window_minutes)),
-    ('security_lockout_duration_minutes', to_jsonb(_duration_minutes))
-  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
-
-  INSERT INTO public.audit_logs (action, table_name, record_id, user_id, new_data)
-  VALUES (
-    'update_lockout_policy', 'system_settings', gen_random_uuid(), v_uid,
-    jsonb_build_object('max_attempts', _max_attempts, 'window_minutes', _window_minutes, 'duration_minutes', _duration_minutes)
-  );
-
-  RETURN jsonb_build_object('max_attempts', _max_attempts, 'window_minutes', _window_minutes, 'duration_minutes', _duration_minutes);
-END;
-$fn$;
-REVOKE EXECUTE ON FUNCTION public.admin_update_lockout_policy(int, int, int) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_update_lockout_policy(int, int, int) TO authenticated;
-
-CREATE OR REPLACE FUNCTION public.get_lockout_policy()
-RETURNS jsonb
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $fn$
-  SELECT jsonb_build_object(
-    'max_attempts', public.get_security_setting_int('security_lockout_max_attempts', 5),
-    'window_minutes', public.get_security_setting_int('security_lockout_window_minutes', 15),
-    'duration_minutes', public.get_security_setting_int('security_lockout_duration_minutes', 15)
-  );
-$fn$;
-REVOKE EXECUTE ON FUNCTION public.get_lockout_policy() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_lockout_policy() TO anon, authenticated, service_role;
-`,
-  },
-  {
-    version: "20260526133226",
-    name: "drop_equipment_inventory_number_unique",
-    sql: `
-ALTER TABLE public.equipment DROP CONSTRAINT IF EXISTS equipment_inventory_number_key;
-DROP INDEX IF EXISTS public.equipment_inventory_number_key;
-CREATE INDEX IF NOT EXISTS equipment_inventory_number_idx ON public.equipment (inventory_number);
-`,
+-- On this instance that membership was missing (only \`authenticator\`, used by PostgREST,
+-- had it), so every storage.object upload and every signed-URL request failed with
+-- "new row violates row-level security policy" / 42501 (Postgres's error for a denied
+-- SET ROLE, mis-reported by storage-api as an RLS violation) - regardless of bucket,
+-- file type, or caller. This broke general-document uploads (Dokumenty) and was also the
+-- likely cause of attached PDFs failing to preview in production (signed URL creation for
+-- the PDF viewer went through the same broken path).
+GRANT anon, authenticated, service_role TO supabase_storage_admin;
+    `.trim(),
   },
 ];
 

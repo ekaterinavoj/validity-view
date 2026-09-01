@@ -10,7 +10,8 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Edit, Plus, Download, Eye, Upload } from "lucide-react";
+import { Edit, Plus, Download, RefreshCw, Eye, Upload, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ResultBadge } from "@/components/ResultBadge";
 import { NoteTooltipText } from "@/components/NoteTooltipText";
 import { ExpandableToggle, ExpandableDetailRow } from "@/components/ExpandableRowDetail";
@@ -47,13 +48,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
 import { BulkMedicalImport } from "@/components/BulkMedicalImport";
 import { PeriodOverrideIcon } from "@/components/PeriodOverrideIndicator";
-import { downloadPLPDetailXLSX, type PLPDetailRow } from "@/lib/matrixExport";
-import { useEmployees } from "@/hooks/useEmployees";
-import { useMedicalExaminationTypes } from "@/hooks/useMedicalExaminationTypes";
-import { Grid3x3 } from "lucide-react";
-import { RefreshButton } from "@/components/RefreshButton";
-import { HelpButton } from "@/components/HelpButton";
-import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
+import { ImportExportMenu } from "@/components/ImportExportMenu";
 
 export default function ScheduledExaminations() {
   const { toast } = useToast();
@@ -349,27 +344,14 @@ export default function ScheduledExaminations() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
+          <Button variant="outline" size="sm" onClick={refetch}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Obnovit
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportMatrix}
-            disabled={exportingMatrix || examinations.length === 0}
-            title="Formát: CSV — jméno, datum, konec, typ, kategorie, rizika, výsledek, poznámka"
-          >
-            <Grid3x3 className="w-4 h-4 mr-2" />
-            {exportingMatrix ? "Generuji…" : "Přehled"}
-          </Button>
-          {canEdit && (
-            <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
-              <Upload className="w-4 h-4 mr-2" />
-              Import
-            </Button>
-          )}
-          <RefreshButton onRefresh={() => refetch()} loading={examinationsLoading} />
+          <ImportExportMenu
+            onExport={exportToCSV}
+            onToggleImport={canEdit ? () => setShowImport(!showImport) : undefined}
+          />
           {canEdit && (
             <Button onClick={() => navigate("/plp/new")}>
               <Plus className="w-4 h-4 mr-2" />
@@ -473,10 +455,10 @@ export default function ScheduledExaminations() {
                         <StatusBadge status={exam.status} />
                       </TableCell>
                       <TableCell>{formatDisplayDate(exam.nextExaminationDate)}</TableCell>
-                      <TableCell>
+                      <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          <TypePeriodicityCell typeName={exam.type} periodDays={exam.typePeriodDays} description={exam.typeDescription} />
-                          <PeriodOverrideIcon overrideDays={exam.period !== exam.typePeriodDays ? exam.period : null} typeDays={exam.typePeriodDays} />
+                          {exam.type}
+                          <PeriodOverrideIcon overrideDays={exam.periodDaysOverride} typeDays={exam.typePeriodDays} />
                         </div>
                       </TableCell>
                       <TableCell>{exam.employeeNumber}</TableCell>

@@ -17,7 +17,6 @@ import {
   FolderOpen,
   Bell,
   ShieldAlert,
-  KeyRound,
   Settings,
   Mail,
   Database,
@@ -29,10 +28,8 @@ import {
 } from "lucide-react";
 
 import imgStatusLegend from "@/assets/guide-status-legend.jpg";
-import imgProbationTimeline from "@/assets/guide-probation-timeline.jpg";
 import imgBulkImport from "@/assets/guide-bulk-import.jpg";
 import imgRolesHierarchy from "@/assets/guide-roles-hierarchy.jpg";
-import imgPasswordSecurity from "@/assets/guide-password-security.jpg";
 import imgReminders from "@/assets/guide-reminders.jpg";
 
 interface GuideItem {
@@ -60,7 +57,7 @@ const sections: GuideSection[] = [
     title: "Začínáme",
     icon: BookOpen,
     description: "Základní orientace v aplikaci pro nové uživatele.",
-    keywords: ["úvod", "začátek", "přihlášení", "menu", "navigace", "hesla"],
+    keywords: ["úvod", "začátek", "přihlášení", "menu", "navigace", "hesla", "2FA", "dvoufázové ověření", "authenticator"],
     items: [
       {
         q: "Co je tato aplikace?",
@@ -69,7 +66,6 @@ const sections: GuideSection[] = [
           "• Školení zaměstnanců (BOZP, odborné, periodické)",
           "• Technické lhůty zařízení (revize, inspekce, kalibrace)",
           "• Pracovně-lékařské prohlídky (PLP) dle vyhlášky 79/2013 Sb.",
-          "• Zkušební doby (dle novely zákoníku práce 2026: 4 / 8 měsíců)",
           "• Centrální úložiště dokumentů (osvědčení, posudky, revizní zprávy)",
           "Aplikace automaticky hlídá termíny, generuje upozornění (in-app i e-mailem), vede kompletní historii s verzováním a poskytuje reportingové statistiky.",
         ],
@@ -90,9 +86,21 @@ const sections: GuideSection[] = [
           "Přehled (Dashboard) – úvodní stránka se souhrny prošlých / dnešních / nadcházejících záznamů a rychlými odkazy.",
           "Přepínač modulů (Školení / Tech. události / PLP) v záhlaví – přepíná podnabídku v levé části panelu.",
           "Dokumenty – centrální úložiště souborů, dostupné všem schváleným uživatelům.",
-          "Správa dat (admin/manažer) – Zaměstnanci, Provozovny, Střediska, Přehled typů událostí, Statistiky.",
-          "Systém – Návody (všichni); Audit log, Stav systému, Administrace, Migrace DB, Security checklist (admin only).",
+          "Návody – tato stránka, dostupná úplně všem rolím (i „Uživatel“).",
+          "Správa dat (admin/manažer) – sdílená referenční data napříč moduly: Zaměstnanci, Střediska, Provozovny, Přehled typů událostí, Statistika (jen u Školení).",
+          "Ostatní (admin/manažer, podle aktuálního modulu) – Typy školení/Pozastavená u Školení, obdobně u ostatních modulů.",
+          "Systém (jen admin) – čistě technická administrace: Audit log, Stav systému, Administrace, Migrace DB.",
           "Profil – ikona vpravo nahoře (osobní údaje, oprávnění, změna hesla, oznámení, odhlášení).",
+        ],
+      },
+      {
+        q: "Dvoufázové ověření (2FA)",
+        a: [
+          "Profil → záložka „Můj profil“ → sekce „Dvoufázové ověření“ → „Nastavit dvoufázové ověření“.",
+          "Naskenujte zobrazený QR kód aplikací Google Authenticator, Microsoft Authenticator apod. (nebo opište kód ručně) a potvrďte 6místným kódem z aplikace.",
+          "Od té chvíle systém při každém přihlášení kromě hesla vyžaduje i aktuální kód z aplikace.",
+          "Vypnout ho můžete kdykoliv ve stejné sekci tlačítkem „Vypnout dvoufázové ověření“.",
+          "Je čistě dobrovolné a nastavuje si ho každý uživatel sám u sebe — admin ho nikomu nemůže nastavit ani vynutit centrálně, jen ho v nouzi odebrat (viz sekce Uživatelé pro adminy).",
         ],
       },
     ],
@@ -184,7 +192,6 @@ const sections: GuideSection[] = [
           "➕ Nové školení (/trainings/new) – formulář pro nový záznam (admin/manažer).",
           "🏷️ Typy školení (/training-types) – číselník (BOZP, odborné…) s periodicitou (admin/manažer).",
           "💤 Pozastavená (/inactive) – záznamy zaměstnanců v limbo stavu (admin/manažer).",
-          "📅 Zkušební doby (/probations) – sledování konce ZD (admin/manažer).",
           "Detail viz sekce „Školení“ níže.",
         ],
       },
@@ -213,21 +220,19 @@ const sections: GuideSection[] = [
         a: [
           "👤 Zaměstnanci (/employees) – evidence osob, status, kategorie práce (admin/manažer).",
           "🌲 Hierarchie zaměstnanců – tlačítko „Zobrazit hierarchii“ v Zaměstnancích.",
-          "🏢 Provozovny (/facilities), Střediska (/departments) – číselníky (admin/manažer).",
+          "🏢 Střediska (/departments), Provozovny (/facilities) – číselníky, vše v menu Správa dat (admin/manažer).",
           "📚 Přehled typů událostí (/event-types) – sjednocený přehled všech typů napříč moduly (admin/manažer).",
-          "📊 Statistiky (/statistics) – grafy (admin/manažer).",
+          "📊 Statistika (/statistics) – grafy, jen v modulu Školení (admin/manažer).",
           "📁 Dokumenty (/documents) – centrální úložiště firemních souborů (všichni).",
         ],
       },
       {
         q: "Administrace a systém – všechny záložky",
         a: [
-          "🛠️ Administrace (/admin/settings) – jeden hub s 7 záložkami: Onboarding, Uživatelé, Připomínky, Emaily & Šablony, Historie, Audit log (Přehled změn / Pokročilý filtr / RLS diagnostika), Security.",
+          "🛠️ Administrace (/admin/settings) – jeden hub s 5 záložkami: Onboarding, Uživatelé (správa rolí + RLS diagnostika), Připomínky, SMTP server, Historie.",
           "📋 Návody (/guides) – tato stránka (všichni).",
           "🩺 Stav systému (/admin/status) – konektivita, počty záznamů (admin).",
-          "🔄 Migrace DB (/admin/migrations) – aplikované verze schématu (admin).",
-          "🛡️ Security checklist (/admin/security-checklist) – sdílený hardening checklist (admin).",
-          "📜 Poznámka: stará samostatná stránka /audit-log je sloučena do Administrace → tab Audit log.",
+          "🔄 Migrace DB (/admin/migrations) – aplikované a čekající migrace schématu, lze spustit přímo z UI (admin).",
         ],
       },
     ],
@@ -343,7 +348,7 @@ const sections: GuideSection[] = [
       {
         q: "Jak přidat nové zařízení?",
         a: [
-          "1. Hlavní menu → Správa dat → „Zařízení“ → „Nové zařízení“.",
+          "1. Hlavní menu → Ostatní → „Zařízení“ → „Nové zařízení“.",
           "2. Vyplňte: Inventární číslo (povinné, unikátní), Název, Typ zařízení, Provozovnu.",
           "3. Volitelně: Výrobce, Model, Sériové číslo, Datum nákupu, Umístění, Poznámka.",
           "4. Přiřaďte Středisko a Odpovědné osoby (lze více – picker s vyhledáváním).",
@@ -372,7 +377,7 @@ const sections: GuideSection[] = [
           {
             when: "Když zařízení odejde do odpisu",
             then: [
-              "1. Správa dat → Zařízení → smažte zařízení (admin/manažer).",
+              "1. Ostatní → Zařízení → smažte zařízení (admin/manažer).",
               "2. Všechny aktivní lhůty se přesunou do historie (limbo).",
               "3. Generování upozornění se zastaví.",
             ],
@@ -422,9 +427,10 @@ const sections: GuideSection[] = [
           "2. Vyberte zaměstnance, Typ prohlídky (vstupní, periodická, mimořádná, výstupní).",
           "3. Datum poslední prohlídky + Datum příští (auto-výpočet).",
           "4. Lékař, Zdravotnické zařízení, Žadatel.",
-          "5. Výsledek: Vyhovuje / S výhradami / Nevyhovuje / Dlouhodobá ztráta zdravotní způsobilosti.",
-          "6. Sekce „Zdravotní rizika“ – zaškrtněte konkrétní expozice (viz níže).",
-          "7. Nahrajte lékařský posudek (PDF, JPG, PNG).",
+          "5. Výsledek: Vyhovuje / S výhradami / Nevyhovuje.",
+          "6. Volitelně zaškrtněte „Současně pozbyl(a) dlouhodobě zdravotní způsobilosti“ (viz scénář níže) — lze i spolu s „Vyhovuje“.",
+          "7. Sekce „Zdravotní rizika“ – zaškrtněte konkrétní expozice (viz níže).",
+          "8. Nahrajte lékařský posudek (PDF, JPG, PNG).",
         ],
         scenarios: [
           {
@@ -437,12 +443,21 @@ const sections: GuideSection[] = [
             ],
           },
           {
-            when: "Když lékař označí „Nevyhovuje“ nebo „Dlouhodobá ztráta“",
+            when: "Když lékař napíše, že zaměstnanec dlouhodobě pozbyl(a) způsobilosti k jiné činnosti (ale jinak je aktuálně způsobilý)",
             then: [
-              "1. Vyplňte výsledek + datum dlouhodobé ztráty (long_term_fitness_loss_date).",
-              "2. Adminové dostanou notifikaci.",
-              "3. HR řeší pracovněprávní kroky (převedení na jinou pozici, ukončení PP).",
-              "4. Záznam zůstane v historii pro audit.",
+              "1. DŮLEŽITÉ: toto NENÍ neplatná/nevyhovující prohlídka — hlavní výsledek zůstane „Vyhovuje“ a prohlídka zůstává platná.",
+              "2. Zaškrtněte „Současně pozbyl(a) dlouhodobě zdravotní způsobilosti“ (objeví se u výsledků Vyhovuje / S výhradami / Nevyhovuje).",
+              "3. Vyplňte povinné datum pozbytí a povinnou poznámku — musíte napsat, ZA CO a JAK zaměstnanec způsobilost pozbyl(a) (ať je to viditelné i zpětně).",
+              "4. V přehledu se u záznamu zobrazí normální výsledek + varovná ikona s touto poznámkou v tooltipu; v historii a exportech je vidět datum pozbytí.",
+              "5. Použijte např. po návratu z nemocenské, kdy je zaměstnanec aktuálně způsobilý pro svou práci, ale trvale pozbyl(a) způsobilosti k jiné konkrétní činnosti.",
+            ],
+          },
+          {
+            when: "Když lékař označí „Nevyhovuje“",
+            then: [
+              "1. Adminové dostanou notifikaci.",
+              "2. HR řeší pracovněprávní kroky (převedení na jinou pozici, ukončení PP).",
+              "3. Záznam zůstane v historii pro audit.",
             ],
           },
         ],
@@ -504,26 +519,7 @@ const sections: GuideSection[] = [
           "1. Správa dat → Zaměstnanci → „Nový zaměstnanec“.",
           "2. Povinné: Jméno, Příjmení, E-mail (unikátní), Pozice, Stav.",
           "3. Volitelné: Osobní číslo, Středisko, Datum narození, Datum nástupu, Manažer (přímý nadřízený), Kategorie práce.",
-          "4. Zkušební doba se vyplní automaticky podle pozice (vedoucí 8 měsíců, ostatní 4 měsíce).",
-          "5. Po uložení můžete zaměstnance navázat na uživatelský účet v Administraci → Správa uživatelů.",
-        ],
-        scenarios: [
-          {
-            when: "Když končí zkušební doba a zaměstnanec měl překážky v práci",
-            then: [
-              "1. Zaměstnanci → detail osoby → karta „Překážky“.",
-              "2. Přidejte období nepřítomnosti (důvod, datum od – do).",
-              "3. Funkce sum_probation_obstacle_days() automaticky prodlouží konec ZD.",
-              "4. Modul „Zkušební doby“ vás upozorní 14 dní před novým termínem.",
-            ],
-          },
-          {
-            when: "Když zaměstnanec nastupuje na vedoucí pozici",
-            then: [
-              "1. Při vytvoření vyplňte pozici obsahující slova „vedoucí / ředitel / manažer / mistr…“ → systém automaticky nastaví ZD na 8 měsíců.",
-              "2. Pokud chcete jiné období, manuálně přepište pole „Délka ZD (měsíce)“ a doplňte důvod.",
-            ],
-          },
+          "4. Po uložení můžete zaměstnance navázat na uživatelský účet v Administraci → Správa uživatelů.",
         ],
       },
       {
@@ -535,18 +531,6 @@ const sections: GuideSection[] = [
           "Hierarchii lze vizualizovat ve stránce Zaměstnanci → tlačítko „Zobrazit hierarchii“.",
         ],
         image: { src: imgRolesHierarchy, alt: "Hierarchie rolí", caption: "Administrátor (vrchol) → Manažeři → Uživatelé / podřízení" },
-      },
-      {
-        q: "Zkušební doba (ZD) – jak dlouhá a jak se počítá?",
-        a: [
-          "Dle novely zákoníku práce 2026:",
-          "• Běžní zaměstnanci: 4 měsíce od data nástupu.",
-          "• Vedoucí pozice (auto-detekce z názvu pozice nebo manuální nastavení): 8 měsíců.",
-          "Datum konce ZD se počítá automaticky: start_date + probation_months (jako interval).",
-          "Pokud zaměstnanec onemocní nebo má jinou překážku v práci během ZD, lze v záložce „Překážky“ zadat dny nepřítomnosti – funkce sum_probation_obstacle_days() prodlouží ZD.",
-          "Modul Zkušební doby (Události → Zkušební doby) zobrazuje aktuálně končící a varuje 14 dní předem.",
-        ],
-        image: { src: imgProbationTimeline, alt: "Časová osa zkušební doby", caption: "Nástup → 4 nebo 8 měsíců → konec ZD (s možností prodloužení o překážky)" },
       },
       {
         q: "Statusy zaměstnance a jejich dopady",
@@ -573,48 +557,38 @@ const sections: GuideSection[] = [
     title: "Dokumenty",
     icon: FolderOpen,
     description: "Centrální úložiště firemních dokumentů a souborů u záznamů.",
-    keywords: ["dokumenty", "soubor", "upload", "PDF", "limit", "evidenční číslo"],
+    keywords: ["dokumenty", "soubor", "upload", "PDF", "Excel", "náhled"],
     items: [
       {
         q: "Modul Dokumenty – co tam najdu?",
         a: [
-          "Hlavní menu → „Dokumenty“. Centrální úložiště firemních souborů organizovaných do virtuálních složek (Accordion).",
-          "Typické složky: Akreditace, Směrnice, Šablony, Manuály, Externí dokumenty.",
-          "Soubory u jednotlivých školení / PLP / lhůt jsou uložené odděleně v detailu daného záznamu.",
+          "Hlavní menu → „Dokumenty“. Centrální úložiště firemních souborů, rozdělené do složek (skupin) zobrazených jako rozbalovací seznam (Accordion).",
+          "Skupinu/složku si zadáte při nahrávání sami (např. Akreditace, Směrnice, Manuály) – pokud ještě neexistuje, vytvoří se automaticky.",
+          "Soubory u jednotlivých školení / PLP / technických lhůt jsou uložené odděleně, přímo v detailu daného záznamu – nejsou v tomto centrálním úložišti.",
         ],
       },
       {
-        q: "Limity nahrávání souborů",
+        q: "Jaké formáty lze nahrát a zobrazit v náhledu?",
         a: [
-          "• Maximální velikost: 40 MB / soubor.",
-          "• Akceptované formáty: PDF, DOCX, XLSX, JPG, PNG, ZIP.",
-          "• Princip „vždy přidat“ – nový upload nepřepíše existující, ale přidá novou verzi.",
-          "• Při překročení limitu systém zobrazí chybu a soubor odmítne (validace na klientu i serveru).",
+          "• Akceptované formáty pro nahrání: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, TXT.",
+          "• Náhled přímo v aplikaci: PDF, JPG, PNG a nově i XLS/XLSX (zobrazí se jako tabulka, u vícelistových sešitů lze přepínat mezi listy).",
+          "• Ostatní formáty (DOC, DOCX, TXT) náhled nemají – místo tlačítka „Náhled“ je k dispozici jen „Stáhnout“.",
         ],
       },
       {
         q: "Mohu smazat nahraný soubor?",
         a: [
-          "• Vlastní soubor (kde jste uploaded_by) – smí mazat každý.",
-          "• Cizí soubor – smí mazat jen Admin nebo Manažer s oprávněním k danému záznamu.",
+          "• Tlačítko „Smazat“ vidí jen Admin nebo Manažer.",
           "• Smazání je nevratné – soubor zmizí ze storage i z databáze.",
           "• Před smazáním systém zobrazí potvrzovací dialog.",
         ],
       },
       {
-        q: "Evidenční čísla dokumentů",
-        a: [
-          "Při nahrávání dokumentu k záznamu (školení, PLP, lhůta) systém automaticky přidělí jedinečné evidenční číslo (formát: TYP-YYYYMMDD-XXXX).",
-          "Číslo se zobrazí v detailu záznamu, v náhledu dokumentu i v exportu CSV/PDF.",
-          "Slouží pro účetní/auditní účely a pro zpětné dohledání.",
-        ],
-      },
-      {
         q: "Náhled dokumentů",
         a: [
-          "Klik na dokument otevře sjednocený FilePreviewDialog.",
-          "Podporuje náhled PDF (vestavěný viewer), obrázků (JPG/PNG) a stažení pro ostatní typy.",
-          "Vpravo nahoře tlačítka: Stáhnout, Smazat (oprávněným), Zavřít.",
+          "Klik na tlačítko „Náhled“ u dokumentu otevře sjednocené okno náhledu.",
+          "Podporuje náhled PDF (vestavěný viewer se zoomem a přepínáním stránek), obrázků (JPG/PNG), tabulek XLS/XLSX a stažení pro ostatní typy.",
+          "Vpravo nahoře tlačítka: Stáhnout, Smazat (jen Admin/Manažer), Zavřít.",
         ],
       },
     ],
@@ -640,7 +614,6 @@ const sections: GuideSection[] = [
           "• Blížící se termín školení / PLP / lhůty (30, 14, 7, 1 den předem).",
           "• Negativní výsledek kontroly (Nevyhovuje) – pro adminy a odpovědné osoby.",
           "• Návrat z dlouhé nemoci (> 8 týdnů) → mimořádná PLP.",
-          "• Konec zkušební doby (14 dní předem).",
           "• Dosažení 50 let (jednorázově) – pro adminy.",
           "• Schválení nového uživatele (pro adminy).",
         ],
@@ -680,69 +653,6 @@ const sections: GuideSection[] = [
       },
     ],
   },
-  {
-    id: "profil-bezpecnost",
-    title: "Profil a bezpečnost hesla",
-    icon: KeyRound,
-    description: "Správa vlastního účtu, změna hesla, pravidla bezpečnosti.",
-    keywords: ["heslo", "profil", "bezpečnost", "rotace", "session", "odhlášení", "zapomenuté"],
-    items: [
-      {
-        q: "Jak změnit heslo?",
-        a: [
-          "1. Klik na avatar vpravo nahoře → Profil.",
-          "2. Sekce „Změna hesla“.",
-          "3. Zadejte současné heslo + nové heslo + potvrzení.",
-          "4. Pod polem se zobrazí dynamické požadavky podle aktuální policy nastavené adminem (minimální délka, znaky).",
-          "5. Indikátor síly hesla (PasswordStrengthMeter) v reálném čase.",
-          "6. Po změně budete odhlášeni a musíte se přihlásit s novým heslem.",
-        ],
-        image: { src: imgPasswordSecurity, alt: "Bezpečnost hesla", caption: "Štít s ověřením + měřič síly hesla + zámek" },
-      },
-      {
-        q: "Co znamená dialog „Doporučujeme změnit heslo“?",
-        a: [
-          "PasswordReviewModal se zobrazí v těchto případech:",
-          "• Vaše heslo nesplňuje aktuální policy (admin zpřísnil pravidla).",
-          "• Heslo je starší než povolený limit (must_review_password = true) – jen pokud admin má aktivovanou rotaci po N dnech.",
-          "• Po seedu prvního admina nebo resetu heslem od admina (must_change_password = true).",
-          "Akce: „Změnit heslo nyní“ (přesun na /change-password) nebo „Odložit“ (na 7 dní u doporučení; u must_change_password nelze odložit).",
-          "Texty a požadavky v dialogu jsou dynamické dle aktuální policy.",
-        ],
-      },
-      {
-        q: "Mohu si vypnout připomínání rotace hesla?",
-        a: [
-          "ANO – přímo v dialogu „Doporučujeme změnit heslo“ máte tři možnosti:",
-          "• „Změnit heslo nyní“ – přesun na /change-password.",
-          "• „Připomenout za 7 dní“ – modal se znovu objeví AŽ za 7 dní (ukládá se do localStorage prohlížeče s konkrétním datem). Při dalším přihlášení dříve než po 7 dnech se NEOBJEVÍ. Funguje per-prohlížeč.",
-          "• „Už mi to nepřipomínat“ – trvalé vypnutí, ukládá se do uživatelských preferencí (synchronizováno přes všechna zařízení).",
-          "Zavření dialogu křížkem (×) = pouze pro tuto seanci, při dalším přihlášení se objeví znovu.",
-          "Důležité: opt-out platí POUZE pro doporučení rotace. Pokud admin nastaví explicitně must_review_password (např. po incidentu), modal se znovu objeví a nelze ho odložit.",
-          "Změnit zpět můžete v Profilu → karta „Bezpečnost a oznámení“.",
-        ],
-      },
-      {
-        q: "Co dělat při zapomenutém heslu?",
-        a: [
-          "1. Na přihlašovací stránce klikněte „Zapomenuté heslo“.",
-          "2. Zadejte e-mail – pošle se vám reset link.",
-          "3. Pokud e-mail nedorazí (typicky firemní filtry), kontaktujte administrátora.",
-          "4. Admin v Administrace → Uživatelé → menu (⋮) → „Reset hesla“ vygeneruje dočasné heslo.",
-          "5. Při prvním přihlášení s dočasným heslem budete vyzváni ke změně.",
-        ],
-      },
-      {
-        q: "Časový limit relace (auto-odhlášení)",
-        a: [
-          "Admin nastavuje globální timeout v Administrace → Bezpečnost → Časový limit relace.",
-          "5 minut před vypršením se zobrazí varovný dialog s odpočtem.",
-          "Klikem na „Pokračovat“ se relace prodlouží.",
-          "Při neaktivitě dojde k automatickému odhlášení (useSessionTimeout hook).",
-        ],
-      },
-    ],
-  },
   // ─────────── ADMIN ONLY ───────────
   {
     id: "admin-uzivatele",
@@ -750,7 +660,7 @@ const sections: GuideSection[] = [
     icon: UserCog,
     adminOnly: true,
     description: "Vytváření, deaktivace, role a oprávnění uživatelských účtů.",
-    keywords: ["uživatel", "role", "admin", "manažer", "deaktivace", "reset"],
+    keywords: ["uživatel", "role", "admin", "manažer", "deaktivace", "reset", "zapomenuté heslo", "2FA", "dvoufázové ověření"],
     items: [
       {
         q: "Jak vytvořit nového uživatele?",
@@ -774,23 +684,21 @@ const sections: GuideSection[] = [
         ],
       },
       {
-        q: "Stav hesla v tabulce uživatelů",
-        a: [
-          "Sloupec „Stav hesla“ (za sloupcem Role) zobrazuje barevný badge:",
-          "🟢 V pořádku – heslo splňuje aktuální policy a není starší než limit.",
-          "🟠 Nutno zkontrolovat – uživatel má must_review_password = true (slabé/staré heslo).",
-          "Filtr nad tabulkou: „Stav hesla“ s hodnotami Vše / V pořádku / Nutno zkontrolovat.",
-          "Sloupec „Poslední změna hesla“ vedle ukazuje datum (password_updated_at).",
-          "RPC get_password_review_summary() agreguje statistiky pro horní banner.",
-        ],
-      },
-      {
         q: "Modulová oprávnění (per uživatel)",
         a: [
           "V tabulce uživatelů → menu (⋮) → „Moduly“.",
           "Otevře dialog ModuleAccessManager – zaškrtejte moduly: Školení, Technické lhůty, PLP, Dokumenty, Statistiky.",
           "Tabulka user_module_access funguje jako allowlist – pokud uživatel není v tabulce, má přístup ke všem modulům dle své role.",
           "Hodí se pro omezení přístupu k citlivým modulům i v rámci role Manager/User.",
+        ],
+      },
+      {
+        q: "Požadavky na heslo",
+        a: [
+          "Heslo musí mít alespoň 8 znaků a obsahovat malé písmeno, velké písmeno a číslici.",
+          "Platí pro všechna hesla bez výjimky – vlastní změnu v profilu, dočasné heslo od administrátora, i svépomocnou obnovu přes email.",
+          "Vynucuje to přímo Supabase Auth (GOTRUE_PASSWORD_MIN_LENGTH / GOTRUE_PASSWORD_REQUIRED_CHARACTERS v .env), takže to nejde obejít ani přes přímé volání API – aplikace navíc hned ukáže konkrétní chybějící požadavek.",
+          "Chcete-li pravidla zpřísnit nebo zmírnit, upravte tyto proměnné v .env a odpovídající text v src/lib/passwordPolicy.ts, ať UI nápověda sedí s tím, co server skutečně vyžaduje.",
         ],
       },
       {
@@ -801,6 +709,25 @@ const sections: GuideSection[] = [
           "Edge funkce admin-reset-password nastaví nové heslo + flag must_change_password.",
           "Předejte heslo uživateli bezpečným kanálem (osobně, šifrovaný chat).",
           "Při prvním přihlášení uživatel musí heslo změnit (modal nelze odložit).",
+        ],
+      },
+      {
+        q: "Uživatel ztratil telefon s autentifikátorem – co teď?",
+        a: [
+          "Menu (⋮) u uživatele v tabulce → „Odebrat 2FA“ (admin).",
+          "Odebere se mu nastavené dvoufázové ověření — příště se přihlásí jen heslem a může si ho v profilu nastavit znovu (s novým telefonem/aplikací).",
+          "Bez tohoto kroku by se takový uživatel do systému vůbec nedostal — dvoufázové ověření nemá vlastní záložní kódy.",
+        ],
+      },
+      {
+        q: "Zapomenuté heslo – svépomocná obnova",
+        a: [
+          "Na přihlašovací obrazovce je odkaz „Zapomenuté heslo?“ – uživatel zadá svůj email a systém (pokud pod ním účet existuje) pošle odkaz pro nastavení nového hesla.",
+          "Ze bezpečnostních důvodů se zobrazí stejná zpráva o odeslání, ať už email existuje nebo ne – neprozrazuje se tak, které účty v systému jsou.",
+          "Vyžaduje (1) v účtu skutečnou, funkční e-mailovou adresu – ne placeholder jako „@system.local“ – a (2) funkční odesílání emailů pro Supabase Auth (GoTrue). Ve výchozím stavu to je základní SMTP_HOST/PORT/USER/PASS v .env – bez reálných údajů se e-mail nikam neodešle.",
+          "Připraven (ale ve výchozím stavu vypnutý) je i pokročilejší způsob: auth-send-email-hook – posílá tyto emaily přes stejné OAuth2 SMTP (M365/Gmail) jako připomínky, nastavené v Administrace → Připomínky. Zapíná se AUTH_HOOK_SEND_EMAIL_ENABLED=true v .env, ale vyžaduje, aby GoTrue mohl tuto funkci zavolat přes skutečné https – v čistě lokálním nasazení bez reverzní proxy s HTTPS to nejde zapnout (GoTrue to při startu odmítne).",
+          "Když svépomocná obnova není k dispozici (chybí SMTP, nebo je uživatel jediný admin bez funkčního emailu), zůstává záložní cestou „Reset hesla uživatele administrátorem“ výše – tu ale musí provést JINÝ přihlášený admin.",
+          "Pokud je uzamčen jediný existující admin účet a SMTP není nastavené, je nutné heslo resetovat přímo v databázi (přes Supabase Admin API se service_role klíčem) – kontaktujte správce infrastruktury.",
         ],
       },
       {
@@ -818,97 +745,6 @@ const sections: GuideSection[] = [
           "Sjednocený název souboru přes buildExportFilename() – stejný pro CSV i PDF.",
           "Sloupce v jednotném pořadí (UI ↔ CSV ↔ PDF): Jméno, Email, Pozice, Role, Stav hesla, Poslední změna hesla.",
           "Při výběru řádků se exportují jen vybrané; jinak celý filtrovaný seznam.",
-        ],
-      },
-    ],
-  },
-  {
-    id: "admin-bezpecnost",
-    title: "Pravidla bezpečnosti hesel a Security Checklist (Admin)",
-    icon: ShieldAlert,
-    adminOnly: true,
-    description: "Konfigurace policy, expirace, session timeoutu a sdílený hardening checklist.",
-    keywords: ["bezpečnost", "heslo", "policy", "rotace", "checklist", "hardening", "RLS", "scan"],
-    items: [
-      {
-        q: "Kde nastavím pravidla pro hesla?",
-        a: [
-          "Administrace → Bezpečnost → karta „Pravidla pro hesla“.",
-          "Pole:",
-          "• Minimální délka (výchozí 8, doporučeno 12+).",
-          "• Vyžadovat velká písmena (A-Z).",
-          "• Vyžadovat malá písmena (a-z).",
-          "• Vyžadovat číslice (0-9).",
-          "• Vyžadovat speciální znaky (!@#$…).",
-          "Uložení zapíše do system_settings.password_policy. Hodnoty hned platí pro všechny nové změny hesel a pro PasswordReviewModal.",
-        ],
-      },
-      {
-        q: "Vynucení změny hesla po N dnech",
-        a: [
-          "1. Administrace → Bezpečnost → Pravidla pro hesla.",
-          "2. Najděte přepínač „Vynutit změnu hesla po N dnech“.",
-          "3. Zapněte (max_age_enabled = true) a zadejte počet dní (výchozí 90).",
-          "4. Uložte. Hook usePasswordPolicy() okamžitě reflektuje změnu.",
-          "5. Při dalším přihlášení uživatelé se starým heslem dostanou PasswordReviewModal.",
-          "Pokud přepínač vypnete: žádný uživatel nedostane modal kvůli stáří hesla. Modal se objeví jen u účtů s explicitním must_review_password = true (nastaveno adminem nebo migrací).",
-        ],
-      },
-      {
-        q: "K čemu slouží Security Hardening Checklist?",
-        a: [
-          "Hlavní menu → Systém → „Security checklist“ (přímá routa /admin/security-checklist).",
-          "Je to KONTROLNÍ SEZNAM mimoaplikačních úkonů, které musíte provést na infrastruktuře:",
-          "• HTTPS, HSTS, CSP, X-Frame-Options (reverse-proxy).",
-          "• Rate limiting (anti brute-force) – konfigurace nginx.",
-          "• Změna výchozího admin hesla, rotace SMTP / DB / JWT secrets.",
-          "• TLS pro SMTP, pravidelné zálohy, monitoring přihlášení.",
-          "Aplikace tyto věci NEUMÍ vynutit – musíte je nastavit ručně. Checklist slouží jako vodítko a evidence „co jsme už zkontrolovali“.",
-          "Stav je SDÍLENÝ mezi všemi administrátory (ukládá se v DB), takže vidíte i to, co zaškrtl kolega.",
-        ],
-      },
-      {
-        q: "Jak najít uživatele se slabým heslem?",
-        a: [
-          "Administrace → Uživatelé → filtr „Stav hesla“ = „Nutno zkontrolovat“.",
-          "Banner v horní části panelu zobrazuje souhrnný počet (z RPC get_password_review_summary).",
-          "Lze hromadně označit a poslat výzvu k změně hesla.",
-        ],
-      },
-      {
-        q: "Časový limit relace (Session timeout)",
-        a: [
-          "Administrace → Bezpečnost → karta „Časový limit relace“.",
-          "Zadejte interval neaktivity v minutách (výchozí 30, doporučeno 15-60).",
-          "5 minut před vypršením se uživateli zobrazí varovný dialog s odpočtem.",
-          "Klik na „Pokračovat“ resetuje časovač.",
-          "Implementace: useSessionTimeout hook + Supabase Auth refresh token.",
-        ],
-      },
-      {
-        q: "Bezpečnostní sken RLS",
-        a: [
-          "Administrace → Bezpečnost → „Spustit sken“ (SecurityScanRunner).",
-          "RPC security_scan_rls_coverage() projde všechny tabulky a vrátí:",
-          "• rls_enabled (true/false)",
-          "• policy_count (počet aktivních politik)",
-          "• status (OK / WARNING / CRITICAL)",
-          "Sken byste měli spouštět po každé migraci, která přidává nové tabulky.",
-        ],
-      },
-      {
-        q: "Audit log a RLS diagnostika – kde je najdu?",
-        a: [
-          "Vše je sloučeno v Administrace → tab „Audit log“ (dostupný také zkratkou Systém → Audit log, která vede do stejné záložky).",
-          "Tab obsahuje tři sub-záložky:",
-          "",
-          "1) PŘEHLED ZMĚN (Basic) – běžné sledování KDO co KDY změnil v datech (školení, lhůty, PLP, zaměstnanci, role…). Filtrace dle uživatele, akce, tabulky a data. Plní se automaticky přes DB triggery. Přístup: admin + manažer.",
-          "",
-          "2) POKROČILÝ FILTR (Advanced) – server-side filtrování s maskováním e-mailů pro citlivé operace. Vhodné pro forenzní analýzu nebo export. Přístup: admin.",
-          "",
-          "3) RLS DIAGNOSTIKA – kontrolní panely (EmployeeAccessDebug, MedicalDocsAccessDebug) pro ověření, zda RLS politiky správně omezují viditelnost dat. Skryté za přepínačem „Zobrazit debug panely“. Přístup: pouze admin, využívá se při ladění oprávnění.",
-          "",
-          "Stará samostatná stránka /audit-log byla zrušena – odkaz je nyní redirect do správné záložky.",
         ],
       },
     ],
@@ -1032,10 +868,10 @@ const sections: GuideSection[] = [
         q: "Databázové migrace",
         a: [
           "Hlavní menu → Systém → „Migrace DB“ (/admin/migrations).",
-          "Tabulka schema_migrations zaznamenává: version, name, checksum, applied_at.",
-          "Migrace se aplikují automaticky při deployi přes systém migrationRegistry.",
-          "Manuální spuštění edge funkce apply-migrations je možné, ale typicky není potřeba.",
-          "DŮLEŽITÉ: nikdy nepřímo needitujte init-db nebo schema – vždy přes nové migrace.",
+          "Registr migrationRegistry.ts obsahuje SQL všech migrací, které ještě nejsou součástí základního schématu (docker/init-db.sql).",
+          "Tlačítko „Aplikovat“ u konkrétní migrace spustí edge funkci apply-migrations, která SQL provede a zapíše záznam do tabulky schema_migrations (version, name, applied_at).",
+          "Přehled ukazuje aplikováno/celkem a seznam čekajících migrací – hodí se hlavně pro instance, kam se nedostanete přes terminál (Lovable Cloud apod.).",
+          "DŮLEŽITÉ: nikdy needitujte init-db nebo schema přímo – vždy přes nové migrace, a nezapomeňte je přidat i do migrationRegistry.ts.",
         ],
       },
       {

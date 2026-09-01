@@ -50,6 +50,20 @@ function parseLooseDate(input: string, formats: string[]): Date | undefined {
 }
 
 /**
+ * Auto-inserts dots as the user types plain digits, so "15012026" becomes
+ * "15.01.2026" without the user having to type the separators themselves.
+ * Only kicks in for digit-only input — anything already containing a
+ * separator (., /, -) is left as typed so all of DEFAULT_FORMATS still work.
+ */
+function autoMaskDigits(raw: string): string {
+  if (/[.\-/]/.test(raw)) return raw;
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
+}
+
+/**
  * DateInput
  *
  * Accessible date field that combines a typed text input (Czech format `dd.MM.yyyy`)
@@ -78,12 +92,14 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
     const [text, setText] = React.useState<string>(
       value && isValid(value) ? format(value, displayFormat) : "",
     );
+    const [parseError, setParseError] = React.useState(false);
 
     // Sync external value -> local text whenever the parent updates the date.
     React.useEffect(() => {
       if (value && isValid(value)) {
         const formatted = format(value, displayFormat);
         setText((prev) => (prev === formatted ? prev : formatted));
+        setParseError(false);
       } else {
         setText("");
       }
@@ -91,20 +107,20 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
 
     const commitText = (raw: string) => {
       if (!raw.trim()) {
+        setParseError(false);
         onChange?.(undefined);
         return;
       }
       const parsed = parseLooseDate(raw, formats);
       if (parsed && (!disabledDates || !disabledDates(parsed))) {
+        setParseError(false);
         onChange?.(parsed);
         setText(format(parsed, displayFormat));
       } else {
-        // Revert text to last valid value
-        if (value && isValid(value)) {
-          setText(format(value, displayFormat));
-        } else {
-          setText("");
-        }
+        // Leave the text as typed (instead of silently wiping it) so the user can see
+        // and fix what they entered — a full 8-digit mask that's still unparseable is
+        // always a genuinely invalid date (e.g. "31.02.2026"), not a typo in progress.
+        setParseError(true);
       }
     };
 
@@ -120,8 +136,17 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
           placeholder={placeholder}
           value={text}
           disabled={disabled}
-          aria-invalid={invalid || undefined}
-          onChange={(e) => setText(e.target.value)}
+          aria-invalid={invalid || parseError || undefined}
+          onChange={(e) => {
+            const masked = autoMaskDigits(e.target.value);
+            setText(masked);
+            setParseError(false);
+            // Once a full dd.MM.yyyy has been typed, commit right away instead of
+            // waiting for blur/Enter — types-and-moves-on feels much faster.
+            if (/^\d{2}\.\d{2}\.\d{4}$/.test(masked)) {
+              commitText(masked);
+            }
+          }}
           onBlur={(e) => commitText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -129,7 +154,8 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
               commitText((e.target as HTMLInputElement).value);
             }
           }}
-          className={cn("pr-10", inputClassName)}
+          title={parseError ? "Neplatné datum" : undefined}
+          className={cn("pr-10", (invalid || parseError) && "border-destructive focus-visible:ring-destructive", inputClassName)}
         />
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>

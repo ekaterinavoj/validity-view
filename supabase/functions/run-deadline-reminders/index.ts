@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendViaSMTP } from "../_shared/smtp-sender.ts";
+import { resolveReminderStage, ReminderStage } from "../_shared/reminder-cadence.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +23,7 @@ interface DeadlineItem {
   responsible_persons: string[];
   responsible_emails: string[];
   status: 'expired' | 'warning';
+  reminder_stage: ReminderStage;
 }
 
 interface ReminderTemplate {
@@ -304,10 +306,14 @@ function buildDeadlinesTable(deadlines: DeadlineItem[], category: 'expired' | 'w
   return html;
 }
 
-function getRunPeriodKey(category: string = 'all'): string {
-  const now = new Date();
-  const dateKey = now.toISOString().split("T")[0];
-  return `${dateKey}_${category}`;
+// NOTE: week_start is a `date` column — it must stay a bare YYYY-MM-DD string.
+// This used to return "YYYY-MM-DD_<category>" which made every insert into
+// deadline_reminder_logs fail with "invalid input syntax for type date" (silently,
+// since the caller never checked the insert error), so no reminder history was
+// ever recorded and the day-level idempotency check below could never find a
+// prior run either — the function had no working deduplication at any level.
+function getRunPeriodKey(_category: string = 'all'): string {
+  return new Date().toISOString().split("T")[0];
 }
 // sendViaSMTP is now imported from _shared/smtp-sender.ts
 const handler = async (req: Request): Promise<Response> => {
@@ -361,6 +367,7 @@ const handler = async (req: Request): Promise<Response> => {
   let triggeredBy = isCronRequest ? "cron" : "admin";
   let testMode = false;
   let forceCategory: 'expired' | 'warning' | 'all' | null = null;
+  let singleRecipientEmail: string | null = null;
 
   try {
     const body = await req.json().catch(() => ({}));
@@ -375,6 +382,9 @@ const handler = async (req: Request): Promise<Response> => {
     }
     if (body.category) {
       forceCategory = body.category;
+    }
+    if (typeof body.single_recipient_email === "string") {
+      singleRecipientEmail = body.single_recipient_email;
     }
   } catch {
     // No body or invalid JSON
@@ -415,18 +425,22 @@ const handler = async (req: Request): Promise<Response> => {
   const { data: settings } = await supabase
     .from("system_settings")
     .select("key, value")
-    .in("key", ["deadline_reminder_frequency", "deadline_reminder_schedule", "deadline_reminder_recipients", "deadline_email_template", "email_provider", "deadline_responsible_notifications"]);
-  
-  let frequency: ReminderFrequency = { 
-    type: "weekly", interval_days: 7, start_time: "08:00", 
-    timezone: "Europe/Prague", enabled: true 
+    .in("key", ["deadline_reminder_frequency", "deadline_reminder_schedule", "deadline_reminder_recipients", "email_provider", "deadline_responsible_notifications"]);
+
+  let frequency: ReminderFrequency = {
+    type: "weekly", interval_days: 7, start_time: "08:00",
+    timezone: "Europe/Prague", enabled: true
   };
   let schedule: ReminderSchedule = { enabled: true, day_of_week: 1, skip_weekends: true };
   let moduleRecipients: { user_ids: string[], delivery_mode: string } = { user_ids: [], delivery_mode: "bcc" };
-  let moduleEmailTemplate: { subject: string, body: string } | null = null;
+  // Subject/body come solely from deadline_reminder_templates now (edited under
+  // Administrace → Emaily & Šablony → Šablony individuálních připomínek → Technické
+  // lhůty) — the settings-blob override this used to read from was a second,
+  // easy-to-miss place to edit the same text and has been retired.
+  const moduleEmailTemplate: { subject: string, body: string } | null = null;
   let emailProviderSettings: any = null;
   let responsibleNotificationsEnabled = false;
-  
+
   if (settings) {
     for (const s of settings) {
       if (s.key === "deadline_reminder_frequency" && s.value && typeof s.value === "object") {
@@ -437,9 +451,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
       if (s.key === "deadline_reminder_recipients" && s.value && typeof s.value === "object") {
         moduleRecipients = s.value as typeof moduleRecipients;
-      }
-      if (s.key === "deadline_email_template" && s.value && typeof s.value === "object") {
-        moduleEmailTemplate = s.value as { subject: string; body: string };
       }
       if (s.key === "email_provider" && s.value && typeof s.value === "object") {
         emailProviderSettings = s.value;
@@ -461,6 +472,28 @@ const handler = async (req: Request): Promise<Response> => {
 
   console.log(`Frequency settings: dual_mode=${frequency.dual_mode}, enabled=${frequency.enabled}`);
   console.log(`Module recipients configured: ${moduleRecipients.user_ids?.length || 0} users`);
+
+  // Respect the "Souhrnné emaily – Technické lhůty" toggle for every path, not
+  // just dual_mode (isDueNow() below already gates dual_mode's expired/warning
+  // emails on this, but the plain combined-digest path never checked it at all,
+  // so turning the toggle off in Administrace had no effect there).
+  if (!frequency.enabled && !testMode) {
+    console.log("Deadline reminders disabled via frequency.enabled");
+    return new Response(
+      JSON.stringify({ info: "Deadline reminders are disabled in settings", emailsSent: 0 }),
+      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+  if (schedule.skip_weekends && !testMode) {
+    const dayOfWeek = new Date().getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      console.log("Skipping deadline reminders - weekend");
+      return new Response(
+        JSON.stringify({ info: "Skipped - weekend", emailsSent: 0 }),
+        { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+  }
 
   const { data: allTemplates } = await supabase
     .from("deadline_reminder_templates")
@@ -490,7 +523,7 @@ const handler = async (req: Request): Promise<Response> => {
   const { data: deadlines, error: deadlinesError } = await supabase
     .from("deadlines")
     .select(`
-      id, next_check_date, facility, reminder_template_id, remind_days_before, requester,
+      id, next_check_date, facility, reminder_template_id, remind_days_before, repeat_days_after, requester,
       equipment:equipment_id(id, name, inventory_number, status, responsible_person),
       deadline_types:deadline_type_id(id, name)
     `)
@@ -508,6 +541,28 @@ const handler = async (req: Request): Promise<Response> => {
 
   // Fetch all deadline_responsibles with profile info and group members
   const deadlineIds = (deadlines || []).map(d => d.id);
+
+  // Batch-fetch reminder history for cadence checking (see _shared/reminder-cadence.ts):
+  // exactly one "before" reminder, exactly one "due" reminder, then repeats every
+  // repeat_days_after days — instead of re-sending the digest every single run.
+  const reminderLogsByDeadline = new Map<string, { reminder_stage: ReminderStage | null; created_at: string }[]>();
+  if (deadlineIds.length > 0) {
+    const { data: reminderHistory } = await supabase
+      .from("deadline_reminder_logs")
+      .select("deadline_id, reminder_stage, created_at")
+      .in("deadline_id", deadlineIds)
+      .eq("status", "sent")
+      .eq("is_test", false)
+      .order("created_at", { ascending: false });
+
+    for (const log of reminderHistory || []) {
+      if (!log.deadline_id) continue;
+      const list = reminderLogsByDeadline.get(log.deadline_id) || [];
+      list.push({ reminder_stage: log.reminder_stage, created_at: log.created_at });
+      reminderLogsByDeadline.set(log.deadline_id, list);
+    }
+  }
+
   let responsiblesMap: Map<string, { names: string[], emails: string[] }> = new Map();
   
   if (deadlineIds.length > 0) {
@@ -613,12 +668,15 @@ const handler = async (req: Request): Promise<Response> => {
     
     const daysUntil = getDaysUntil(d.next_check_date);
     const remindDays = d.remind_days_before || 30;
-    
-    if (daysUntil <= remindDays) {
+    const repeatDays = (d as any).repeat_days_after ?? 30;
+
+    const stage = resolveReminderStage(daysUntil, remindDays, repeatDays, reminderLogsByDeadline.get(d.id) || []);
+
+    if (stage) {
       const templateId = d.reminder_template_id || defaultTemplate.id;
       const template = templatesMap.get(templateId) || defaultTemplate;
       const responsibles = responsiblesMap.get(d.id);
-      
+
       const item: DeadlineItem = {
         id: d.id,
         next_check_date: d.next_check_date,
@@ -634,6 +692,7 @@ const handler = async (req: Request): Promise<Response> => {
         responsible_persons: responsibles?.names || [],
         responsible_emails: responsibles?.emails || [],
         status: daysUntil < 0 ? 'expired' : 'warning',
+        reminder_stage: stage,
       };
       
       allDeadlineItems.push(item);
@@ -648,19 +707,24 @@ const handler = async (req: Request): Promise<Response> => {
   console.log(`Found ${expiredItems.length} expired and ${warningItems.length} warning deadlines`);
 
   let finalRecipientEmails: string[] = [];
-  
-  if (moduleRecipients.user_ids && moduleRecipients.user_ids.length > 0) {
+
+  // A single-address test preview overrides the real configured recipients so
+  // clicking "test" never emails your actual team — it only ever goes to the
+  // address you typed in.
+  if (testMode && singleRecipientEmail) {
+    finalRecipientEmails = [singleRecipientEmail];
+  } else if (moduleRecipients.user_ids && moduleRecipients.user_ids.length > 0) {
     const { data: moduleProfiles } = await supabase
       .from("profiles")
       .select("id, email")
       .in("id", moduleRecipients.user_ids);
-    
+
     if (moduleProfiles) {
       // Deduplicate emails (case-insensitive)
       finalRecipientEmails = [...new Set(moduleProfiles.map(p => p.email.toLowerCase()))];
     }
   }
-  
+
   if (finalRecipientEmails.length === 0) {
     console.log("No recipients configured for deadline reminders");
     return new Response(
@@ -713,30 +777,33 @@ const handler = async (req: Request): Promise<Response> => {
       `;
       
       const result = await sendViaSMTP(finalRecipientEmails, subject, fullBody, deliveryMode, emailProviderSettings);
-      
-      await supabase.from("deadline_reminder_logs").insert({
+
+      // One log row PER deadline covered by this digest, not just the first one,
+      // so each deadline's own cadence (before/due/overdue) is tracked correctly.
+      await supabase.from("deadline_reminder_logs").insert(expiredItems.map(d => ({
         template_id: defaultTemplate.id,
         template_name: testMode ? "Prošlé technické události (TEST)" : "Prošlé technické události",
         recipient_emails: finalRecipientEmails,
         email_subject: subject,
         email_body: fullBody,
         status: result.success ? "sent" : "failed",
+        reminder_stage: d.reminder_stage,
         error_message: result.error || null,
         is_test: testMode,
         week_start: weekStart,
         delivery_mode: deliveryMode,
-        deadline_id: expiredItems[0]?.id || null,
-        equipment_id: expiredItems[0]?.equipment_id || null,
-        days_before: expiredItems[0]?.days_until || null,
-      });
-      
+        deadline_id: d.id,
+        equipment_id: d.equipment_id,
+        days_before: d.days_until,
+      })));
+
       if (result.success) {
         totalEmailsSent++;
         console.log(`Sent expired deadline reminder with ${expiredItems.length} items`);
       } else {
         totalEmailsFailed++;
       }
-      
+
       results.push({ type: 'expired', count: expiredItems.length, success: result.success });
     }
 
@@ -767,21 +834,22 @@ const handler = async (req: Request): Promise<Response> => {
       
       const result = await sendViaSMTP(finalRecipientEmails, subject, fullBody, deliveryMode, emailProviderSettings);
       
-      await supabase.from("deadline_reminder_logs").insert({
+      await supabase.from("deadline_reminder_logs").insert(warningItems.map(d => ({
         template_id: defaultTemplate.id,
         template_name: testMode ? "Blížící se technické události (TEST)" : "Blížící se technické události",
         recipient_emails: finalRecipientEmails,
         email_subject: subject,
         email_body: fullBody,
         status: result.success ? "sent" : "failed",
+        reminder_stage: d.reminder_stage,
         error_message: result.error || null,
         is_test: testMode,
         week_start: weekStart,
         delivery_mode: deliveryMode,
-        deadline_id: warningItems[0]?.id || null,
-        equipment_id: warningItems[0]?.equipment_id || null,
-        days_before: warningItems[0]?.days_until || null,
-      });
+        deadline_id: d.id,
+        equipment_id: d.equipment_id,
+        days_before: d.days_until,
+      })));
       
       if (result.success) {
         totalEmailsSent++;
@@ -830,21 +898,23 @@ const handler = async (req: Request): Promise<Response> => {
 
     const result = await sendViaSMTP(finalRecipientEmails, subject, fullBody, deliveryMode, emailProviderSettings);
 
-    await supabase.from("deadline_reminder_logs").insert({
+    const { error: logInsertError } = await supabase.from("deadline_reminder_logs").insert(allDeadlineItems.map(d => ({
       template_id: defaultTemplate.id,
       template_name: moduleEmailTemplate ? "Souhrnný email (Technické lhůty)" : defaultTemplate.name,
       recipient_emails: finalRecipientEmails,
       email_subject: subject,
       email_body: fullBody,
       status: result.success ? "sent" : "failed",
+      reminder_stage: d.reminder_stage,
       error_message: result.error || null,
       is_test: testMode,
       week_start: weekStart,
       delivery_mode: deliveryMode,
-      deadline_id: allDeadlineItems[0]?.id || null,
-      equipment_id: allDeadlineItems[0]?.equipment_id || null,
-      days_before: allDeadlineItems[0]?.days_until || null,
-    });
+      deadline_id: d.id,
+      equipment_id: d.equipment_id,
+      days_before: d.days_until,
+    })));
+    if (logInsertError) console.error("Failed to insert deadline_reminder_logs:", JSON.stringify(logInsertError));
 
     if (result.success) {
       totalEmailsSent++;
@@ -865,8 +935,10 @@ const handler = async (req: Request): Promise<Response> => {
 
   // =====================================================================
   // RESPONSIBLE PERSON NOTIFICATIONS - send individual filtered emails
+  // (skipped for a single-address test preview - it must never reach anyone
+  // else's real inbox)
   // =====================================================================
-  if (responsibleNotificationsEnabled && allDeadlineItems.length > 0) {
+  if (!(testMode && singleRecipientEmail) && responsibleNotificationsEnabled && allDeadlineItems.length > 0) {
     console.log("Responsible person notifications enabled - building per-person emails");
     
     // Group deadlines by responsible email
@@ -909,22 +981,23 @@ const handler = async (req: Request): Promise<Response> => {
       `;
       
       const personResult = await sendViaSMTP([email], personSubject, personBody, "to", emailProviderSettings);
-      
-      await supabase.from("deadline_reminder_logs").insert({
+
+      await supabase.from("deadline_reminder_logs").insert(personDeadlines.map(d => ({
         template_id: defaultTemplate.id,
         template_name: testMode ? "Odpovědná osoba (TEST)" : "Odpovědná osoba",
         recipient_emails: [email],
         email_subject: personSubject,
         email_body: personBody,
         status: personResult.success ? "sent" : "failed",
+        reminder_stage: d.reminder_stage,
         error_message: personResult.error || null,
         is_test: testMode,
         week_start: getRunPeriodKey('responsible'),
         delivery_mode: "to",
-        deadline_id: personDeadlines[0]?.id || null,
-        equipment_id: personDeadlines[0]?.equipment_id || null,
-        days_before: personDeadlines[0]?.days_until || null,
-      });
+        deadline_id: d.id,
+        equipment_id: d.equipment_id,
+        days_before: d.days_until,
+      })));
       
       if (personResult.success) {
         totalEmailsSent++;

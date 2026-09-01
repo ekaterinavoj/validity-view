@@ -170,11 +170,8 @@ export function BulkEditExaminationsDialog({
             <DateInput
               value={formData.lastExaminationDate}
               onChange={(date) => setFormData({ ...formData, lastExaminationDate: date })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
-            <p className="text-xs text-muted-foreground">
-              Datum příští prohlídky se vypočítá automaticky podle periody každého záznamu (včetně případného individuálního přepisu)
-            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="bulk-doctor">Lékař</Label>
@@ -182,7 +179,7 @@ export function BulkEditExaminationsDialog({
               id="bulk-doctor"
               value={formData.doctor}
               onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
 
@@ -192,7 +189,7 @@ export function BulkEditExaminationsDialog({
               id="bulk-medical-facility"
               value={formData.medicalFacility}
               onChange={(e) => setFormData({ ...formData, medicalFacility: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
 
@@ -200,20 +197,9 @@ export function BulkEditExaminationsDialog({
             <Label htmlFor="bulk-result">Výsledek</Label>
             <Select
               value={formData.result}
-              onValueChange={(value) => setFormData({ ...formData, result: value === "__none__" ? "" : value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Ponechat beze změny" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">-- Bez změny --</SelectItem>
-                {medicalExaminationResultOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(e) => setFormData({ ...formData, result: e.target.value })}
+              placeholder="Ponechte prázdné (beze změny)"
+            />
           </div>
 
           <div className="space-y-2">
@@ -241,7 +227,7 @@ export function BulkEditExaminationsDialog({
               id="bulk-note"
               value={formData.note}
               onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
           </div>
         </div>

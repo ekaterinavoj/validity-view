@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useSortable } from "@/hooks/useSortable";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { format } from "date-fns";
@@ -60,7 +60,9 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EquipmentResponsiblesManager } from "@/components/EquipmentResponsiblesManager";
 import { EquipmentResponsiblesBadges } from "@/components/EquipmentResponsiblesBadges";
 import { ResponsiblePersonsPicker } from "@/components/ResponsiblePersonsPicker";
-import { BulkEquipmentImport } from "@/components/BulkEquipmentImport";
+import { useAllEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
+import { BulkEquipmentImport, type BulkEquipmentImportHandle } from "@/components/BulkEquipmentImport";
+import { ImportExportMenu } from "@/components/ImportExportMenu";
 import { Equipment as EquipmentType, equipmentStatusLabels, equipmentStatusColors } from "@/types/equipment";
 import { useAllEquipmentResponsibles } from "@/hooks/useEquipmentResponsibles";
 import { cn } from "@/lib/utils";
@@ -74,23 +76,11 @@ import { HelpButton } from "@/components/HelpButton";
 import { CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
 
 export default function Equipment() {
+  const bulkImportRef = useRef<BulkEquipmentImportHandle>(null);
   const { toast } = useToast();
   const { equipment, isLoading, error, refetch, createEquipment, updateEquipment, deleteEquipment, checkDependencies, isCreating, isUpdating, isDeleting } = useEquipment();
   const { facilities } = useFacilities();
   const { allResponsibles } = useAllEquipmentResponsibles();
-
-  // Mapování equipment_id → seznam e-mailů odpovědných osob (oddělené ; pro round-trip s importem).
-  const responsibleEmailsMap = useMemo(() => {
-    const map = new Map<string, string[]>();
-    allResponsibles.forEach((r: any) => {
-      const email = r.profile?.email;
-      if (!email) return;
-      const arr = map.get(r.equipment_id) ?? [];
-      if (!arr.includes(email)) arr.push(email);
-      map.set(r.equipment_id, arr);
-    });
-    return map;
-  }, [allResponsibles]);
 
   const facilityNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -275,6 +265,20 @@ export default function Equipment() {
   };
 
   const exportToCSV = () => {
+    const departmentByCode = new Map(departments.map(d => [d.id, d.code]));
+    // "Odpovědná osoba" reflects the same profile-linked assignments shown as
+    // badges in the table (equipment_responsibles) — NOT the unused legacy
+    // equipment.responsible_person text field — so export and the on-screen
+    // column always agree, and re-importing the file restores the same people.
+    const responsiblesByEquipment = new Map<string, string[]>();
+    allResponsibles.forEach(r => {
+      if (!r.profile) return;
+      const label = `${r.profile.first_name} ${r.profile.last_name} <${r.profile.email}>`;
+      const list = responsiblesByEquipment.get(r.equipment_id) || [];
+      list.push(label);
+      responsiblesByEquipment.set(r.equipment_id, list);
+    });
+
     const data = equipment.map(eq => ({
       "Inv. číslo": eq.inventory_number || "",
       "Název": eq.name || "",
@@ -284,8 +288,8 @@ export default function Equipment() {
       "Model": eq.model || "",
       "Sériové č.": eq.serial_number || "",
       "Umístění": eq.location || "",
-      "Odpovědná osoba": eq.responsible_person || "",
-      "Odpovědné osoby": (responsibleEmailsMap.get(eq.id) ?? []).join("; "),
+      "Středisko": (eq.department_id && departmentByCode.get(eq.department_id)) || "",
+      "Odpovědná osoba": (responsiblesByEquipment.get(eq.id) || []).join("; "),
       "Stav": equipmentStatusLabels[eq.status] || "",
     }));
 
@@ -323,12 +327,16 @@ export default function Equipment() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <RefreshButton onRefresh={async () => { await refetch(); }} loading={isLoading} />
-          <BulkEquipmentImport onImportComplete={() => refetch()} />
-          <Button variant="outline" size="sm" onClick={exportToCSV} title={CSV_FORMAT_TOOLTIP}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Obnovit
           </Button>
+          <BulkEquipmentImport ref={bulkImportRef} onImportComplete={() => refetch()} hideTrigger />
+          <ImportExportMenu
+            onExport={exportToCSV}
+            onToggleImport={() => bulkImportRef.current?.openFilePicker()}
+            onDownloadTemplate={() => bulkImportRef.current?.downloadTemplate()}
+          />
           <Button size="sm" onClick={openCreateDialog}>
             <Plus className="w-4 h-4 mr-2" />
             Nové zařízení

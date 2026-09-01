@@ -50,8 +50,6 @@ All colors MUST be HSL.
     --role-manager-foreground: 202 100% 20%;
     --role-user: 142 70% 45%;
     --role-user-foreground: 142 70% 18%;
-    --role-viewer: 210 10% 55%;
-    --role-viewer-foreground: 210 10% 25%;
 
     /* Status colors for training validity */
     --status-valid: 78 78% 55%;
@@ -129,8 +127,6 @@ All colors MUST be HSL.
     --role-manager-foreground: 202 80% 90%;
     --role-user: 142 60% 55%;
     --role-user-foreground: 142 60% 85%;
-    --role-viewer: 210 10% 60%;
-    --role-viewer-foreground: 210 10% 85%;
 
     /* Status colors remain the same in dark mode */
     --status-valid: 78 78% 55%;

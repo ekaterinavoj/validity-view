@@ -241,7 +241,41 @@ export const ReminderTemplates = () => {
     }
   };
 
-  // (preview helper removed — now handled by ReminderTemplateEditor)
+  // Sample rows shaped like what each edge function's buildXTable() actually
+  // renders, so the preview's table matches the real email instead of just
+  // showing the intro text in isolation.
+  const PREVIEW_ROWS: Record<ModuleType, { who: string; what: string; due: string; days: number }[]> = {
+    trainings: [
+      { who: "Jan Novák", what: "BOZP - vstupní a periodické školení", due: "20.9.2026", days: 24 },
+      { who: "Petr Svoboda", what: "BOZP - vstupní a periodické školení", due: "22.7.2026", days: -36 },
+    ],
+    deadlines: [
+      { who: "INV-VZV-001 – Vysokozdvižný vozík Toyota", what: "Revize vysokozdvižného vozíku", due: "10.9.2026", days: 14 },
+      { who: "INV-KOM-001 – Kompresor dílenský", what: "Revize hasicích přístrojů", due: "21.8.2026", days: -6 },
+    ],
+    medical: [
+      { who: "Jan Novák", what: "Periodická prohlídka - kategorie 2", due: "15.9.2026", days: 19 },
+      { who: "Petr Svoboda", what: "Periodická prohlídka - kategorie 2", due: "16.8.2026", days: -11 },
+    ],
+  };
+
+  const getPreviewEmail = () => {
+    const rows = PREVIEW_ROWS[activeModule];
+    const expiredCount = rows.filter(r => r.days < 0).length;
+    const expiringCount = rows.length - expiredCount;
+    const substitute = (text: string) =>
+      text
+        .replace(/\{+totalCount\}+/g, String(rows.length))
+        .replace(/\{+expiringCount\}+/g, String(expiringCount))
+        .replace(/\{+expiredCount\}+/g, String(expiredCount))
+        .replace(/\{+reportDate\}+/g, new Date().toLocaleDateString("cs-CZ"));
+
+    return {
+      subject: substitute(formData.email_subject),
+      body: substitute(formData.email_body),
+      rows,
+    };
+  };
 
   const getModuleLabel = () => {
     switch (activeModule) {
@@ -264,12 +298,12 @@ export const ReminderTemplates = () => {
     
     try {
       // Call the correct edge function based on module
-      const functionName = activeModule === "trainings" 
-        ? "run-reminders" 
-        : activeModule === "deadlines" 
-          ? "run-deadline-reminders" 
+      const functionName = activeModule === "trainings"
+        ? "send-training-reminders"
+        : activeModule === "deadlines"
+          ? "run-deadline-reminders"
           : "run-medical-reminders";
-      
+
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { triggered_by: "manual" }
       });
@@ -335,18 +369,20 @@ export const ReminderTemplates = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Alert>
+          <Alert variant="destructive">
             <Bell className="h-4 w-4" />
             <AlertDescription>
-              <p className="font-semibold mb-2">Jak funguje manuální kontrola:</p>
+              <p className="font-semibold mb-2">⚠️ Toto je skutečné odeslání, ne test:</p>
               <ul className="text-sm space-y-1 list-disc list-inside">
                 <li>Systém projde všechny aktivní šablony připomínek</li>
                 <li>Zkontroluje {getModuleLabel()}, kterým brzy vyprší platnost</li>
-                <li>Odešle připomínkové emaily podle nastavených šablon</li>
+                <li>Odešle připomínkové emaily <strong>skutečným nakonfigurovaným příjemcům a odpovědným osobám</strong> podle nastavené kadence</li>
                 <li>Zobrazí výsledek - kolik emailů bylo odesláno</li>
               </ul>
               <p className="text-xs text-muted-foreground mt-3">
                 <strong>Poznámka:</strong> Pro odeslání emailů musí být nakonfigurován SMTP server v Administraci.
+                Chcete-li si jen ověřit, jak email vypadá, aniž byste zasáhli skutečné příjemce, použijte
+                sekci „Testování a historie" níže a zadejte vlastní testovací adresu.
               </p>
             </AlertDescription>
           </Alert>
@@ -498,7 +534,14 @@ export const ReminderTemplates = () => {
               {editingTemplate ? "Upravit šablonu" : `Nová šablona připomínky ${getModuleLabel()}`}
             </DialogTitle>
             <DialogDescription>
-              Klikněte na proměnnou v sekci pod editorem pro vložení na pozici kurzoru. Náhled vpravo se aktualizuje při psaní.
+              Vytvořte šablonu pro automatické připomínky {getModuleLabel()}. Text níže je úvod k emailu —
+              pod něj se automaticky vloží tabulka se všemi aktuálně relevantními záznamy (zaměstnanec/zařízení,
+              o co jde, termín, kolik dní zbývá nebo o kolik je po termínu) načtená vždy z aktuálních dat.
+              V textu můžete použít proměnné:{" "}
+              <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{totalCount}'}</code>
+              <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{expiringCount}'}</code>
+              <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{expiredCount}'}</code>
+              <code className="text-xs bg-muted px-1 py-0.5 rounded mx-1">{'{reportDate}'}</code>
             </DialogDescription>
           </DialogHeader>
 
@@ -519,6 +562,44 @@ export const ReminderTemplates = () => {
             </AlertDescription>
           </Alert>
 
+            <div className="space-y-2">
+              <Label htmlFor="email_body">Text emailu *</Label>
+              <Textarea
+                id="email_body"
+                value={formData.email_body}
+                onChange={(e) => setFormData({ ...formData, email_body: e.target.value })}
+                rows={10}
+                placeholder="Text připomínky..."
+              />
+               <p className="text-xs text-muted-foreground">
+                 Použijte <code>{'{totalCount}'}</code> (celkem záznamů), <code>{'{expiringCount}'}</code> (brzy vyprší),{" "}
+                 <code>{'{expiredCount}'}</code> (prošlé) a <code>{'{reportDate}'}</code> (datum). Tabulka s konkrétními
+                 záznamy se připojí automaticky pod tento text.
+               </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="is_active"
+                checked={formData.is_active}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+              />
+              <Label htmlFor="is_active" className="cursor-pointer">
+                Aktivní šablona
+              </Label>
+            </div>
+
+            <Alert className="bg-accent/50 border-primary/30">
+              <Bell className="h-4 w-4 text-primary" />
+              <AlertDescription>
+                <p className="font-semibold mb-2">Příjemci připomínek:</p>
+                <p className="text-sm">
+                  Příjemci pro odesílání těchto připomínek se nastavují v <strong>Administraci → Příjemci</strong> pro každý modul zvlášť. 
+                  Tato šablona bude odeslána všem nakonfigurovaným příjemcům pro {getModuleLabel()}.
+                </p>
+              </AlertDescription>
+            </Alert>
+          </div>
           <DialogFooter>
             <Button
               variant="outline"
@@ -561,6 +642,84 @@ export const ReminderTemplates = () => {
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Smazat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog pro náhled emailu */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Náhled připomínkového emailu</DialogTitle>
+            <DialogDescription>
+              Přesně takhle vypadá skutečný email — text šablony s dosazenými proměnnými, a pod ním
+              tabulka se dvěma ukázkovými záznamy (skutečný email bude mít tolik řádků, kolik je
+              aktuálně relevantních záznamů).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Předmět:</Label>
+              <div className="p-3 bg-muted rounded-md">
+                <p className="text-sm">{getPreviewEmail().subject}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Text emailu:</Label>
+              <div className="p-4 bg-muted rounded-md min-h-32">
+                <p className="text-sm whitespace-pre-wrap">{getPreviewEmail().body}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Tabulka záznamů (připojí se automaticky):</Label>
+              <div className="overflow-x-auto border rounded-md">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted">
+                      <th className="text-left p-2 border-b">
+                        {activeModule === "deadlines" ? "Zařízení" : "Zaměstnanec"}
+                      </th>
+                      <th className="text-left p-2 border-b">
+                        {activeModule === "deadlines" ? "Typ události" : activeModule === "medical" ? "Typ prohlídky" : "Školení"}
+                      </th>
+                      <th className="text-left p-2 border-b">Termín</th>
+                      <th className="text-center p-2 border-b">Dnů</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getPreviewEmail().rows.map((row, i) => (
+                      <tr key={i}>
+                        <td className="p-2 border-b">{row.who}</td>
+                        <td className="p-2 border-b">{row.what}</td>
+                        <td className="p-2 border-b">{row.due}</td>
+                        <td className="p-2 border-b text-center">
+                          <span
+                            className="px-2 py-0.5 rounded text-xs text-white"
+                            style={{ backgroundColor: row.days < 0 ? "#ef4444" : row.days <= 7 ? "#f59e0b" : "#22c55e" }}
+                          >
+                            {row.days < 0 ? `${Math.abs(row.days)} po termínu` : row.days}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground p-3 bg-accent/10 rounded">
+              <p className="font-semibold mb-1">Dostupné proměnné (v textu nad tabulkou):</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li><code>{'{totalCount}'}</code> - celkový počet záznamů v tabulce</li>
+                <li><code>{'{expiringCount}'}</code> - počet brzy vypršujících</li>
+                <li><code>{'{expiredCount}'}</code> - počet prošlých</li>
+                <li><code>{'{reportDate}'}</code> - datum odeslání</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>
+              Zavřít
             </Button>
           </DialogFooter>
         </DialogContent>

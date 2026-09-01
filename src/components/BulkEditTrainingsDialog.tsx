@@ -322,7 +322,7 @@ export function BulkEditTrainingsDialog({
             <DateInput
               value={formData.lastTrainingDate}
               onChange={(date) => setFormData({ ...formData, lastTrainingDate: date })}
-              placeholder="Ponechat prázdné pro beze změny"
+              placeholder="Ponechte prázdné (beze změny)"
             />
             <p className="text-xs text-muted-foreground">
               Datum dalšího školení se vypočítá automaticky podle periody každého záznamu (včetně případného individuálního přepisu)
@@ -332,7 +332,7 @@ export function BulkEditTrainingsDialog({
           <div className="space-y-2">
             <Label>Školitel</Label>
             <Input
-              placeholder="Nový školitel (ponechat prázdné pro beze změny)"
+              placeholder="Nový školitel (ponechte prázdné beze změny)"
               value={formData.trainer}
               onChange={(e) => setFormData({ ...formData, trainer: e.target.value })}
             />
@@ -341,7 +341,7 @@ export function BulkEditTrainingsDialog({
           <div className="space-y-2">
             <Label>Firma</Label>
             <Input
-              placeholder="Nová firma (ponechat prázdné pro beze změny)"
+              placeholder="Nová firma (ponechte prázdné beze změny)"
               value={formData.company}
               onChange={(e) => setFormData({ ...formData, company: e.target.value })}
             />
@@ -356,7 +356,7 @@ export function BulkEditTrainingsDialog({
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Vyberte provozovnu (ponechat prázdné pro beze změny)" />
+                <SelectValue placeholder="Vyberte provozovnu (ponechte prázdné beze změny)" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">-- Bez změny --</SelectItem>
@@ -372,7 +372,7 @@ export function BulkEditTrainingsDialog({
           <div className="space-y-2">
             <Label>Poznámka</Label>
             <Textarea
-              placeholder="Nová poznámka (ponechat prázdné pro beze změny)"
+              placeholder="Nová poznámka (ponechte prázdné beze změny)"
               value={formData.note}
               onChange={(e) => setFormData({ ...formData, note: e.target.value })}
               rows={3}

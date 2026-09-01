@@ -22,6 +22,10 @@ export interface TrainingWithDetails {
   company: string;
   requester: string;
   period: number;
+  /** Raw per-record periodicity override (null when the record uses the type's default). */
+  periodDaysOverride: number | null;
+  /** The training type's own default periodicity, for comparison against periodDaysOverride. */
+  typePeriodDays: number | null;
   reminderTemplate: string;
   calendar: string;
   note: string;
@@ -157,6 +161,8 @@ export function useTrainings(activeOnly: boolean = true) {
             company: t.company || "",
             requester: t.requester || "",
             period: t.period_days_override ?? t.training_types?.period_days ?? 365,
+            periodDaysOverride: t.period_days_override ?? null,
+            typePeriodDays: t.training_types?.period_days ?? null,
             reminderTemplate: t.reminder_templates?.name || "",
             calendar: "Ano",
             note: t.note || "",

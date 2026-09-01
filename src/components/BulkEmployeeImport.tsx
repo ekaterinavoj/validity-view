@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,15 +11,16 @@ import { supabase } from "@/integrations/supabase/client";
 import Papa from 'papaparse';
 import { z } from 'zod';
 import { downloadCSVTemplate } from "@/lib/csvExport";
-import { buildExportFilename, CSV_IMPORT_TOOLTIP, CSV_FORMAT_TOOLTIP } from "@/lib/exportFilename";
-import { checkRequiredHeaders } from "@/lib/importValidation";
+import { checkRequiredHeaders, type MissingHeader } from "@/lib/importValidation";
 import { MissingHeadersAlert } from "@/components/MissingHeadersAlert";
 
 const REQUIRED_EMPLOYEE_HEADERS: Record<string, string[]> = {
   "Jméno": ["Jméno", "firstName"],
   "Příjmení": ["Příjmení", "lastName"],
   "Email": ["Email", "email"],
+  "Osobní číslo": ["Osobní číslo", "employeeNumber", "employee_number"],
   "Pozice": ["Pozice", "position"],
+  "Středisko": ["Středisko", "department"],
 };
 
 const employeeSchema = z.object({
@@ -46,9 +47,17 @@ interface ImportedEmployee {
 
 interface BulkEmployeeImportProps {
   onImportComplete?: () => void;
+  /** Hide this component's own trigger buttons — use the imperative handle
+   *  (openFilePicker/downloadTemplate) from a parent's own menu instead. */
+  hideTrigger?: boolean;
 }
 
-export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps) {
+export interface BulkEmployeeImportHandle {
+  openFilePicker: () => void;
+  downloadTemplate: () => void;
+}
+
+export const BulkEmployeeImport = forwardRef<BulkEmployeeImportHandle, BulkEmployeeImportProps>(function BulkEmployeeImport({ onImportComplete, hideTrigger }, ref) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importedData, setImportedData] = useState<ImportedEmployee[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -57,7 +66,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; skipped: number; failed: number } | null>(null);
   const [importErrorsList, setImportErrorsList] = useState<string[]>([]);
-  const [headerError, setHeaderError] = useState<{ missing: import("@/lib/importValidation").MissingHeader[]; detected: string[] } | null>(null);
+  const [headerError, setHeaderError] = useState<{ missing: MissingHeader[]; detected: string[] } | null>(null);
   const abortRef = useRef(false);
   const { toast } = useToast();
 
@@ -228,10 +237,10 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     }
 
     setIsProcessing(true);
+    setHeaderError(null);
     try {
       const jsonData = await parseFile(file);
 
-      // Header validation
       const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
       const headerCheck = checkRequiredHeaders(headers, REQUIRED_EMPLOYEE_HEADERS);
       if (!headerCheck.ok) {
@@ -240,14 +249,11 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         setDialogOpen(true);
         toast({
           title: "Chybí povinné sloupce",
-          description: `V CSV chybí: ${headerCheck.missing.join(", ")}. Detail v dialogu.`,
+          description: `V souboru chybí: ${headerCheck.missing.join(", ")}. Detail v dialogu.`,
           variant: "destructive",
         });
-        setIsProcessing(false);
-        e.target.value = '';
         return;
       }
-      setHeaderError(null);
 
       if (jsonData.length > 5000) {
         toast({ title: "Příliš mnoho řádků", description: "Maximální počet řádků je 5000.", variant: "destructive" });
@@ -261,6 +267,7 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       }
 
       const validatedData = await validateAndMarkDuplicates(jsonData);
+      setHeaderError(null);
       setImportedData(validatedData);
       setDialogOpen(true);
 
@@ -551,6 +558,11 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
     ]);
   };
 
+  useImperativeHandle(ref, () => ({
+    openFilePicker: () => document.getElementById("employee-import")?.click(),
+    downloadTemplate: handleDownloadTemplate,
+  }));
+
   return (
     <>
       <input
@@ -560,17 +572,26 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
         onChange={handleFileUpload}
         className="hidden"
       />
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          onClick={() => document.getElementById('employee-import')?.click()}
-          disabled={isProcessing}
-          title={CSV_IMPORT_TOOLTIP}
-        >
-          <Upload className="w-4 h-4 mr-2" />
-          {isProcessing ? "Zpracovávám..." : "Import"}
-        </Button>
-      </div>
+      {!hideTrigger && (
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadTemplate}
+          >
+            <FileDown className="w-4 h-4 mr-2" />
+            Šablona CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => document.getElementById('employee-import')?.click()}
+            disabled={isProcessing}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            {isProcessing ? "Zpracovávám..." : "Import z Excel/CSV"}
+          </Button>
+        </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!isImporting) setDialogOpen(open); }}>
         <DialogContent className="max-w-6xl max-h-[90vh]">
@@ -779,4 +800,4 @@ export function BulkEmployeeImport({ onImportComplete }: BulkEmployeeImportProps
       </Dialog>
     </>
   );
-}
+});

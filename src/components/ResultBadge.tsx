@@ -60,7 +60,8 @@ export function resultRequiresComment(result: ResultValue): boolean {
 export function ResultBadge({ result, context, note, className }: ResultBadgeProps) {
   const label = getResultLabel(result, context);
   const showWarningIcon = result === "passed_with_reservations";
-  // For PLP: lost_long_term is rendered as positive + warning, NOT as a negative result.
+  // For PLP: lost_long_term (legacy value) is rendered as positive + warning, NOT as a negative result —
+  // pozbytí způsobilosti není neplatná prohlídka, jen poznámka od lékaře, která musí zůstat viditelná.
   const isMedicalLostLongTerm = context === "medical" && result === "lost_long_term";
   const isNegativeResult = (result === "failed" || result === "lost_long_term") && !isMedicalLostLongTerm;
 

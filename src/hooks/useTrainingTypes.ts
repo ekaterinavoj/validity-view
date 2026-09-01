@@ -8,6 +8,8 @@ export interface TrainingType {
   periodDays: number;
   durationHours: number;
   description?: string;
+  defaultRemindDaysBefore?: number | null;
+  defaultRepeatDaysAfter?: number | null;
 }
 
 export function useTrainingTypes() {
@@ -22,7 +24,7 @@ export function useTrainingTypes() {
     try {
       const { data, error: fetchError } = await supabase
         .from("training_types")
-        .select("id, name, facility, period_days, duration_hours, description")
+        .select("id, name, facility, period_days, duration_hours, description, default_remind_days_before, default_repeat_days_after")
         .order("name", { ascending: true });
 
       if (fetchError) throw fetchError;
@@ -34,6 +36,8 @@ export function useTrainingTypes() {
         periodDays: t.period_days,
         durationHours: t.duration_hours ?? 1,
         description: t.description,
+        defaultRemindDaysBefore: t.default_remind_days_before,
+        defaultRepeatDaysAfter: t.default_repeat_days_after,
       }));
 
       setTrainingTypes(transformedData);

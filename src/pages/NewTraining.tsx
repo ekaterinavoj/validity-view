@@ -1,3 +1,4 @@
+import { formatPeriodicityDual } from "@/components/TypePeriodicityCell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,8 @@ import { FormSkeleton } from "@/components/LoadingSkeletons";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmployeeMultiSelect } from "@/components/EmployeeMultiSelect";
 import { EmployeeOrCustomInput } from "@/components/EmployeeOrCustomInput";
+import { SuggestedTextInput } from "@/components/SuggestedTextInput";
+import { useDistinctColumnValues } from "@/hooks/useDistinctColumnValues";
 import { getResultOptions } from "@/components/ResultBadge";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -49,7 +52,6 @@ const formSchema = z.object({
   periodUnit: z.enum(["days", "months", "years"]),
   trainer: z.string().optional(),
   company: z.string().optional(),
-  reminderTemplateId: z.string().optional(),
   remindDaysBefore: z.string().min(1, "Zadejte počet dní"),
   repeatDaysAfter: z.string().min(1, "Zadejte počet dní"),
   result: z.enum(["passed", "passed_with_reservations", "failed"]),
@@ -73,11 +75,11 @@ export default function NewTraining() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
   const [periodUnit, setPeriodUnit] = useState<PeriodicityUnit>("years");
-  const [reminderTemplates, setReminderTemplates] = useState<any[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { employees, loading: employeesLoading, error: employeesError, refetch: refetchEmployees } = useEmployees();
+  const companySuggestions = useDistinctColumnValues("trainings", "company");
   const { trainingTypes, loading: typesLoading, error: typesError, refetch: refetchTypes } = useTrainingTypes();
   const { facilities, loading: facilitiesLoading, error: facilitiesError, refetch: refetchFacilities } = useFacilities();
 
@@ -96,26 +98,11 @@ export default function NewTraining() {
       note: "",
       facility: "",
       trainingTypeId: "",
-      reminderTemplateId: "",
       remindDaysBefore: "30",
       repeatDaysAfter: "30",
       result: "passed" as const,
     },
   });
-
-  useEffect(() => {
-    const loadTemplates = async () => {
-      const { data, error } = await supabase
-        .from("reminder_templates")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-      if (!error && data) {
-        setReminderTemplates(data);
-      }
-    };
-    loadTemplates();
-  }, []);
 
   const selectedTrainingTypeId = form.watch("trainingTypeId");
   const selectedTrainingType = trainingTypes.find((t) => t.id === selectedTrainingTypeId);
@@ -128,6 +115,16 @@ export default function NewTraining() {
         setPeriodUnit(unit);
       }
       form.setValue("facility", selectedTrainingType.facility);
+
+      // Pre-fill reminder timing from the type's defaults (if configured) so
+      // new records don't all just start at the hardcoded 30/30 regardless of
+      // type. Only applies while the user hasn't already touched these fields.
+      if (!form.formState.dirtyFields.remindDaysBefore && selectedTrainingType.defaultRemindDaysBefore != null) {
+        form.setValue("remindDaysBefore", String(selectedTrainingType.defaultRemindDaysBefore));
+      }
+      if (!form.formState.dirtyFields.repeatDaysAfter && selectedTrainingType.defaultRepeatDaysAfter != null) {
+        form.setValue("repeatDaysAfter", String(selectedTrainingType.defaultRepeatDaysAfter));
+      }
     }
   }, [selectedTrainingType, form]);
 
@@ -196,7 +193,6 @@ export default function NewTraining() {
               next_training_date: nextTrainingDate,
               trainer: data.trainer || undefined,
               company: data.company || undefined,
-              reminder_template_id: data.reminderTemplateId || null,
               period_days_override: overridePeriodDays,
               remind_days_before: parseInt(data.remindDaysBefore) || 30,
               repeat_days_after: parseInt(data.repeatDaysAfter) || 30,
@@ -295,19 +291,11 @@ export default function NewTraining() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {trainingTypes.map((type) => {
-                        const periodLabel = formatPeriodicityDual(type.periodDays);
-                        return (
-                          <SelectItem key={type.id} value={type.id}>
-                            <div className="flex flex-col items-start">
-                              <span>{type.name} ({periodLabel})</span>
-                              {type.description && (
-                                <span className="text-xs text-muted-foreground">{type.description}</span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
+                      {trainingTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name} ({formatPeriodicityDual(type.periodDays)})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -413,7 +401,19 @@ export default function NewTraining() {
 
 
             <FormField control={form.control} name="company" render={({ field }) => (
-              <FormItem><FormLabel>Školící firma</FormLabel><FormControl><Input {...field} placeholder="Název firmy" /></FormControl><FormMessage /></FormItem>
+              <FormItem>
+                <FormLabel>Školící firma</FormLabel>
+                <FormControl>
+                  <SuggestedTextInput
+                    id="training-company"
+                    suggestions={companySuggestions}
+                    value={field.value || ""}
+                    onChange={field.onChange}
+                    placeholder="Název firmy"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             )} />
 
             <div className="space-y-3">
@@ -426,24 +426,10 @@ export default function NewTraining() {
               <FileUploader files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={10} maxSize={40} acceptedTypes={[".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]} />
             </div>
 
-            <FormField control={form.control} name="reminderTemplateId" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Šablona připomenutí</FormLabel>
-                <Select onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} value={field.value || "__none__"}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Výchozí šablona (nepovinné)" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="__none__">— Bez šablony (výchozí) —</SelectItem>
-                    {reminderTemplates.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
-
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="remindDaysBefore" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Připomenout dopředu (dní) *</FormLabel>
+                  <FormLabel>Připomenout před expirací (dní) *</FormLabel>
                   <FormControl><Input type="number" {...field} /></FormControl>
                   <p className="text-xs text-muted-foreground">Za kolik dní před vypršením poslat upozornění</p>
                   <FormMessage />
@@ -451,9 +437,9 @@ export default function NewTraining() {
               )} />
               <FormField control={form.control} name="repeatDaysAfter" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Opakovat po (dní)</FormLabel>
+                  <FormLabel>Opakovat po expiraci (dní)</FormLabel>
                   <FormControl><Input type="number" {...field} /></FormControl>
-                  <p className="text-xs text-muted-foreground">Po vypršení termínu — každých X dní opakovat</p>
+                  <p className="text-xs text-muted-foreground">Po vypršení termínu — každých X dní opakovat. Jednorázové upozornění přesně v den expirace se posílá vždy automaticky, bez ohledu na toto nastavení.</p>
                   <FormMessage />
                 </FormItem>
               )} />
