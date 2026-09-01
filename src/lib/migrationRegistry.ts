@@ -1660,6 +1660,37 @@ GRANT EXECUTE ON FUNCTION public.get_subordinate_employee_ids_for_service(uuid) 
     `.trim(),
   },
   {
+    version: "20260827125000",
+    name: "fix_graphql_event_trigger_ddl_scope",
+    sql: `
+-- Fix: issue_pg_graphql_access event trigger fired on EVERY ddl_command_end (no TAG
+-- filter), instead of being scoped to 'CREATE FUNCTION' like the other issue_pg_*
+-- event triggers (compare issue_pg_cron_access -> 'CREATE SCHEMA', issue_pg_net_access
+-- -> 'CREATE EXTENSION'). Its function, grant_pg_graphql_access(), assigns the result of
+--   SELECT n.proname = 'resolve' FROM pg_event_trigger_ddl_commands() ev LEFT JOIN pg_proc n ON ev.objid = n.oid
+-- into a single boolean, which requires pg_event_trigger_ddl_commands() to return at
+-- most one row. Any DDL command that creates more than one catalog object in a single
+-- command - e.g. CREATE TABLE with an inline PRIMARY KEY, which creates both the table
+-- and its supporting unique index - made that subquery return multiple rows, raising
+-- "more than one row returned by a subquery used as an expression" and aborting the
+-- whole statement/transaction.
+--
+-- This silently blocked ANY migration containing a plain CREATE TABLE ... PRIMARY KEY
+-- (such as the very next migration, access_debug_tools), and because apply-migrations
+-- stops at the first error in a batch, every migration after it was left permanently
+-- pending too. This migration MUST stay ordered before access_debug_tools.
+--
+-- Re-scoping the trigger to CREATE FUNCTION (its actual intent: react when
+-- graphql.resolve is (re)created) preserves the original behaviour while no longer
+-- firing on unrelated DDL like CREATE TABLE/INDEX/POLICY.
+DROP EVENT TRIGGER IF EXISTS issue_pg_graphql_access;
+CREATE EVENT TRIGGER issue_pg_graphql_access
+  ON ddl_command_end
+  WHEN TAG IN ('CREATE FUNCTION')
+  EXECUTE PROCEDURE extensions.grant_pg_graphql_access();
+    `.trim(),
+  },
+  {
     version: "20260827130000",
     name: "access_debug_tools",
     sql: `
@@ -1897,36 +1928,6 @@ $function$;
 -- likely cause of attached PDFs failing to preview in production (signed URL creation for
 -- the PDF viewer went through the same broken path).
 GRANT anon, authenticated, service_role TO supabase_storage_admin;
-    `.trim(),
-  },
-  {
-    version: "20260827210000",
-    name: "fix_graphql_event_trigger_ddl_scope",
-    sql: `
--- Fix: issue_pg_graphql_access event trigger fired on EVERY ddl_command_end (no TAG
--- filter), instead of being scoped to 'CREATE FUNCTION' like the other issue_pg_*
--- event triggers (compare issue_pg_cron_access -> 'CREATE SCHEMA', issue_pg_net_access
--- -> 'CREATE EXTENSION'). Its function, grant_pg_graphql_access(), assigns the result of
---   SELECT n.proname = 'resolve' FROM pg_event_trigger_ddl_commands() ev LEFT JOIN pg_proc n ON ev.objid = n.oid
--- into a single boolean, which requires pg_event_trigger_ddl_commands() to return at
--- most one row. Any DDL command that creates more than one catalog object in a single
--- command - e.g. CREATE TABLE with an inline PRIMARY KEY, which creates both the table
--- and its supporting unique index - made that subquery return multiple rows, raising
--- "more than one row returned by a subquery used as an expression" and aborting the
--- whole statement/transaction.
---
--- This silently blocked ANY migration containing a plain CREATE TABLE ... PRIMARY KEY
--- (such as 20260827130000 / access_debug_tools), and because apply-migrations stops at
--- the first error in a batch, every migration after it was left permanently pending too.
---
--- Re-scoping the trigger to CREATE FUNCTION (its actual intent: react when
--- graphql.resolve is (re)created) preserves the original behaviour while no longer
--- firing on unrelated DDL like CREATE TABLE/INDEX/POLICY.
-DROP EVENT TRIGGER IF EXISTS issue_pg_graphql_access;
-CREATE EVENT TRIGGER issue_pg_graphql_access
-  ON ddl_command_end
-  WHEN TAG IN ('CREATE FUNCTION')
-  EXECUTE PROCEDURE extensions.grant_pg_graphql_access();
     `.trim(),
   },
 ];
